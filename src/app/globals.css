@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background-light: white;
+  --foreground-light: #171717;
+  --background-dark: #0a0b5c;
+  --foreground-dark: white;
+
+  --background: var(--background-light);
+  --foreground: var(--foreground-light);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-light: white;
+    --foreground-light: #171717;
+    --background-dark: #030630;
+    --foreground-dark: white;
+  
+    --background: var(--background-light);
+    --foreground: var(--foreground-light);
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+  
+}
+/* Add additional styles for dark mode elements */
+body.dark {
+  --background: var(--background-dark);
+  --foreground: var(--foreground-dark);
+}
+  
+.sidebar {
+  background-color: #ededf0;
+}
+
+@layer utilities {
+  /* Scrollbar Styling */
+  .scrollbar-thin {
+    scrollbar-width: thin; 
+    scrollbar-color: rgba(110, 117, 187, 0.5) rgba(24, 95, 153, 0.1); 
+  }
+
+  .scrollbar-thin::-webkit-scrollbar { 
+    width: 8px; 
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background-color: rgba(22, 34, 90, 0.5); /* Thumb color */
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    border-radius: 4px;
+    background-color: white; /* Track color */
+  }
+
+  /* Rounded Scrollbar */
+  .scrollbar-rounded::-webkit-scrollbar-thumb {
+    border-radius: 8px; /* More rounded thumb */
+  }
+
+  .scrollbar-rounded::-webkit-scrollbar-track {
+    border-radius: 8px; /* More rounded track */
+  }
+
+  /* Custom Utilities for Overflow */
+  .overflow-auto-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .overflow-hidden {
+    overflow: hidden;
+  }
+}
