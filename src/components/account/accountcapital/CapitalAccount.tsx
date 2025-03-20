@@ -14,20 +14,26 @@ import { createCapitalAccount, updateCapitalAccount, getAllCapitalAccount } from
 
 // Zod schema for form validation
 const accountSchema = z.object({
-  id: z.string(),
+  id: z.string().optional(),
   description: z.string().min(1, 'Description is required'),
 });
 
 type AccountFormData = z.infer<typeof accountSchema>;
 
 type Account = {
- 
+  id: string;
   listid: string;
   description: string;
   parentAccountId: string | null;
   children: Account[];
 };
+type Accountn = {
 
+  listid: string;
+  description: string;
+  parentAccountId: string | null;
+  children: Account[];
+};
 // Main component
 const CapitalAccount = () => {
   const [loading, setLoading] = useState(false);
@@ -56,17 +62,17 @@ const CapitalAccount = () => {
   const buildHierarchy = (accounts: Account[]): Account[] => {
     const map: Record<string, Account> = {};
     accounts.forEach((account) => {
-      map[account.listid] = { ...account, children: [] };
+      map[account.id] = { ...account, children: [] };
     });
 
     const rootAccounts: Account[] = [];
     accounts.forEach((account) => {
       if (account.parentAccountId === null) {
-        rootAccounts.push(map[account.listid]);
+        rootAccounts.push(map[account.id]);
       } else {
         const parent = map[account.parentAccountId];
         if (parent) {
-          parent.children.push(map[account.listid]);
+          parent.children.push(map[account.id]);
         }
       }
     });
@@ -74,7 +80,6 @@ const CapitalAccount = () => {
     return rootAccounts;
   };
 
-  
   // Fetch capital accounts
   const fetchCapitalAccount = async () => {
     try {
@@ -93,28 +98,13 @@ const CapitalAccount = () => {
     fetchCapitalAccount();
   }, [pageIndex, pageSize]);
 
-  // Generate ID for new accounts
-  const generateId = (parentId = '') => {
-    if (!parentId) {
-      const topLevelCount = accounts.filter((acc) => !acc.listid.includes('.')).length;
-      return `${topLevelCount + 1}`;
-    } else {
-      const parentAccount = findAccount(accounts, parentId);
-      if (parentAccount) {
-        const siblingCount = parentAccount.children.length;
-        return `${parentId}.${String(siblingCount + 1).padStart(3, '0')}`
-      }
-    }
-    return '';
-  };
-
-  // Recursively find an account by listid
-  const findAccount = (accounts: Account[], listid: string): Account | null => {
+  // Recursively find an account by id
+  const findAccount = (accounts: Account[], id: string): Account | null => {
     for (const account of accounts) {
-      if (account.listid === listid) {
+      if (account.id === id) {
         return account;
       } else if (account.children) {
-        const found = findAccount(account.children, listid);
+        const found = findAccount(account.children, id);
         if (found) return found;
       }
     }
@@ -124,7 +114,7 @@ const CapitalAccount = () => {
   // Add a child account
   const addChildAccount = (accounts: Account[], parentId: string, newAccount: Account): Account[] => {
     return accounts.map((account) => {
-      if (account.listid === parentId) {
+      if (account.id === parentId) {
         return { ...account, children: [...account.children, newAccount] };
       } else if (account.children) {
         return { ...account, children: addChildAccount(account.children, parentId, newAccount) };
@@ -134,41 +124,42 @@ const CapitalAccount = () => {
   };
 
   // Update account description
-  const updateDescription = (accounts: Account[], listid: string, description: string): Account[] => {
+  const updateDescription = (accounts: Account[], id: string, description: string): Account[] => {
     return accounts.map((account) => {
-      if (account.listid === listid) {
+      if (account.id === id) {
         return { ...account, description };
       } else if (account.children) {
-        return { ...account, children: updateDescription(account.children, listid, description) };
+        return { ...account, children: updateDescription(account.children, id, description) };
       }
       return account;
     });
   };
 
   // Remove an account
-  const removeAccount = (accounts: Account[], listid: string): Account[] => {
+  const removeAccount = (accounts: Account[], id: string): Account[] => {
     return accounts.filter((account) => {
-      if (account.listid === listid) {
+      if (account.id === id) {
         return false;
       } else if (account.children) {
-        account.children = removeAccount(account.children, listid);
+        account.children = removeAccount(account.children, id);
       }
       return true;
     });
   };
 
   // Handle right-click for context menu
-  const handleRightClick = (event: React.MouseEvent, listid: string) => {
+  const handleRightClick = (event: React.MouseEvent, id: string) => {
     event.preventDefault();
-    setContextMenu({ x: event.clientX, y: event.clientY, id: listid });
+    setContextMenu({ x: event.clientX, y: event.clientY, id });
   };
   
-  const toggleItem = (listid: string) => {
+  const toggleItem = (id: string) => {
     setOpenItems((prev) => ({
       ...prev,
-      [listid]: !prev[listid],
+      [id]: !prev[id],
     }));
   };
+
   // Close context menu on outside click
   useEffect(() => {
     const handleClickOutside = () => {
@@ -185,6 +176,7 @@ const CapitalAccount = () => {
     const initialAccountExists = accounts.some(account => account.listid === '1');
     if (!initialAccountExists) {
       const initialAccount: Account = {
+        id: '',
         listid: '1',
         description: 'Equity',
         parentAccountId: null,
@@ -193,6 +185,7 @@ const CapitalAccount = () => {
       setAccounts([initialAccount, ...accounts]);
     }
   }, [accounts]);
+
   // Handle form submission
   const onSubmit = async (data: AccountFormData) => {
     setLoading(true);
@@ -206,30 +199,28 @@ const CapitalAccount = () => {
         toast.success('Account updated successfully!');
       } else if (parentIdForChild) {
         // Add a new child account
-        const newId = generateId(parentIdForChild);
-        const newAccount: Account = {
-      
-          listid: newId,
+        const newAccount: Accountn = {
+          
+          listid: '', // Backend will generate this
           description: data.description,
-          parentAccountId: null,
+          parentAccountId: parentIdForChild, // Use the correct GUID here
           children: [],
         };
         response = await createCapitalAccount(newAccount);
-        setAccounts((prevAccounts) => addChildAccount(prevAccounts, parentIdForChild, newAccount));
+        setAccounts((prevAccounts) => addChildAccount(prevAccounts, parentIdForChild, response.data));
         setParentIdForChild(null);
         toast.success('Child account added successfully!');
       } else {
         // Add a new top-level account
-        const newId = generateId();
         const newAccount: Account = {
-          
-          listid: newId,
+          id: '', // Backend will generate this
+          listid: '', // Backend will generate this
           description: data.description,
           parentAccountId: null,
           children: [],
         };
         response = await createCapitalAccount(newAccount);
-        setAccounts((prevAccounts) => [...prevAccounts, newAccount]);
+        setAccounts((prevAccounts) => [...prevAccounts, response.data]);
         toast.success('Account added successfully!');
       }
       console.log(response);
@@ -244,28 +235,30 @@ const CapitalAccount = () => {
   };
 
   // Handle context menu actions
-  const handleContextMenuAction = (action: 'add' | 'addChild' | 'edit' | 'delete', listid: string) => {
+  const handleContextMenuAction = (action: 'add' | 'addChild' | 'edit' | 'delete', id: string) => {
     setContextMenu(null);
     if (action === 'add') {
       setShowForm(true);
-      reset({ id: generateId(), description: '' });
+      reset({ id: '', description: '' });
     } else if (action === 'addChild') {
       setShowForm(true);
-      setParentIdForChild(listid);
-      reset({ id: generateId(listid), description: '' });
+      const parentAccount = findAccount(accounts, id);
+      if (parentAccount) {
+        setParentIdForChild(parentAccount.id); // Use the actual GUID here
+      }
+      reset({ id: '', description: '' });
     } else if (action === 'edit') {
-      setEditingId(listid);
-      const account = findAccount(accounts, listid);
+      setEditingId(id);
+      const account = findAccount(accounts, id);
       if (account) {
-        reset({ id: account.listid, description: account.description });
+        reset({ id: account.id, description: account.description });
       }
       setShowForm(true);
     } else if (action === 'delete') {
-      setAccounts((prevAccounts) => removeAccount(prevAccounts, listid));
+      setAccounts((prevAccounts) => removeAccount(prevAccounts, id));
       toast.success('Account deleted successfully!');
     }
   };
-
 
   // Filter accounts based on search query
   const filteredAccounts = accounts.filter((account) => {
@@ -283,7 +276,7 @@ const CapitalAccount = () => {
     return (
       <ul className="list-none mt-4 dark:bg-[#030630] bg-white z-0">
       {accounts.map((account) => (
-        <li key={account.listid} className="relative pl-4 ">
+        <li key={account.id} className="relative pl-4 ">
           {/* Vertical line */}
           {level > 0 && (
             <div
@@ -300,15 +293,15 @@ const CapitalAccount = () => {
           )}
           <div
             className="flex items-center gap-2 p-2 hover:bg-[#c2e5f5] rounded transition-colors duration-200"
-            onContextMenu={(e) => handleRightClick(e, account.listid)}
+            onContextMenu={(e) => handleRightClick(e, account.id)}
           >
             {/* Expand/Collapse Icon */}
             {account.children && account.children.length > 0 && (
               <button
-                onClick={() => toggleItem(account.listid)}
+                onClick={() => toggleItem(account.id)}
                 className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-gray-200 transition-colors duration-200"
               >
-                {openItems[account.listid] ? (
+                {openItems[account.id] ? (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     className="h-4 w-4 text-gray-600"
@@ -344,7 +337,7 @@ const CapitalAccount = () => {
             </div>
           </div>
           {/* Render sub-children if expanded */}
-          {account.children && openItems[account.listid] && (
+          {account.children && openItems[account.id] && (
             <div className="pl-6">{renderAccounts(account.children, level + 1)}</div>
           )}
         </li>
