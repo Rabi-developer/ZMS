@@ -46,7 +46,7 @@ const getSingleCapitalAccount = async (id: string) => {
 // Update CapitalAccount
 const updateCapitalAccount = async (id: string, CapitalAccount: any) => {
   try {
-    const response = await apiFetch(`CapitalAccount/${id}`, {
+    const response = await apiFetch(`CapitalAccount`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

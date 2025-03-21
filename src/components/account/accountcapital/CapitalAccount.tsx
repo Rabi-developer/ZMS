@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
@@ -10,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { FaRegListAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
 import Link from 'next/link';
-import { createCapitalAccount, updateCapitalAccount, getAllCapitalAccount } from '@/apis/capitalaccount';
+import { createCapitalAccount, updateCapitalAccount, getAllCapitalAccount, deleteCapitalAccount } from '@/apis/capitalaccount';
 
 // Zod schema for form validation
 const accountSchema = z.object({
@@ -27,13 +28,21 @@ type Account = {
   parentAccountId: string | null;
   children: Account[];
 };
-type Accountn = {
 
-  listid: string;
-  description: string;
-  parentAccountId: string | null;
-  children: Account[];
+type ApiResponse<T> = {
+  data: T;
+  statusCode: number;
+  statusMessage: string;
+  misc: {
+    totalPages: number;
+    total: number;
+    pageIndex: number;
+    pageSize: number;
+    refId: string | null;
+    searchQuery: string | null;
+  };
 };
+
 // Main component
 const CapitalAccount = () => {
   const [loading, setLoading] = useState(false);
@@ -84,7 +93,7 @@ const CapitalAccount = () => {
   const fetchCapitalAccount = async () => {
     try {
       setLoading(true);
-      const response = await getAllCapitalAccount(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      const response: ApiResponse<Account[]> = await getAllCapitalAccount(pageIndex === 0 ? 1 : pageIndex, pageSize);
       const hierarchicalAccounts = buildHierarchy(response.data);
       setAccounts(hierarchicalAccounts);
     } catch (error) {
@@ -187,55 +196,63 @@ const CapitalAccount = () => {
   }, [accounts]);
 
   // Handle form submission
-  const onSubmit = async (data: AccountFormData) => {
-    setLoading(true);
-    try {
-      let response;
-      if (editingId) {
+ // Handle form submission
+const onSubmit = async (data: AccountFormData) => {
+  setLoading(true);
+  try {
+    let response: ApiResponse<Account>;
+    if (editingId) {
+      // Find the account being edited
+      const accountToUpdate = findAccount(accounts, editingId);
+      if (accountToUpdate) {
         // Update existing account
-        response = await updateCapitalAccount(editingId, data);
+        const updateData = {
+          ...data,
+          parentAccountId: accountToUpdate.parentAccountId,
+          listid: accountToUpdate.listid,
+        };
+        response = await updateCapitalAccount(editingId, updateData);
         setAccounts((prevAccounts) => updateDescription(prevAccounts, editingId, data.description));
         setEditingId(null);
         toast.success('Account updated successfully!');
-      } else if (parentIdForChild) {
-        // Add a new child account
-        const newAccount: Accountn = {
-          
-          listid: '', // Backend will generate this
-          description: data.description,
-          parentAccountId: parentIdForChild, // Use the correct GUID here
-          children: [],
-        };
-        response = await createCapitalAccount(newAccount);
-        setAccounts((prevAccounts) => addChildAccount(prevAccounts, parentIdForChild, response.data));
-        setParentIdForChild(null);
-        toast.success('Child account added successfully!');
-      } else {
-        // Add a new top-level account
-        const newAccount: Account = {
-          id: '', // Backend will generate this
-          listid: '', // Backend will generate this
-          description: data.description,
-          parentAccountId: null,
-          children: [],
-        };
-        response = await createCapitalAccount(newAccount);
-        setAccounts((prevAccounts) => [...prevAccounts, response.data]);
-        toast.success('Account added successfully!');
       }
-      console.log(response);
-      setShowForm(false);
-      reset();
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      toast.error('Failed to submit form. Please try again.');
-    } finally {
-      setLoading(false);
+    } else if (parentIdForChild) {
+      // Add a new child account
+      const newAccount: Omit<Account, 'id'> = {
+        listid: '', // Backend will generate this
+        description: data.description,
+        parentAccountId: parentIdForChild, // Use the correct GUID here
+        children: [],
+      };
+      response = await createCapitalAccount(newAccount);
+      setAccounts((prevAccounts) => addChildAccount(prevAccounts, parentIdForChild, response.data));
+      setParentIdForChild(null);
+      toast.success('Child account added successfully!');
+    } else {
+      // Add a new top-level account
+      const newAccount: Omit<Account, 'id'> = {
+        listid: '', // Backend will generate this
+        description: data.description,
+        parentAccountId: null,
+        children: [],
+      };
+      response = await createCapitalAccount(newAccount);
+      setAccounts((prevAccounts) => [...prevAccounts, response.data]);
+      toast.success('Account added successfully!');
     }
-  };
-
+   
+    setShowForm(false);
+    reset();
+    location.reload();
+  } catch (error) {
+    console.error('Error submitting form:', error);
+    toast.error('Failed to submit form. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
   // Handle context menu actions
-  const handleContextMenuAction = (action: 'add' | 'addChild' | 'edit' | 'delete', id: string) => {
+  const handleContextMenuAction = async (action: 'add' | 'addChild' | 'edit' | 'delete', id: string) => {
     setContextMenu(null);
     if (action === 'add') {
       setShowForm(true);
@@ -255,16 +272,22 @@ const CapitalAccount = () => {
       }
       setShowForm(true);
     } else if (action === 'delete') {
-      setAccounts((prevAccounts) => removeAccount(prevAccounts, id));
-      toast.success('Account deleted successfully!');
+      try {
+        await deleteCapitalAccount(id);
+        setAccounts((prevAccounts) => removeAccount(prevAccounts, id));
+        toast.success('Account deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting account:', error);
+        toast.error('Failed to delete account. Please try again.');
+      }
     }
   };
 
   // Filter accounts based on search query
   const filteredAccounts = accounts.filter((account) => {
     return (
-      account.listid.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      account.description.toLowerCase().includes(searchQuery.toLowerCase())
+      (account.listid && account.listid.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (account.description && account.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   });
 
@@ -274,75 +297,75 @@ const CapitalAccount = () => {
   // Render accounts with hierarchical lines
   const renderAccounts = (accounts: Account[], level = 0) => {
     return (
-      <ul className="list-none mt-4 dark:bg-[#030630] bg-white z-0">
-      {accounts.map((account) => (
-        <li key={account.id} className="relative pl-4 ">
-          {/* Vertical line */}
-          {level > 0 && (
-            <div
-              className="absolute left-0 top-0 bottom-0 w-px bg-gray-300 z-0"
-              style={{ height: '100%' }}
-            />
-          )}
-          {/* Horizontal line */}
-          {level > 0 && (
-            <div
-              className="absolute left-0 top-1/2 w-4 h-px bg-gray-300"
-              style={{ transform: 'translateY(-50%)' }}
-            />
-          )}
-          <div
-            className="flex items-center gap-2 p-2 hover:bg-[#c2e5f5] rounded transition-colors duration-200"
-            onContextMenu={(e) => handleRightClick(e, account.id)}
-          >
-            {/* Expand/Collapse Icon */}
-            {account.children && account.children.length > 0 && (
-              <button
-                onClick={() => toggleItem(account.id)}
-                className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-gray-200 transition-colors duration-200"
-              >
-                {openItems[account.id] ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-gray-600"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 text-gray-600"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                )}
-              </button>
+      <ul className="list-none mt-4 bg-white dark:bg-[#030630] z-0">
+        {accounts.map((account) => (
+          <li key={account.id} className="relative pl-4">
+            {/* Vertical line */}
+            {level > 0 && (
+              <div
+                className="absolute left-0 top-0 bottom-0 w-px bg-gray-300 dark:bg-gray-600 z-0"
+                style={{ height: '100%' }}
+              />
             )}
-            {/* Account Details */}
-            <div className="flex-1">
-              <span className="font-bold  text-[#17678d]">{account.listid}</span>
-              <span className="ml-2 font-semibold text-[#2aa0cd]">{account.description}</span>
+            {/* Horizontal line */}
+            {level > 0 && (
+              <div
+                className="absolute left-0 top-1/2 w-4 h-px bg-gray-300 dark:bg-gray-600"
+                style={{ transform: 'translateY(-50%)' }}
+              />
+            )}
+            <div
+              className="flex mb-4 items-center gap-3 p-2 bg-[#e6f8fb] border border-[#06b6d4]  text-black hover:bg-[#06b6d4] rounded-lg  transition-all duration-300"
+              onContextMenu={(e) => handleRightClick(e, account.id)}
+            >
+              {/* Expand/Collapse Icon */}
+              {account.children && account.children.length > 0 && (
+                <button
+                  onClick={() => toggleItem(account.id)}
+                  className="flex items-center justify-center w-5 h-5 rounded-full  bg-[#06b5d4] hover:bg-black transition-colors duration-200 shadow"
+                >
+                  {openItems[account.id] ? (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 text-white"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5 text-white"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </button>
+              )}
+              {/* Account Details */}
+              <div className="flex-1">
+                <span className="font-bold text-white p-[3px] px-[6px] br bg-[#06b6d4] rounded-md">{account.listid}</span>
+                <span className="ml-2 font-semibold text-black ">{account.description}</span>
+              </div>
             </div>
-          </div>
-          {/* Render sub-children if expanded */}
-          {account.children && openItems[account.id] && (
-            <div className="pl-6">{renderAccounts(account.children, level + 1)}</div>
-          )}
-        </li>
-      ))}
-    </ul>
+            {/* Render sub-children if expanded */}
+            {account.children && openItems[account.id] && (
+              <div className="pl-6">{renderAccounts(account.children, level + 1)}</div>
+            )}
+          </li>
+        ))}
+      </ul>
     );
   };
 
