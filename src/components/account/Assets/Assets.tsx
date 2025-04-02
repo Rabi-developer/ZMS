@@ -10,22 +10,22 @@ import { Button } from '@/components/ui/button';
 import { FaRegListAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
 import Link from 'next/link';
-import { createCapitalAccount, updateCapitalAccount, getAllCapitalAccount, deleteCapitalAccount } from '@/apis/capitalaccount';
+import { createAssets, updateAssets, getAllAssets, deleteAssets } from '@/apis/assets';
 
 // Zod schema for form validation
-const accountSchema = z.object({
+const assetSchema = z.object({
   id: z.string().optional(),
   description: z.string().min(1, 'Description is required'),
 });
 
-type AccountFormData = z.infer<typeof accountSchema>;
+type AssetFormData = z.infer<typeof assetSchema>;
 
-type Account = {
+type Asset = {
   id: string;
   listid: string;
   description: string;
   parentAccountId: string | null;
-  children: Account[];
+  children: Asset[];
 };
 
 type ApiResponse<T> = {
@@ -43,9 +43,9 @@ type ApiResponse<T> = {
 };
 
 // Main component
-const CapitalAccount = () => {
+const Assets = () => {
   const [loading, setLoading] = useState(false);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [parentIdForChild, setParentIdForChild] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -54,8 +54,8 @@ const CapitalAccount = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
-    const [totalPages, setTotalPages] = useState(1);
-    const [flatAccounts, setFlatAccounts] = useState<Account[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [flatAssets, setFlatAssets] = useState<Asset[]>([]);
 
   const router = useRouter();
   const {
@@ -64,97 +64,96 @@ const CapitalAccount = () => {
     formState: { errors },
     reset,
     control,
-  } = useForm<AccountFormData>({
-    resolver: zodResolver(accountSchema),
+  } = useForm<AssetFormData>({
+    resolver: zodResolver(assetSchema),
   });
 
   // Build hierarchical structure from flat data
-  const buildHierarchy = (accounts: Account[]): Account[] => {
-    const map: Record<string, Account> = {};
-    accounts.forEach((account) => {
-      map[account.id] = { ...account, children: [] };
+  const buildHierarchy = (assets: Asset[]): Asset[] => {
+    const map: Record<string, Asset> = {};
+    assets.forEach((asset) => {
+      map[asset.id] = { ...asset, children: [] };
     });
 
-    const rootAccounts: Account[] = [];
-    accounts.forEach((account) => {
-      if (account.parentAccountId === null) {
-        rootAccounts.push(map[account.id]);
+    const rootAssets: Asset[] = [];
+    assets.forEach((asset) => {
+      if (asset.parentAccountId === null) {
+        rootAssets.push(map[asset.id]);
       } else {
-        const parent = map[account.parentAccountId];
+        const parent = map[asset.parentAccountId];
         if (parent) {
-          parent.children.push(map[account.id]);
+          parent.children.push(map[asset.id]);
         }
       }
     });
 
-    return rootAccounts;
+    return rootAssets;
   };
 
-  // Fetch capital accounts
-  const fetchCapitalAccount = async () => {
+  // Fetch assets
+  const fetchAssets = async () => {
     try {
       setLoading(true);
-      const response: ApiResponse<Account[]> = await getAllCapitalAccount(pageIndex === 0 ? 1 : pageIndex, pageSize);
-      const hierarchicalAccounts = buildHierarchy(response.data);
+      const response: ApiResponse<Asset[]> = await getAllAssets(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      const hierarchicalAssets = buildHierarchy(response.data);
       setTotalPages(response.misc.totalPages); // Update total pages
-      setAccounts(hierarchicalAccounts);
+      setAssets(hierarchicalAssets);
     } catch (error) {
       console.error(error);
-      // toast.error('Failed to fetch accounts. Please try again.');
-      
+      // toast.error('Failed to fetch assets. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCapitalAccount();
+    fetchAssets();
   }, [pageIndex, pageSize]);
 
-  // Recursively find an account by id
-  const findAccount = (accounts: Account[], id: string): Account | null => {
-    for (const account of accounts) {
-      if (account.id === id) {
-        return account;
-      } else if (account.children) {
-        const found = findAccount(account.children, id);
+  // Recursively find an asset by id
+  const findAsset = (assets: Asset[], id: string): Asset | null => {
+    for (const asset of assets) {
+      if (asset.id === id) {
+        return asset;
+      } else if (asset.children) {
+        const found = findAsset(asset.children, id);
         if (found) return found;
       }
     }
     return null;
   };
 
-  // Add a child account
-  const addChildAccount = (accounts: Account[], parentId: string, newAccount: Account): Account[] => {
-    return accounts.map((account) => {
-      if (account.id === parentId) {
-        return { ...account, children: [...account.children, newAccount] };
-      } else if (account.children) {
-        return { ...account, children: addChildAccount(account.children, parentId, newAccount) };
+  // Add a child asset
+  const addChildAsset = (assets: Asset[], parentId: string, newAsset: Asset): Asset[] => {
+    return assets.map((asset) => {
+      if (asset.id === parentId) {
+        return { ...asset, children: [...asset.children, newAsset] };
+      } else if (asset.children) {
+        return { ...asset, children: addChildAsset(asset.children, parentId, newAsset) };
       }
-      return account;
+      return asset;
     });
   };
 
-  // Update account description
-  const updateDescription = (accounts: Account[], id: string, description: string): Account[] => {
-    return accounts.map((account) => {
-      if (account.id === id) {
-        return { ...account, description };
-      } else if (account.children) {
-        return { ...account, children: updateDescription(account.children, id, description) };
+  // Update asset description
+  const updateDescription = (assets: Asset[], id: string, description: string): Asset[] => {
+    return assets.map((asset) => {
+      if (asset.id === id) {
+        return { ...asset, description };
+      } else if (asset.children) {
+        return { ...asset, children: updateDescription(asset.children, id, description) };
       }
-      return account;
+      return asset;
     });
   };
 
-  // Remove an account
-  const removeAccount = (accounts: Account[], id: string): Account[] => {
-    return accounts.filter((account) => {
-      if (account.id === id) {
+  // Remove an asset
+  const removeAsset = (assets: Asset[], id: string): Asset[] => {
+    return assets.filter((asset) => {
+      if (asset.id === id) {
         return false;
-      } else if (account.children) {
-        account.children = removeAccount(account.children, id);
+      } else if (asset.children) {
+        asset.children = removeAsset(asset.children, id);
       }
       return true;
     });
@@ -165,7 +164,7 @@ const CapitalAccount = () => {
     event.preventDefault();
     setContextMenu({ x: event.clientX, y: event.clientY, id });
   };
-  
+
   const toggleItem = (id: string) => {
     setOpenItems((prev) => ({
       ...prev,
@@ -185,68 +184,75 @@ const CapitalAccount = () => {
   }, []);
 
   useEffect(() => {
-    const initialAccountExists = accounts.some(account => account.listid === '1');
-    if (!initialAccountExists) {
-      const initialAccount: Account = {
+    // Check if the initial asset (ID: 3, Description: Assets) exists
+    const initialAssetExists = assets.some(asset => asset.listid === '3');
+    if (!initialAssetExists) {
+      const initialAsset: Asset = {
         id: '',
-        listid: '1',
-        description: 'Equity',
+        listid: '3', // Start ID from 3
+        description: 'Assets',
         parentAccountId: null,
         children: [],
       };
-      setAccounts([initialAccount, ...accounts]);
+      setAssets([initialAsset, ...assets]);
     }
-  }, [accounts]);
-  
-const onSubmit = async (data: AccountFormData) => {
-  setLoading(true);
-  try {
-    let response: ApiResponse<Account>;
-    if (editingId) {
-      const accountToUpdate = findAccount(accounts, editingId);
-      if (accountToUpdate) {
-        const updateData = {
-          ...data,
-          parentAccountId: accountToUpdate.parentAccountId,
-          listid: accountToUpdate.listid,
+  }, [assets]);
+
+  // Handle form submission
+  const onSubmit = async (data: AssetFormData) => {
+    setLoading(true);
+    try {
+      let response: ApiResponse<Asset>;
+      if (editingId) {
+        // Find the asset being edited
+        const assetToUpdate = findAsset(assets, editingId);
+        if (assetToUpdate) {
+          // Update existing asset
+          const updateData = {
+            ...data,
+            parentAccountId: assetToUpdate.parentAccountId,
+            listid: assetToUpdate.listid,
+          };
+          response = await updateAssets(editingId, updateData);
+          setAssets((prevAssets) => updateDescription(prevAssets, editingId, data.description));
+          setEditingId(null);
+          toast.success('Asset updated successfully!');
+        }
+      } else if (parentIdForChild) {
+        // Add a new child asset
+        const newAsset: Omit<Asset, 'id'> = {
+          listid: '', // Backend will generate this
+          description: data.description,
+          parentAccountId: parentIdForChild, // Use the correct GUID here
+          children: [],
         };
-        response = await updateCapitalAccount(editingId, updateData);
-        setAccounts((prevAccounts) => updateDescription(prevAccounts, editingId, data.description));
-        setEditingId(null);
-        toast.success('Account updated successfully!');
+        response = await createAssets(newAsset);
+        setAssets((prevAssets) => addChildAsset(prevAssets, parentIdForChild, response.data));
+        setParentIdForChild(null);
+        toast.success('Child asset added successfully!');
+      } else {
+        // Add a new top-level asset
+        const newAsset: Omit<Asset, 'id'> = {
+          listid: '', // Backend will generate this
+          description: data.description,
+          parentAccountId: null,
+          children: [],
+        };
+        response = await createAssets(newAsset);
+        setAssets((prevAssets) => [...prevAssets, response.data]);
+        toast.success('Asset added successfully!');
       }
-    } else if (parentIdForChild) {
-      const newAccount: Omit<Account, 'id'> = {
-        listid: '', 
-        description: data.description,
-        parentAccountId: parentIdForChild,
-        children: [],
-      };
-      response = await createCapitalAccount(newAccount);
-      setAccounts((prevAccounts) => addChildAccount(prevAccounts, parentIdForChild, response.data));
-      setParentIdForChild(null);
-      toast.success('Child account added successfully!');
-    } else {
-      const newAccount: Omit<Account, 'id'> = {
-        listid: '', 
-        description: data.description,
-        parentAccountId: null,
-        children: [],
-      };
-      response = await createCapitalAccount(newAccount);
-      setAccounts((prevAccounts) => [...prevAccounts, response.data]);
-      toast.success('Account added successfully!');
+
+      setShowForm(false);
+      reset();
+      fetchAssets();
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    } finally {
+      setLoading(false);
     }
-   
-    setShowForm(false);
-    reset();
-    fetchCapitalAccount();
-  } catch (error) {
-    console.error('Error submitting form:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   // Handle context menu actions
   const handleContextMenuAction = async (action: 'add' | 'addChild' | 'edit' | 'delete', id: string) => {
     setContextMenu(null);
@@ -255,48 +261,48 @@ const onSubmit = async (data: AccountFormData) => {
       reset({ id: '', description: '' });
     } else if (action === 'addChild') {
       setShowForm(true);
-      const parentAccount = findAccount(accounts, id);
-      if (parentAccount) {
-        setParentIdForChild(parentAccount.id);
+      const parentAsset = findAsset(assets, id);
+      if (parentAsset) {
+        setParentIdForChild(parentAsset.id); // Use the actual GUID here
       }
       reset({ id: '', description: '' });
     } else if (action === 'edit') {
       setEditingId(id);
-      const account = findAccount(accounts, id);
-      if (account) {
-        reset({ id: account.id, description: account.description });
+      const asset = findAsset(assets, id);
+      if (asset) {
+        reset({ id: asset.id, description: asset.description });
       }
       setShowForm(true);
     } else if (action === 'delete') {
       try {
-        await deleteCapitalAccount(id);
-        setAccounts((prevAccounts) => removeAccount(prevAccounts, id));
-        toast.success('Account deleted successfully!');
+        await deleteAssets(id);
+        setAssets((prevAssets) => removeAsset(prevAssets, id));
+        toast.success('Asset deleted successfully!');
       } catch (error) {
-        console.error('Error deleting account:', error);
-        toast.error('Failed to delete account. Please try again.');
+        console.error('Error deleting asset:', error);
       }
     }
   };
 
-  const filteredAccounts = accounts.filter((account) => {
+  const filteredAssets = assets.filter((asset) => {
     return (
-      (account.listid && account.listid.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (account.description && account.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      (asset.listid && asset.listid.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (asset.description && asset.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   });
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
     setPageIndex(0); 
-  };  
-  const paginatedAccounts = filteredAccounts.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
-  const renderAccounts = (accounts: Account[], level = 0) => {
+  };
+
+  const paginatedAssets = filteredAssets.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+
+  const renderAssets = (assets: Asset[], level = 0) => {
     return (
       <ul className="list-none mt-4 bg-white dark:bg-[#030630] z-0">
-        {accounts.map((account) => (
-          <li   key={`${account.id}-${account.listid}`}
-          className="relative pl-4">
+        {assets.map((asset) => (
+          <li key={`${asset.id}-${asset.listid}`} className="relative pl-4">
             {level > 0 && (
               <div
                 className="absolute left-0 top-0 bottom-0 w-px bg-gray-300 dark:bg-gray-600 z-0"
@@ -311,15 +317,15 @@ const onSubmit = async (data: AccountFormData) => {
             )}
             <div
               className="flex mb-4 items-center gap-3 p-2 bg-[#e6f8fb] border border-[#06b6d4]  text-black hover:bg-[#06b6d4] rounded-lg  transition-all duration-300"
-              onContextMenu={(e) => handleRightClick(e, account.id)}
+              onContextMenu={(e) => handleRightClick(e, asset.id)}
             >
               {/* Expand/Collapse Icon */}
-              {account.children && account.children.length > 0 && (
+              {asset.children && asset.children.length > 0 && (
                 <button
-                  onClick={() => toggleItem(account.id)}
+                  onClick={() => toggleItem(asset.id)}
                   className="flex items-center justify-center w-5 h-5 rounded-full  bg-[#06b5d4] hover:bg-black transition-colors duration-200 shadow"
                 >
-                  {openItems[account.id] ? (
+                  {openItems[asset.id] ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-5 w-5 text-white"
@@ -348,15 +354,15 @@ const onSubmit = async (data: AccountFormData) => {
                   )}
                 </button>
               )}
-              {/* Account Details */}
+              {/* Asset Details */}
               <div className="flex-1">
-                <span className="font-bold text-white p-[3px] px-[6px] br bg-[#06b6d4] rounded-md">{account.listid}</span>
-                <span className="ml-2 font-semibold text-black ">{account.description}</span>
+                <span className="font-bold text-white p-[3px] px-[6px] br bg-[#06b6d4] rounded-md">{asset.listid}</span>
+                <span className="ml-2 font-semibold text-black ">{asset.description}</span>
               </div>
             </div>
             {/* Render sub-children if expanded */}
-            {account.children && openItems[account.id] && (
-              <div className="pl-6">{renderAccounts(account.children, level + 1)}</div>
+            {asset.children && openItems[asset.id] && (
+              <div className="pl-6">{renderAssets(asset.children, level + 1)}</div>
             )}
           </li>
         ))}
@@ -441,7 +447,7 @@ const onSubmit = async (data: AccountFormData) => {
                 className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
                 disabled={loading}
               >
-                {loading ? 'Submitting...' : (editingId ? 'Update' : 'Create')} Account
+                {loading ? 'Submitting...' : (editingId ? 'Update' : 'Create')} Asset
               </Button>
               <Button
                 type="button"
@@ -456,13 +462,13 @@ const onSubmit = async (data: AccountFormData) => {
         </div>
       )}
 
-      {/* List of accounts */}
+      {/* List of assets */}
       <div className="p-2 border-2 border-[#2aa0cd] shadow-2xl rounded">
         {/* Header */}
         <div className="w-full bg-[#06b6d4] h-[7vh] rounded dark:bg-[#387fbf] mb-2 pt-2">
           <h1 className="text-base text-[24px] font-mono ml-10  pt-2 text-white flex gap-2">
             <FaRegListAlt size={30} />
-            <span className="mt-1"> LIST OF ACCOUNT-CAPITAL </span>
+            <span className="mt-1"> LIST OF ASSETS </span>
           </h1>
         </div>
 
@@ -483,39 +489,37 @@ const onSubmit = async (data: AccountFormData) => {
           </div>
         </div>
 
-        <div>{renderAccounts(paginatedAccounts)}</div>
+        <div>{renderAssets(paginatedAssets)}</div>
         <div className="flex justify-between py-2 mt-1 px-4 rounded-md items-center">
-    {/* Page count (Start Section) */}
-    <div className="flex items-center">
-      <span className="text-sm text-gray-700">
-        Page {pageIndex + 1} of {totalPages}
-      </span>
-    </div>
+          {/* Page count (Start Section) */}
+          <div className="flex items-center">
+            <span className="text-sm text-gray-700">
+              Page {pageIndex + 1} of {totalPages}
+            </span>
+          </div>
 
-    {/* Pagination controls (End Section) */}
-    <div className="flex items-center space-x-3">
-      {/* Rows per page selection */}
-      <div className="flex items-center space-x-3">
-        <span className="text-sm text-gray-700">Rows per page:</span>
-        <select
-          value={pageSize}
-          onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-          className="border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-[#030630]"
-        >
-          {[  50, 100, 1000, 2000, 5000, 10000].map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </div>
-
-    
-    </div>
-  </div>
+          {/* Pagination controls (End Section) */}
+          <div className="flex items-center space-x-3">
+            {/* Rows per page selection */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-700">Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-[#030630]"
+              >
+                {[50, 100, 1000, 2000, 5000, 10000].map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default CapitalAccount;
+export default Assets;

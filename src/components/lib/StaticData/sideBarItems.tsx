@@ -133,7 +133,7 @@ export const sideBarItems = [
     color: '#33a4d8',
     sub_menu: [
   {
-    text: "Capital",
+    text: "Equality",
     href: "/capitalaccount",
     icon: RiAccountBoxLine,
     color: '#33a4d8',
@@ -145,41 +145,41 @@ export const sideBarItems = [
     color: '#33a4d8',
   },
   {
-    text: "Property & Assests",
-    href: "/property&assests",
-    icon: AiOutlinePropertySafety,
-    color: '#33a4d8',
-  },
-  {
-    text: "Sales & Services",
-    href: "/sales&services",
-    icon:  CiCoinInsert,
-    color: '#33a4d8',
-  },
-  {
-    text: "Costs & Sales",
-    href: "/costs&sales",
+    text: "Assests",
+    href: "/assets",
     icon:  FaCoins,
     color: '#33a4d8',
   },
   {
-    text: "Admin & SellingExp",
-    href: "/administration&sellingexpense",
+    text: "Expense",
+    href: "/expense",
     icon:  GrUserAdmin,
     color: '#33a4d8',
   },
   {
-    text: "Other Incomes",
-    href: "/otherincomes",
-    icon:  CiInboxOut ,
-    color: '#33a4d8',
-  },
-  {
-    text: "Financial Expense",
-    href: "/financialexpense",
+    text: "Revenue",
+    href: "/revenue",
     icon:  GoPackageDependents,
     color: '#33a4d8',
   },
+   // {
+  //   text: "Property & Assests",
+  //   href: "/property&assests",
+  //   icon: AiOutlinePropertySafety,
+  //   color: '#33a4d8',
+  // },
+  // {
+  //   text: "Sales & Services",
+  //   href: "/sales&services",
+  //   icon:  CiCoinInsert,
+  //   color: '#33a4d8',
+  // },
+  // {
+  //   text: "Other Incomes",
+  //   href: "/otherincomes",
+  //   icon:  CiInboxOut ,
+  //   color: '#33a4d8',
+  // },
   ]},
 
 

@@ -18,14 +18,13 @@ const DropdownUser = () => {
   }, []);
 
   const logOut = () => {
-    localStorage.clear(); // Ensure the token is removed
+    localStorage.clear(); 
     router.push("/signin");
     toast("Logged out Successfully", { type: "success" });
   };
 
   return (
     <ClickOutside onClick={() => setDropdownOpen(false)} className="relative">
-      {/* User's name display */}
       <Link
         onClick={() => setDropdownOpen(!dropdownOpen)}
         className="flex items-center gap-4 cursor-pointer"
@@ -33,8 +32,10 @@ const DropdownUser = () => {
       >
         {userName ? (
           <span
-            className="text-white text-lg font-bold py-2 px-4 bg-black dark:bg-[#4c7bc4] rounded-full cursor-pointer hover:bg-[#3a3b3f] dark:hover:bg-[#5f95d2] transition duration-300"
-          >
+          className="text-white text-lg font-bold py-2 px-4 bg-[#06b6d4] dark:bg-[#4c7bc4] 
+          rounded cursor-pointer transition-all duration-300 ease-in-out 
+          hover:bg-[#3a3b3f] dark:hover:bg-[#5f95d2] hover:shadow-lg 
+          hover:scale-105 hover:ring-2 hover:ring-white dark:hover:ring-blue-300">
             {userName}
           </span>
         ) : (

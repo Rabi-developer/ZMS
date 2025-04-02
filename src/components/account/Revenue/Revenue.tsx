@@ -10,22 +10,22 @@ import { Button } from '@/components/ui/button';
 import { FaRegListAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
 import Link from 'next/link';
-import { createCapitalAccount, updateCapitalAccount, getAllCapitalAccount, deleteCapitalAccount } from '@/apis/capitalaccount';
+import { createRevenue, updateRevenue, getAllRevenue, deleteRevenue } from '@/apis/revenue';
 
 // Zod schema for form validation
-const accountSchema = z.object({
+const revenueSchema = z.object({
   id: z.string().optional(),
   description: z.string().min(1, 'Description is required'),
 });
 
-type AccountFormData = z.infer<typeof accountSchema>;
+type RevenueFormData = z.infer<typeof revenueSchema>;
 
-type Account = {
+type Revenue = {
   id: string;
   listid: string;
   description: string;
-  parentAccountId: string | null;
-  children: Account[];
+ parentAccountId: string | null;
+  children: Revenue[];
 };
 
 type ApiResponse<T> = {
@@ -43,9 +43,9 @@ type ApiResponse<T> = {
 };
 
 // Main component
-const CapitalAccount = () => {
+const Revenues = () => {
   const [loading, setLoading] = useState(false);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [revenues, setRevenues] = useState<Revenue[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [parentIdForChild, setParentIdForChild] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -54,8 +54,8 @@ const CapitalAccount = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
-    const [totalPages, setTotalPages] = useState(1);
-    const [flatAccounts, setFlatAccounts] = useState<Account[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [flatRevenues, setFlatRevenues] = useState<Revenue[]>([]);
 
   const router = useRouter();
   const {
@@ -64,108 +64,101 @@ const CapitalAccount = () => {
     formState: { errors },
     reset,
     control,
-  } = useForm<AccountFormData>({
-    resolver: zodResolver(accountSchema),
+  } = useForm<RevenueFormData>({
+    resolver: zodResolver(revenueSchema),
   });
 
   // Build hierarchical structure from flat data
-  const buildHierarchy = (accounts: Account[]): Account[] => {
-    const map: Record<string, Account> = {};
-    accounts.forEach((account) => {
-      map[account.id] = { ...account, children: [] };
+  const buildHierarchy = (revenues: Revenue[]): Revenue[] => {
+    const map: Record<string, Revenue> = {};
+    revenues.forEach((revenue) => {
+      map[revenue.id] = { ...revenue, children: [] };
     });
 
-    const rootAccounts: Account[] = [];
-    accounts.forEach((account) => {
-      if (account.parentAccountId === null) {
-        rootAccounts.push(map[account.id]);
+    const rootRevenues: Revenue[] = [];
+    revenues.forEach((revenue) => {
+      if (revenue.parentAccountId === null) {
+        rootRevenues.push(map[revenue.id]);
       } else {
-        const parent = map[account.parentAccountId];
+        const parent = map[revenue.parentAccountId];
         if (parent) {
-          parent.children.push(map[account.id]);
+          parent.children.push(map[revenue.id]);
         }
       }
     });
 
-    return rootAccounts;
+    return rootRevenues;
   };
 
-  // Fetch capital accounts
-  const fetchCapitalAccount = async () => {
+  // Fetch revenues
+  const fetchRevenues = async () => {
     try {
       setLoading(true);
-      const response: ApiResponse<Account[]> = await getAllCapitalAccount(pageIndex === 0 ? 1 : pageIndex, pageSize);
-      const hierarchicalAccounts = buildHierarchy(response.data);
+      const response: ApiResponse<Revenue[]> = await getAllRevenue(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      const hierarchicalRevenues = buildHierarchy(response.data);
       setTotalPages(response.misc.totalPages); // Update total pages
-      setAccounts(hierarchicalAccounts);
+      setRevenues(hierarchicalRevenues);
     } catch (error) {
       console.error(error);
-      // toast.error('Failed to fetch accounts. Please try again.');
-      
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCapitalAccount();
+    fetchRevenues();
   }, [pageIndex, pageSize]);
 
-  // Recursively find an account by id
-  const findAccount = (accounts: Account[], id: string): Account | null => {
-    for (const account of accounts) {
-      if (account.id === id) {
-        return account;
-      } else if (account.children) {
-        const found = findAccount(account.children, id);
+  const findRevenue = (revenues: Revenue[], id: string): Revenue | null => {
+    for (const revenue of revenues) {
+      if (revenue.id === id) {
+        return revenue;
+      } else if (revenue.children) {
+        const found = findRevenue(revenue.children, id);
         if (found) return found;
       }
     }
     return null;
   };
 
-  // Add a child account
-  const addChildAccount = (accounts: Account[], parentId: string, newAccount: Account): Account[] => {
-    return accounts.map((account) => {
-      if (account.id === parentId) {
-        return { ...account, children: [...account.children, newAccount] };
-      } else if (account.children) {
-        return { ...account, children: addChildAccount(account.children, parentId, newAccount) };
+  const addChildRevenue = (revenues: Revenue[], parentId: string, newRevenue: Revenue): Revenue[] => {
+    return revenues.map((revenue) => {
+      if (revenue.id === parentId) {
+        return { ...revenue, children: [...revenue.children, newRevenue] };
+      } else if (revenue.children) {
+        return { ...revenue, children: addChildRevenue(revenue.children, parentId, newRevenue) };
       }
-      return account;
+      return revenue;
     });
   };
 
-  // Update account description
-  const updateDescription = (accounts: Account[], id: string, description: string): Account[] => {
-    return accounts.map((account) => {
-      if (account.id === id) {
-        return { ...account, description };
-      } else if (account.children) {
-        return { ...account, children: updateDescription(account.children, id, description) };
+  const updateDescription = (revenues: Revenue[], id: string, description: string): Revenue[] => {
+    return revenues.map((revenue) => {
+      if (revenue.id === id) {
+        return { ...revenue, description };
+      } else if (revenue.children) {
+        return { ...revenue, children: updateDescription(revenue.children, id, description) };
       }
-      return account;
+      return revenue;
     });
   };
 
-  // Remove an account
-  const removeAccount = (accounts: Account[], id: string): Account[] => {
-    return accounts.filter((account) => {
-      if (account.id === id) {
+  const removeRevenue = (revenues: Revenue[], id: string): Revenue[] => {
+    return revenues.filter((revenue) => {
+      if (revenue.id === id) {
         return false;
-      } else if (account.children) {
-        account.children = removeAccount(account.children, id);
+      } else if (revenue.children) {
+        revenue.children = removeRevenue(revenue.children, id);
       }
       return true;
     });
   };
 
-  // Handle right-click for context menu
   const handleRightClick = (event: React.MouseEvent, id: string) => {
     event.preventDefault();
     setContextMenu({ x: event.clientX, y: event.clientY, id });
   };
-  
+
   const toggleItem = (id: string) => {
     setOpenItems((prev) => ({
       ...prev,
@@ -173,7 +166,6 @@ const CapitalAccount = () => {
     }));
   };
 
-  // Close context menu on outside click
   useEffect(() => {
     const handleClickOutside = () => {
       setContextMenu(null);
@@ -185,69 +177,69 @@ const CapitalAccount = () => {
   }, []);
 
   useEffect(() => {
-    const initialAccountExists = accounts.some(account => account.listid === '1');
-    if (!initialAccountExists) {
-      const initialAccount: Account = {
+    const initialRevenueExists = revenues.some(revenue => revenue.listid === '5');
+    if (!initialRevenueExists) {
+      const initialRevenue: Revenue = {
         id: '',
-        listid: '1',
-        description: 'Equity',
-        parentAccountId: null,
+        listid: '5',
+        description: 'Revenue',
+       parentAccountId: null,
         children: [],
       };
-      setAccounts([initialAccount, ...accounts]);
+      setRevenues([initialRevenue, ...revenues]);
     }
-  }, [accounts]);
-  
-const onSubmit = async (data: AccountFormData) => {
-  setLoading(true);
-  try {
-    let response: ApiResponse<Account>;
-    if (editingId) {
-      const accountToUpdate = findAccount(accounts, editingId);
-      if (accountToUpdate) {
-        const updateData = {
-          ...data,
-          parentAccountId: accountToUpdate.parentAccountId,
-          listid: accountToUpdate.listid,
+  }, [revenues]);
+
+  const onSubmit = async (data: RevenueFormData) => {
+    setLoading(true);
+    try {
+      let response: ApiResponse<Revenue>;
+      if (editingId) {
+        const revenueToUpdate = findRevenue(revenues, editingId);
+        if (revenueToUpdate) {
+          const updateData = {
+            ...data,
+           parentAccountId: revenueToUpdate.parentAccountId,
+            listid: revenueToUpdate.listid,
+          };
+          response = await updateRevenue(editingId, updateData);
+          setRevenues((prevRevenues) => updateDescription(prevRevenues, editingId, data.description));
+          setEditingId(null);
+          toast.success('Revenue updated successfully!');
+        }
+      } else if (parentIdForChild) {
+        const newRevenue: Omit<Revenue, 'id'> = {
+          listid: '',
+          description: data.description,
+         parentAccountId: parentIdForChild, 
+          children: [],
         };
-        response = await updateCapitalAccount(editingId, updateData);
-        setAccounts((prevAccounts) => updateDescription(prevAccounts, editingId, data.description));
-        setEditingId(null);
-        toast.success('Account updated successfully!');
+        response = await createRevenue(newRevenue);
+        setRevenues((prevRevenues) => addChildRevenue(prevRevenues, parentIdForChild, response.data));
+        setParentIdForChild(null);
+        toast.success('Child revenue added successfully!');
+      } else {
+        const newRevenue: Omit<Revenue, 'id'> = {
+          listid: '',
+          description: data.description,
+         parentAccountId: null,
+          children: [],
+        };
+        response = await createRevenue(newRevenue);
+        setRevenues((prevRevenues) => [...prevRevenues, response.data]);
+        toast.success('Revenue added successfully!');
       }
-    } else if (parentIdForChild) {
-      const newAccount: Omit<Account, 'id'> = {
-        listid: '', 
-        description: data.description,
-        parentAccountId: parentIdForChild,
-        children: [],
-      };
-      response = await createCapitalAccount(newAccount);
-      setAccounts((prevAccounts) => addChildAccount(prevAccounts, parentIdForChild, response.data));
-      setParentIdForChild(null);
-      toast.success('Child account added successfully!');
-    } else {
-      const newAccount: Omit<Account, 'id'> = {
-        listid: '', 
-        description: data.description,
-        parentAccountId: null,
-        children: [],
-      };
-      response = await createCapitalAccount(newAccount);
-      setAccounts((prevAccounts) => [...prevAccounts, response.data]);
-      toast.success('Account added successfully!');
+
+      setShowForm(false);
+      reset();
+      fetchRevenues();
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    } finally {
+      setLoading(false);
     }
-   
-    setShowForm(false);
-    reset();
-    fetchCapitalAccount();
-  } catch (error) {
-    console.error('Error submitting form:', error);
-  } finally {
-    setLoading(false);
-  }
-};
-  // Handle context menu actions
+  };
+
   const handleContextMenuAction = async (action: 'add' | 'addChild' | 'edit' | 'delete', id: string) => {
     setContextMenu(null);
     if (action === 'add') {
@@ -255,48 +247,49 @@ const onSubmit = async (data: AccountFormData) => {
       reset({ id: '', description: '' });
     } else if (action === 'addChild') {
       setShowForm(true);
-      const parentAccount = findAccount(accounts, id);
-      if (parentAccount) {
-        setParentIdForChild(parentAccount.id);
+      const parentRevenue = findRevenue(revenues, id);
+      if (parentRevenue) {
+        setParentIdForChild(parentRevenue.id); 
       }
       reset({ id: '', description: '' });
     } else if (action === 'edit') {
       setEditingId(id);
-      const account = findAccount(accounts, id);
-      if (account) {
-        reset({ id: account.id, description: account.description });
+      const revenue = findRevenue(revenues, id);
+      if (revenue) {
+        reset({ id: revenue.id, description: revenue.description });
       }
       setShowForm(true);
     } else if (action === 'delete') {
       try {
-        await deleteCapitalAccount(id);
-        setAccounts((prevAccounts) => removeAccount(prevAccounts, id));
-        toast.success('Account deleted successfully!');
+        await deleteRevenue(id);
+        setRevenues((prevRevenues) => removeRevenue(prevRevenues, id));
+        toast.success('Revenue deleted successfully!');
       } catch (error) {
-        console.error('Error deleting account:', error);
-        toast.error('Failed to delete account. Please try again.');
+        console.error('Error deleting revenue:', error);
+        toast.error('Failed to delete revenue. Please try again.');
       }
     }
   };
 
-  const filteredAccounts = accounts.filter((account) => {
+  const filteredRevenues = revenues.filter((revenue) => {
     return (
-      (account.listid && account.listid.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (account.description && account.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      (revenue.listid && revenue.listid.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (revenue.description && revenue.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   });
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
     setPageIndex(0); 
-  };  
-  const paginatedAccounts = filteredAccounts.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
-  const renderAccounts = (accounts: Account[], level = 0) => {
+  };
+
+  const paginatedRevenues = filteredRevenues.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+
+  const renderRevenues = (revenues: Revenue[], level = 0) => {
     return (
       <ul className="list-none mt-4 bg-white dark:bg-[#030630] z-0">
-        {accounts.map((account) => (
-          <li   key={`${account.id}-${account.listid}`}
-          className="relative pl-4">
+        {revenues.map((revenue) => (
+          <li key={`${revenue.id}-${revenue.listid}`} className="relative pl-4">
             {level > 0 && (
               <div
                 className="absolute left-0 top-0 bottom-0 w-px bg-gray-300 dark:bg-gray-600 z-0"
@@ -311,15 +304,15 @@ const onSubmit = async (data: AccountFormData) => {
             )}
             <div
               className="flex mb-4 items-center gap-3 p-2 bg-[#e6f8fb] border border-[#06b6d4]  text-black hover:bg-[#06b6d4] rounded-lg  transition-all duration-300"
-              onContextMenu={(e) => handleRightClick(e, account.id)}
+              onContextMenu={(e) => handleRightClick(e, revenue.id)}
             >
               {/* Expand/Collapse Icon */}
-              {account.children && account.children.length > 0 && (
+              {revenue.children && revenue.children.length > 0 && (
                 <button
-                  onClick={() => toggleItem(account.id)}
+                  onClick={() => toggleItem(revenue.id)}
                   className="flex items-center justify-center w-5 h-5 rounded-full  bg-[#06b5d4] hover:bg-black transition-colors duration-200 shadow"
                 >
-                  {openItems[account.id] ? (
+                  {openItems[revenue.id] ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-5 w-5 text-white"
@@ -348,15 +341,15 @@ const onSubmit = async (data: AccountFormData) => {
                   )}
                 </button>
               )}
-              {/* Account Details */}
+              {/* Revenue Details */}
               <div className="flex-1">
-                <span className="font-bold text-white p-[3px] px-[6px] br bg-[#06b6d4] rounded-md">{account.listid}</span>
-                <span className="ml-2 font-semibold text-black ">{account.description}</span>
+                <span className="font-bold text-white p-[3px] px-[6px] br bg-[#06b6d4] rounded-md">{revenue.listid}</span>
+                <span className="ml-2 font-semibold text-black ">{revenue.description}</span>
               </div>
             </div>
             {/* Render sub-children if expanded */}
-            {account.children && openItems[account.id] && (
-              <div className="pl-6">{renderAccounts(account.children, level + 1)}</div>
+            {revenue.children && openItems[revenue.id] && (
+              <div className="pl-6">{renderRevenues(revenue.children, level + 1)}</div>
             )}
           </li>
         ))}
@@ -441,7 +434,7 @@ const onSubmit = async (data: AccountFormData) => {
                 className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
                 disabled={loading}
               >
-                {loading ? 'Submitting...' : (editingId ? 'Update' : 'Create')} Account
+                {loading ? 'Submitting...' : (editingId ? 'Update' : 'Create')} Revenue
               </Button>
               <Button
                 type="button"
@@ -456,13 +449,13 @@ const onSubmit = async (data: AccountFormData) => {
         </div>
       )}
 
-      {/* List of accounts */}
+      {/* List of revenues */}
       <div className="p-2 border-2 border-[#2aa0cd] shadow-2xl rounded">
         {/* Header */}
         <div className="w-full bg-[#06b6d4] h-[7vh] rounded dark:bg-[#387fbf] mb-2 pt-2">
           <h1 className="text-base text-[24px] font-mono ml-10  pt-2 text-white flex gap-2">
             <FaRegListAlt size={30} />
-            <span className="mt-1"> LIST OF ACCOUNT-CAPITAL </span>
+            <span className="mt-1"> LIST OF REVENUES </span>
           </h1>
         </div>
 
@@ -483,39 +476,37 @@ const onSubmit = async (data: AccountFormData) => {
           </div>
         </div>
 
-        <div>{renderAccounts(paginatedAccounts)}</div>
+        <div>{renderRevenues(paginatedRevenues)}</div>
         <div className="flex justify-between py-2 mt-1 px-4 rounded-md items-center">
-    {/* Page count (Start Section) */}
-    <div className="flex items-center">
-      <span className="text-sm text-gray-700">
-        Page {pageIndex + 1} of {totalPages}
-      </span>
-    </div>
+          {/* Page count (Start Section) */}
+          <div className="flex items-center">
+            <span className="text-sm text-gray-700">
+              Page {pageIndex + 1} of {totalPages}
+            </span>
+          </div>
 
-    {/* Pagination controls (End Section) */}
-    <div className="flex items-center space-x-3">
-      {/* Rows per page selection */}
-      <div className="flex items-center space-x-3">
-        <span className="text-sm text-gray-700">Rows per page:</span>
-        <select
-          value={pageSize}
-          onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-          className="border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-[#030630]"
-        >
-          {[  50, 100, 1000, 2000, 5000, 10000].map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </div>
-
-    
-    </div>
-  </div>
+          {/* Pagination controls (End Section) */}
+          <div className="flex items-center space-x-3">
+            {/* Rows per page selection */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-700">Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-[#030630]"
+              >
+                {[50, 100, 1000, 2000, 5000, 10000].map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default CapitalAccount;
+export default Revenues;

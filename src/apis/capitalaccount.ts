@@ -1,7 +1,5 @@
-
 import apiFetch from "@/components/utils/fetchInstance";
 
-// Create CapitalAccount
 const createCapitalAccount = async (CapitalAccount: any) => {
   try {
     const response = await apiFetch('CapitalAccount', {
@@ -17,7 +15,6 @@ const createCapitalAccount = async (CapitalAccount: any) => {
   }
 };
 
-// Get All CapitalAccounts
 const getAllCapitalAccount = async (pageIndex: any = 1, pageSize: any = 10) => {
   try {
     const response = await apiFetch(`CapitalAccount?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
@@ -30,7 +27,6 @@ const getAllCapitalAccount = async (pageIndex: any = 1, pageSize: any = 10) => {
   }
 };
 
-// Get Single CapitalAccount
 const getSingleCapitalAccount = async (id: string) => {
   try {
     const response = await apiFetch(`CapitalAccount/${id}`, {
@@ -43,7 +39,6 @@ const getSingleCapitalAccount = async (id: string) => {
   }
 };
 
-// Update CapitalAccount
 const updateCapitalAccount = async (id: string, CapitalAccount: any) => {
   try {
     const response = await apiFetch(`CapitalAccount`, {
@@ -59,7 +54,6 @@ const updateCapitalAccount = async (id: string, CapitalAccount: any) => {
   }
 };
 
-// Delete CapitalAccount
 const deleteCapitalAccount = async (id: string) => {
   try {
     const response = await apiFetch(`CapitalAccount/${id}`, {
@@ -72,10 +66,36 @@ const deleteCapitalAccount = async (id: string) => {
   }
 };
 
+const getAllAccountHierarchy = async () => {
+  try {
+    const response = await apiFetch(`CapitalAccount/allhierarchy`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }, true);
+    const transformHierarchy = (accounts: any[]): any[] => {
+      return accounts.map(account => ({
+        id: account.id,
+        listid: account.listid,
+        description: account.description,
+        parentId: account.parentAccountId,
+        children: transformHierarchy(account.children || [])
+      }));
+    };
+
+    return transformHierarchy(response.data);
+    
+  } catch (error: any) {
+    throw new Error(`Failed to fetch account hierarchy: ${error.message}`);
+  }
+};
+
 export {
   createCapitalAccount,
   getAllCapitalAccount,
   getSingleCapitalAccount,
   updateCapitalAccount,
   deleteCapitalAccount,
+  getAllAccountHierarchy,
 };

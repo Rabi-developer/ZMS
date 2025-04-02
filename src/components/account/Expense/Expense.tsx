@@ -10,22 +10,22 @@ import { Button } from '@/components/ui/button';
 import { FaRegListAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
 import Link from 'next/link';
-import { createCapitalAccount, updateCapitalAccount, getAllCapitalAccount, deleteCapitalAccount } from '@/apis/capitalaccount';
+import { createExpense, updateExpense, getAllExpense, deleteExpense } from '@/apis/Expense';
 
 // Zod schema for form validation
-const accountSchema = z.object({
+const expenseSchema = z.object({
   id: z.string().optional(),
   description: z.string().min(1, 'Description is required'),
 });
 
-type AccountFormData = z.infer<typeof accountSchema>;
+type ExpenseFormData = z.infer<typeof expenseSchema>;
 
-type Account = {
+type Expense = {
   id: string;
   listid: string;
   description: string;
   parentAccountId: string | null;
-  children: Account[];
+  children: Expense[];
 };
 
 type ApiResponse<T> = {
@@ -43,9 +43,9 @@ type ApiResponse<T> = {
 };
 
 // Main component
-const CapitalAccount = () => {
+const Expenses = () => {
   const [loading, setLoading] = useState(false);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [parentIdForChild, setParentIdForChild] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -54,8 +54,8 @@ const CapitalAccount = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
-    const [totalPages, setTotalPages] = useState(1);
-    const [flatAccounts, setFlatAccounts] = useState<Account[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [flatExpenses, setFlatExpenses] = useState<Expense[]>([]);
 
   const router = useRouter();
   const {
@@ -64,97 +64,96 @@ const CapitalAccount = () => {
     formState: { errors },
     reset,
     control,
-  } = useForm<AccountFormData>({
-    resolver: zodResolver(accountSchema),
+  } = useForm<ExpenseFormData>({
+    resolver: zodResolver(expenseSchema),
   });
 
   // Build hierarchical structure from flat data
-  const buildHierarchy = (accounts: Account[]): Account[] => {
-    const map: Record<string, Account> = {};
-    accounts.forEach((account) => {
-      map[account.id] = { ...account, children: [] };
+  const buildHierarchy = (expenses: Expense[]): Expense[] => {
+    const map: Record<string, Expense> = {};
+    expenses.forEach((expense) => {
+      map[expense.id] = { ...expense, children: [] };
     });
 
-    const rootAccounts: Account[] = [];
-    accounts.forEach((account) => {
-      if (account.parentAccountId === null) {
-        rootAccounts.push(map[account.id]);
+    const rootExpenses: Expense[] = [];
+    expenses.forEach((expense) => {
+      if (expense.parentAccountId === null) {
+        rootExpenses.push(map[expense.id]);
       } else {
-        const parent = map[account.parentAccountId];
+        const parent = map[expense.parentAccountId];
         if (parent) {
-          parent.children.push(map[account.id]);
+          parent.children.push(map[expense.id]);
         }
       }
     });
 
-    return rootAccounts;
+    return rootExpenses;
   };
 
-  // Fetch capital accounts
-  const fetchCapitalAccount = async () => {
+  // Fetch expenses
+  const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const response: ApiResponse<Account[]> = await getAllCapitalAccount(pageIndex === 0 ? 1 : pageIndex, pageSize);
-      const hierarchicalAccounts = buildHierarchy(response.data);
+      const response: ApiResponse<Expense[]> = await getAllExpense(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      const hierarchicalExpenses = buildHierarchy(response.data);
       setTotalPages(response.misc.totalPages); // Update total pages
-      setAccounts(hierarchicalAccounts);
+      setExpenses(hierarchicalExpenses);
     } catch (error) {
       console.error(error);
-      // toast.error('Failed to fetch accounts. Please try again.');
-      
+      // toast.error('Failed to fetch expenses. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCapitalAccount();
+    fetchExpenses();
   }, [pageIndex, pageSize]);
 
-  // Recursively find an account by id
-  const findAccount = (accounts: Account[], id: string): Account | null => {
-    for (const account of accounts) {
-      if (account.id === id) {
-        return account;
-      } else if (account.children) {
-        const found = findAccount(account.children, id);
+  // Recursively find an expense by id
+  const findExpense = (expenses: Expense[], id: string): Expense | null => {
+    for (const expense of expenses) {
+      if (expense.id === id) {
+        return expense;
+      } else if (expense.children) {
+        const found = findExpense(expense.children, id);
         if (found) return found;
       }
     }
     return null;
   };
 
-  // Add a child account
-  const addChildAccount = (accounts: Account[], parentId: string, newAccount: Account): Account[] => {
-    return accounts.map((account) => {
-      if (account.id === parentId) {
-        return { ...account, children: [...account.children, newAccount] };
-      } else if (account.children) {
-        return { ...account, children: addChildAccount(account.children, parentId, newAccount) };
+  // Add a child expense
+  const addChildExpense = (expenses: Expense[], parentId: string, newExpense: Expense): Expense[] => {
+    return expenses.map((expense) => {
+      if (expense.id === parentId) {
+        return { ...expense, children: [...expense.children, newExpense] };
+      } else if (expense.children) {
+        return { ...expense, children: addChildExpense(expense.children, parentId, newExpense) };
       }
-      return account;
+      return expense;
     });
   };
 
-  // Update account description
-  const updateDescription = (accounts: Account[], id: string, description: string): Account[] => {
-    return accounts.map((account) => {
-      if (account.id === id) {
-        return { ...account, description };
-      } else if (account.children) {
-        return { ...account, children: updateDescription(account.children, id, description) };
+  // Update expense description
+  const updateDescription = (expenses: Expense[], id: string, description: string): Expense[] => {
+    return expenses.map((expense) => {
+      if (expense.id === id) {
+        return { ...expense, description };
+      } else if (expense.children) {
+        return { ...expense, children: updateDescription(expense.children, id, description) };
       }
-      return account;
+      return expense;
     });
   };
 
-  // Remove an account
-  const removeAccount = (accounts: Account[], id: string): Account[] => {
-    return accounts.filter((account) => {
-      if (account.id === id) {
+  // Remove an expense
+  const removeExpense = (expenses: Expense[], id: string): Expense[] => {
+    return expenses.filter((expense) => {
+      if (expense.id === id) {
         return false;
-      } else if (account.children) {
-        account.children = removeAccount(account.children, id);
+      } else if (expense.children) {
+        expense.children = removeExpense(expense.children, id);
       }
       return true;
     });
@@ -165,7 +164,7 @@ const CapitalAccount = () => {
     event.preventDefault();
     setContextMenu({ x: event.clientX, y: event.clientY, id });
   };
-  
+
   const toggleItem = (id: string) => {
     setOpenItems((prev) => ({
       ...prev,
@@ -185,68 +184,75 @@ const CapitalAccount = () => {
   }, []);
 
   useEffect(() => {
-    const initialAccountExists = accounts.some(account => account.listid === '1');
-    if (!initialAccountExists) {
-      const initialAccount: Account = {
+    // Check if the initial expense (ID: 4, Description: Expenses) exists
+    const initialExpenseExists = expenses.some(expense => expense.listid === '4');
+    if (!initialExpenseExists) {
+      const initialExpense: Expense = {
         id: '',
-        listid: '1',
-        description: 'Equity',
+        listid: '4', // Start ID from 4
+        description: 'Expenses',
         parentAccountId: null,
         children: [],
       };
-      setAccounts([initialAccount, ...accounts]);
+      setExpenses([initialExpense, ...expenses]);
     }
-  }, [accounts]);
-  
-const onSubmit = async (data: AccountFormData) => {
-  setLoading(true);
-  try {
-    let response: ApiResponse<Account>;
-    if (editingId) {
-      const accountToUpdate = findAccount(accounts, editingId);
-      if (accountToUpdate) {
-        const updateData = {
-          ...data,
-          parentAccountId: accountToUpdate.parentAccountId,
-          listid: accountToUpdate.listid,
+  }, [expenses]);
+
+  // Handle form submission
+  const onSubmit = async (data: ExpenseFormData) => {
+    setLoading(true);
+    try {
+      let response: ApiResponse<Expense>;
+      if (editingId) {
+        // Find the expense being edited
+        const expenseToUpdate = findExpense(expenses, editingId);
+        if (expenseToUpdate) {
+          // Update existing expense
+          const updateData = {
+            ...data,
+            parentAccountId: expenseToUpdate.parentAccountId,
+            listid: expenseToUpdate.listid,
+          };
+          response = await updateExpense(editingId, updateData);
+          setExpenses((prevExpenses) => updateDescription(prevExpenses, editingId, data.description));
+          setEditingId(null);
+          toast.success('Expense updated successfully!');
+        }
+      } else if (parentIdForChild) {
+        // Add a new child expense
+        const newExpense: Omit<Expense, 'id'> = {
+          listid: '', // Backend will generate this
+          description: data.description,
+          parentAccountId: parentIdForChild, // Use the correct GUID here
+          children: [],
         };
-        response = await updateCapitalAccount(editingId, updateData);
-        setAccounts((prevAccounts) => updateDescription(prevAccounts, editingId, data.description));
-        setEditingId(null);
-        toast.success('Account updated successfully!');
+        response = await createExpense(newExpense);
+        setExpenses((prevExpenses) => addChildExpense(prevExpenses, parentIdForChild, response.data));
+        setParentIdForChild(null);
+        toast.success('Child expense added successfully!');
+      } else {
+        // Add a new top-level expense
+        const newExpense: Omit<Expense, 'id'> = {
+          listid: '', // Backend will generate this
+          description: data.description,
+          parentAccountId: null,
+          children: [],
+        };
+        response = await createExpense(newExpense);
+        setExpenses((prevExpenses) => [...prevExpenses, response.data]);
+        toast.success('Expense added successfully!');
       }
-    } else if (parentIdForChild) {
-      const newAccount: Omit<Account, 'id'> = {
-        listid: '', 
-        description: data.description,
-        parentAccountId: parentIdForChild,
-        children: [],
-      };
-      response = await createCapitalAccount(newAccount);
-      setAccounts((prevAccounts) => addChildAccount(prevAccounts, parentIdForChild, response.data));
-      setParentIdForChild(null);
-      toast.success('Child account added successfully!');
-    } else {
-      const newAccount: Omit<Account, 'id'> = {
-        listid: '', 
-        description: data.description,
-        parentAccountId: null,
-        children: [],
-      };
-      response = await createCapitalAccount(newAccount);
-      setAccounts((prevAccounts) => [...prevAccounts, response.data]);
-      toast.success('Account added successfully!');
+
+      setShowForm(false);
+      reset();
+      fetchExpenses();
+    } catch (error) {
+      console.error('Error submitting form:', error);
+    } finally {
+      setLoading(false);
     }
-   
-    setShowForm(false);
-    reset();
-    fetchCapitalAccount();
-  } catch (error) {
-    console.error('Error submitting form:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   // Handle context menu actions
   const handleContextMenuAction = async (action: 'add' | 'addChild' | 'edit' | 'delete', id: string) => {
     setContextMenu(null);
@@ -255,48 +261,48 @@ const onSubmit = async (data: AccountFormData) => {
       reset({ id: '', description: '' });
     } else if (action === 'addChild') {
       setShowForm(true);
-      const parentAccount = findAccount(accounts, id);
-      if (parentAccount) {
-        setParentIdForChild(parentAccount.id);
+      const parentExpense = findExpense(expenses, id);
+      if (parentExpense) {
+        setParentIdForChild(parentExpense.id); // Use the actual GUID here
       }
       reset({ id: '', description: '' });
     } else if (action === 'edit') {
       setEditingId(id);
-      const account = findAccount(accounts, id);
-      if (account) {
-        reset({ id: account.id, description: account.description });
+      const expense = findExpense(expenses, id);
+      if (expense) {
+        reset({ id: expense.id, description: expense.description });
       }
       setShowForm(true);
     } else if (action === 'delete') {
       try {
-        await deleteCapitalAccount(id);
-        setAccounts((prevAccounts) => removeAccount(prevAccounts, id));
-        toast.success('Account deleted successfully!');
+        await deleteExpense(id);
+        setExpenses((prevExpenses) => removeExpense(prevExpenses, id));
+        toast.success('Expense deleted successfully!');
       } catch (error) {
-        console.error('Error deleting account:', error);
-        toast.error('Failed to delete account. Please try again.');
+        console.error('Error deleting expense:', error);
       }
     }
   };
 
-  const filteredAccounts = accounts.filter((account) => {
+  const filteredExpenses = expenses.filter((expense) => {
     return (
-      (account.listid && account.listid.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (account.description && account.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      (expense.listid && expense.listid.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (expense.description && expense.description.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   });
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
-    setPageIndex(0); 
-  };  
-  const paginatedAccounts = filteredAccounts.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
-  const renderAccounts = (accounts: Account[], level = 0) => {
+    setPageIndex(0);
+  };
+
+  const paginatedExpenses = filteredExpenses.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+
+  const renderExpenses = (expenses: Expense[], level = 0) => {
     return (
       <ul className="list-none mt-4 bg-white dark:bg-[#030630] z-0">
-        {accounts.map((account) => (
-          <li   key={`${account.id}-${account.listid}`}
-          className="relative pl-4">
+        {expenses.map((expense) => (
+          <li key={`${expense.id}-${expense.listid}`} className="relative pl-4">
             {level > 0 && (
               <div
                 className="absolute left-0 top-0 bottom-0 w-px bg-gray-300 dark:bg-gray-600 z-0"
@@ -311,15 +317,15 @@ const onSubmit = async (data: AccountFormData) => {
             )}
             <div
               className="flex mb-4 items-center gap-3 p-2 bg-[#e6f8fb] border border-[#06b6d4]  text-black hover:bg-[#06b6d4] rounded-lg  transition-all duration-300"
-              onContextMenu={(e) => handleRightClick(e, account.id)}
+              onContextMenu={(e) => handleRightClick(e, expense.id)}
             >
               {/* Expand/Collapse Icon */}
-              {account.children && account.children.length > 0 && (
+              {expense.children && expense.children.length > 0 && (
                 <button
-                  onClick={() => toggleItem(account.id)}
+                  onClick={() => toggleItem(expense.id)}
                   className="flex items-center justify-center w-5 h-5 rounded-full  bg-[#06b5d4] hover:bg-black transition-colors duration-200 shadow"
                 >
-                  {openItems[account.id] ? (
+                  {openItems[expense.id] ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-5 w-5 text-white"
@@ -348,15 +354,15 @@ const onSubmit = async (data: AccountFormData) => {
                   )}
                 </button>
               )}
-              {/* Account Details */}
+              {/* Expense Details */}
               <div className="flex-1">
-                <span className="font-bold text-white p-[3px] px-[6px] br bg-[#06b6d4] rounded-md">{account.listid}</span>
-                <span className="ml-2 font-semibold text-black ">{account.description}</span>
+                <span className="font-bold text-white p-[3px] px-[6px] br bg-[#06b6d4] rounded-md">{expense.listid}</span>
+                <span className="ml-2 font-semibold text-black ">{expense.description}</span>
               </div>
             </div>
             {/* Render sub-children if expanded */}
-            {account.children && openItems[account.id] && (
-              <div className="pl-6">{renderAccounts(account.children, level + 1)}</div>
+            {expense.children && openItems[expense.id] && (
+              <div className="pl-6">{renderExpenses(expense.children, level + 1)}</div>
             )}
           </li>
         ))}
@@ -441,7 +447,7 @@ const onSubmit = async (data: AccountFormData) => {
                 className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
                 disabled={loading}
               >
-                {loading ? 'Submitting...' : (editingId ? 'Update' : 'Create')} Account
+                {loading ? 'Submitting...' : (editingId ? 'Update' : 'Create')} Expense
               </Button>
               <Button
                 type="button"
@@ -456,13 +462,13 @@ const onSubmit = async (data: AccountFormData) => {
         </div>
       )}
 
-      {/* List of accounts */}
+      {/* List of expenses */}
       <div className="p-2 border-2 border-[#2aa0cd] shadow-2xl rounded">
         {/* Header */}
         <div className="w-full bg-[#06b6d4] h-[7vh] rounded dark:bg-[#387fbf] mb-2 pt-2">
           <h1 className="text-base text-[24px] font-mono ml-10  pt-2 text-white flex gap-2">
             <FaRegListAlt size={30} />
-            <span className="mt-1"> LIST OF ACCOUNT-CAPITAL </span>
+            <span className="mt-1"> LIST OF EXPENSES </span>
           </h1>
         </div>
 
@@ -483,39 +489,37 @@ const onSubmit = async (data: AccountFormData) => {
           </div>
         </div>
 
-        <div>{renderAccounts(paginatedAccounts)}</div>
+        <div>{renderExpenses(paginatedExpenses)}</div>
         <div className="flex justify-between py-2 mt-1 px-4 rounded-md items-center">
-    {/* Page count (Start Section) */}
-    <div className="flex items-center">
-      <span className="text-sm text-gray-700">
-        Page {pageIndex + 1} of {totalPages}
-      </span>
-    </div>
+          {/* Page count (Start Section) */}
+          <div className="flex items-center">
+            <span className="text-sm text-gray-700">
+              Page {pageIndex + 1} of {totalPages}
+            </span>
+          </div>
 
-    {/* Pagination controls (End Section) */}
-    <div className="flex items-center space-x-3">
-      {/* Rows per page selection */}
-      <div className="flex items-center space-x-3">
-        <span className="text-sm text-gray-700">Rows per page:</span>
-        <select
-          value={pageSize}
-          onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-          className="border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-[#030630]"
-        >
-          {[  50, 100, 1000, 2000, 5000, 10000].map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </div>
-
-    
-    </div>
-  </div>
+          {/* Pagination controls (End Section) */}
+          <div className="flex items-center space-x-3">
+            {/* Rows per page selection */}
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-700">Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                className="border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-[#030630]"
+              >
+                {[50, 100, 1000, 2000, 5000, 10000].map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
 
-export default CapitalAccount;
+export default Expenses;

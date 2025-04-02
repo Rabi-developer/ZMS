@@ -59,7 +59,6 @@ const updateLiabilities = async (id: string, Liabilities: any) => {
   }
 };
 
-// Delete Liabilities
 const deleteLiabilities = async (id: string) => {
   try {
     const response = await apiFetch(`Liabilities/${id}`, {

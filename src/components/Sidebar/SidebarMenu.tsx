@@ -27,7 +27,7 @@ const SidebarMenu: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
 
   const toggleMenu = (menuText: string) => {
     setActiveMenu(activeMenu === menuText ? null : menuText);
-    setActiveSubMenu(null); 
+    setActiveSubMenu(null);
   };
 
   const toggleSubMenu = (subMenuText: string) => {
@@ -38,31 +38,27 @@ const SidebarMenu: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
     if (!subMenu) return null;
 
     return (
-      <ul className={`ml-${level * 4} mt-1 transition-all duration-300  `}>
+      <ul className={`ml-${level * 4} mt-1 transition-all duration-300`}>
         {subMenu.map((subItem, subIndex) => (
-          <li key={subIndex} className="mb-2 hover:text-[#0e7490] ">
+          <li key={subIndex} className="mb-2">
             <div
               onClick={() => subItem.sub_menu && toggleSubMenu(subItem.text)}
-              className="flex items-center px-4 py-2 cursor-pointer hover:bg-cyan-50 dark:hover:bg-[#387fbf] rounded-md hover:text-[#06b6d4] dark:hover:text-[#215083]" 
+              className="flex items-center px-5 py-3 cursor-pointer rounded-lg transition-all duration-300
+                        hover:bg-cyan-50 hover:text-[#06b6d4] dark:hover:bg-[#387fbf] dark:hover:text-[#e2ecf7]"
             >
               {subItem.icon && (
                 <subItem.icon
-                  className={`hover:stroke-white transition-colors duration-300 ${isCollapsed ? "mx-auto" : ""}`}
+                  className={`transition-transform duration-300 ${isCollapsed ? "mx-auto" : "mr-2"}`}
                 />
               )}
               {!isCollapsed && (
-                <a href={subItem.href}>
+                <a href={subItem.href} className="flex-grow">
                   <span className="ml-2">{subItem.text}</span>
                 </a>
               )}
               {subItem.sub_menu && !isCollapsed && (
-                <span
-                  className={`ml-auto text-lg ${
-                    activeSubMenu === subItem.text
-                      ? "text-[#06b6d4]"
-                      : "text-[#94a3b8]"
-                  }`}
-                >                  {activeSubMenu === subItem.text ? <FiChevronUp /> : <FiChevronDown />}
+                <span className="ml-auto text-lg">
+                  {activeSubMenu === subItem.text ? <FiChevronUp /> : <FiChevronDown />}
                 </span>
               )}
             </div>
@@ -80,12 +76,17 @@ const SidebarMenu: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
           <li key={index} className="mb-2">
             {item.type === "heading" ? (
               !isCollapsed && (
-                <div className="px-4 text-xs mt-5 text-[#9ca3af] ">{item.text}</div>
+                <div className="px-4 text-xs mt-5 text-[#9ca3af] uppercase font-semibold">
+                  {item.text}
+                </div>
               )
             ) : (
               <div
-                className={`flex items-center px-4 py-2 cursor-pointer rounded-md
-                  ${activeMenu === item.text ? "bg-[#06b6d4] dark:bg-[#215083] text-white h-10  " : "hover:bg-cyan-50 hover:text-[#215083] dark:hover:bg-[#4b75c5] dark:hover:text-[#e2ecf7] "}`}
+                className={`flex items-center px-5 py-3 cursor-pointer rounded-lg transition-all duration-300
+                  ${activeMenu === item.text 
+                    ? "bg-[#06b6d4] dark:bg-[#215083] text-white shadow-lg" 
+                    : "hover:bg-cyan-50 hover:text-[#06b6d4] dark:hover:bg-[#4b75c5] dark:hover:text-[#e2ecf7]"}`
+                }
                 onClick={() => (item.sub_menu ? toggleMenu(item.text) : null)}
               >
                 {item.icon && (
@@ -94,18 +95,13 @@ const SidebarMenu: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
                   </span>
                 )}
                 {!isCollapsed && (
-                  <a href={item.href}>
-                    <span className="mr-2">{item.text}</span>
+                  <a href={item.href} className="flex-grow">
+                    <span>{item.text}</span>
                   </a>
                 )}
                 {item.sub_menu && !isCollapsed && (
-                  <span
-                    className={`ml-auto text-lg ${
-                      activeMenu === item.text
-                        ? "text-white"
-                        : "text-[#94a3b8] hover:text-[#06b6d4]"
-                    }`}
-                  >                    {activeMenu === item.text ? <FiChevronUp /> : <FiChevronDown />}
+                  <span className="ml-auto text-lg">
+                    {activeMenu === item.text ? <FiChevronUp /> : <FiChevronDown />}
                   </span>
                 )}
               </div>
@@ -117,4 +113,5 @@ const SidebarMenu: React.FC<{ isCollapsed: boolean }> = ({ isCollapsed }) => {
     </div>
   );
 };
+
 export default SidebarMenu;

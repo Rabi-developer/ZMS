@@ -23,12 +23,12 @@ const MainLayout = ({ children }: any) => {
   }, []);
 
   return (
-    <div className="h-screen flex overflow-y-scroll scrollbar-thin scrollbar-rounded">
+    <div className="h-screen bg-[#f6f6f6] flex overflow-y-scroll scrollbar-thin scrollbar-rounded dark:bg-black">
       {/* Sidebar */}
       <div
         className={`${
           isSidebarCollapsed ? "w-16" : "w-[320px]"
-        } bg-white shadow-md h-full fixed left-0  top-0 transition-all duration-300
+        } bg-white  h-full fixed left-0  top-0 transition-all duration-300
         dark:bg-[#030630] 
         `}>
           
@@ -41,12 +41,12 @@ const MainLayout = ({ children }: any) => {
           isSidebarCollapsed ? "ml-20" : "ml-[300px]"
         } flex-1 flex flex-col`}>
          <div
-           className="z-50"
+           className="z-60"
           >
           <ToastContainer />
 
           </div>
-        <div className="sticky top-0 z-10 dark:bg-[#030630]">
+        <div className="sticky top-0 z-50 dark:bg-[#030630]">
           <Headers />
         </div>
 

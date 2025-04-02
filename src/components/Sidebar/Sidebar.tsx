@@ -8,8 +8,8 @@ import { FiMenu } from "react-icons/fi";
 const Sidebar = ({ isCollapsed, onToggle }: { isCollapsed: boolean; onToggle: () => void }) => {
   return (
     <div
-      className={`bg-[#ffffff] shadow-right-dark fixed top-0 left-0 h-full z-20 transition-all duration-300 overflow-y-auto dark:bg-[#030630]  ${
-        isCollapsed ? "w-19" : " w-[310px]"
+      className={`bg-[#ffffff]   shadow-right-dark fixed top-0 left-0 h-full z-20 transition-all duration-300 overflow-y-auto dark:bg-[#030630]  ${
+        isCollapsed ? "w-18" : " w-[310px]"
       }`}
     >
       

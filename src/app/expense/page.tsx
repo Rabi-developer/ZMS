@@ -1,12 +1,13 @@
 "use client";
-import AdminSellingExp from '@/components/account/adminsellingexp/AdminSellingExp';
+import Expense from '@/components/account/Expense/Expense';
+import AdminSellingExp from '@/components/account/Expense/Expense';
 import MainLayout from '@/components/MainLayout/MainLayout'
 
 const Organization = () => {
 
     return (
         <MainLayout>
-            <AdminSellingExp/>
+            <Expense/>
         </MainLayout>
     )
 }

@@ -23,16 +23,20 @@ const Headers = ({ toggleSidebar, pathname }: any) => {
 
       <div className="flex-grow flex justify-center">
         <form action="https://formbold.com/s/unique_form_id" method="POST" className="w-full max-w-xl">
-          <div className="relative">
-            <button className="absolute left-0 top-1/2 -translate-y-1/2">
-              <FiSearch className="fill-body hover:fill-primary dark:fill-bodydark dark:hover:fill-primary" />
-            </button>
-            <input
-              type="text"
-              placeholder="Type to search..."
-              className="w-full bg-transparent pl-9 pr-4 font-medium focus:outline-none xl:w-125"
-            />
-          </div>
+        <div className="relative border border-gray-300 dark:border-gray-700 h-12 rounded-lg overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-primary">
+  {/* Search Icon */}
+  <button className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 hover:text-primary">
+    <FiSearch size={20} />
+  </button>
+
+  {/* Search Input */}
+  <input
+    type="text"
+    placeholder="Type to search..."
+    className="w-full h-full bg-transparent pl-10 pr-4 text-gray-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 font-medium focus:outline-none focus:ring-0"
+  />
+</div>
+
         </form>
       </div>
 

@@ -1,8 +1,5 @@
 'use client';
 import React from 'react';
-import { Table } from '../ui/table';
-import TotalCustomerCard from '../Card/TotalCustomerCard';
-import TotalClientCard from '../Card/TotalClientCard';
 import TotalLossCard from '../Card/TotalLossCard';
 import TotalInventoryCard from '../Card/TotalInventoryCard';
 import TotalProfitCard from '../Card/TotalProfitCard';

@@ -1,12 +1,13 @@
 "use client";
+import CapitalAccount from '@/components/account/accountcapital/CapitalAccount';
+import Assets from '@/components/account/Assets/Assets';
 import MainLayout from '@/components/MainLayout/MainLayout'
-import FinancialExpense from '@/components/account/financialexpense/FinancialExpense';
 
 const Organization = () => {
 
     return (
         <MainLayout>
-            <FinancialExpense/>
+          <Assets/>
         </MainLayout>
     )
 }
