@@ -238,17 +238,18 @@ const Saller = ({ id, initialData }: any) => {
                 {...register("Address")}
                 error={errors.Address?.message}
               />
-            </div>
+            </div>             
           </div>
-          <div className='p-4 '>
-        
-               
-
+          <div className='p-4 ml-4 border rounded-2xl mx-auto  '>
+            <h2>
+              Payable Code:
+            </h2>
+            <div className='grid grid-cols-3 gap-1 '>
               <CustomInput
                 type='number'
                 variant="floating"
                 borderThickness='2'
-                label='ID'
+                label=''
                 id="id"
                 register={register}
                 {...register("id")}
@@ -257,18 +258,22 @@ const Saller = ({ id, initialData }: any) => {
               <CustomInput
                 variant="floating"
                 borderThickness='2'
-                label='Payable Code'
+                label=''
                 id="PayableCode"
                 register={register}
                 {...register("PayableCode")}
                 error={errors.PayableCode?.message}
               />
+                 </div>
            </div>
         
-            {/* <div>          
+
+           <div className='p-4'>
+            <h2 className='text-xl font-bold text-black dark:text-white'>Additional Information</h2>
+            <div>          
                     {accountNos.map((accountNo, index) => (
                       <div key={index} className="flex items-center gap-2">
-                          <div className='p-4 w-[60vh]'> 
+                          <div className=' w-[60vh]'> 
                           <CustomInput
                           variant="floating"
                           borderThickness="2"
@@ -298,10 +303,7 @@ const Saller = ({ id, initialData }: any) => {
                         </div>
                       </div>
                     ))}
-            </div> */}
-
-           <div className='p-4'>
-            <h2 className='text-xl font-bold text-black dark:text-white'>Additional Information</h2>
+            </div>
             <div className='grid grid-cols-3 gap-4'>
               <CustomInput
                 type='date'
