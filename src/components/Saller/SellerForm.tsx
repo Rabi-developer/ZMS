@@ -24,12 +24,14 @@ const Schema = z.object({
   STN: z.string().min(1, "STN is required"),
   MTN: z.string().min(1, "MTN is required"),
   PayableCode: z.string().min(1, "Payable Code is required"),
-  accountNo: z.array(z.string().min(1, 'Account Number is required')),
+  accountNo: z.array(z.string().min(1, 'Account Number is required')),  
   InvoiceNumber: z.string().optional(),
   PaymentStatus: z.string().optional(),
   PaymentMode: z.string().min(1, "Payment Mode is required"),
   OrderDate: z.string().optional(),
   DeliveryDate: z.string().optional(),
+  id: z.string().optional(),
+
 });
 
 type FormData = z.infer<typeof Schema>;
@@ -230,61 +232,40 @@ const Saller = ({ id, initialData }: any) => {
               <CustomInput
                 variant="floating"
                 borderThickness='2'
-                label='Payable Code'
-                id="PayableCode"
-                register={register}
-                {...register("PayableCode")}
-                error={errors.PayableCode?.message}
-              />
-            </div>
-          </div>
-          <div className='p-4 '>
-               <CustomInput
-                variant="floating"
-                borderThickness='2'
                 label='Address'
                 id="Address"
                 register={register}
                 {...register("Address")}
                 error={errors.Address?.message}
               />
-           </div>
-          {/* <div className='p-4'>
-            <h2 className='text-xl font-bold text-black dark:text-white'>Payment Details</h2>
-            <div className='grid grid-cols-3 gap-4'>
+            </div>
+          </div>
+          <div className='p-4 '>
+        
+               
+
+              <CustomInput
+                type='number'
+                variant="floating"
+                borderThickness='2'
+                label='ID'
+                id="id"
+                register={register}
+                {...register("id")}
+                error={errors.id?.message}
+              />
               <CustomInput
                 variant="floating"
                 borderThickness='2'
-                label='Invoice Number'
-                id="InvoiceNumber"
+                label='Payable Code'
+                id="PayableCode"
                 register={register}
-                {...register("InvoiceNumber")}
-                error={errors.InvoiceNumber?.message}
+                {...register("PayableCode")}
+                error={errors.PayableCode?.message}
               />
-              <CustomInputDropdown
-                label="Payment Status"
-                options={paymentStatuses}
-                selectedOption={paymentStatusOption}
-                onChange={(value) => {
-                  console.log("Selected payment status:", value); 
-                  setPaymentStatusOption(value);
-                  setValue("PaymentStatus", value);
-                }}
-                error={errors.PaymentStatus?.message}
-              />
-                <CustomInputDropdown
-                label="Payment Mode"
-                options={paymentModes}
-                selectedOption={paymentModeOption}
-                onChange={(value) => {
-                  setPaymentModeOption(value);
-                  setValue("PaymentMode", value);
-                }}
-                error={errors.PaymentMode?.message}
-              />
-            </div> */}
-          {/* </div> */}
-            <div>          
+           </div>
+        
+            {/* <div>          
                     {accountNos.map((accountNo, index) => (
                       <div key={index} className="flex items-center gap-2">
                           <div className='p-4 w-[60vh]'> 
@@ -317,7 +298,7 @@ const Saller = ({ id, initialData }: any) => {
                         </div>
                       </div>
                     ))}
-            </div>
+            </div> */}
 
            <div className='p-4'>
             <h2 className='text-xl font-bold text-black dark:text-white'>Additional Information</h2>
