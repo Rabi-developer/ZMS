@@ -55,7 +55,7 @@ const BlendRatioForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               setValue('useDeletedId', false);
             } else {
               toast.error('BlendRatio not found');
-              router.push('/blendRatio');
+              router.push('/bendRatio');
             }
           } catch (error) {
             console.error('Error fetching Blend Ratio:', error);
@@ -76,7 +76,7 @@ const BlendRatioForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         await createBlendRatio(data);
         toast.success('BlendRatio created successfully!');
       }
-      router.push('/BendRatio');
+      router.push('/bendRatio');
     } catch (error) {
       toast.error('An error occurred while saving the BlendRatio');
     }

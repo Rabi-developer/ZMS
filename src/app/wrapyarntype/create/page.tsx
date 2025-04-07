@@ -1,7 +1,7 @@
 import MainLayout from '@/components/MainLayout/MainLayout'
-import StuffForm from '@/components/item/stuff/StuffForm';
+import WrapYarnType from '@/components/item/wrapyarntype/WrapYarnType';
 
-const  CreateStuffPage  = () => {
+const  CreateWrapYarnTypePage  = () => {
 //   const initialData = {
 //     name: '',
 //     shortName: '',
@@ -11,9 +11,9 @@ const  CreateStuffPage  = () => {
 //   };
   return (
     <MainLayout>  
-        <StuffForm/>
+        <WrapYarnType/>
     </MainLayout>
   )
 }
 
-export default  CreateStuffPage 
+export default  CreateWrapYarnTypePage 
