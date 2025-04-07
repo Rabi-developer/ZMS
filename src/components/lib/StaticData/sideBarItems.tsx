@@ -35,12 +35,22 @@ import { FaCoins } from "react-icons/fa";
 import { GrUserAdmin } from "react-icons/gr";
 import { MdOutlineDevicesOther } from "react-icons/md";
 import { CiInboxOut } from "react-icons/ci";
+import { VscDebugStepOver } from "react-icons/vsc";
 import { GoPackageDependents } from "react-icons/go";
+import { GiStabbedNote } from "react-icons/gi";
+import { FaCartFlatbedSuitcase } from "react-icons/fa6";
+import { GiInauguration } from "react-icons/gi";
+import { GiYarn } from "react-icons/gi";
+import { PiYarnFill } from "react-icons/pi";
+import { GiSoundWaves } from "react-icons/gi";
+import { GiCardPickup } from "react-icons/gi";
+import { SiThefinals } from "react-icons/si";
 
 
 
 
 export const sideBarItems = [
+  //Home
   {
     text: "HOME", 
     type: "heading" 
@@ -182,7 +192,6 @@ export const sideBarItems = [
   // },
   ]},
 
-
 //DEAL-LINK
   {
     text: "Contacts", 
@@ -207,6 +216,69 @@ export const sideBarItems = [
   },
   ]},
 
+//Items-Contract
+{
+  text: "Contract Items", 
+  type: "heading" 
+},
+{
+  text: "Items",
+  icon:  VscDebugStepOver,
+  color: '#33a4d8',
+  sub_menu: [
+{
+  text: "Description",
+  href: "/description",
+  icon: GiStabbedNote,
+  color: '#33a4d8',
+},
+{
+  text: "Stuff",
+  href: "/stuff",
+  icon: FaCartFlatbedSuitcase,
+  color: '#33a4d8',
+},
+{
+  text: "Blend Ratio",
+  href: "/blendretio",
+  icon: GiInauguration,
+  color: '#33a4d8',
+},
+{
+  text: "Wrap Yarn Type",
+  href: "/wrapyarntype",
+  icon: GiYarn,
+  color: '#33a4d8',
+},
+{
+  text: "Weft Yarn Type",
+  href: "/weftyarntype",
+  icon: PiYarnFill,
+  color: '#33a4d8',
+},
+{
+  text: "Weaves",
+  href: "/weeaves",
+  icon: GiSoundWaves,
+  color: '#33a4d8',
+},
+{
+  text: "Pick Insertion",
+  href: "/pickinsertion",
+  icon: GiCardPickup,
+  color: '#33a4d8',
+},
+{
+  text: "Final",
+  href: "/final",
+  icon: SiThefinals,
+  color: '#33a4d8',
+},
+
+
+
+
+]},
 
 
 

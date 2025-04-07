@@ -51,9 +51,19 @@ const EmployeeList = () => {
 
   return (
     <div className='container bg-white rounded-md'>
-      <DataTable columns={columns(handleDeleteOpen)} data={employees} loading={loading} link={'/employee/create'} 
-        setPageIndex={setPageIndex} pageIndex={pageIndex} pageSize={pageSize} setPageSize={setPageSize} />
-      {open && <DeleteConfirmModel handleDeleteclose={handleDeleteClose} handleDelete={handleDelete} isOpen={open} />}
+      <DataTable 
+      columns={columns(handleDeleteOpen)}
+      data={employees}
+      loading={loading} 
+      link={'/employee/create'} 
+      setPageIndex={setPageIndex} pageIndex={pageIndex} pageSize={pageSize} setPageSize={setPageSize} />
+      {open && 
+      <DeleteConfirmModel
+       handleDeleteclose={handleDeleteClose} 
+       handleDelete={handleDelete} 
+       isOpen={open}
+        />
+        }
     </div>
   );
 };

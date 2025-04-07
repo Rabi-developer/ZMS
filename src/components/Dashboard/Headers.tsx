@@ -6,10 +6,8 @@ import Link from "next/link";
 import DropdownUser from "@/components/Header/DropdownUser";
 
 const Headers = ({ toggleSidebar, pathname }: any) => {
-  // State to manage the user name from localStorage
   const [userName, setUserName] = useState<string | null>(null);
 
-  // Fetch userName from localStorage on component mount
   useEffect(() => {
     const storedUserName = localStorage.getItem("userName");
     setUserName(storedUserName);
