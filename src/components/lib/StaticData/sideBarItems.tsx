@@ -238,9 +238,15 @@ export const sideBarItems = [
   icon: FaCartFlatbedSuitcase,
   color: '#33a4d8',
 },
+// {
+//   text: "Blend Ratio",
+//   href: "/",
+//   icon: GiInauguration,
+//   color: '#33a4d8',
+// },
 {
   text: "Blend Ratio",
-  href: "/blendretio",
+  href: "/bendRatio",
   icon: GiInauguration,
   color: '#33a4d8',
 },
@@ -250,6 +256,7 @@ export const sideBarItems = [
   icon: GiYarn,
   color: '#33a4d8',
 },
+
 {
   text: "Weft Yarn Type",
   href: "/weftyarntype",

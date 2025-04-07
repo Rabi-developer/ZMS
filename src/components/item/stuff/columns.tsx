@@ -39,7 +39,7 @@ export const columns = (
   },
   {
     accessorKey:'name',
-    header:'',
+    header: '',
   },
   {
     header: 'Actions',
@@ -49,7 +49,7 @@ export const columns = (
       const listId = row.original.listid;         
       return (
         <div className='flex gap-2'>
-          <Link href={`/stuff/edit/${descriptionId}`}> {/* Updated path */}
+          <Link href={`/description/edit/${descriptionId}`}>
             <Button variant='outline' size='sm'>
               <Edit className='h-4 w-4' />
             </Button>

@@ -1,26 +1,26 @@
 'use client';
 import React from 'react';
-import { getAllStuffs, deleteStuff } from '@/apis/stuff'; 
-import { columns, StuffType } from '@/components/item/stuff/columns';
+import { getAllBlendRatios, deleteBlendRatio } from '@/apis/blendratio'; 
+import { columns, BlendRatioType } from '@/components/item/BlendRatio/columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
 
-const StuffList = () => {
-  const [stuff, setStuff] = React.useState<StuffType[]>([]);
+const BlendRatioList = () => {
+  const [BlendRatio, setBlendRatio] = React.useState<BlendRatioType[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [openDelete, setOpenDelete] = React.useState(false);
   const [openView, setOpenView] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [selectedStuff, setSelectedStuff] = React.useState<StuffType | null>(null);
+  const [selectedBlendRatio, setSelectedBlendRatio] = React.useState<BlendRatioType | null>(null);
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
 
-  const fetchStuff = async () => {
+  const fetchBlendRatio = async () => {
     try {
       setLoading(true);
-      const response = await getAllStuffs(pageIndex === 0 ? 1 : pageIndex, pageSize);
-      setStuff(response.data || []);
+      const response = await getAllBlendRatios(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      setBlendRatio(response.data || []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -29,21 +29,21 @@ const StuffList = () => {
   };
 
   React.useEffect(() => {
-    fetchStuff();
+    fetchBlendRatio();
   }, [pageIndex, pageSize]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
     
     try {
-      await deleteStuff(deleteId);
-      setStuff(prev => prev.filter(item => item.id !== deleteId));
+      await deleteBlendRatio(deleteId);
+      setBlendRatio(prev => prev.filter(item => item.id !== deleteId));
       setOpenDelete(false);
       setDeleteId(null);
       toast.success("Deleted Successfully");
     } catch (error) {
-      console.error('Failed to delete Stuff:', error);
-      toast.error('Failed to delete stuff');
+      console.error('Failed to delete Blend Ratio:', error);
+      toast.error('Failed to delete blend ratio');
     }
   };
 
@@ -58,23 +58,23 @@ const StuffList = () => {
   };
 
   const handleViewOpen = (ListId: string) => { 
-    const item = stuff.find(item => item.listid === ListId);
-    setSelectedStuff(item || null);
+    const item = BlendRatio.find(item => item.listid === ListId);
+    setSelectedBlendRatio(item || null);
     setOpenView(true);
   };
 
   const handleViewClose = () => {
     setOpenView(false);
-    setSelectedStuff(null);
+    setSelectedBlendRatio(null);
   };
 
   return (
     <div className="container bg-white rounded-md">
       <DataTable
         columns={columns(handleDeleteOpen, handleViewOpen)}
-        data={stuff}
+        data={BlendRatio}
         loading={loading}
-        link={'/stuff/create'}
+        link={'/bendRatio/create'}
         setPageIndex={setPageIndex}
         pageIndex={pageIndex}
         pageSize={pageSize}
@@ -102,7 +102,7 @@ const StuffList = () => {
               </button>
             </div>
             <div className="p-6 bg-gray-50">
-              {selectedStuff && (
+              {selectedBlendRatio && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 gap-5">
                     <div className="group">
@@ -110,7 +110,7 @@ const StuffList = () => {
                         ID
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedStuff.listid} 
+                        {selectedBlendRatio.listid} 
                       </div>
                     </div>
                     <div className="group">
@@ -118,7 +118,7 @@ const StuffList = () => {
                         Name
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedStuff.descriptions}
+                        {selectedBlendRatio.descriptions}
                       </div>
                     </div>
                     <div className="group">
@@ -126,7 +126,7 @@ const StuffList = () => {
                         Details
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedStuff.subDescription}
+                        {selectedBlendRatio.subDescription}
                       </div>
                     </div>
                   </div>
@@ -142,4 +142,4 @@ const StuffList = () => {
   );
 };
 
-export default StuffList;
+export default BlendRatioList;
