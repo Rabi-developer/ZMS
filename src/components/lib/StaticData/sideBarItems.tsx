@@ -265,7 +265,7 @@ export const sideBarItems = [
 },
 {
   text: "Weaves",
-  href: "/weeaves",
+  href: "/weaves",
   icon: GiSoundWaves,
   color: '#33a4d8',
 },
