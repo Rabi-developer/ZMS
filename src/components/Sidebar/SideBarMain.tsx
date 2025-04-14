@@ -36,7 +36,7 @@ const SideBarMain = ({ setSideBarToggle, sideBarToggle }: { setSideBarToggle: Re
         <div onClick={() => item.sub_menu && handleSubMenuToggle(item.text)}>
           <NavLink
             href={item.type || "#"}
-            className={`hover:bg-[#465869] hover:text-white border-[#33a4d8] hover:border-s-4 duration-200 transition-all flex items-center gap-2 px-3 py-3 ${sideBarToggle ? 'flex flex-row-reverse justify-between' : ''}`}
+            className={ `hover:bg-[#465869]  hover:text-white border-[#33a4d8] hover:border-s-4 duration-200 transition-all flex items-center gap-2 px-3 py-3 ${sideBarToggle ? 'flex flex-row-reverse justify-between' : ''}`}
           >
             <span className={sideBarToggle ? 'ml-auto' : ''}>
               {item.icon && <item.icon color={item.color} size={20} />}

@@ -45,6 +45,13 @@ import { PiYarnFill } from "react-icons/pi";
 import { GiSoundWaves } from "react-icons/gi";
 import { GiCardPickup } from "react-icons/gi";
 import { SiThefinals } from "react-icons/si";
+import { GiRolledCloth } from "react-icons/gi";
+import { GiWaves } from "react-icons/gi";
+import { RiExpandWidthFill } from "react-icons/ri";
+import { FaPiedPiperSquare } from "react-icons/fa";
+import { FaBoxesPacking } from "react-icons/fa6";
+import { FaBuffer } from "react-icons/fa";
+import { FaHouseSignal } from "react-icons/fa6";
 
 
 
@@ -281,6 +288,53 @@ export const sideBarItems = [
   icon: SiThefinals,
   color: '#33a4d8',
 },
+// Icon
+{
+  text: "Selvege",
+  href: "/selvege",
+  icon: GiRolledCloth,
+  color: '#33a4d8',
+},
+{
+  text: "Selvege Weaves",
+  href: "/selvegeweaves",
+  icon: GiWaves,
+  color: '#33a4d8',
+},
+{
+  text: "Selvege Width",
+  href: "/selvegewidth",
+  icon: RiExpandWidthFill,
+  color: '#33a4d8',
+},
+{
+  text: "Peice Length",
+  href: "/peicelength",
+  icon: FaPiedPiperSquare,
+  color: '#33a4d8',
+},
+{
+  text: "Packing",
+  href: "/packing",
+  icon: FaBoxesPacking,
+  color: '#33a4d8',
+},
+{
+  text: "Fabric Types",
+  href: "/fabrictypes",
+  icon: FaBuffer,
+  color: '#33a4d8',
+},
+{
+  text: "End Use",
+  href: "/enduse",
+  icon: FaHouseSignal,
+  color: '#33a4d8',
+},
+
+
+
+
 
 
 

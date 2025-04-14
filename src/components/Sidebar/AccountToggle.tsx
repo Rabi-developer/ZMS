@@ -8,7 +8,7 @@ const AccountToggle = ({ isCollapsed }: { isCollapsed: boolean }) => {
         <HiSquare3Stack3D size={40} className="text-[#06b6d4] dark:text-[#387fbf]" />
         {!isCollapsed && (
           <div className="text-start text-3xl ">
-            EMS
+            ZMS
           </div>
         )}
       </button>
