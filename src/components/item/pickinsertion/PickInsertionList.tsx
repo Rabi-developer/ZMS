@@ -74,7 +74,7 @@ const PickInsertionList = () => {
         columns={columns(handleDeleteOpen, handleViewOpen)}
         data={PickInsertion}
         loading={loading}
-        link={'/PickInsertion/create'}
+        link={'/pickinsertion/create'}
         setPageIndex={setPageIndex}
         pageIndex={pageIndex}
         pageSize={pageSize}

@@ -74,7 +74,7 @@ const SelvegeWidthList = () => {
         columns={columns(handleDeleteOpen, handleViewOpen)}
         data={SelvegeWidth}
         loading={loading}
-        link={'/SelvegeWidth/create'}
+        link={'/selvegewidth/create'}
         setPageIndex={setPageIndex}
         pageIndex={pageIndex}
         pageSize={pageSize}

@@ -71,14 +71,14 @@ const PackingForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     try {
       if (isEdit) {
         await updatePacking(data.listid!, data);
-        toast.success('Peice Length updated successfully!');
+        toast.success('Packing updated successfully!');
       } else {
         await createPacking(data);
-        toast.success('Peice Length created successfully!');
+        toast.success('Packing created successfully!');
       }
       router.push('/packing');
     } catch (error) {
-      toast.error('An error occurred while saving the Peice Length');
+      toast.error('An error occurred while saving the Packing');
     }
   };
 

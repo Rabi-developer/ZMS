@@ -5,31 +5,31 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import CustomInput from '@/components/ui/CustomInput';
-import { createEndUse, updateEndUse, getAllEndUses } from '@/apis/enduse'; 
+import { createSelvegeWeave, updateSelvegeWeave, getAllSelvegeWeaves } from '@/apis/selvegeweave'; 
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdAddBusiness } from "react-icons/md";
 import Link from "next/link";
 import { BiSolidErrorAlt } from "react-icons/bi";
 
-const EndUseSchema = z.object({
+const SelvegeWeavesSchema = z.object({
   listid: z.string().optional(), 
   descriptions: z.string().min(1, 'Description is required'), 
   subDescription: z.string().min(1, 'Sub-Description is required'), 
   useDeletedId: z.boolean().optional(),
 });
 
-type EndUseData = z.infer<typeof EndUseSchema>;
+type SelvegeWeavesFormData = z.infer<typeof SelvegeWeavesSchema>;
 
-const EndUse = ({ isEdit = false }: { isEdit?: boolean }) => {
+const SelvegeWeavesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
   const {
     control,
     handleSubmit,
     formState: { errors },
     setValue,
-  } = useForm<EndUseData>({
-    resolver: zodResolver(EndUseSchema),
+  } = useForm<SelvegeWeavesFormData>({
+    resolver: zodResolver(SelvegeWeavesSchema),
     defaultValues: {
       listid: '',
       descriptions: '',
@@ -42,43 +42,43 @@ const EndUse = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   React.useEffect(() => {
     if (isEdit) {
-      const fetchEndUse = async () => {
-        const listid = window.location.pathname.split('/enduse').pop(); 
+      const fetchSelvegeWeaves = async () => {
+        const listid = window.location.pathname.split('/SelvegeWeaves').pop(); 
         if (listid) {
           try {
-            const response = await getAllEndUses();
-            const foundEndUse = response.data.find((item: any) => item.listid === listid); 
-            if (foundEndUse) {
-              setValue('listid', foundEndUse.listid || '');
-              setValue('descriptions', foundEndUse.descriptions || '');
-              setValue('subDescription', foundEndUse.subDescription || '');
+            const response = await getAllSelvegeWeaves();
+            const foundSelvegeWeaves = response.data.find((item: any) => item.listid === listid); 
+            if (foundSelvegeWeaves) {
+              setValue('listid', foundSelvegeWeaves.listid || '');
+              setValue('descriptions', foundSelvegeWeaves.descriptions || '');
+              setValue('subDescription', foundSelvegeWeaves.subDescription || '');
               setValue('useDeletedId', false);
             } else {
-              toast.error('EndUse not found');
-              router.push('/enduse');
+              toast.error('SelvegeWeaves not found');
+              router.push('/selvegeweaves');
             }
           } catch (error) {
-            console.error('Error fetching End Use:', error);
-            toast.error('Failed to load End Use');
+            console.error('Error fetching SelvegeWeaves:', error);
+            toast.error('Failed to load SelvegeWeaves');
           }
         }
       };
-      fetchEndUse();
+      fetchSelvegeWeaves();
     }
   }, [isEdit, setValue, router]);
 
-  const onSubmit = async (data: EndUseData) => {
+  const onSubmit = async (data: SelvegeWeavesFormData) => {
     try {
       if (isEdit) {
-        await updateEndUse(data.listid!, data);
-        toast.success('End Use updated successfully!');
+        await updateSelvegeWeave(data.listid!, data);
+        toast.success('Selvege Width updated successfully!');
       } else {
-        await createEndUse(data);
-        toast.success('End Use created successfully!');
+        await createSelvegeWeave(data);
+        toast.success('Selvege Width created successfully!');
       }
-      router.push('/enduse');
+      router.push('/selvegeweaves');
     } catch (error) {
-      toast.error('An error occurred while saving the End Use');
+      toast.error('An error occurred while saving the SelvegeWeaves');
     }
   };
 
@@ -87,7 +87,7 @@ const EndUse = ({ isEdit = false }: { isEdit?: boolean }) => {
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded">
         <h1 className="text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
           <MdAddBusiness />
-          {isEdit ? "EDIT EndUse" : "ADD NEW EndUse"}
+          {isEdit ? "EDIT Selvege Weaves" : "ADD NEW Selvege Weaves"}
         </h1>
       </div>
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -147,9 +147,9 @@ const EndUse = ({ isEdit = false }: { isEdit?: boolean }) => {
             render={({ field }) => (
               <CustomInput
                 {...field}
-                label="Sub-Description" 
+                label="Sub-Description" // Changed label
                 type="text"
-                error={errors.subDescription?.message} 
+                error={errors.subDescription?.message} // Changed from errors.details
                 placeholder="Enter sub-description"
                 value={field.value || ''}
                 onChange={field.onChange}
@@ -180,9 +180,9 @@ const EndUse = ({ isEdit = false }: { isEdit?: boolean }) => {
             type="submit"
             className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
           >
-            {isEdit ? "Update EndUse" : "Create EndUse"}
+            {isEdit ? "Update SelvegeWeaves" : "Create SelvegeWeaves"}
           </Button>
-          <Link href="/enduse">
+          <Link href="/selvegeweaves">
             <Button
               type="button"
               className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
@@ -196,4 +196,4 @@ const EndUse = ({ isEdit = false }: { isEdit?: boolean }) => {
   );
 };
 
-export default EndUse;
+export default SelvegeWeavesForm;

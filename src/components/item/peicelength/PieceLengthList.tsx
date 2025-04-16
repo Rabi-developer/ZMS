@@ -74,7 +74,7 @@ const PeiceLengthList = () => {
         columns={columns(handleDeleteOpen, handleViewOpen)}
         data={PeiceLength}
         loading={loading}
-        link={'/PeiceLength/create'}
+        link={'/peicelength/create'}
         setPageIndex={setPageIndex}
         pageIndex={pageIndex}
         pageSize={pageSize}
