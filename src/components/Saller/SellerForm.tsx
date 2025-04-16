@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -10,7 +11,9 @@ import { MdAddBusiness } from "react-icons/md";
 import Link from 'next/link';
 import { AiOutlinePlus, AiOutlineDelete } from "react-icons/ai";
 import { Button } from '@/components/ui/button';
+import { createSeller, updateSeller } from '@/apis/seller';
 
+// Zod schema expects accountNo as a string for API
 const Schema = z.object({
   SellerName: z.string().min(1, "Seller Name is required"),
   SellerType: z.string().min(1, "Seller Type is required"),
@@ -24,22 +27,47 @@ const Schema = z.object({
   STN: z.string().min(1, "STN is required"),
   MTN: z.string().min(1, "MTN is required"),
   PayableCode: z.string().min(1, "Payable Code is required"),
-  accountNo: z.array(z.string().min(1, 'Account Number is required')),  
-  InvoiceNumber: z.string().optional(),
+  accountNo: z.string().min(1, 'At least one Account Number is required'), // as string for API
   PaymentStatus: z.string().optional(),
-  PaymentMode: z.string().min(1, "Payment Mode is required"),
   OrderDate: z.string().optional(),
   DeliveryDate: z.string().optional(),
-  id: z.string().optional(),
-
+  Payableid: z.string().optional().nullable(),
 });
 
 type FormData = z.infer<typeof Schema>;
 
-const Saller = ({ id, initialData }: any) => {
+// UI state type for accountNos
+type SellerFormUIProps = {
+  id?: string;
+  initialData?: any; // Accepts API data directly (camelCase)
+};
+
+// Mapping function: API camelCase -> Form PascalCase
+function mapSellerApiToForm(apiData: any): FormData {
+  return {
+    SellerName: apiData.sellerName || "",
+    SellerType: apiData.sellerType || "",
+    Address: apiData.address || "",
+    City: apiData.city || "",
+    Country: apiData.country || "",
+    PhoneNumber: apiData.phoneNumber || "",
+    EmailAddress: apiData.emailAddress || "",
+    MobileNumber: apiData.mobileNumber || "",
+    FaxNumber: apiData.faxNumber || "",
+    STN: apiData.stn || "",
+    MTN: apiData.mtn || "",
+    PayableCode: apiData.payableCode || "",
+    accountNo: apiData.accountNo || "",
+    PaymentStatus: apiData.paymentStatus || "",
+    OrderDate: apiData.orderDate || "",
+    DeliveryDate: apiData.deliveryDate || "",
+    Payableid: apiData.payableid || "",
+  };
+}
+
+const Saller = ({ id, initialData }: SellerFormUIProps) => {
+  // UI state for account numbers as array
   const [accountNos, setAccountNos] = useState<string[]>(['']);
-  const [paymentStatusOption, setPaymentStatusOption] = useState<string>('');
-  const [paymentModeOption, setPaymentModeOption] = useState<string>('');
   const [text, setText] = useState("");
 
   const router = useRouter();
@@ -49,22 +77,11 @@ const Saller = ({ id, initialData }: any) => {
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm<FormData>({
     resolver: zodResolver(Schema),
-    defaultValues: initialData || {},
+    defaultValues: initialData ? mapSellerApiToForm(initialData) : {},
   });
-
-  const paymentModes = [
-    { id: 1, name: 'Cash' },
-    { id: 2, name: 'Bank Transfer' },
-    { id: 3, name: 'Cheque' },
-  ];
-
-  const paymentStatuses = [
-    { id: 1, name: 'Paid' },
-    { id: 2, name: 'Pending' },
-    { id: 3, name: 'Partial Payment' },
-  ];
 
   const sellerTypes = [
     { id: 1, name: 'Manufacturer' },
@@ -73,13 +90,24 @@ const Saller = ({ id, initialData }: any) => {
     { id: 4, name: 'Retailer' },
   ];
 
-
+  // When initialData changes, map and split accountNo string to array for UI
   useEffect(() => {
     if (initialData) {
-      console.log("Initial data:", initialData); // Debugging
-      reset(initialData);
+      const mapped = mapSellerApiToForm(initialData);
+      reset(mapped);
+      if (mapped.accountNo && typeof mapped.accountNo === 'string') {
+        const arr = mapped.accountNo.split(',').map(s => s.trim()).filter(Boolean);
+        setAccountNos(arr.length > 0 ? arr : ['']);
+      } else {
+        setAccountNos(['']);
+      }
     }
   }, [initialData, reset]);
+
+  // Keep form value in sync for validation (as string)
+  useEffect(() => {
+    setValue('accountNo', accountNos.filter(Boolean).join(','));
+  }, [accountNos, setValue]);
 
   const addAccountNo = () => {
     setAccountNos([...accountNos, '']);
@@ -87,7 +115,7 @@ const Saller = ({ id, initialData }: any) => {
 
   const removeAccountNo = (index: number) => {
     const updatedAccountNos = accountNos.filter((_, i) => i !== index);
-    setAccountNos(updatedAccountNos);
+    setAccountNos(updatedAccountNos.length > 0 ? updatedAccountNos : ['']);
   };
 
   const handleAccountNoChange = (index: number, value: string) => {
@@ -96,25 +124,31 @@ const Saller = ({ id, initialData }: any) => {
     setAccountNos(updatedAccountNos);
   };
 
-  const onSubmit = async (data: any) => {
-    console.log("Form submitted with data:", data); 
+  const onSubmit = async (data: FormData) => {
     try {
       let response;
+      // data.accountNo is a comma-separated string
       if (id) {
         const updateData = { ...data, id };
-        console.log("Updating seller with data:", updateData); 
-        // response = await updateSeller(id, updateData);
-        toast("Updated Successfully", { type: "success" });
+        response = await updateSeller(id, updateData);
+        if (response.statusMessage === "Created successfully") {
+          toast("Updated Successfully", { type: "success" });
+          reset();
+          router.push("/seller");
+        } else {
+          toast(response.statusMessage, { type: "error" });
+        }
       } else {
-        console.log("Creating seller with data:", data); 
-        // response = await createSeller(data);
-        toast("Created Successfully", { type: "success" });
+        response = await createSeller(data);
+        if (response.statusMessage === "Created successfully") {
+          toast("Created Successfully", { type: "success" });
+          reset();
+          router.push("/seller");
+        } else {
+          toast(response.statusMessage, { type: "error" });
+        }
       }
-      console.log("API response:", response); 
-      reset();
-      router.push("/seller");
     } catch (error) {
-      console.error("Error submitting form:", error);
       toast("An error occurred while submitting the form", { type: "error" });
     }
   };
@@ -138,25 +172,22 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='Seller Name'
                 id="SellerName"
-                register={register}
                 {...register("SellerName")}
                 error={errors.SellerName?.message}
               />
               <CustomInputDropdown
                 label="Seller Type"
                 options={sellerTypes}
-                selectedOption={''}
-                onChange={(value) => {
-                  setValue("SellerType", value);
-                }}
+                selectedOption={watch("SellerType") || ''}
+                onChange={(value) => setValue("SellerType", value, { shouldValidate: true })}
                 error={errors.SellerType?.message}
+                register={register}
               />
               <CustomInput
                 variant="floating"
                 borderThickness='2'
                 label='City'
                 id="City"
-                register={register}
                 {...register("City")}
                 error={errors.City?.message}
               />
@@ -165,7 +196,6 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='Country'
                 id="Country"
-                register={register}
                 {...register("Country")}
                 error={errors.Country?.message}
               />
@@ -175,7 +205,6 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='Phone Number'
                 id="PhoneNumber"
-                register={register}
                 {...register("PhoneNumber")}
                 error={errors.PhoneNumber?.message}
               />
@@ -185,17 +214,15 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='Mobile Number'
                 id="MobileNumber"
-                register={register}
                 {...register("MobileNumber")}
                 error={errors.MobileNumber?.message}
               />
-               <CustomInput
+              <CustomInput
                 type='email'
                 variant="floating"
                 borderThickness='2'
                 label='Email Address'
                 id="EmailAddress"
-                register={register}
                 {...register("EmailAddress")}
                 error={errors.EmailAddress?.message}
               />
@@ -205,7 +232,6 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='Fax Number'
                 id="FaxNumber"
-                register={register}
                 {...register("FaxNumber")}
                 error={errors.FaxNumber?.message}
               />
@@ -215,7 +241,6 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='STN'
                 id="STN"
-                register={register}
                 {...register("STN")}
                 error={errors.STN?.message}
               />
@@ -225,7 +250,6 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='MTN'
                 id="MTN"
-                register={register}
                 {...register("MTN")}
                 error={errors.MTN?.message}
               />
@@ -234,75 +258,74 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='Address'
                 id="Address"
-                register={register}
                 {...register("Address")}
                 error={errors.Address?.message}
               />
-            </div>             
+            </div>
           </div>
-          <div className='p-4 ml-4 border rounded-2xl mx-auto  '>
-            <h2>
-              Payable Code:
-            </h2>
-            <div className='grid grid-cols-3 gap-1 '>
+          <div className='p-4 ml-4 border rounded-2xl mx-auto'>
+            <h2>Payable Code:</h2>
+            <div className='grid grid-cols-3 gap-1'>
               <CustomInput
                 type='number'
                 variant="floating"
                 borderThickness='2'
                 label=''
-                id="id"
-                register={register}
-                {...register("id")}
-                error={errors.id?.message}
+                id="Payableid"
+                {...register("Payableid")}
+                error={errors.Payableid?.message}
               />
               <CustomInput
                 variant="floating"
                 borderThickness='2'
                 label=''
                 id="PayableCode"
-                register={register}
                 {...register("PayableCode")}
                 error={errors.PayableCode?.message}
               />
-                 </div>
-           </div>
-        
+            </div>
+          </div>
 
-           <div className='p-4'>
+          <div className='p-4'>
             <h2 className='text-xl font-bold text-black dark:text-white'>Additional Information</h2>
-            <div>          
-                    {accountNos.map((accountNo, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                          <div className=' w-[60vh]'> 
-                          <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label={`Payment-Method /Account No ${index + 1}`}
-                          value={accountNo}
-                          onChange={(e) => handleAccountNoChange(index, e.target.value)}
-                        />
-                          </div>
-                        <div className='mt-8 gap-4'> 
-                        {index > 0 && (
-                          
-                          <button
-                            type="button"
-                            onClick={() => removeAccountNo(index)}
-                            className="p-2 bg-red-500 hover:bg-red-600 text-white rounded "
-                          >
-                            <AiOutlineDelete size={20} />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={addAccountNo}
-                          className="p-2 bg-green-500 hover:bg-green-600 text-white rounded ml-4"
-                        >
-                          <AiOutlinePlus size={20} />
-                        </button>
-                        </div>
-                      </div>
-                    ))}
+            <div>
+              {accountNos.map((accountNo, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div className='w-[60vh]'>
+                    <CustomInput
+                      variant="floating"
+                      borderThickness="2"
+                      label={`Payment-Method /Account No ${index + 1}`}
+                      value={accountNo}
+                      onChange={(e) => handleAccountNoChange(index, e.target.value)}
+                      error={errors.accountNo && errors.accountNo.message && typeof errors.accountNo.message === 'string'
+                        ? errors.accountNo.message
+                        : undefined}
+                    />
+                  </div>
+                  <div className='mt-8 gap-4'>
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removeAccountNo(index)}
+                        className="p-2 bg-red-500 hover:bg-red-600 text-white rounded"
+                      >
+                        <AiOutlineDelete size={20} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={addAccountNo}
+                      className="p-2 bg-green-500 hover:bg-green-600 text-white rounded ml-4"
+                    >
+                      <AiOutlinePlus size={20} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {errors.accountNo && typeof errors.accountNo.message === 'string' && (
+                <p className="text-red-500 text-sm mt-2">{errors.accountNo.message}</p>
+              )}
             </div>
             <div className='grid grid-cols-3 gap-4'>
               <CustomInput
@@ -311,7 +334,6 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='Order Date'
                 id="OrderDate"
-                register={register}
                 {...register("OrderDate")}
                 error={errors.OrderDate?.message}
               />
@@ -321,25 +343,22 @@ const Saller = ({ id, initialData }: any) => {
                 borderThickness='2'
                 label='Delivery Date'
                 id="DeliveryDate"
-                register={register}
                 {...register("DeliveryDate")}
                 error={errors.DeliveryDate?.message}
               />
-             
             </div>
           </div>
-        
-          <div className="  p-5 ml-7 bg-white shadow-md rounded-lg mx-auto">
-            <textarea
-            id="message"
-            className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            placeholder="Any additional notes or comments about the Saller's work details"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-             ></textarea>
-            <p className="text-gray-500 mt-2">Character Count: {text.length}</p>
-            </div>
 
+          <div className="p-5 ml-7 bg-white shadow-md rounded-lg mx-auto">
+            <textarea
+              id="message"
+              className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              placeholder="Any additional notes or comments about the Saller's work details"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            ></textarea>
+            <p className="text-gray-500 mt-2">Character Count: {text.length}</p>
+          </div>
         </div>
 
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">
