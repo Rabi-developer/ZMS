@@ -58,7 +58,7 @@ const SellerList = () => {
         columns={columns(handleDeleteOpen)} 
         data={sellers} 
         loading={loading} 
-        link={'/seller/create'} 
+        link={'/saller/create'} 
         setPageIndex={setPageIndex} 
         pageIndex={pageIndex} 
         pageSize={pageSize} 
