@@ -26,7 +26,7 @@ const Schema = z.object({
   FaxNumber: z.string().optional(),
   STN: z.string().min(1, "STN is required"),
   MTN: z.string().min(1, "MTN is required"),
-  PayableCode: z.string().min(1, "Payable Code is required"),
+  PayableCode: z.string().optional().nullable(),
   accountNo: z.string().min(1, 'At least one Account Number is required'), // as string for API
   PaymentStatus: z.string().optional(),
   OrderDate: z.string().optional(),
@@ -134,7 +134,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
         if (response.statusMessage === "Created successfully") {
           toast("Updated Successfully", { type: "success" });
           reset();
-          router.push("/seller");
+          router.push("/saller");
         } else {
           toast(response.statusMessage, { type: "error" });
         }
@@ -143,7 +143,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
         if (response.statusMessage === "Created successfully") {
           toast("Created Successfully", { type: "success" });
           reset();
-          router.push("/seller");
+          router.push("/saller");
         } else {
           toast(response.statusMessage, { type: "error" });
         }
