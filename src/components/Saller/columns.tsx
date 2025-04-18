@@ -40,6 +40,10 @@ export const columns = (handleDeleteOpen: (id: string) => void): ColumnDef<Selle
     ),
   },
   {
+    accessorKey: 'name',
+    header: '',
+  },
+  {
     accessorKey: 'sellerType',
     header: 'Seller Type',
   },
