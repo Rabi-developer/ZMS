@@ -31,7 +31,7 @@ const Schema = z.object({
   PaymentStatus: z.string().optional(),
   OrderDate: z.string().optional(),
   DeliveryDate: z.string().optional(),
-  Payableid: z.string().optional().nullable(),
+  payableid: z.string().optional().nullable(),
 });
 
 type FormData = z.infer<typeof Schema>;
@@ -61,7 +61,7 @@ function mapSellerApiToForm(apiData: any): FormData {
     PaymentStatus: apiData.paymentStatus || "",
     OrderDate: apiData.orderDate || "",
     DeliveryDate: apiData.deliveryDate || "",
-    Payableid: apiData.payableid || "",
+    payableid: apiData.payableid || "",
   };
 }
 
@@ -271,9 +271,9 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 variant="floating"
                 borderThickness='2'
                 label=''
-                id="Payableid"
-                {...register("Payableid")}
-                error={errors.Payableid?.message}
+                id="payableid"
+                {...register("payableid")}
+                error={errors.payableid?.message}
               />
               <CustomInput
                 variant="floating"
