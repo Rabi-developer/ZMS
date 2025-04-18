@@ -267,7 +267,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
             <h2>Payable Code:</h2>
             <div className='grid grid-cols-3 gap-1'>
               <CustomInput
-                type='number'
+                type='string'
                 variant="floating"
                 borderThickness='2'
                 label=''
