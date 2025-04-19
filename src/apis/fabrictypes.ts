@@ -4,7 +4,7 @@ import apiFetch from "@/components/utils/fetchInstance";
 // Create FabricTypes
 const createFabricTypes = async (FabricTypes: any) => {
   try {
-    const response = await apiFetch('FabricTypes', {
+    const response = await apiFetch('FabricType', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -20,7 +20,7 @@ const createFabricTypes = async (FabricTypes: any) => {
 // Get All FabricTypess
 const getAllFabricTypess = async (pageIndex: any = 1, pageSize: any = 10) => {
   try {
-    const response = await apiFetch(`FabricTypes?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    const response = await apiFetch(`FabricType?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
       method: 'GET',
       headers: {},
     }, true);
@@ -33,7 +33,7 @@ const getAllFabricTypess = async (pageIndex: any = 1, pageSize: any = 10) => {
 // Get Single FabricTypes
 const getSingleFabricTypes = async (id: string) => {
   try {
-    const response = await apiFetch(`FabricTypes/${id}`, {
+    const response = await apiFetch(`FabricType/${id}`, {
       method: 'GET',
       headers: {},
     }, true);
@@ -46,7 +46,7 @@ const getSingleFabricTypes = async (id: string) => {
 // Update FabricTypes
 const updateFabricTypes = async (id: string, FabricTypes: any) => {
   try {
-    const response = await apiFetch(`FabricTypes/${id}`, {
+    const response = await apiFetch(`FabricType/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ const updateFabricTypes = async (id: string, FabricTypes: any) => {
 // Delete FabricTypes
 const deleteFabricTypes = async (id: string) => {
   try {
-    const response = await apiFetch(`FabricTypes/${id}`, {
+    const response = await apiFetch(`FabricType/${id}`, {
       method: 'DELETE',
       headers: {},
     }, true);

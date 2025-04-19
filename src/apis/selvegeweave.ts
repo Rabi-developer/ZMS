@@ -4,7 +4,7 @@ import apiFetch from "@/components/utils/fetchInstance";
 // Create SelvegeWeave
 const createSelvegeWeave = async (SelvegeWeave: any) => {
   try {
-    const response = await apiFetch('SelvegeWeave', {
+    const response = await apiFetch('SelvegeWeaves', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -20,7 +20,7 @@ const createSelvegeWeave = async (SelvegeWeave: any) => {
 // Get All SelvegeWeaves
 const getAllSelvegeWeaves = async (pageIndex: any = 1, pageSize: any = 10) => {
   try {
-    const response = await apiFetch(`SelvegeWeave?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    const response = await apiFetch(`SelvegeWeaves?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
       method: 'GET',
       headers: {},
     }, true);
@@ -33,7 +33,7 @@ const getAllSelvegeWeaves = async (pageIndex: any = 1, pageSize: any = 10) => {
 // Get Single SelvegeWeave
 const getSingleSelvegeWeave = async (id: string) => {
   try {
-    const response = await apiFetch(`SelvegeWeave/${id}`, {
+    const response = await apiFetch(`SelvegeWeaves/${id}`, {
       method: 'GET',
       headers: {},
     }, true);
@@ -46,7 +46,7 @@ const getSingleSelvegeWeave = async (id: string) => {
 // Update SelvegeWeave
 const updateSelvegeWeave = async (id: string, SelvegeWeave: any) => {
   try {
-    const response = await apiFetch(`SelvegeWeave/${id}`, {
+    const response = await apiFetch(`SelvegeWeaves/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -62,7 +62,7 @@ const updateSelvegeWeave = async (id: string, SelvegeWeave: any) => {
 // Delete SelvegeWeave
 const deleteSelvegeWeave = async (id: string) => {
   try {
-    const response = await apiFetch(`SelvegeWeave/${id}`, {
+    const response = await apiFetch(`SelvegeWeaves/${id}`, {
       method: 'DELETE',
       headers: {},
     }, true);

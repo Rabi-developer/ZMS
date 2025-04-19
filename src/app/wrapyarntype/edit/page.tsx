@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Loader from '@/components/ui/Loader';
 import MainLayout from '@/components/MainLayout/MainLayout'
-import WrapYarnType from '@/components/item/wrapyarntype/WrapYarnType';
 import { getSingleWrapYarnType } from '@/apis/wrapyarntype';
+import WrapYarnType from '@/components/item/wrapyarntype/WrapYarnType';
 
 const UpdateWrapYarnTypePage = () => {
   const { id } = useParams<{ id: string }>(); 
@@ -31,7 +31,7 @@ const UpdateWrapYarnTypePage = () => {
       {
         !initialData ? <Loader /> :
           <div>
-            <WrapYarnType isEdit={true} />
+            <WrapYarnType isEdit={true}/>
           </div>
       }
     </MainLayout>

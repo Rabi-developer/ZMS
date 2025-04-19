@@ -4,7 +4,7 @@ import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export type WrapYarnType = {
+export type WrapYarnTypeType = {
   id: string;       
   listid: string;   
   descriptions: string;
@@ -14,7 +14,7 @@ export type WrapYarnType = {
 export const columns = (
   handleDeleteOpen: (id: string) => void, 
   handleViewOpen: (listid: string) => void
-): ColumnDef<WrapYarnType>[] => [
+): ColumnDef<WrapYarnTypeType>[] => [
   {
     accessorKey: 'listid',
     header: ({ column }: any) => {
@@ -49,7 +49,7 @@ export const columns = (
       const listId = row.original.listid;         
       return (
         <div className='flex gap-2'>
-          <Link href={`/wrapyarntype/edit/${descriptionId}`}>
+          <Link href={`/description/edit/${descriptionId}`}>
             <Button variant='outline' size='sm'>
               <Edit className='h-4 w-4' />
             </Button>

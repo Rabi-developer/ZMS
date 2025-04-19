@@ -43,7 +43,7 @@ const WrapYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
   React.useEffect(() => {
     if (isEdit) {
       const fetchWrapYarnType = async () => {
-        const listid = window.location.pathname.split('/').pop(); 
+        const listid = window.location.pathname.split('/wrapyarntype').pop(); 
         if (listid) {
           try {
             const response = await getAllWrapYarnTypes();
@@ -54,12 +54,12 @@ const WrapYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
               setValue('subDescription', foundWrapYarnType.subDescription || '');
               setValue('useDeletedId', false);
             } else {
-              toast.error('Wrap Yarn Type not found');
+              toast.error('WrapYarnType not found');
               router.push('/wrapyarntype');
             }
           } catch (error) {
-            console.error('Error fetching Wrap Yarn Type:', error);
-            toast.error('Failed to load Wrap Yarn Type');
+            console.error('Error fetching WrapYarnType:', error);
+            toast.error('Failed to load WrapYarnType');
           }
         }
       };
@@ -71,14 +71,14 @@ const WrapYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
     try {
       if (isEdit) {
         await updateWrapYarnType(data.listid!, data);
-        toast.success('Wrap Yarn Type updated successfully!');
+        toast.success('WrapYarnType updated successfully!');
       } else {
         await createWrapYarnType(data);
-        toast.success('Wrap Yarn Type created successfully!');
+        toast.success('WrapYarnType created successfully!');
       }
       router.push('/wrapyarntype');
     } catch (error) {
-      toast.error('An error occurred while saving the Wrap Yarn Type');
+      toast.error('An error occurred while saving the WrapYarnType');
     }
   };
 
@@ -87,7 +87,7 @@ const WrapYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded">
         <h1 className="text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
           <MdAddBusiness />
-          {isEdit ? "EDIT Wrap Yarn Type" : "ADD NEW Wrap Yarn Type"}
+          {isEdit ? "EDIT WrapYarnType" : "ADD NEW WrapYarnType"}
         </h1>
       </div>
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -180,7 +180,7 @@ const WrapYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
             type="submit"
             className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
           >
-            {isEdit ? "Update WrapYarnType" : "Create WrapYarnType"}
+            {isEdit ? "Update " : "Create "}
           </Button>
           <Link href="/wrapyarntype">
             <Button

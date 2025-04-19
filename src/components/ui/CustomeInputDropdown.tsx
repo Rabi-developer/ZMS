@@ -36,7 +36,7 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
   return (
     <div className="w-full">
       <div className="relative w-full mb-4">
-        <label htmlFor="dropdown" className="block text-lg text-[#d1d5db] text-start mb-1">
+        <label htmlFor="dropdown" className="block text-lg text-black text-start mb-1">
           {label}
         </label>
         <select
@@ -47,7 +47,7 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
             focus:ring-[${focusBorderColor}] focus:border-[${focusBorderColor}]
             border-${borderThickness} border-[${borderColor}] 
             hover:border-[${hoverBorderColor}] transition-all duration-300 bg-gray-100
-            ${error ? "border-red-500 focus:ring-red-500" : ""}`} // Apply error styling
+            ${error ? "border-red-500 focus:ring-red-500" : ""}`} 
         >
           <option value="">Select an option</option>
           {options.map((option) => (
@@ -56,7 +56,7 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
           </option>
         ))}
         </select>
-        {error && <p className="text-red-500 text-sm mt-2">{error}</p>} {/* Display error message */}
+        {error && <p className="text-red-500 text-sm mt-2">{error}</p>} 
       </div>
     </div>
   );

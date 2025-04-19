@@ -52,6 +52,8 @@ import { FaPiedPiperSquare } from "react-icons/fa";
 import { FaBoxesPacking } from "react-icons/fa6";
 import { FaBuffer } from "react-icons/fa";
 import { FaHouseSignal } from "react-icons/fa6";
+import { LiaFileContractSolid } from "react-icons/lia";
+import { RiContractLine } from "react-icons/ri";
 
 
 
@@ -333,14 +335,33 @@ export const sideBarItems = [
 },
 
 
-
-
-
+]},
+//Contract
+{
+  text: "Contracts", 
+  type: "heading" 
+},
+{
+  text: "Contract",
+  icon:  LiaFileContractSolid,
+  color: '#33a4d8',
+  sub_menu: [
+{
+  text: "Contract",
+  href: "/contract",
+  icon: RiContractLine,
+  color: '#33a4d8',
+},
+{
+  text: "",
+  href: "/",
+  icon: PiWebhooksLogoFill,
+  color: '#33a4d8',
+},
 
 
 
 ]},
-
 
 
 

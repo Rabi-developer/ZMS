@@ -1,5 +1,5 @@
+import WrapYarnType from '@/components/item/wrapyarntype/WrapYarnType'
 import MainLayout from '@/components/MainLayout/MainLayout'
-import WrapYarnType from '@/components/item/wrapyarntype/WrapYarnType';
 
 const  CreateWrapYarnTypePage  = () => {
 //   const initialData = {

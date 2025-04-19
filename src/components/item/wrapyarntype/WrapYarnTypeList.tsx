@@ -1,18 +1,18 @@
 'use client';
 import React from 'react';
 import { getAllWrapYarnTypes, deleteWrapYarnType } from '@/apis/wrapyarntype'; 
-import { columns, WrapYarnType } from '@/components/item/wrapyarntype/columns';
+import { columns, WrapYarnTypeType } from '@/components/item/wrapyarntype/columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
 
 const WrapYarnTypeList = () => {
-  const [WrapYarnType, setWrapYarnType] = React.useState<WrapYarnType[]>([]);
+  const [WrapYarnType, setWrapYarnType] = React.useState<WrapYarnTypeType[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [openDelete, setOpenDelete] = React.useState(false);
   const [openView, setOpenView] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [selectedWrapYarnType, setSelectedWrapYarnType] = React.useState<WrapYarnType | null>(null);
+  const [selectedWrapYarnType, setSelectedWrapYarnType] = React.useState<WrapYarnTypeType | null>(null);
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
 
@@ -42,8 +42,8 @@ const WrapYarnTypeList = () => {
       setDeleteId(null);
       toast.success("Deleted Successfully");
     } catch (error) {
-      console.error('Failed to delete Wrap Yarn Type:', error);
-      toast.error('Failed to delete Wrap Yarn Type');
+      console.error('Failed to delete WrapYarnType:', error);
+      toast.error('Failed to delete WrapYarnType');
     }
   };
 
@@ -92,7 +92,7 @@ const WrapYarnTypeList = () => {
           <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
             <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-5 flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
-                Stuff Details
+                WrapYarnType Details
               </h2>
               <button
                 className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
