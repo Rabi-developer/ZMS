@@ -997,7 +997,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               </div>
 
               <div className="p-4">
-                <h2 className="text-xl font-bold text-black dark:text-white">Delivery Details</h2>
+                <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Delivery Details</h2>
                 <div className="grid grid-cols-4 gap-4 border rounded p-4">
                   <CustomInput
                     variant="floating"
@@ -1166,7 +1166,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               {/* Modified: Buyer Delivery Breakups - Always show header, rows only when array has entries */}
               <div className="p-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-black dark:text-white">
+                  <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">
                     Buyer Delivery Breakups
                   </h2>
                   <Button
@@ -1223,7 +1223,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               {/* Modified: Seller Delivery Breakups - Always show header, rows only when array has entries */}
               <div className="p-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-black dark:text-white">
+                  <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">
                     Seller Delivery Breakups
                   </h2>
                   <Button

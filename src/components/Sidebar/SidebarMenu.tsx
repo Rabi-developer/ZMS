@@ -1,144 +1,270 @@
-'use client';
-import React, { useState } from "react";
-import { FiChevronDown, FiChevronUp } from "react-icons/fi";
-import { sideBarItems } from "@/components/lib/StaticData/sideBarItems";
-import Link from "next/link";
+  'use client';
+  import React, { useState, useEffect } from 'react';
+  import { FiChevronDown, FiChevronUp, FiChevronRight } from 'react-icons/fi';
+  import { sideBarItems } from '@/components/lib/StaticData/sideBarItems';
+  import Link from 'next/link';
 
-type SubMenuItem = {
-  text: string;
-  href?: string;
-  icon?: React.ComponentType<{ className?: string }>;
-  color?: string;
-  sub_menu?: SubMenuItem[];
-};
-
-type SidebarItem = {
-  text: string;
-  type: "heading" | "link";
-  href?: string;
-  icon?: React.ComponentType<{ className?: string }>;
-  color?: string;
-  sub_menu?: SubMenuItem[];
-};
-
-const SidebarMenu: React.FC<{ isCollapsed: boolean; searchQuery: string }> = ({ 
-  isCollapsed, 
-  searchQuery 
-}) => {
-  const [activeMenu, setActiveMenu] = useState<string | null>(null);
-  const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
-
-  const toggleMenu = (menuText: string) => {
-    setActiveMenu(activeMenu === menuText ? null : menuText);
-    setActiveSubMenu(null);
+  type SubMenuItem = {
+    text: string;
+    href?: string;
+    icon?: React.ComponentType<{ className?: string }>;
+    color?: string;
+    sub_menu?: SubMenuItem[];
   };
 
-  const toggleSubMenu = (subMenuText: string) => {
-    setActiveSubMenu(activeSubMenu === subMenuText ? null : subMenuText);
+  type SidebarItem = {
+    text: string;
+    type: 'heading' | 'link';
+    href?: string;
+    icon?: React.ComponentType<{ className?: string }>;
+    color?: string;
+    sub_menu?: SubMenuItem[];
   };
 
-  // Search filter logic
-  const filteredItems = sideBarItems.filter((item) => {
-    const matchesText = item.text.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSubMenu = item.sub_menu?.some(subItem => 
-      subItem.text.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    return matchesText || matchesSubMenu;
-  });
+  const SidebarMenu: React.FC<{ isCollapsed: boolean; searchQuery: string }> = ({
+    isCollapsed,
+    searchQuery,
+  }) => {
+    const [activeMenu, setActiveMenu] = useState<string | null>(null);
+    const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
+    const [hoveredItem, setHoveredItem] = useState<{ text: string; top: number } | null>(null);
+    const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
+    const menuItemRefs = React.useRef<{ [key: string]: HTMLLIElement | null }>({});
 
-  const renderSubMenu = (subMenu: SubMenuItem[], level = 1) => {
-    if (!subMenu) return null;
+    useEffect(() => {
+      if (isCollapsed) {
+        setActiveMenu(null);
+        setActiveSubMenu(null);
+        setHoveredItem(null);
+      }
+    }, [isCollapsed]);
 
-    const filteredSubMenu = subMenu.filter(subItem => 
-      subItem.text.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const toggleMenu = (menuText: string) => {
+      if (isCollapsed) return;
+      setActiveMenu(activeMenu === menuText ? null : menuText);
+      setActiveSubMenu(null);
+    };
 
-    if (filteredSubMenu.length === 0 && searchQuery) return null;
+    const toggleSubMenu = (subMenuText: string) => {
+      setActiveSubMenu(activeSubMenu === subMenuText ? null : subMenuText);
+    };
+
+    const handleMouseEnter = (itemText: string) => {
+      if (!isCollapsed) return;
+
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+
+      const ref = menuItemRefs.current[itemText];
+      if (ref) {
+        const rect = ref.getBoundingClientRect();
+        setHoverTimeout(
+          setTimeout(() => {
+            setHoveredItem({ text: itemText, top: rect.top });
+          }, 200)
+        );
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+      }
+      setHoverTimeout(
+        setTimeout(() => {
+          setHoveredItem(null);
+        }, 200)
+      );
+    };
+
+    // Search filter logic
+    const filteredItems = (sideBarItems as SidebarItem[]).filter((item: SidebarItem) => {
+      if (searchQuery === '') return true;
+      const matchesText = item.text.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSubMenu = item.sub_menu?.some((subItem: SubMenuItem) =>
+        subItem.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (subItem.sub_menu &&
+          subItem.sub_menu.some((subSubItem: SubMenuItem) =>
+            subSubItem.text.toLowerCase().includes(searchQuery.toLowerCase())
+          ))
+      );
+      return matchesText || !!matchesSubMenu;
+    });
+
+    const renderSubMenu = (subMenu: SubMenuItem[] | undefined, parentPosition = '', level = 1) => {
+      if (!subMenu) return null;
+
+      const filteredSubMenu = subMenu.filter(
+        (subItem: SubMenuItem) =>
+          searchQuery === '' ||
+          subItem.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (subItem.sub_menu &&
+            subItem.sub_menu.some((subSubItem: SubMenuItem) =>
+              subSubItem.text.toLowerCase().includes(searchQuery.toLowerCase())
+            ))
+      );
+
+      if (filteredSubMenu.length === 0 && searchQuery) return null;
+
+      if (isCollapsed && level === 1 && hoveredItem?.text === parentPosition) {
+        return (
+          <div
+            className={`fixed left-20 ml-1 min-w-[180px] py-2 bg-[#06b6d4] dark:bg-[#215083] 
+              rounded-lg shadow-xl z-50`}
+            style={{ top: `${hoveredItem.top}px` }}
+            onMouseEnter={() => handleMouseEnter(parentPosition)}
+            onMouseLeave={handleMouseLeave}
+          >
+            <ul className="space-y-1">
+              {filteredSubMenu.map((subItem: SubMenuItem, subIndex: number) => (
+                <li key={subIndex}>
+                  <div
+                    onClick={() => subItem.sub_menu && toggleSubMenu(subItem.text)}
+                    className={`flex items-center px-4 py-2.5 cursor-pointer rounded-lg transition-all duration-300 mx-1
+                      ${
+                        activeSubMenu === subItem.text
+                          ? 'bg-cyan-50 text-[#06b6d4] dark:bg-[#387fbf] dark:text-[#e2ecf7]'
+                          : 'text-white hover:bg-cyan-50 hover:text-[#06b6d4] dark:hover:bg-[#387fbf] dark:hover:text-[#e2ecf7]'
+                      }`}
+                  >
+                    {subItem.icon && (
+                      <subItem.icon className="w-5 h-5 mr-3 text-white dark:text-[#e2ecf7]" />
+                    )}
+                    <Link href={subItem.href || '#'} className="flex-grow text-scool">
+                      {subItem.text}
+                    </Link>
+                    {subItem.sub_menu && (
+                      <span className="ml-2">
+                        <FiChevronRight size={16} className="text-white dark:text-[#e2ecf7]" />
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      }
+
+      return (
+        <ul className={`${!isCollapsed ? `ml-${level * 4}` : ''} mt-1  space-y-1 transition-all duration-300`}>
+          {filteredSubMenu.map((subItem: SubMenuItem, subIndex: number) => (
+            <li key={subIndex} className="mb-2">
+              <div
+                onClick={() => subItem.sub_menu && toggleSubMenu(subItem.text)}
+                className={`flex items-center px-5 py-3 cursor-pointer  rounded-lg transition-all duration-300
+                  ${
+                    activeSubMenu === subItem.text
+                      ? 'bg-[#06b6d4] dark:bg-[#215083] text-white'
+                      : 'dark:text-white hover:bg-cyan-50 w-30px hover:text-[#06b6d4] dark:hover:bg-[#387fbf] dark:hover:text-[#e2ecf7]'
+                  }`}
+              >
+                {subItem.icon && (
+                  <subItem.icon
+                    className={`w-5 h-5 ${isCollapsed ? 'mx-auto' : 'mr-2'} dark:text-white`}
+                  />
+                )}
+                {!isCollapsed && (
+                  <>
+                    <Link href={subItem.href || '#'} className="flex-grow text-scool">
+                      {subItem.text}
+                    </Link>
+                    {subItem.sub_menu && (
+                      <span className="ml-auto text-lg">
+                        {activeSubMenu === subItem.text ? (
+                          <FiChevronUp className="dark:text-white" />
+                        ) : (
+                          <FiChevronDown className="dark:text-white" />
+                        )}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+              {!isCollapsed &&
+                subItem.sub_menu &&
+                activeSubMenu === subItem.text &&
+                renderSubMenu(subItem.sub_menu, parentPosition, level + 1)}
+            </li>
+          ))}
+        </ul>
+      );
+    };
 
     return (
-      <ul className={`ml-${level * 4} mt-1 transition-all duration-300 `}>
-        {filteredSubMenu.map((subItem, subIndex) => (
-          <li key={subIndex} className="mb-2">
-            <div
-              onClick={() => subItem.sub_menu && toggleSubMenu(subItem.text)}
-              className="flex items-center px-5 py-3 cursor-pointer rounded-lg transition-all duration-300 dark:text-white
-                        hover:bg-cyan-50 hover:text-[#06b6d4] dark:hover:bg-[#387fbf] dark:hover:text-[#e2ecf7]"
-            >
-              {subItem.icon && (
-                <subItem.icon
-                  className={`transition-transform  dark:text-white duration-300 ${isCollapsed ? "mx-auto" : "mr-2"}`}
-                />
-              )}
-              {!isCollapsed && (
-                <Link href={subItem.href || "#"} className="flex-grow">
-                  <span className="ml-2">{subItem.text}</span>
-                </Link>
-              )}
-              {subItem.sub_menu && !isCollapsed && (
-                <span className="ml-auto text-lg">
-                  {activeSubMenu === subItem.text ? <FiChevronUp /> : <FiChevronDown />}
-                </span>
-              )}
-            </div>
-            {subItem.sub_menu && 
-              activeSubMenu === subItem.text && 
-              renderSubMenu(subItem.sub_menu, level + 1)}
-          </li>
-        ))}
-      </ul>
+      <div className={`mr-7${isCollapsed ? 'px-1' : 'px-3'} py-4`}>
+        <ul className="space-y-1 h-full">
+          {filteredItems.length > 0 ? (
+            filteredItems.map((item: SidebarItem, index: number) => (
+              <li
+                key={index}
+                ref={(el) => {
+                  menuItemRefs.current[item.text] = el;
+                }}
+                onMouseEnter={() => isCollapsed && handleMouseEnter(item.text)}
+                onMouseLeave={handleMouseLeave}
+                className="mb-2 dark:text-white"
+              >
+                {item.type === 'heading' ? (
+                  !isCollapsed && (
+                    <div className="px-4 text-xs mt-5 text-[#9ca3af] dark:text-white uppercase font-semibold">
+                      {item.text}
+                    </div>
+                  )
+                ) : (
+                  <div
+                    className={`relative flex items-center px-5 py-3 cursor-pointer rounded-lg transition-all duration-300
+                      ${
+                        activeMenu === item.text
+                          ? 'bg-[#06b6d4] dark:bg-[#215083] text-white shadow-lg'
+                          : 'dark:text-white hover:bg-cyan-50 hover:text-[#06b6d4] dark:hover:bg-[#4b75c5] dark:hover:text-[#e2ecf7]'
+                      }`}
+                    onClick={() => (item.sub_menu ? toggleMenu(item.text) : null)}
+                  >
+                    {item.icon && (
+                      <span className={`${isCollapsed ? 'mx-auto' : 'mr-2'}`}>
+                        <item.icon className="w-5 h-5 dark:text-white" />
+                      </span>
+                    )}
+                    {!isCollapsed && (
+                      <>
+                        <Link href={item.href || '#'} className="flex-grow">
+                          {item.text}
+                        </Link>
+                        {item.sub_menu && (
+                          <span className="ml-auto text-lg">
+                            {activeMenu === item.text ? (
+                              <FiChevronUp className="dark:text-white" />
+                            ) : (
+                              <FiChevronDown className="dark:text-white" />
+                            )}
+                          </span>
+                        )}
+                      </>
+                    )}
+                    {isCollapsed && item.sub_menu && (
+                      <span className="absolute right-1 top-1/2 transform -translate-y-1/2">
+                        <FiChevronRight size={14} className="dark:text-white" />
+                      </span>
+                    )}
+                  </div>
+                )}
+                {!isCollapsed && item.sub_menu && activeMenu === item.text && renderSubMenu(item.sub_menu, item.text)}
+                {isCollapsed &&
+                  hoveredItem?.text === item.text &&
+                  item.sub_menu &&
+                  renderSubMenu(item.sub_menu, item.text)}
+              </li>
+            ))
+          ) : (
+            <li className="px-4 py-2 text-gray-500 dark:text-gray-400">
+              No matching items found
+            </li>
+          )}
+        </ul>
+      </div>
     );
   };
 
-  return (
-    <div className="ml-6">
-      <ul className="h-full">
-        {filteredItems.length > 0 ? (
-          filteredItems.map((item, index) => (
-            <li key={index} className="mb-2 dark:text-white">
-              {item.type === "heading" ? (
-                !isCollapsed && (
-                  <div className="px-4 text-xs mt-5 text-[#9ca3af] dark:text-white uppercase font-semibold">
-                    {item.text}
-                  </div>
-                )
-              ) : (
-                <div
-                  className={`flex items-center px-5 py-3 cursor-pointer rounded-lg transition-all duration-300
-                    ${
-                      activeMenu === item.text
-                        ? "bg-[#06b6d4] dark:bg-[#215083] text-white shadow-lg"
-                        : "hover:bg-cyan-50 hover:text-[#06b6d4] dark:hover:bg-[#4b75c5] dark:hover:text-[#e2ecf7]"
-                    }`}
-                  onClick={() => (item.sub_menu ? toggleMenu(item.text) : null)}
-                >
-                  {item.icon && (
-                    <span className={`${isCollapsed ? "mx-auto" : "mr-2"}`}>
-                      <item.icon />
-                    </span>
-                  )}
-                  {!isCollapsed && (
-                    <Link href={item.href || "#"} className="flex-grow">
-                      <span>{item.text}</span>
-                    </Link>
-                  )}
-                  {item.sub_menu && !isCollapsed && (
-                    <span className="ml-auto text-lg">
-                      {activeMenu === item.text ? <FiChevronUp /> : <FiChevronDown />}
-                    </span>
-                  )}
-                </div>
-              )}
-              {item.sub_menu && activeMenu === item.text && renderSubMenu(item.sub_menu)}
-            </li>
-          ))
-        ) : (
-          <li className="px-4 py-2 text-gray-500 dark:text-gray-400">
-            No matching items found
-          </li>
-        )}
-      </ul>
-    </div>
-  );
-};
-
-export default SidebarMenu;
+  export default SidebarMenu;
