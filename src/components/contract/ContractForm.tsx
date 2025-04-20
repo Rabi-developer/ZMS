@@ -8,8 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
 import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
-import { MdAddBusiness } from 'react-icons/md';
-import { AiOutlinePlus, AiOutlineDelete } from 'react-icons/ai';
+import { MdAddBusiness, MdAdd, MdDelete } from 'react-icons/md';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { getAllOrganization } from '@/apis/organization';
@@ -26,14 +25,14 @@ import { getAllWrapYarnTypes } from '@/apis/wrapyarntype';
 import { getAllWeftYarnType } from '@/apis/weftyarntype';
 import { getAllWeaves } from '@/apis/weaves';
 import { getAllFinal } from '@/apis/final';
-import { getAllSelveges }from '@/apis/selvege';
+import { getAllSelveges } from '@/apis/selvege';
 import { getAllSelvegeWeaves } from '@/apis/selvegeweave';
 import { getAllSelvegeWidths } from '@/apis/selvegewidth';
 import { getAllStuffs } from '@/apis/stuff';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 
-// Zod schema for form validation
+// Zod schema for form validation (unchanged)
 const Schema = z.object({
   contractNumber: z.string().min(1, 'Contract Number is required'),
   date: z.string().min(1, 'Date is required'),
@@ -45,8 +44,8 @@ const Schema = z.object({
   buyer: z.string().min(1, 'Buyer is required'),
   referenceNumber: z.string().optional(),
   deliveryDate: z.string().min(1, 'Delivery Date is required'),
-  refer:z.string().optional(),
-  referdate:z.string().optional(),
+  refer: z.string().optional(),
+  referdate: z.string().optional(),
   fabricType: z.string().min(1, 'Fabric Type is required'),
   descriptionId: z.string().min(1, 'Description is required'),
   stuff: z.string().min(1, 'Stuff is required'),
@@ -55,7 +54,7 @@ const Schema = z.object({
   warpCount: z.string().optional(),
   warpYarnType: z.string().optional(),
   weftCount: z.string().optional(),
-  weftYarnCount: z.string().min(1, 'Weft Yarn Type is required'), 
+  weftYarnCount: z.string().min(1, 'Weft Yarn Type is required'),
   noOfEnds: z.string().optional(),
   noOfPicks: z.string().optional(),
   weaves: z.string().optional(),
@@ -92,6 +91,35 @@ const Schema = z.object({
   approvedBy: z.string().optional(),
   approvedDate: z.string().optional(),
   endUse: z.string().optional(),
+  buyerDeliveryBreakups: z
+    .array(
+      z.object({
+        qty: z.string().optional(),
+        deliveryDate: z.string().optional(),
+      })
+    )
+    .optional(),
+  sellerDeliveryBreakups: z
+    .array(
+      z.object({
+        qty: z.string().optional(),
+        deliveryDate: z.string().optional(),
+      })
+    )
+    .optional(),
+  sampleDetails: z
+    .array(
+      z.object({
+        sampleQty: z.string().optional(),
+        sampleReceivedDate: z.string().optional(),
+        sampleDeliveredDate: z.string().optional(),
+        createdBy: z.string().optional(),
+        creationDate: z.string().optional(),
+        updatedBy: z.string().optional(),
+        updateDate: z.string().optional(),
+      })
+    )
+    .optional(),
 });
 
 type FormData = z.infer<typeof Schema>;
@@ -123,9 +151,66 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [sellers, setSellers] = useState<{ id: string; name: string }[]>([]);
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState([{ description: '', quantity: '', deliveryDate: '' }]);
+  const [deliveryDetails, setDeliveryDetails] = useState({
+    quantity: '',
+    unitOfMeasure: '',
+    lbs: '',
+    tolerance: '',
+    rate: '',
+    perLbs: '',
+    packing: '',
+    pieceLength: '',
+    payTermSeller: '',
+    payTermBuyer: '',
+    fabricValue: '',
+    gst: '',
+    gstValue: '',
+    finishWidth: '',
+    totalAmount: '',
+    deliveryTerms: '',
+    commissionFrom: '',
+    commissionType: '',
+    commissionPercentage: '',
+    commissionValue: '',
+    dispatchLater: '',
+    sellerRemark: '',
+    buyerRemark: '',
+    deliveryDate: '',
+  });
   const [notes, setNotes] = useState('');
   const [showForm, setShowForm] = useState(false);
+
+  // Modified: Initialize with empty arrays to prevent initial rows
+  const [buyerDeliveryBreakups, setBuyerDeliveryBreakups] = useState<
+    { qty: string; deliveryDate: string }[]
+  >([]);
+  const [sellerDeliveryBreakups, setSellerDeliveryBreakups] = useState<
+    { qty: string; deliveryDate: string }[]
+  >([]);
+
+  // State for Sample Details (unchanged)
+  const [sampleDetails, setSampleDetails] = useState<
+    {
+      sampleQty: string;
+      sampleReceivedDate: string;
+      sampleDeliveredDate: string;
+      createdBy: string;
+      creationDate: string;
+      updatedBy: string;
+      updateDate: string;
+    }[]
+  >([
+    {
+      sampleQty: '',
+      sampleReceivedDate: '',
+      sampleDeliveredDate: '',
+      createdBy: '',
+      creationDate: '',
+      updatedBy: '',
+      updateDate: '',
+    },
+  ]);
+  const [showSampleDetailsTable, setShowSampleDetailsTable] = useState(false);
 
   const {
     register,
@@ -139,18 +224,40 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     defaultValues: initialData || {},
   });
 
-  // Dropdown options
+  // Dropdown options (unchanged)
   const contractTypes = [
     { id: 'Sale', name: 'Sale' },
     { id: 'Purchase', name: 'Purchase' },
   ];
-
   const unitsOfMeasure = [
     { id: 'Meter', name: 'Meter' },
     { id: 'Yard', name: 'Yard' },
     { id: 'Kilogram', name: 'Kilogram' },
   ];
+  const paymentTermsOptions = [
+    { id: 'Immediate', name: 'Immediate' },
+    { id: '30 Days', name: '30 Days' },
+    { id: '60 Days', name: '60 Days' },
+  ];
+  const deliveryTermsOptions = [
+    { id: 'FOB', name: 'FOB' },
+    { id: 'CIF', name: 'CIF' },
+    { id: 'EXW', name: 'EXW' },
+  ];
+  const commissionFromOptions = [
+    { id: 'Seller', name: 'Seller' },
+    { id: 'Buyer', name: 'Buyer' },
+  ];
+  const commissionTypeOptions = [
+    { id: 'Percentage', name: 'Percentage' },
+    { id: 'Fixed', name: 'Fixed' },
+  ];
+  const dispatchLaterOptions = [
+    { id: 'Yes', name: 'Yes' },
+    { id: 'No', name: 'No' },
+  ];
 
+  // Fetch data functions (unchanged)
   const fetchCompanies = async () => {
     try {
       setLoading(true);
@@ -446,7 +553,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setLoading(false);
     }
   };
- 
+
   const fetchBuyers = async () => {
     try {
       setLoading(true);
@@ -493,28 +600,102 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     if (initialData) {
       reset({
         ...initialData,
-        contractType: initialData.contractType === 'Sale' || initialData.contractType === 'Purchase' ? initialData.contractType : 'Sale',
+        contractType:
+          initialData.contractType === 'Sale' || initialData.contractType === 'Purchase'
+            ? initialData.contractType
+            : 'Sale',
       });
+      if (initialData.buyerDeliveryBreakups) {
+        setBuyerDeliveryBreakups(initialData.buyerDeliveryBreakups);
+      }
+      if (initialData.sellerDeliveryBreakups) {
+        setSellerDeliveryBreakups(initialData.sellerDeliveryBreakups);
+      }
+      if (initialData.sampleDetails) {
+        setSampleDetails(initialData.sampleDetails);
+        setShowSampleDetailsTable(true);
+      }
     }
   }, [initialData, reset]);
 
-  const addItem = () => {
-    setItems([...items, { description: '', quantity: '', deliveryDate: '' }]);
+  const handleDeliveryDetailChange = (field: string, value: string) => {
+    setDeliveryDetails((prev) => {
+      const updatedDetails = { ...prev, [field]: value };
+
+      if (field === 'commissionPercentage' && value) {
+        const commissionPercentage = parseFloat(value);
+        const fabricValue = parseFloat(updatedDetails.fabricValue || '0');
+        const commissionValue = (fabricValue * commissionPercentage) / 100;
+        updatedDetails.commissionValue = commissionValue.toFixed(2);
+      }
+
+      return updatedDetails;
+    });
   };
 
-  const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
+  const addBuyerDeliveryBreakup = () => {
+    setBuyerDeliveryBreakups([...buyerDeliveryBreakups, { qty: '', deliveryDate: '' }]);
   };
 
-  const handleItemChange = (index: number, field: string, value: string) => {
-    const updatedItems = [...items];
-    updatedItems[index] = { ...updatedItems[index], [field]: value };
-    setItems(updatedItems);
+  const removeBuyerDeliveryBreakup = (index: number) => {
+    setBuyerDeliveryBreakups(buyerDeliveryBreakups.filter((_, i) => i !== index));
+  };
+
+  const handleBuyerDeliveryBreakupChange = (index: number, field: string, value: string) => {
+    const updatedBreakups = [...buyerDeliveryBreakups];
+    updatedBreakups[index] = { ...updatedBreakups[index], [field]: value };
+    setBuyerDeliveryBreakups(updatedBreakups);
+  };
+
+  const addSellerDeliveryBreakup = () => {
+    setSellerDeliveryBreakups([...sellerDeliveryBreakups, { qty: '', deliveryDate: '' }]);
+  };
+
+  const removeSellerDeliveryBreakup = (index: number) => {
+    setSellerDeliveryBreakups(sellerDeliveryBreakups.filter((_, i) => i !== index));
+  };
+
+  const handleSellerDeliveryBreakupChange = (index: number, field: string, value: string) => {
+    const updatedBreakups = [...sellerDeliveryBreakups];
+    updatedBreakups[index] = { ...updatedBreakups[index], [field]: value };
+    setSellerDeliveryBreakups(updatedBreakups);
+  };
+
+  const addSampleDetail = () => {
+    setSampleDetails([
+      ...sampleDetails,
+      {
+        sampleQty: '',
+        sampleReceivedDate: '',
+        sampleDeliveredDate: '',
+        createdBy: '',
+        creationDate: '',
+        updatedBy: '',
+        updateDate: '',
+      },
+    ]);
+  };
+
+  const removeSampleDetail = (index: number) => {
+    setSampleDetails(sampleDetails.filter((_, i) => i !== index));
+  };
+
+  const handleSampleDetailChange = (index: number, field: string, value: string) => {
+    const updatedSampleDetails = [...sampleDetails];
+    updatedSampleDetails[index] = { ...updatedSampleDetails[index], [field]: value };
+    setSampleDetails(updatedSampleDetails);
   };
 
   const onSubmit = async (data: FormData) => {
     try {
-      const payload = { ...data, items, notes };
+      const payload = {
+        ...data,
+        deliveryDetails,
+        notes,
+        buyerDeliveryBreakups,
+        sellerDeliveryBreakups,
+        sampleDetails,
+      };
       let response;
       if (id) {
         response = await updateContract(id, payload);
@@ -542,12 +723,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="p-2 w-full">
-          {/* Basic Information */}
           <div className="p-4">
-
-            {/* <h2 className="text-xl font-bold text-black dark:text-white">Basic Contract Information</h2> */}
-            <div className='grid grid-cols-2 gap-4' >
-            <CustomInputDropdown
+            <div className="grid grid-cols-2 gap-4">
+              <CustomInputDropdown
                 label="Company"
                 options={companies}
                 selectedOption={watch('companyId') || ''}
@@ -565,7 +743,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-             
               <CustomInput
                 variant="floating"
                 borderThickness="2"
@@ -587,7 +764,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 label="Contract Type"
                 options={contractTypes}
                 selectedOption={watch('contractType') || 'Sale'}
-                onChange={(value) => setValue('contractType', value as 'Sale' | 'Purchase', { shouldValidate: true })}
+                onChange={(value) =>
+                  setValue('contractType', value as 'Sale' | 'Purchase', { shouldValidate: true })
+                }
                 error={errors.contractType?.message}
                 register={register}
               />
@@ -600,14 +779,13 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 error={errors.contractOwner?.message}
               />
               <CustomInputDropdown
-               label="Seller"
-               options={sellers} 
-               selectedOption={watch('seller') || ''}
-               onChange={(value) => setValue('seller', value, { shouldValidate: true })}
-               error={errors.seller?.message}
-               register={register}
+                label="Seller"
+                options={sellers}
+                selectedOption={watch('seller') || ''}
+                onChange={(value) => setValue('seller', value, { shouldValidate: true })}
+                error={errors.seller?.message}
+                register={register}
               />
-             
               <CustomInputDropdown
                 label="Buyer"
                 options={buyers}
@@ -616,10 +794,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 error={errors.buyer?.message}
                 register={register}
               />
-              
             </div>
-            <div className='grid grid-cols-3 gap-4'>
-             <CustomInput
+            <div className="grid grid-cols-3 gap-4">
+              <CustomInput
                 variant="floating"
                 borderThickness="2"
                 label="Reference #"
@@ -653,9 +830,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 {...register('referdate')}
                 error={errors.referdate?.message}
               />
+            </div>
           </div>
-          </div>
-          
+
           {showForm && (
             <>
               <div className="p-4 border rounded-2xl mx-auto">
@@ -726,7 +903,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     {...register('noOfEnds')}
                     error={errors.noOfEnds?.message}
                   />
-                   <CustomInput
+                  <CustomInput
                     type="number"
                     variant="floating"
                     borderThickness="2"
@@ -761,7 +938,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     error={errors.width?.message}
                   />
                   <CustomInputDropdown
-                    label="Finanl"
+                    label="Final"
                     options={finals}
                     selectedOption={watch('final') || ''}
                     onChange={(value) => setValue('final', value, { shouldValidate: true })}
@@ -769,7 +946,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     register={register}
                   />
                   <CustomInputDropdown
-                    label="Selvege"
+                    label="Selvedge"
                     options={selvedges}
                     selectedOption={watch('selvedge') || ''}
                     onChange={(value) => setValue('selvedge', value, { shouldValidate: true })}
@@ -777,7 +954,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     register={register}
                   />
                   <CustomInputDropdown
-                    label="Selvege Weave"
+                    label="Selvedge Weave"
                     options={selvedgeWeaves}
                     selectedOption={watch('selvedgeWeave') || ''}
                     onChange={(value) => setValue('selvedgeWeave', value, { shouldValidate: true })}
@@ -785,7 +962,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     register={register}
                   />
                   <CustomInputDropdown
-                    label="Selvege Width"
+                    label="Selvedge Width"
                     options={selvedgeWidths}
                     selectedOption={watch('selvedgeWidth') || ''}
                     onChange={(value) => setValue('selvedgeWidth', value, { shouldValidate: true })}
@@ -800,7 +977,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     error={errors.endUse?.message}
                     register={register}
                   />
-                   <CustomInputDropdown
+                  <CustomInputDropdown
                     label="Weft Yarn Type"
                     options={weftYarnTypes}
                     selectedOption={watch('weftYarnCount') || ''}
@@ -816,238 +993,414 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     error={errors.fabricType?.message}
                     register={register}
                   />
-                   {/* <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Item Description"
-                        value={item.description}
-                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                      /> */}
                 </div>
               </div>
 
-              {/* Seller/Buyer Delivery Breakups */}
               <div className="p-4">
-                <h2 className="text-xl font-bold text-black dark:text-white">Delivery Breakups</h2>
-                {items.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2 mb-4">
-                    <div className="grid grid-cols-3 gap-4 w-full">
-                      
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Quantity"
-                        value={item.quantity}
-                        onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                      />
-                      <CustomInputDropdown
-                      label="Unit of Measure"
-                      options={unitsOfMeasure}
-                      selectedOption={watch('unitOfMeasure') || ''}
-                      onChange={(value) => setValue('unitOfMeasure', value, { shouldValidate: true })}
-                      error={errors.unitOfMeasure?.message}
-                      register={register}
-                    />
-                    
-
-                      <CustomInput
-                        type="date"
-                        variant="floating"
-                        borderThickness="2"
-                        label="Delivery Date"
-                        value={item.deliveryDate}
-                        onChange={(e) => handleItemChange(index, 'deliveryDate', e.target.value)}
-                      />
-                    </div>
-                    <div className="mt-8 gap-4">
-                      {index > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="p-2 bg-red-500 hover:bg-red-600 text-white rounded"
-                        >
-                          <AiOutlineDelete size={20} />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={addItem}
-                        className="p-2 bg-green-500 hover:bg-green-600 text-white rounded ml-4"
-                      >
-                        <AiOutlinePlus size={20} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Financial Details */}
-              <div className="p-4 border rounded-2xl mx-auto">
-                <h2 className="text-xl font-bold text-black dark:text-white">Financial Details</h2>
-                <div className="grid grid-cols-3 gap-4">
+                <h2 className="text-xl font-bold text-black dark:text-white">Delivery Details</h2>
+                <div className="grid grid-cols-4 gap-4 border rounded p-4">
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Quantity"
-                    id="quantity"
-                    {...register('quantity')}
-                    error={errors.quantity?.message}
+                    value={deliveryDetails.quantity}
+                    onChange={(e) => handleDeliveryDetailChange('quantity', e.target.value)}
                   />
-                 
+                  <CustomInputDropdown
+                    label="Unit of Measure"
+                    options={unitsOfMeasure}
+                    selectedOption={deliveryDetails.unitOfMeasure || ''}
+                    onChange={(value) => handleDeliveryDetailChange('unitOfMeasure', value)}
+                  />
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="LBS"
+                    value={deliveryDetails.lbs}
+                    onChange={(e) => handleDeliveryDetailChange('lbs', e.target.value)}
+                  />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Tolerance (%)"
-                    id="tolerance"
-                    {...register('tolerance')}
-                    error={errors.tolerance?.message}
+                    value={deliveryDetails.tolerance}
+                    onChange={(e) => handleDeliveryDetailChange('tolerance', e.target.value)}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Rate"
-                    id="rate"
-                    {...register('rate')}
-                    error={errors.rate?.message}
+                    value={deliveryDetails.rate}
+                    onChange={(e) => handleDeliveryDetailChange('rate', e.target.value)}
+                  />
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="/LBS"
+                    value={deliveryDetails.perLbs}
+                    onChange={(e) => handleDeliveryDetailChange('perLbs', e.target.value)}
+                  />
+                  <CustomInputDropdown
+                    label="Packing"
+                    options={packings}
+                    selectedOption={deliveryDetails.packing || ''}
+                    onChange={(value) => handleDeliveryDetailChange('packing', value)}
+                  />
+                  <CustomInputDropdown
+                    label="Piece Length"
+                    options={pieceLengths}
+                    selectedOption={deliveryDetails.pieceLength || ''}
+                    onChange={(value) => handleDeliveryDetailChange('pieceLength', value)}
+                  />
+                  <CustomInputDropdown
+                    label="Pay Term Seller"
+                    options={paymentTermsOptions}
+                    selectedOption={deliveryDetails.payTermSeller || ''}
+                    onChange={(value) => handleDeliveryDetailChange('payTermSeller', value)}
+                  />
+                  <CustomInputDropdown
+                    label="Pay Term Buyer"
+                    options={paymentTermsOptions}
+                    selectedOption={deliveryDetails.payTermBuyer || ''}
+                    onChange={(value) => handleDeliveryDetailChange('payTermBuyer', value)}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Fabric Value"
-                    id="fabricValue"
-                    {...register('fabricValue')}
-                    error={errors.fabricValue?.message}
+                    value={deliveryDetails.fabricValue}
+                    onChange={(e) => handleDeliveryDetailChange('fabricValue', e.target.value)}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="GST (%)"
-                    id="gst"
-                    {...register('gst')}
-                    error={errors.gst?.message}
+                    value={deliveryDetails.gst}
+                    onChange={(e) => handleDeliveryDetailChange('gst', e.target.value)}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="GST Value"
-                    id="gstValue"
-                    {...register('gstValue')}
-                    error={errors.gstValue?.message}
+                    value={deliveryDetails.gstValue}
+                    onChange={(e) => handleDeliveryDetailChange('gstValue', e.target.value)}
+                  />
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="Finish Width"
+                    value={deliveryDetails.finishWidth}
+                    onChange={(e) => handleDeliveryDetailChange('finishWidth', e.target.value)}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Total Amount"
-                    id="totalAmount"
-                    {...register('totalAmount')}
-                    error={errors.totalAmount?.message}
-                  />
-                </div>
-              </div>
-
-              {/* Additional Information */}
-              <div className="p-4">
-                <h2 className="text-xl font-bold text-black dark:text-white">Additional Information</h2>
-                <div className="grid grid-cols-3 gap-4">
-                  <CustomInputDropdown
-                    label="Packing"
-                    options={packings}
-                    selectedOption={watch('packing') || ''}
-                    onChange={(value) => setValue('packing', value, { shouldValidate: true })}
-                    error={errors.packing?.message}
-                    register={register}
+                    value={deliveryDetails.totalAmount}
+                    onChange={(e) => handleDeliveryDetailChange('totalAmount', e.target.value)}
                   />
                   <CustomInputDropdown
-                    label="Piece Length"
-                    options={pieceLengths}
-                    selectedOption={watch('pieceLength') || ''}
-                    onChange={(value) => setValue('pieceLength', value, { shouldValidate: true })}
-                    error={errors.pieceLength?.message}
-                    register={register}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Payment Terms (Seller)"
-                    id="paymentTermsSeller"
-                    {...register('paymentTermsSeller')}
-                    error={errors.paymentTermsSeller?.message}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Payment Terms (Buyer)"
-                    id="paymentTermsBuyer"
-                    {...register('paymentTermsBuyer')}
-                    error={errors.paymentTermsBuyer?.message}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
                     label="Delivery Terms"
-                    id="deliveryTerms"
-                    {...register('deliveryTerms')}
-                    error={errors.deliveryTerms?.message}
+                    options={deliveryTermsOptions}
+                    selectedOption={deliveryDetails.deliveryTerms || ''}
+                    onChange={(value) => handleDeliveryDetailChange('deliveryTerms', value)}
                   />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
+                  <CustomInputDropdown
                     label="Commission From"
-                    id="commissionFrom"
-                    {...register('commissionFrom')}
-                    error={errors.commissionFrom?.message}
+                    options={commissionFromOptions}
+                    selectedOption={deliveryDetails.commissionFrom || ''}
+                    onChange={(value) => handleDeliveryDetailChange('commissionFrom', value)}
                   />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
+                  <CustomInputDropdown
                     label="Commission Type"
-                    id="commissionType"
-                    {...register('commissionType')}
-                    error={errors.commissionType?.message}
+                    options={commissionTypeOptions}
+                    selectedOption={deliveryDetails.commissionType || ''}
+                    onChange={(value) => handleDeliveryDetailChange('commissionType', value)}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Commission (%)"
-                    id="commissionPercentage"
-                    {...register('commissionPercentage')}
-                    error={errors.commissionPercentage?.message}
+                    value={deliveryDetails.commissionPercentage}
+                    onChange={(e) => handleDeliveryDetailChange('commissionPercentage', e.target.value)}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Commission Value"
-                    id="commissionValue"
-                    {...register('commissionValue')}
-                    error={errors.commissionValue?.message}
+                    value={deliveryDetails.commissionValue}
+                    onChange={(e) => handleDeliveryDetailChange('commissionValue', e.target.value)}
+                    disabled
+                  />
+                  <CustomInputDropdown
+                    label="Dispatch Later"
+                    options={dispatchLaterOptions}
+                    selectedOption={deliveryDetails.dispatchLater || ''}
+                    onChange={(value) => handleDeliveryDetailChange('dispatchLater', value)}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
-                    label="Dispatch Address"
-                    id="dispatchAddress"
-                    {...register('dispatchAddress')}
-                    error={errors.dispatchAddress?.message}
+                    label="Seller Remark"
+                    value={deliveryDetails.sellerRemark}
+                    onChange={(e) => handleDeliveryDetailChange('sellerRemark', e.target.value)}
+                  />
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="Buyer Remark"
+                    value={deliveryDetails.buyerRemark}
+                    onChange={(e) => handleDeliveryDetailChange('buyerRemark', e.target.value)}
+                  />
+                  <CustomInput
+                    type="date"
+                    variant="floating"
+                    borderThickness="2"
+                    label="Delivery Date"
+                    value={deliveryDetails.deliveryDate}
+                    onChange={(e) => handleDeliveryDetailChange('deliveryDate', e.target.value)}
                   />
                 </div>
               </div>
 
-              {/* Remarks
-              <div className="p-5 ml-7 bg-white shadow-md rounded-lg mx-auto">
-                <textarea
-                  id="notes"
-                  className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  placeholder="Any additional notes or comments about the contract"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                ></textarea>
-                <p className="text-gray-500 mt-2">Character Count: {notes.length}</p>
-              </div> */}
+              {/* Modified: Buyer Delivery Breakups - Always show header, rows only when array has entries */}
+              <div className="p-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-black dark:text-white">
+                    Buyer Delivery Breakups
+                  </h2>
+                  <Button
+                    type="button"
+                    onClick={addBuyerDeliveryBreakup}
+                    className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
+                  >
+                    <MdAdd /> Add Row
+                  </Button>
+                </div>
+                <div className="border rounded p-4 mt-2">
+                  <div className="grid grid-cols-3 gap-4 font-bold">
+                    <div>Qty</div>
+                    <div>Del. Date</div>
+                    <div>Actions</div>
+                  </div>
+                  {buyerDeliveryBreakups.length > 0 && (
+                    <>
+                      {buyerDeliveryBreakups.map((breakup, index) => (
+                        <div key={index} className="grid grid-cols-3 gap-4 mt-2 items-center">
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Qty"
+                            value={breakup.qty}
+                            onChange={(e) =>
+                              handleBuyerDeliveryBreakupChange(index, 'qty', e.target.value)
+                            }
+                          />
+                          <CustomInput
+                            type="date"
+                            variant="floating"
+                            borderThickness="2"
+                            label="Del. Date"
+                            value={breakup.deliveryDate}
+                            onChange={(e) =>
+                              handleBuyerDeliveryBreakupChange(index, 'deliveryDate', e.target.value)
+                            }
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => removeBuyerDeliveryBreakup(index)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center gap-2"
+                          >
+                            <MdDelete /> Delete
+                          </Button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Modified: Seller Delivery Breakups - Always show header, rows only when array has entries */}
+              <div className="p-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-black dark:text-white">
+                    Seller Delivery Breakups
+                  </h2>
+                  <Button
+                    type="button"
+                    onClick={addSellerDeliveryBreakup}
+                    className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
+                  >
+                    <MdAdd /> Add Row
+                  </Button>
+                </div>
+                <div className="border rounded p-4 mt-2">
+                  <div className="grid grid-cols-3 gap-4 font-bold">
+                    <div>Qty</div>
+                    <div>Del. Date</div>
+                    <div>Actions</div>
+                  </div>
+                  {sellerDeliveryBreakups.length > 0 && (
+                    <>
+                      {sellerDeliveryBreakups.map((breakup, index) => (
+                        <div key={index} className="grid grid-cols-3 gap-4 mt-2 items-center">
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Qty"
+                            value={breakup.qty}
+                            onChange={(e) =>
+                              handleSellerDeliveryBreakupChange(index, 'qty', e.target.value)
+                            }
+                          />
+                          <CustomInput
+                            type="date"
+                            variant="floating"
+                            borderThickness="2"
+                            label="Del. Date"
+                            value={breakup.deliveryDate}
+                            onChange={(e) =>
+                              handleSellerDeliveryBreakupChange(index, 'deliveryDate', e.target.value)
+                            }
+                          />
+                          <Button
+                            type="button"
+                            onClick={() => removeSellerDeliveryBreakup(index)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center gap-2"
+                          >
+                            <MdDelete /> Delete
+                          </Button>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-black dark:text-white">Sample Details</h2>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setShowSampleDetailsTable(true);
+                      if (sampleDetails.length === 0) {
+                        addSampleDetail();
+                      }
+                    }}
+                    className="bg-[#0e7d90] hover:bg-[#0899b2] text-white px-4 py-2 rounded flex items-center gap-2"
+                  >
+                    <MdAdd /> Add Sample Details
+                  </Button>
+                </div>
+                {showSampleDetailsTable && (
+                  <div className="border rounded p-4 mt-2">
+                    <div className="flex justify-between items-center mb-4">
+                      <div />
+                      <Button
+                        type="button"
+                        onClick={addSampleDetail}
+                        className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
+                      >
+                        <MdAdd /> Add Row
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-8 gap-4 font-bold">
+                      <div>Sample Qty</div>
+                      <div>Received Date</div>
+                      <div>Delivered Date</div>
+                      <div>Created By</div>
+                      <div>Creation Date</div>
+                      <div>Updated By</div>
+                      <div>Update Date</div>
+                      <div>Actions</div>
+                    </div>
+                    {sampleDetails.map((sample, index) => (
+                      <div key={index} className="grid grid-cols-8 gap-4 mt-2 items-center">
+                        <CustomInput
+                          type="number"
+                          variant="floating"
+                          borderThickness="2"
+                          label=""
+                          value={sample.sampleQty}
+                          onChange={(e) =>
+                            handleSampleDetailChange(index, 'sampleQty', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          type="date"
+                          variant="floating"
+                          borderThickness="2"
+                          label=""
+                          value={sample.sampleReceivedDate}
+                          onChange={(e) =>
+                            handleSampleDetailChange(index, 'sampleReceivedDate', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          type="date"
+                          variant="floating"
+                          borderThickness="2"
+                          label=""
+                          value={sample.sampleDeliveredDate}
+                          onChange={(e) =>
+                            handleSampleDetailChange(index, 'sampleDeliveredDate', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          variant="floating"
+                          borderThickness="2"
+                          label=""
+                          value={sample.createdBy}
+                          onChange={(e) =>
+                            handleSampleDetailChange(index, 'createdBy', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          type="date"
+                          variant="floating"
+                          borderThickness="2"
+                          label=""
+                          value={sample.creationDate}
+                          onChange={(e) =>
+                            handleSampleDetailChange(index, 'creationDate', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          variant="floating"
+                          borderThickness="2"
+                          label=""
+                          value={sample.updatedBy}
+                          onChange={(e) =>
+                            handleSampleDetailChange(index, 'updatedBy', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          type="date"
+                          variant="floating"
+                          borderThickness="2"
+                          label=""
+                          value={sample.updateDate}
+                          onChange={(e) =>
+                            handleSampleDetailChange(index, 'updateDate', e.target.value)
+                          }
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => removeSampleDetail(index)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center gap-2"
+                        >
+                          <MdDelete /> Delete
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
 
-        {/* Form Actions */}
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">
           <Button
             type="submit"
