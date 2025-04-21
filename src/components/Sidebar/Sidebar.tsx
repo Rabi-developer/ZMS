@@ -16,7 +16,7 @@ const Sidebar = ({
   return (
     <div
       className={`bg-[#ffffff] shadow-right-dark  fixed top-0 left-0 h-full transition-all duration-300 overflow-y-auto dark:bg-[#030630] ${
-        isCollapsed ? "w-18" : "w-[330px]"
+        isCollapsed ? "w-19" : "w-[330px]"
       }`}
     >
       {/* Sidebar Content */}
