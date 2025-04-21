@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -10,44 +11,73 @@ import { MdAddBusiness } from "react-icons/md";
 import Link from 'next/link';
 import { AiOutlinePlus, AiOutlineDelete } from "react-icons/ai";
 import { Button } from '@/components/ui/button';
+import { createBuyer, updateBuyer } from '@/apis/buyer';
 import { getAllSellers } from '@/apis/seller';
 
 type Seller = {
   id: string; 
-  SellerName: string; 
+  sellerName: string; 
 };
 
+// Zod schema expects accountNo as a string for API
 const Schema = z.object({
   BuyerName: z.string().min(1, "Buyer Name is required"),
   BuyerType: z.string().min(1, "Buyer Type is required"),
   Address: z.string().min(1, "Address is required"),
   City: z.string().min(1, "City is required"),
-  Currency: z.string().min(1, "Currency is required"),
-  State: z.string().optional(),
-  ZipCode: z.string().optional(),
-  Region: z.string().min(1, "Region is required"),
-  BankName: z.string().optional(),
+  Country: z.string().min(1, "Country is required"),
   PhoneNumber: z.string().min(1, "Phone Number is required"),
+  EmailAddress: z.string().email("Invalid email address").optional(),
   MobileNumber: z.string().min(1, "Mobile Number is required"),
   FaxNumber: z.string().optional(),
-  NTN: z.string().min(1, "NTN is required"),
   STN: z.string().min(1, "STN is required"),
-  BuyerCode: z.string().min(1, "Buyer Code is required"),
-  Email: z.string().email("Invalid email address").optional(),
-  Website: z.string().optional(),
-  ReceiveableAccount: z.string().min(1, "Receiveable Account is required"),
+  MTN: z.string().min(1, "MTN is required"),
+  PayableCode: z.string().optional().nullable(),
+  accountNo: z.string().min(1, 'At least one Account Number is required'), // as string for API
+  PaymentStatus: z.string().optional(),
+  OrderDate: z.string().optional(),
+  DeliveryDate: z.string().optional(),
   Seller: z.string().min(1, "Seller is required"), 
+  payableid: z.string().optional().nullable(),
 });
 
 type FormData = z.infer<typeof Schema>;
 
-const Buyer = ({ id, initialData }: any) => {
-  const [text, setText] = useState("");
-  const [sellers, setSellers] = useState<Seller[]>([]); 
-  const [SellerOption, setSellerOption] = useState<string>('');
+// UI state type for accountNos
+type BuyerFormUIProps = {
+  id?: string;
+  initialData?: any; // Accepts API data directly (camelCase)
+};
+
+// Mapping function: API camelCase -> Form PascalCase
+function mapBuyerApiToForm(apiData: any): FormData {
+  return {
+    BuyerName: apiData.buyerName || "",
+    BuyerType: apiData.buyerType || "",
+    Address: apiData.address || "",
+    City: apiData.city || "",
+    Country: apiData.country || "",
+    PhoneNumber: apiData.phoneNumber || "",
+    EmailAddress: apiData.emailAddress || "",
+    MobileNumber: apiData.mobileNumber || "",
+    FaxNumber: apiData.faxNumber || "",
+    STN: apiData.stn || "",
+    MTN: apiData.mtn || "",
+    PayableCode: apiData.payableCode || "",
+    accountNo: apiData.accountNo || "",
+    PaymentStatus: apiData.paymentStatus || "",
+    OrderDate: apiData.orderDate || "",
+    DeliveryDate: apiData.deliveryDate || "",
+    payableid: apiData.payableid || "",
+    Seller: apiData.seller || "",
+  };
+}
+
+const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
+  // UI state for account numbers as array
   const [accountNos, setAccountNos] = useState<string[]>(['']);
-  
-  
+  const [text, setText] = useState("");
+  const [sellers, setSellers] = useState<Seller[]>([]);
 
   const router = useRouter();
   const {
@@ -56,60 +86,49 @@ const Buyer = ({ id, initialData }: any) => {
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm<FormData>({
     resolver: zodResolver(Schema),
-    defaultValues: initialData || {},
+    defaultValues: initialData ? mapBuyerApiToForm(initialData) : {},
   });
 
-  const handleEmployeeDropdownChange = (value: string) => {
-    setSellerOption(value);
-  };
+  const buyerTypes = [
+    { id: 1, name: 'Manufacturer' },
+    { id: 2, name: 'Distributor' },
+    { id: 3, name: 'Wholesaler' },
+    { id: 4, name: 'Retailer' },
+  ];
 
-  useEffect(() => {
-    const fetchSellers = async () => {
-      try {
-        const response = await getAllSellers();
-        setSellers(response.data); 
-      } catch (error) {
-        console.error("Error fetching sellers:", error);
-        toast("Failed to fetch sellers", { type: "error" });
-      }
-    };
-
-    fetchSellers();
-  }, []);
-
-  // Fetch seller
   useEffect(() => {
     const fetchSellers = async () => {
       try {
         const response = await getAllSellers();
         setSellers(response.data);
       } catch (error) {
-        console.error("Error fetching employees:", error);
+        console.error("Error fetching sellers:", error);
       }
     };
     fetchSellers();
   }, []);
 
-  const buyerTypes = [
-    { id: 1, name: 'Exports' },
-    { id: 2, name: 'Imports' },
-    { id: 3, name: 'Local' },
-  ];
+  // When initialData changes, map and split accountNo string to array for UI
+  useEffect(() => {
+    if (initialData) {
+      const mapped = mapBuyerApiToForm(initialData);
+      reset(mapped);
+      if (mapped.accountNo && typeof mapped.accountNo === 'string') {
+        const arr = mapped.accountNo.split(',').map(s => s.trim()).filter(Boolean);
+        setAccountNos(arr.length > 0 ? arr : ['']);
+      } else {
+        setAccountNos(['']);
+      }
+    }
+  }, [initialData, reset]);
 
-  const currencies = [
-    { id: 1, name: 'Pak Rupee' },
-    { id: 2, name: 'US Dollar' },
-    { id: 3, name: 'Euro' },
-  ];
-
-  const regions = [
-    { id: 1, name: 'Default' },
-    { id: 2, name: 'Region 1' },
-    { id: 3, name: 'Region 2' },
-    { id: 4, name: 'Region 3' },
-  ];
+  // Keep form value in sync for validation (as string)
+  useEffect(() => {
+    setValue('accountNo', accountNos.filter(Boolean).join(','));
+  }, [accountNos, setValue]);
 
   const addAccountNo = () => {
     setAccountNos([...accountNos, '']);
@@ -117,7 +136,7 @@ const Buyer = ({ id, initialData }: any) => {
 
   const removeAccountNo = (index: number) => {
     const updatedAccountNos = accountNos.filter((_, i) => i !== index);
-    setAccountNos(updatedAccountNos);
+    setAccountNos(updatedAccountNos.length > 0 ? updatedAccountNos : ['']);
   };
 
   const handleAccountNoChange = (index: number, value: string) => {
@@ -126,32 +145,31 @@ const Buyer = ({ id, initialData }: any) => {
     setAccountNos(updatedAccountNos);
   };
 
-  useEffect(() => {
-    if (initialData) {
-      console.log("Initial data:", initialData); 
-      reset(initialData);
-    }
-  }, [initialData, reset]);
-
-  const onSubmit = async (data: any) => {
-    console.log("Form submitted with data:", data); 
+  const onSubmit = async (data: FormData) => {
     try {
       let response;
+      // data.accountNo is a comma-separated string
       if (id) {
         const updateData = { ...data, id };
-        console.log("Updating buyer with data:", updateData); 
-        // response = await updateBuyer(id, updateData); // Uncomment and implement if needed
-        toast("Updated Successfully", { type: "success" });
+        response = await updateBuyer(id, updateData);
+        if (response.statusMessage === "Created successfully") {
+          toast("Updated Successfully", { type: "success" });
+          reset();
+          router.push("/buyer");
+        } else {
+          toast(response.statusMessage, { type: "error" });
+        }
       } else {
-        console.log("Creating buyer with data:", data); 
-        // response = await createBuyer(data); // Uncomment and implement if needed
-        toast("Created Successfully", { type: "success" });
+        response = await createBuyer(data);
+        if (response.statusMessage === "Created successfully") {
+          toast("Created Successfully", { type: "success" });
+          reset();
+          router.push("/buyer");
+        } else {
+          toast(response.statusMessage, { type: "error" });
+        }
       }
-      console.log("API response:", response); 
-      reset();
-      router.push("/buyer");
     } catch (error) {
-      console.error("Error submitting form:", error);
       toast("An error occurred while submitting the form", { type: "error" });
     }
   };
@@ -168,225 +186,205 @@ const Buyer = ({ id, initialData }: any) => {
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className='p-2 w-full'>
           <div className='p-4'>
-            {/* <h2 className='text-xl font-bold text-black dark:text-white'>Basic Buyer Information</h2> */}
+            <h2 className='text-xl font-bold text-black dark:text-white'>Basic Buyer Information</h2>
             <div className='grid grid-cols-3 gap-4'>
               <CustomInput
                 variant="floating"
                 borderThickness='2'
                 label='Buyer Name'
                 id="BuyerName"
-                register={register}
                 {...register("BuyerName")}
                 error={errors.BuyerName?.message}
               />
               <CustomInputDropdown
                 label="Buyer Type"
                 options={buyerTypes}
-                selectedOption={''}
-                onChange={(value) => {
-                  setValue("BuyerType", value);
-                }}
+                selectedOption={watch("BuyerType") || ''}
+                onChange={(value) => setValue("BuyerType", value, { shouldValidate: true })}
                 error={errors.BuyerType?.message}
-              />
-              <CustomInput
-                variant="floating"
-                borderThickness='2'
-                label='Address'
-                id="Address"
                 register={register}
-                {...register("Address")}
-                error={errors.Address?.message}
               />
               <CustomInput
                 variant="floating"
                 borderThickness='2'
                 label='City'
                 id="City"
-                register={register}
                 {...register("City")}
                 error={errors.City?.message}
               />
-              <CustomInputDropdown
-                label="Currency"
-                options={currencies}
-                selectedOption={''}
-                onChange={(value) => {
-                  setValue("Currency", value);
-                }}
-                error={errors.Currency?.message}
-              />
               <CustomInput
                 variant="floating"
                 borderThickness='2'
-                label='State'
-                id="State"
-                register={register}
-                {...register("State")}
-                error={errors.State?.message}
+                label='Country'
+                id="Country"
+                {...register("Country")}
+                error={errors.Country?.message}
               />
               <CustomInput
-                variant="floating"
-                borderThickness='2'
-                label='Zip Code'
-                id="ZipCode"
-                register={register}
-                {...register("ZipCode")}
-                error={errors.ZipCode?.message}
-              />
-              <CustomInputDropdown
-                label="Region"
-                options={regions}
-                selectedOption={''}
-                onChange={(value) => {
-                  setValue("Region", value);
-                }}
-                error={errors.Region?.message}
-              />
-              <CustomInput
-                variant="floating"
-                borderThickness='2'
-                label='Bank Name'
-                id="BankName"
-                register={register}
-                {...register("BankName")}
-                error={errors.BankName?.message}
-              />
-              <CustomInput
-                type='tel'
+                type='number'
                 variant="floating"
                 borderThickness='2'
                 label='Phone Number'
                 id="PhoneNumber"
-                register={register}
                 {...register("PhoneNumber")}
                 error={errors.PhoneNumber?.message}
               />
               <CustomInput
-                type='tel'
+                type='number'
                 variant="floating"
                 borderThickness='2'
                 label='Mobile Number'
                 id="MobileNumber"
-                register={register}
                 {...register("MobileNumber")}
                 error={errors.MobileNumber?.message}
-              />
-              <CustomInput
-                type='tel'
-                variant="floating"
-                borderThickness='2'
-                label='Fax Number'
-                id="FaxNumber"
-                register={register}
-                {...register("FaxNumber")}
-                error={errors.FaxNumber?.message}
-              />
-              <CustomInput
-                variant="floating"
-                borderThickness='2'
-                label='NTN'
-                id="NTN"
-                register={register}
-                {...register("NTN")}
-                error={errors.NTN?.message}
-              />
-              <CustomInput
-                variant="floating"
-                borderThickness='2'
-                label='STN'
-                id="STN"
-                register={register}
-                {...register("STN")}
-                error={errors.STN?.message}
-              />
-              <CustomInput
-                variant="floating"
-                borderThickness='2'
-                label='Buyer Code'
-                id="BuyerCode"
-                register={register}
-                {...register("BuyerCode")}
-                error={errors.BuyerCode?.message}
               />
               <CustomInput
                 type='email'
                 variant="floating"
                 borderThickness='2'
-                label='Email'
-                id="Email"
-                register={register}
-                {...register("Email")}
-                error={errors.Email?.message}
+                label='Email Address'
+                id="EmailAddress"
+                {...register("EmailAddress")}
+                error={errors.EmailAddress?.message}
+              />
+              <CustomInput
+                type='number'
+                variant="floating"
+                borderThickness='2'
+                label='Fax Number'
+                id="FaxNumber"
+                {...register("FaxNumber")}
+                error={errors.FaxNumber?.message}
+              />
+              <CustomInput
+                type='number'
+                variant="floating"
+                borderThickness='2'
+                label='STN'
+                id="STN"
+                {...register("STN")}
+                error={errors.STN?.message}
+              />
+              <CustomInput
+                type='number'
+                variant="floating"
+                borderThickness='2'
+                label='MTN'
+                id="MTN"
+                {...register("MTN")}
+                error={errors.MTN?.message}
               />
               <CustomInput
                 variant="floating"
                 borderThickness='2'
-                label='Website'
-                id="Website"
-                register={register}
-                {...register("Website")}
-                error={errors.Website?.message}
+                label='Address'
+                id="Address"
+                {...register("Address")}
+                error={errors.Address?.message}
+              />
+            </div>
+          </div>
+          <div className='p-4 ml-4 border rounded-2xl mx-auto'>
+            <h2>Payable Code:</h2>
+            <div className='grid grid-cols-3 gap-1'>
+              <CustomInput
+                type='string'
+                variant="floating"
+                borderThickness='2'
+                label=''
+                id="payableid"
+                {...register("payableid")}
+                error={errors.payableid?.message}
               />
               <CustomInput
                 variant="floating"
                 borderThickness='2'
-                label='Receiveable Account'
-                id="ReceiveableAccount"
-                register={register}
-                {...register("ReceiveableAccount")}
-                error={errors.ReceiveableAccount?.message}
+                label=''
+                id="PayableCode"
+                {...register("PayableCode")}
+                error={errors.PayableCode?.message}
               />
+
               {/* Seller Dropdown */}
               <CustomInputDropdown
                 label="Seller"
                 options={sellers.map((seller) => ({
                   id: seller.id,
-                  name: seller.SellerName,
+                  name: seller.sellerName,
                 }))}
-                selectedOption={''}
-                onChange={(value) => {
-                  setSellerOption(value);
-                  setValue("Seller", value);
-                }}
+                selectedOption={watch("Seller") || ''}
+                onChange={(value) => setValue("Seller", value, { shouldValidate: true })}
                 error={errors.Seller?.message}
+                register={register}
+              />
+
+            </div>
+          </div>
+
+          <div className='p-4'>
+            <h2 className='text-xl font-bold text-black dark:text-white'>Additional Information</h2>
+            <div>
+              {accountNos.map((accountNo, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <div className='w-[60vh]'>
+                    <CustomInput
+                      variant="floating"
+                      borderThickness="2"
+                      label={`Payment-Method /Account No ${index + 1}`}
+                      value={accountNo}
+                      onChange={(e) => handleAccountNoChange(index, e.target.value)}
+                      error={errors.accountNo && errors.accountNo.message && typeof errors.accountNo.message === 'string'
+                        ? errors.accountNo.message
+                        : undefined}
+                    />
+                  </div>
+                  <div className='mt-8 gap-4'>
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removeAccountNo(index)}
+                        className="p-2 bg-red-500 hover:bg-red-600 text-white rounded"
+                      >
+                        <AiOutlineDelete size={20} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={addAccountNo}
+                      className="p-2 bg-green-500 hover:bg-green-600 text-white rounded ml-4"
+                    >
+                      <AiOutlinePlus size={20} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {errors.accountNo && typeof errors.accountNo.message === 'string' && (
+                <p className="text-red-500 text-sm mt-2">{errors.accountNo.message}</p>
+              )}
+            </div>
+            <div className='grid grid-cols-3 gap-4'>
+              <CustomInput
+                type='date'
+                variant="floating"
+                borderThickness='2'
+                label='Order Date'
+                id="OrderDate"
+                {...register("OrderDate")}
+                error={errors.OrderDate?.message}
+              />
+              <CustomInput
+                type='date'
+                variant="floating"
+                borderThickness='2'
+                label='Delivery Date'
+                id="DeliveryDate"
+                {...register("DeliveryDate")}
+                error={errors.DeliveryDate?.message}
               />
             </div>
           </div>
-          <div>          
-                    {accountNos.map((accountNo, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                          <div className='p-4 w-[60vh]'> 
-                          <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label={`Payment-Method /Account No ${index + 1}`}
-                          value={accountNo}
-                          onChange={(e) => handleAccountNoChange(index, e.target.value)}
-                        />
-                          </div>
-                        <div className='mt-8 gap-4'> 
-                        {index > 0 && (
-                          
-                          <button
-                            type="button"
-                            onClick={() => removeAccountNo(index)}
-                            className="p-2 bg-red-500 hover:bg-red-600 text-white rounded "
-                          >
-                            <AiOutlineDelete size={20} />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={addAccountNo}
-                          className="p-2 bg-green-500 hover:bg-green-600 text-white rounded ml-4"
-                        >
-                          <AiOutlinePlus size={20} />
-                        </button>
-                        </div>
-                      </div>
-                    ))}
-            </div>
-          <div className="  p-5 ml-7 bg-white shadow-md rounded-lg mx-auto">
+
+          <div className="p-5 ml-7 bg-white shadow-md rounded-lg mx-auto">
             <textarea
               id="message"
               className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
