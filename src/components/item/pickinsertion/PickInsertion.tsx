@@ -5,17 +5,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import CustomInput from '@/components/ui/CustomInput';
-import { createPickInsertion, updatePickInsertion, getAllPickInsertions } from '@/apis/pickinsertion'; 
+import { createPickInsertion, updatePickInsertion, getAllPickInsertions } from '@/apis/pickinsertion';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { MdAddBusiness } from "react-icons/md";
-import Link from "next/link";
-import { BiSolidErrorAlt } from "react-icons/bi";
+import { MdAddBusiness, MdAdd, MdDelete } from 'react-icons/md';
+import Link from 'next/link';
+import { BiSolidErrorAlt } from 'react-icons/bi';
 
 const PickInsertionSchema = z.object({
-  listid: z.string().optional(), 
-  descriptions: z.string().min(1, 'Description is required'), 
-  subDescription: z.string().min(1, 'Sub-Description is required'), 
+  listid: z.string().optional(),
+  descriptions: z.string().min(1, 'Description is required'),
+  subDescription: z.string().min(1, 'At least one sub-description is required'),
   useDeletedId: z.boolean().optional(),
 });
 
@@ -39,22 +39,24 @@ const PickInsertion = ({ isEdit = false }: { isEdit?: boolean }) => {
   });
 
   const [idFocused, setIdFocused] = useState(false);
+  const [subDescriptions, setSubDescriptions] = useState<string[]>(['']);
 
   React.useEffect(() => {
     if (isEdit) {
       const fetchPickInsertion = async () => {
-        const listid = window.location.pathname.split('/pickinsertion').pop(); 
+        const listid = window.location.pathname.split('/pickinsertion').pop();
         if (listid) {
           try {
             const response = await getAllPickInsertions();
-            const foundPickInsertion = response.data.find((item: any) => item.listid === listid); 
+            const foundPickInsertion = response.data.find((item: any) => item.listid === listid);
             if (foundPickInsertion) {
               setValue('listid', foundPickInsertion.listid || '');
               setValue('descriptions', foundPickInsertion.descriptions || '');
+              const subDescArray = foundPickInsertion.subDescription?.split('|')?.filter((s: string) => s) || [''];
+              setSubDescriptions(subDescArray);
               setValue('subDescription', foundPickInsertion.subDescription || '');
-              setValue('useDeletedId', false);
             } else {
-              toast.error('PickInsertion not found');
+              toast.error('Pick Insertion not found');
               router.push('/pickinsertion');
             }
           } catch (error) {
@@ -66,6 +68,25 @@ const PickInsertion = ({ isEdit = false }: { isEdit?: boolean }) => {
       fetchPickInsertion();
     }
   }, [isEdit, setValue, router]);
+
+  const handleAddSubDescription = () => {
+    setSubDescriptions([...subDescriptions, '']);
+  };
+
+  const handleDeleteSubDescription = (index: number) => {
+    if (subDescriptions.length > 1) {
+      const newSubDescriptions = subDescriptions.filter((_, i) => i !== index);
+      setSubDescriptions(newSubDescriptions);
+      setValue('subDescription', newSubDescriptions.join('|'));
+    }
+  };
+
+  const handleSubDescriptionChange = (index: number, value: string) => {
+    const newSubDescriptions = [...subDescriptions];
+    newSubDescriptions[index] = value;
+    setSubDescriptions(newSubDescriptions);
+    setValue('subDescription', newSubDescriptions.join('|'));
+  };
 
   const onSubmit = async (data: PickInsertionData) => {
     try {
@@ -87,7 +108,7 @@ const PickInsertion = ({ isEdit = false }: { isEdit?: boolean }) => {
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded">
         <h1 className="text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
           <MdAddBusiness />
-          {isEdit ? "EDIT PickInsertion" : "ADD NEW PickInsertion"}
+          {isEdit ? 'EDIT PickInsertion' : 'ADD NEW PickInsertion'}
         </h1>
       </div>
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -98,7 +119,7 @@ const PickInsertion = ({ isEdit = false }: { isEdit?: boolean }) => {
             onMouseLeave={() => setIdFocused(false)}
           >
             <Controller
-              name="listid" 
+              name="listid"
               control={control}
               render={({ field }) => (
                 <>
@@ -131,9 +152,9 @@ const PickInsertion = ({ isEdit = false }: { isEdit?: boolean }) => {
             render={({ field }) => (
               <CustomInput
                 {...field}
-                label="Description" 
+                label="Description"
                 type="text"
-                error={errors.descriptions?.message} 
+                error={errors.descriptions?.message}
                 placeholder="Enter description"
                 value={field.value || ''}
                 onChange={field.onChange}
@@ -141,21 +162,42 @@ const PickInsertion = ({ isEdit = false }: { isEdit?: boolean }) => {
             )}
           />
 
-          <Controller
-            name="subDescription" 
-            control={control}
-            render={({ field }) => (
-              <CustomInput
-                {...field}
-                label="Sub-Description" 
-                type="text"
-                error={errors.subDescription?.message} 
-                placeholder="Enter sub-description"
-                value={field.value || ''}
-                onChange={field.onChange}
-              />
-            )}
-          />
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sub-Descriptions</label>
+            {subDescriptions.map((subDesc, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700
+                "
+              >
+                <CustomInput
+                  label=""
+                  type="text"
+                  placeholder="Enter sub-description"
+                  value={subDesc}
+                  onChange={(e) => handleSubDescriptionChange(index, e.target.value)}
+                  error={index === 0 ? errors.subDescription?.message : undefined}
+                />
+                {subDescriptions.length > 1 && (
+                  <Button
+                    type="button"
+                    onClick={() => handleDeleteSubDescription(index)}
+                    className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                  >
+                    <MdDelete className="text-lg" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button
+              type="button"
+              onClick={handleAddSubDescription}
+              className="mt-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200"
+            >
+              <MdAdd className="text-lg" />
+              Add Sub-Description
+            </Button>
+          </div>
 
           {!isEdit && (
             <div className="col-span-2 flex items-center gap-2">
@@ -180,7 +222,7 @@ const PickInsertion = ({ isEdit = false }: { isEdit?: boolean }) => {
             type="submit"
             className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
           >
-            {isEdit ? "Update PickInsertion" : "Create PickInsertion"}
+            {isEdit ? 'Update PickInsertion' : 'Create PickInsertion'}
           </Button>
           <Link href="/pickinsertion">
             <Button

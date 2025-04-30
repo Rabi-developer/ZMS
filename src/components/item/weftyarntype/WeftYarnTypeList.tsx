@@ -74,7 +74,7 @@ const WeftYarnTypeList = () => {
         columns={columns(handleDeleteOpen, handleViewOpen)}
         data={WeftYarnType }
         loading={loading}
-        link={'/stuff/create'}
+        link={'/weftyarntype/create'}
         setPageIndex={setPageIndex}
         pageIndex={pageIndex}
         pageSize={pageSize}

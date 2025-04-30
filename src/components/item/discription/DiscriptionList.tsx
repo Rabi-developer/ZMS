@@ -4,6 +4,9 @@ import { getAllDescriptions, deleteDescription } from '@/apis/description';
 import { columns, DescriptionType } from './columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
+import {FiArrowLeft, FiArrowRight } from 'react-icons/fi';
+import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 import { toast } from 'react-toastify';
 
 const DescriptionList = () => {
@@ -36,7 +39,7 @@ const DescriptionList = () => {
     if (!deleteId) return;
     
     try {
-      await deleteDescription(deleteId); 
+      await deleteDescription(deleteId);
       setDescriptions(prev => prev.filter(desc => desc.id !== deleteId));
       setOpenDelete(false);
       setDeleteId(null);
@@ -47,7 +50,7 @@ const DescriptionList = () => {
     }
   };
 
-  const handleDeleteOpen = (id: string) => { 
+  const handleDeleteOpen = (id: string) => {
     setDeleteId(id);
     setOpenDelete(true);
   };
@@ -57,7 +60,7 @@ const DescriptionList = () => {
     setDeleteId(null);
   };
 
-  const handleViewOpen = (listid: string) => { 
+  const handleViewOpen = (listid: string) => {
     const description = descriptions.find(desc => desc.listid === listid);
     setSelectedDescription(description || null);
     setOpenView(true);
@@ -68,7 +71,27 @@ const DescriptionList = () => {
     setSelectedDescription(null);
   };
 
+  const buttonVariants = {
+    hover: { scale: 1.05, transition: { duration: 0.2 } },
+    tap: { scale: 0.95, transition: { duration: 0.1 } },
+  };
+
   return (
+    <>
+   
+        <div className="flex justify-end mt-6 ">
+          <Link href="/items">
+            <motion.button
+              className="flex items-center gap-2 bg-gradient-to-r from-[#33a4d8] to-[#0891b2] text-white px-8 py-3 rounded-lg text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+              variants={buttonVariants}
+              whileHover="hover"
+              whileTap="tap"
+            >
+              Add more items
+              <FiArrowRight className="text-lg" />
+            </motion.button>
+          </Link>
+        </div>
     <div className="container bg-white rounded-md">
       <DataTable
         columns={columns(handleDeleteOpen, handleViewOpen)}
@@ -113,7 +136,7 @@ const DescriptionList = () => {
                         ID
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedDescription.listid} 
+                        {selectedDescription.listid}
                       </div>
                     </div>
 
@@ -128,10 +151,14 @@ const DescriptionList = () => {
 
                     <div className="group">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Sub-Description
+                        Sub-Descriptions
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedDescription.subDescription}
+                        {selectedDescription.subDescription.split('|').filter(s => s).map((subDesc, index) => (
+                          <div key={index} className="py-1">
+                            {subDesc}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -144,7 +171,10 @@ const DescriptionList = () => {
           </div>
         </div>
       )}
+
+     
     </div>
+    </>
   );
 };
 

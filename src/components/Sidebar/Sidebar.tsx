@@ -32,7 +32,7 @@ const Sidebar = ({
           </button>
         </div>
 
-        <div className="mt-11">
+        <div className="mt-2 ml-4 mr-3">
           <SidebarMenu isCollapsed={isCollapsed} searchQuery={searchQuery} />
         </div>
       </div>

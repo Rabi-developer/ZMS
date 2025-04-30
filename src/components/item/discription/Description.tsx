@@ -8,15 +8,14 @@ import CustomInput from '@/components/ui/CustomInput';
 import { createDescription, updateDescription, getAllDescriptions } from '@/apis/description';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { MdAddBusiness } from "react-icons/md";
-import Link from "next/link";
-import { BiSolidErrorAlt } from "react-icons/bi";
+import { MdAddBusiness, MdAdd, MdDelete } from 'react-icons/md';
+import Link from 'next/link';
+import { BiSolidErrorAlt } from 'react-icons/bi';
 
 const descriptionSchema = z.object({
   listid: z.string().optional(),
   descriptions: z.string().min(1, 'Description is required'),
-  subDescription: z.string().min(1, 'Sub-Description is required'),
-  useDeletedId: z.boolean().optional(),
+  subDescription: z.string().min(1, 'At least one sub-description is required'),
 });
 
 type DescriptionFormData = z.infer<typeof descriptionSchema>;
@@ -34,11 +33,11 @@ const DescriptionForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       listid: '',
       descriptions: '',
       subDescription: '',
-      useDeletedId: false,
     },
   });
 
   const [idFocused, setIdFocused] = useState(false);
+  const [subDescriptions, setSubDescriptions] = useState<string[]>(['']);
 
   React.useEffect(() => {
     if (isEdit) {
@@ -51,8 +50,9 @@ const DescriptionForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             if (foundDescription) {
               setValue('listid', foundDescription.listid || '');
               setValue('descriptions', foundDescription.descriptions || '');
+              const subDescArray = foundDescription.subDescription?.split('|')?.filter((s: string) => s) || [''];
+              setSubDescriptions(subDescArray);
               setValue('subDescription', foundDescription.subDescription || '');
-              setValue('useDeletedId', false);
             } else {
               toast.error('Description not found');
               router.push('/description');
@@ -66,6 +66,25 @@ const DescriptionForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       fetchDescription();
     }
   }, [isEdit, setValue, router]);
+
+  const handleAddSubDescription = () => {
+    setSubDescriptions([...subDescriptions, '']);
+  };
+
+  const handleDeleteSubDescription = (index: number) => {
+    if (subDescriptions.length > 1) {
+      const newSubDescriptions = subDescriptions.filter((_, i) => i !== index);
+      setSubDescriptions(newSubDescriptions);
+      setValue('subDescription', newSubDescriptions.join('|'));
+    }
+  };
+
+  const handleSubDescriptionChange = (index: number, value: string) => {
+    const newSubDescriptions = [...subDescriptions];
+    newSubDescriptions[index] = value;
+    setSubDescriptions(newSubDescriptions);
+    setValue('subDescription', newSubDescriptions.join('|'));
+  };
 
   const onSubmit = async (data: DescriptionFormData) => {
     try {
@@ -141,39 +160,42 @@ const DescriptionForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             )}
           />
 
-          <Controller
-            name="subDescription"
-            control={control}
-            render={({ field }) => (
-              <CustomInput
-                {...field}
-                label="Sub-Description"
-                type="text"
-                error={errors.subDescription?.message}
-                placeholder="Enter sub-description"
-                value={field.value || ''}
-                onChange={field.onChange}
-              />
-            )}
-          />
-
-          {!isEdit && (
-            <div className="col-span-2 flex items-center gap-2">
-              <Controller
-                name="useDeletedId"
-                control={control}
-                render={({ field }) => (
-                  <input
-                    type="checkbox"
-                    checked={field.value || false}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    className="h-4 w-4"
-                  />
+            <div className="col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sub-Descriptions</label>
+            {subDescriptions.map((subDesc, index) => (
+              <div
+                key={index}
+                className="grid grid-cols-2  gap-3 mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
+              >
+                <CustomInput
+                  label=""
+                  type="text"
+                  placeholder="Enter sub-description"
+                  value={subDesc}
+                  onChange={(e) => handleSubDescriptionChange(index, e.target.value)}
+                  error={index === 0 ? errors.subDescription?.message : undefined}
+                />
+                {subDescriptions.length > 1 && (
+                  <Button
+                    type="button"
+                    onClick={() => handleDeleteSubDescription(index)}
+                    className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                  >
+                    <MdDelete className="text-lg" />
+                  </Button>
                 )}
-              />
-              <label className="text-sm">Use a previously deleted ID if available</label>
-            </div>
-          )}
+              </div>
+            ))}
+            <Button
+              type="button"
+              onClick={handleAddSubDescription}
+              className="mt-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200"
+            >
+              <MdAdd className="text-lg" />
+              Add Sub-Description
+            </Button>
+          </div>
+      
         </div>
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 border-t-2 border-[#e7e7e7]">
           <Button

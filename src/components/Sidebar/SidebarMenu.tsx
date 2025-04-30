@@ -132,8 +132,8 @@ const SidebarMenu: React.FC<{ isCollapsed: boolean; searchQuery: string }> = ({
     if (isCollapsed && level === 1 && hoveredItem?.text === parentPosition) {
       return (
         <div
-          className={`fixed left-20 ml-1 min-w-[180px] py-2 bg-[#06b6d4] dark:bg-[#215083] 
-            rounded-lg shadow-xl z-50`}
+          className={`fixed left-20 ml-1  py-2 bg-[#06b6d4] dark:bg-[#215083] 
+            rounded-lg shadow-xl z-50 `}
           style={{ top: `${hoveredItem.top}px` }}
           onMouseEnter={() => handleMouseEnter(parentPosition)}
           onMouseLeave={handleMouseLeave}
@@ -184,7 +184,7 @@ const SidebarMenu: React.FC<{ isCollapsed: boolean; searchQuery: string }> = ({
       return (
         <div
           className={`fixed min-w-[180px] py-2 bg-[#06b6d4] dark:bg-[#215083] 
-            rounded-lg shadow-xl z-50`}
+            rounded-lg shadow-xl z-50 `}
           style={{ top: `${hoveredSubItem.top}px`, left: `${hoveredSubItem.left + 10}px` }}
           onMouseEnter={() => handleSubMenuMouseEnter(parentPosition)}
           onMouseLeave={handleMouseLeave}
@@ -277,8 +277,8 @@ const SidebarMenu: React.FC<{ isCollapsed: boolean; searchQuery: string }> = ({
   };
 // pop-up when sidebar off then show menu and nested sub-menu
   return (
-    <div className={`mr-7${isCollapsed ? 'px-1' : 'px-3'} py-4`}>
-      <ul className="space-y-1 h-full">
+    <div className={`${isCollapsed ? '' : 'px-3'} py-4`}>
+      <ul className="space-y-1 h-full ">
         {filteredItems.length > 0 ? (
           filteredItems.map((item: SidebarItem, index: number) => (
             <li

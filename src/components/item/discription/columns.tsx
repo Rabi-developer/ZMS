@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export type DescriptionType = {
-  id: string;       
-  listid: string;   
+  id: string;
+  listid: string;
   descriptions: string;
   subDescription: string;
 };
 
 export const columns = (
-  handleDeleteOpen: (id: string) => void, 
+  handleDeleteOpen: (id: string) => void,
   handleViewOpen: (listid: string) => void
 ): ColumnDef<DescriptionType>[] => [
   {
@@ -36,6 +36,16 @@ export const columns = (
   {
     accessorKey: 'subDescription',
     header: 'Sub-Description',
+    cell: ({ row }) => {
+      const subDescriptions = row.original.subDescription.split('|').filter((s: string) => s);
+      return (
+        <div className="flex flex-col gap-1">
+          {subDescriptions.map((subDesc: string, index: number) => (
+            <span key={index} className="text-gray-700">{subDesc}</span>
+          ))}
+        </div>
+      );
+    },
   },
   {
     accessorKey: 'name',
@@ -45,8 +55,8 @@ export const columns = (
     header: 'Actions',
     id: 'actions',
     cell: ({ row }) => {
-      const descriptionId = row.original.id;      
-      const listId = row.original.listid;         
+      const descriptionId = row.original.id;
+      const listId = row.original.listid;
       return (
         <div className='flex gap-2'>
           <Link href={`/description/edit/${descriptionId}`}>

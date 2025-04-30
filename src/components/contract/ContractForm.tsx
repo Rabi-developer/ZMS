@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -8,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
 import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
-import { MdAddBusiness, MdAdd, MdDelete } from 'react-icons/md';
+import { MdAddBusiness, MdAdd, MdDelete, MdInfo } from 'react-icons/md';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { getAllOrganization } from '@/apis/organization';
@@ -32,7 +31,7 @@ import { getAllStuffs } from '@/apis/stuff';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 
-// Zod schema for form validation (unchanged)
+// Zod schema for form validation
 const Schema = z.object({
   contractNumber: z.string().min(1, 'Contract Number is required'),
   date: z.string().min(1, 'Date is required'),
@@ -54,7 +53,7 @@ const Schema = z.object({
   warpCount: z.string().optional(),
   warpYarnType: z.string().optional(),
   weftCount: z.string().optional(),
-  weftYarnCount: z.string().min(1, 'Weft Yarn Type is required'),
+  weftYarnType: z.string().min(1, 'Weft Yarn Type is required'),
   noOfEnds: z.string().optional(),
   noOfPicks: z.string().optional(),
   weaves: z.string().optional(),
@@ -117,6 +116,17 @@ const Schema = z.object({
         creationDate: z.string().optional(),
         updatedBy: z.string().optional(),
         updateDate: z.string().optional(),
+        additionalInfo: z
+          .array(
+            z.object({
+              endUse: z.string().optional(),
+              count: z.string().optional(),
+              weight: z.string().optional(),
+              yarnBags: z.string().optional(),
+              labs: z.string().optional(),
+            })
+          )
+          .optional(),
       })
     )
     .optional(),
@@ -134,7 +144,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [descriptions, setDescriptions] = useState<{ id: string; name: string }[]>([]);
-  const [blendRatios, setBlendRatios] = useState<{ id: string; name: string }[]>([]);
+  const [blendRatios, setBlendRatios] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [blendTypeOptions, setBlendTypeOptions] = useState<{ id: string; name: string }[]>([]);
   const [endUses, setEndUses] = useState<{ id: string; name: string }[]>([]);
   const [fabricTypes, setFabricTypes] = useState<{ id: string; name: string }[]>([]);
   const [packings, setPackings] = useState<{ id: string; name: string }[]>([]);
@@ -179,16 +190,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   });
   const [notes, setNotes] = useState('');
   const [showForm, setShowForm] = useState(false);
-
-  // Modified: Initialize with empty arrays to prevent initial rows
   const [buyerDeliveryBreakups, setBuyerDeliveryBreakups] = useState<
     { qty: string; deliveryDate: string }[]
   >([]);
   const [sellerDeliveryBreakups, setSellerDeliveryBreakups] = useState<
     { qty: string; deliveryDate: string }[]
   >([]);
-
-  // State for Sample Details (unchanged)
   const [sampleDetails, setSampleDetails] = useState<
     {
       sampleQty: string;
@@ -198,19 +205,33 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       creationDate: string;
       updatedBy: string;
       updateDate: string;
+      additionalInfo: {
+        endUse: string;
+        count: string;
+        weight: string;
+        yarnBags: string;
+        labs: string;
+      }[];
     }[]
-  >([
-    {
-      sampleQty: '',
-      sampleReceivedDate: '',
-      sampleDeliveredDate: '',
-      createdBy: '',
-      creationDate: '',
-      updatedBy: '',
-      updateDate: '',
-    },
-  ]);
-  const [showSampleDetailsTable, setShowSampleDetailsTable] = useState(false);
+  >([{
+    sampleQty: '',
+    sampleReceivedDate: '',
+    sampleDeliveredDate: '',
+    createdBy: 'Current User',
+    creationDate: new Date().toISOString().split('T')[0],
+    updatedBy: '',
+    updateDate: '',
+    additionalInfo: [{
+      endUse: '',
+      count: '',
+      weight: '',
+      yarnBags: '',
+      labs: '',
+    }],
+  }]);
+  const [showSamplePopup, setShowSamplePopup] = useState<number | null>(null);
+  const currentUser = 'Current User';
+  const currentDate = new Date().toISOString().split('T')[0];
 
   const {
     register,
@@ -224,7 +245,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     defaultValues: initialData || {},
   });
 
-  // Dropdown options (unchanged)
+  // Dropdown options
   const contractTypes = [
     { id: 'Sale', name: 'Sale' },
     { id: 'Purchase', name: 'Purchase' },
@@ -257,7 +278,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     { id: 'No', name: 'No' },
   ];
 
-  // Fetch data functions (unchanged)
+  // Fetch data functions
   const fetchCompanies = async () => {
     try {
       setLoading(true);
@@ -289,7 +310,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setDescriptions(
         response.data.map((desc: any) => ({
           id: desc.listid,
-          name: `${desc.descriptions} - ${desc.subDescription}`,
+          name: desc.descriptions,
         }))
       );
     } catch (error) {
@@ -306,7 +327,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setBlendRatios(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
+          subDescription: item.subDescription,
         }))
       );
     } catch (error) {
@@ -323,7 +345,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setEndUses(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -340,7 +362,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setFabricTypes(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -357,7 +379,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setPackings(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -374,7 +396,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setPieceLengths(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -391,7 +413,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setPickInsertions(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -408,7 +430,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setWarpYarnTypes(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -422,10 +444,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     try {
       setLoading(true);
       const response = await getAllWeftYarnType();
+      console.log('Weft Yarn Types Response:', response.data); // Debug log
       setWeftYarnTypes(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -439,10 +462,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     try {
       setLoading(true);
       const response = await getAllWeaves();
+      console.log('Weaves Response:', response.data); // Debug log
       setWeaves(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -459,7 +483,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setFinals(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -476,7 +500,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setSelvedges(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -493,7 +517,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setSelvedgeWeaves(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -510,7 +534,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setSelvedgeWidths(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -527,7 +551,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setStuffs(
         response.data.map((item: any) => ({
           id: item.listid,
-          name: `${item.descriptions} - ${item.subDescription}`,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -573,9 +597,30 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
   const companyId = watch('companyId');
   const branchId = watch('branchId');
+  const selectedBlendRatio = watch('blendRatio');
+
   useEffect(() => {
     setShowForm(!!companyId && !!branchId);
   }, [companyId, branchId]);
+
+  // Update Blend Type options when Blend Ratio changes
+  useEffect(() => {
+    const selectedRatio = blendRatios.find((ratio) => ratio.id === selectedBlendRatio);
+    if (selectedRatio && selectedRatio.subDescription) {
+      const subDescArray = selectedRatio.subDescription
+        .split('|')
+        .filter((s: string) => s)
+        .map((subDesc: string, index: number) => ({
+          id: `${index}`,
+          name: subDesc.trim(),
+        }));
+      setBlendTypeOptions(subDescArray);
+      setValue('blendType', subDescArray[0]?.name || '', { shouldValidate: true });
+    } else {
+      setBlendTypeOptions([]);
+      setValue('blendType', '', { shouldValidate: true });
+    }
+  }, [selectedBlendRatio, blendRatios, setValue]);
 
   useEffect(() => {
     fetchCompanies();
@@ -604,6 +649,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           initialData.contractType === 'Sale' || initialData.contractType === 'Purchase'
             ? initialData.contractType
             : 'Sale',
+        weftYarnType: initialData.weftYarnType || initialData.weftYarnCount || '',
+        weaves: initialData.weaves || '',
       });
       if (initialData.buyerDeliveryBreakups) {
         setBuyerDeliveryBreakups(initialData.buyerDeliveryBreakups);
@@ -611,9 +658,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       if (initialData.sellerDeliveryBreakups) {
         setSellerDeliveryBreakups(initialData.sellerDeliveryBreakups);
       }
-      if (initialData.sampleDetails) {
-        setSampleDetails(initialData.sampleDetails);
-        setShowSampleDetailsTable(true);
+      if (initialData.sampleDetails && initialData.sampleDetails.length > 0) {
+        setSampleDetails([initialData.sampleDetails[0]]);
       }
     }
   }, [initialData, reset]);
@@ -661,28 +707,41 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     setSellerDeliveryBreakups(updatedBreakups);
   };
 
-  const addSampleDetail = () => {
-    setSampleDetails([
-      ...sampleDetails,
-      {
-        sampleQty: '',
-        sampleReceivedDate: '',
-        sampleDeliveredDate: '',
-        createdBy: '',
-        creationDate: '',
-        updatedBy: '',
-        updateDate: '',
-      },
-    ]);
-  };
-
-  const removeSampleDetail = (index: number) => {
-    setSampleDetails(sampleDetails.filter((_, i) => i !== index));
-  };
-
-  const handleSampleDetailChange = (index: number, field: string, value: string) => {
+  const handleSampleDetailChange = (field: string, value: string) => {
     const updatedSampleDetails = [...sampleDetails];
-    updatedSampleDetails[index] = { ...updatedSampleDetails[index], [field]: value };
+    updatedSampleDetails[0] = { ...updatedSampleDetails[0], [field]: value };
+    if (field === 'createdBy' && value) {
+      updatedSampleDetails[0].creationDate = currentDate;
+    }
+    if (field === 'updatedBy' && value) {
+      updatedSampleDetails[0].updateDate = currentDate;
+    }
+    setSampleDetails(updatedSampleDetails);
+  };
+
+  const handleAdditionalInfoChange = (
+    infoIndex: number,
+    field: string,
+    value: string
+  ) => {
+    const updatedSampleDetails = [...sampleDetails];
+    const updatedAdditionalInfo = [...(updatedSampleDetails[0].additionalInfo || [])];
+    updatedAdditionalInfo[infoIndex] = { ...updatedAdditionalInfo[infoIndex], [field]: value };
+    updatedSampleDetails[0].additionalInfo = updatedAdditionalInfo;
+    setSampleDetails(updatedSampleDetails);
+  };
+
+  const addAdditionalInfoRow = () => {
+    const updatedSampleDetails = [...sampleDetails];
+    const updatedAdditionalInfo = [...(updatedSampleDetails[0].additionalInfo || [])];
+    updatedAdditionalInfo.push({
+      endUse: '',
+      count: '',
+      weight: '',
+      yarnBags: '',
+      labs: '',
+    });
+    updatedSampleDetails[0].additionalInfo = updatedAdditionalInfo;
     setSampleDetails(updatedSampleDetails);
   };
 
@@ -696,6 +755,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         sellerDeliveryBreakups,
         sampleDetails,
       };
+      console.log('Form Payload:', payload); // Debug log
       let response;
       if (id) {
         response = await updateContract(id, payload);
@@ -825,7 +885,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 type="date"
                 variant="floating"
                 borderThickness="2"
-                label="Delivery Date"
+                label="Refer Date"
                 id="referdate"
                 {...register('referdate')}
                 error={errors.referdate?.message}
@@ -862,13 +922,13 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     error={errors.blendRatio?.message}
                     register={register}
                   />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
+                  <CustomInputDropdown
                     label="Blend Type"
-                    id="blendType"
-                    {...register('blendType')}
+                    options={blendTypeOptions}
+                    selectedOption={watch('blendType') || ''}
+                    onChange={(value) => setValue('blendType', value, { shouldValidate: true })}
                     error={errors.blendType?.message}
+                    register={register}
                   />
                   <CustomInput
                     variant="floating"
@@ -912,14 +972,18 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     {...register('noOfPicks')}
                     error={errors.noOfPicks?.message}
                   />
-                  <CustomInputDropdown
-                    label="Weaves"
-                    options={weaves}
-                    selectedOption={watch('weaves') || ''}
-                    onChange={(value) => setValue('weaves', value, { shouldValidate: true })}
-                    error={errors.weaves?.message}
-                    register={register}
-                  />
+                  {weaves.length === 0 && loading ? (
+                    <div>Loading Weaves...</div>
+                  ) : (
+                    <CustomInputDropdown
+                      label="Weaves"
+                      options={weaves}
+                      selectedOption={watch('weaves') || ''}
+                      onChange={(value) => setValue('weaves', value, { shouldValidate: true })}
+                      error={errors.weaves?.message}
+                      register={register}
+                    />
+                  )}
                   <CustomInputDropdown
                     label="Pick Insertion"
                     options={pickInsertions}
@@ -977,14 +1041,18 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     error={errors.endUse?.message}
                     register={register}
                   />
-                  <CustomInputDropdown
-                    label="Weft Yarn Type"
-                    options={weftYarnTypes}
-                    selectedOption={watch('weftYarnCount') || ''}
-                    onChange={(value) => setValue('weftYarnCount', value, { shouldValidate: true })}
-                    error={errors.weftYarnCount?.message}
-                    register={register}
-                  />
+                  {weftYarnTypes.length === 0 && loading ? (
+                    <div>Loading Weft Yarn Types...</div>
+                  ) : (
+                    <CustomInputDropdown
+                      label="Weft Yarn Type"
+                      options={weftYarnTypes}
+                      selectedOption={watch('weftYarnType') || ''}
+                      onChange={(value) => setValue('weftYarnType', value, { shouldValidate: true })}
+                      error={errors.weftYarnType?.message}
+                      register={register}
+                    />
+                  )}
                   <CustomInputDropdown
                     label="Fabric Type"
                     options={fabricTypes}
@@ -1163,7 +1231,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 </div>
               </div>
 
-              {/* Modified: Buyer Delivery Breakups - Always show header, rows only when array has entries */}
               <div className="p-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">
@@ -1220,7 +1287,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 </div>
               </div>
 
-              {/* Modified: Seller Delivery Breakups - Always show header, rows only when array has entries */}
               <div className="p-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">
@@ -1279,124 +1345,159 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
               <div className="p-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-black dark:text-white">Sample Details</h2>
+                  <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
                   <Button
                     type="button"
-                    onClick={() => {
-                      setShowSampleDetailsTable(true);
-                      if (sampleDetails.length === 0) {
-                        addSampleDetail();
-                      }
-                    }}
-                    className="bg-[#0e7d90] hover:bg-[#0899b2] text-white px-4 py-2 rounded flex items-center gap-2"
+                    onClick={() => setShowSamplePopup(0)}
+                    className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
                   >
-                    <MdAdd /> Add Sample Details
+                    <MdInfo /> Additional Info
                   </Button>
                 </div>
-                {showSampleDetailsTable && (
-                  <div className="border rounded p-4 mt-2">
-                    <div className="flex justify-between items-center mb-4">
-                      <div />
-                      <Button
-                        type="button"
-                        onClick={addSampleDetail}
-                        className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
-                      >
-                        <MdAdd /> Add Row
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-8 gap-4 font-bold">
-                      <div>Sample Qty</div>
-                      <div>Received Date</div>
-                      <div>Delivered Date</div>
-                      <div>Created By</div>
-                      <div>Creation Date</div>
-                      <div>Updated By</div>
-                      <div>Update Date</div>
-                      <div>Actions</div>
-                    </div>
-                    {sampleDetails.map((sample, index) => (
-                      <div key={index} className="grid grid-cols-8 gap-4 mt-2 items-center">
+                <div className="border rounded-2xl p-6 mt-4 bg-gray-50 dark:bg-gray-800 shadow-sm">
+                  <div className="grid grid-cols-1 gap-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Sample Quantity
+                        </label>
                         <CustomInput
                           type="number"
                           variant="floating"
                           borderThickness="2"
-                          label=""
-                          value={sample.sampleQty}
-                          onChange={(e) =>
-                            handleSampleDetailChange(index, 'sampleQty', e.target.value)
-                          }
+                          label="Sample Quantity"
+                          value={sampleDetails[0].sampleQty}
+                          onChange={(e) => handleSampleDetailChange('sampleQty', e.target.value)}
                         />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Received Date
+                        </label>
                         <CustomInput
                           type="date"
                           variant="floating"
                           borderThickness="2"
-                          label=""
-                          value={sample.sampleReceivedDate}
-                          onChange={(e) =>
-                            handleSampleDetailChange(index, 'sampleReceivedDate', e.target.value)
-                          }
+                          label="Received Date"
+                          value={sampleDetails[0].sampleReceivedDate}
+                          onChange={(e) => handleSampleDetailChange('sampleReceivedDate', e.target.value)}
                         />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Delivered Date
+                        </label>
                         <CustomInput
                           type="date"
                           variant="floating"
                           borderThickness="2"
-                          label=""
-                          value={sample.sampleDeliveredDate}
-                          onChange={(e) =>
-                            handleSampleDetailChange(index, 'sampleDeliveredDate', e.target.value)
-                          }
+                          label="Delivered Date"
+                          value={sampleDetails[0].sampleDeliveredDate}
+                          onChange={(e) => handleSampleDetailChange('sampleDeliveredDate', e.target.value)}
                         />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Created By
+                        </label>
                         <CustomInput
                           variant="floating"
                           borderThickness="2"
-                          label=""
-                          value={sample.createdBy}
-                          onChange={(e) =>
-                            handleSampleDetailChange(index, 'createdBy', e.target.value)
-                          }
+                          label="Created By"
+                          value={sampleDetails[0].createdBy}
+                          onChange={(e) => handleSampleDetailChange('createdBy', e.target.value)}                          disabled
                         />
-                        <CustomInput
-                          type="date"
-                          variant="floating"
-                          borderThickness="2"
-                          label=""
-                          value={sample.creationDate}
-                          onChange={(e) =>
-                            handleSampleDetailChange(index, 'creationDate', e.target.value)
-                          }
-                        />
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label=""
-                          value={sample.updatedBy}
-                          onChange={(e) =>
-                            handleSampleDetailChange(index, 'updatedBy', e.target.value)
-                          }
-                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Creation Date
+                        </label>
                         <CustomInput
                           type="date"
                           variant="floating"
                           borderThickness="2"
-                          label=""
-                          value={sample.updateDate}
-                          onChange={(e) =>
-                            handleSampleDetailChange(index, 'updateDate', e.target.value)
+                          label="Creation Date"
+                          value={sampleDetails[0].creationDate}
+                          onChange={(e) => handleSampleDetailChange('creationDate', e.target.value)}
+                          disabled
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {showSamplePopup !== null && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl max-w-3xl w-full shadow-2xl">
+                    <h2 className="text-2xl font-bold text-[#06b6d4] dark:text-white mb-6">Additional Sample Information</h2>
+                    {(sampleDetails[0].additionalInfo || []).map((info, infoIndex) => (
+                      <div key={infoIndex} className="grid grid-cols-3 gap-6 mb-6 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                        <CustomInputDropdown
+                          label="End Use"
+                          options={endUses}
+                          selectedOption={info.endUse || ''}
+                          onChange={(value) =>
+                            handleAdditionalInfoChange(infoIndex, 'endUse', value)
                           }
                         />
-                        <Button
-                          type="button"
-                          onClick={() => removeSampleDetail(index)}
-                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center gap-2"
-                        >
-                          <MdDelete /> Delete
-                        </Button>
+                        <CustomInput
+                          variant="floating"
+                          borderThickness="2"
+                          label="Count"
+                          value={info.count}
+                          onChange={(e) =>
+                            handleAdditionalInfoChange(infoIndex, 'count', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          variant="floating"
+                          borderThickness="2"
+                          label="Weight"
+                          value={info.weight}
+                          onChange={(e) =>
+                            handleAdditionalInfoChange(infoIndex, 'weight', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          variant="floating"
+                          borderThickness="2"
+                          label="Yarn Bags"
+                          value={info.yarnBags}
+                          onChange={(e) =>
+                            handleAdditionalInfoChange(infoIndex, 'yarnBags', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          variant="floating"
+                          borderThickness="2"
+                          label="Labs"
+                          value={info.labs}
+                          onChange={(e) =>
+                            handleAdditionalInfoChange(infoIndex, 'labs', e.target.value)
+                          }
+                        />
                       </div>
                     ))}
+                    <div className="flex justify-between mt-6">
+                      <Button
+                        type="button"
+                        onClick={() => addAdditionalInfoRow()}
+                        className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-6 py-2 rounded-lg flex items-center gap-2"
+                      >
+                        <MdAdd /> Add Row
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setShowSamplePopup(null)}
+                        className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+                      >
+                        Close
+                      </Button>
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1404,7 +1505,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">
           <Button
             type="submit"
-            className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+            className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
             disabled={!showForm}
           >
             {id ? 'Update' : 'Save'}
@@ -1412,7 +1513,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           <Link href="/contracts">
             <Button
               type="button"
-              className="w-[160] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+              className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
             >
               Cancel
             </Button>
@@ -1422,5 +1523,4 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     </div>
   );
 };
-
 export default ContractForm;

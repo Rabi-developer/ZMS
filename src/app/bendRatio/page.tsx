@@ -8,6 +8,6 @@ const Branches = () => {
            <BlendRatioList/>
         </MainLayout>
     )
-}
+}   
 
 export default Branches

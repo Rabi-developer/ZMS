@@ -64,6 +64,7 @@ const DepartmentList = () => {
         isOpen={open}
         />
       }
+      
     </div>
   );
 };

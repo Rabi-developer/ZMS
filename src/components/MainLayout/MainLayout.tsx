@@ -28,17 +28,14 @@ const MainLayout = ({ children }: any) => {
   };
 
   return (
-    <div className="min-h-screen h-screen bg-[#f6f6f6] flex overflow-y-scroll scrollbar-thin scrollbar-rounded dark:bg-black">
-      
-      {/* Sidebar */}
+    <div className="min-h-screen h-screen bg-[#f6f6f6] flex overflow-y-scroll scrollbar-thin scrollbar-rounded dark:bg-black ">
       <div
-  className={`fixed top-0 left-0 h-full bg-white dark:bg-[#030630] z-30 transition-all duration-300
-    
+      className={`fixed top-0 left-0 h-full bg-white dark:bg-[#030630] z-30 transition-all duration-300  
     ${isSidebarCollapsed ? "md:w-[70px]" : "md:w-[310px]"}
     ${isSidebarOpen ? "w-[310px]" : "w-0"}
     md:w-auto
   `}
->
+     >
 
         <Sidebar
           isCollapsed={isSidebarCollapsed}
