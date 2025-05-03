@@ -5,36 +5,34 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import CustomInput from '@/components/ui/CustomInput';
-import { createWeftYarnType, updateWeftYarnType, getAllWeftYarnType } from '@/apis/weftyarntype';
+import { createUnitOfMeasure, updateUnitOfMeasure, getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdAddBusiness, MdAdd, MdDelete } from 'react-icons/md';
 import Link from 'next/link';
 import { BiSolidErrorAlt } from 'react-icons/bi';
 
-const WeftYarnTypeSchema = z.object({
+const UnitOfMeasureSchema = z.object({
   listid: z.string().optional(),
   descriptions: z.string().min(1, 'Description is required'),
   subDescription: z.string().min(1, 'At least one sub-description is required'),
-  useDeletedId: z.boolean().optional(),
 });
 
-type WeftYarnTypeData = z.infer<typeof WeftYarnTypeSchema>;
+type UnitOfMeasureData = z.infer<typeof UnitOfMeasureSchema>;
 
-const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
+const UnitOfMeasure = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
   const {
     control,
     handleSubmit,
     formState: { errors },
     setValue,
-  } = useForm<WeftYarnTypeData>({
-    resolver: zodResolver(WeftYarnTypeSchema),
+  } = useForm<UnitOfMeasureData>({
+    resolver: zodResolver(UnitOfMeasureSchema),
     defaultValues: {
       listid: '',
       descriptions: '',
       subDescription: '',
-      useDeletedId: false,
     },
   });
 
@@ -43,29 +41,29 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   React.useEffect(() => {
     if (isEdit) {
-      const fetchWeftYarnType = async () => {
-        const listid = window.location.pathname.split('/').pop();
+      const fetchUnitOfMeasure = async () => {
+        const listid = window.location.pathname.split('/unitofmeasure/').pop();
         if (listid) {
           try {
-            const response = await getAllWeftYarnType();
-            const foundWeftYarnType = response.data.find((item: any) => item.listid === listid);
-            if (foundWeftYarnType) {
-              setValue('listid', foundWeftYarnType.listid || '');
-              setValue('descriptions', foundWeftYarnType.descriptions || '');
-              const subDescArray = foundWeftYarnType.subDescription?.split('|')?.filter((s: string) => s) || [''];
+            const response = await getAllUnitOfMeasures();
+            const foundUnitOfMeasure = response.data.find((item: any) => item.listid === listid);
+            if (foundUnitOfMeasure) {
+              setValue('listid', foundUnitOfMeasure.listid || '');
+              setValue('descriptions', foundUnitOfMeasure.descriptions || '');
+              const subDescArray = foundUnitOfMeasure.subDescription?.split('|')?.filter((s: string) => s) || [''];
               setSubDescriptions(subDescArray);
-              setValue('subDescription', foundWeftYarnType.subDescription || '');
+              setValue('subDescription', foundUnitOfMeasure.subDescription || '');
             } else {
-              toast.error('Weft Yarn Type not found');
-              router.push('/weftyarntype');
+              toast.error('Unit of Measure not found');
+              router.push('/unitofmeasure');
             }
           } catch (error) {
-            console.error('Error fetching Weft Yarn Type:', error);
-            toast.error('Failed to load Weft Yarn Type');
+            console.error('Error fetching Unit of Measure:', error);
+            toast.error('Failed to load Unit of Measure');
           }
         }
       };
-      fetchWeftYarnType();
+      fetchUnitOfMeasure();
     }
   }, [isEdit, setValue, router]);
 
@@ -88,18 +86,18 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
     setValue('subDescription', newSubDescriptions.join('|'));
   };
 
-  const onSubmit = async (data: WeftYarnTypeData) => {
+  const onSubmit = async (data: UnitOfMeasureData) => {
     try {
       if (isEdit) {
-        await updateWeftYarnType(data.listid!, data);
-        toast.success('Weft Yarn Type updated successfully!');
+        await updateUnitOfMeasure(data.listid!, data);
+        toast.success('Unit of Measure updated successfully!');
       } else {
-        await createWeftYarnType(data);
-        toast.success('Weft Yarn Type created successfully!');
+        await createUnitOfMeasure(data);
+        toast.success('Unit of Measure created successfully!');
       }
-      router.push('/weftyarntype');
+      router.push('/unitofmeasure');
     } catch (error) {
-      toast.error('An error occurred while saving the Weft Yarn Type');
+      toast.error('An error occurred while saving the Unit of Measure');
     }
   };
 
@@ -108,11 +106,11 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded">
         <h1 className="text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
           <MdAddBusiness />
-          {isEdit ? 'EDIT Weft Yarn Type' : 'ADD NEW Weft Yarn Type'}
+          {isEdit ? 'EDIT UNIT OF MEASURE' : 'ADD NEW UNIT OF MEASURE'}
         </h1>
       </div>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="grid grid-cols-2 gap-4 p-10 w-full flex令 justify-center">
+        <div className="grid grid-cols-2 gap-4 p-10 w-full flex justify-center">
           <div
             className="relative group"
             onMouseEnter={() => setIdFocused(true)}
@@ -163,7 +161,7 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
           />
 
           <div className="col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Sub-Descriptions</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Segment</label>
             {subDescriptions.map((subDesc, index) => (
               <div
                 key={index}
@@ -172,7 +170,7 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
                 <CustomInput
                   label=""
                   type="text"
-                  placeholder="Enter sub-description"
+                  placeholder="Enter Segment"
                   value={subDesc}
                   onChange={(e) => handleSubDescriptionChange(index, e.target.value)}
                   error={index === 0 ? errors.subDescription?.message : undefined}
@@ -194,36 +192,18 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
               className="mt-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200"
             >
               <MdAdd className="text-lg" />
-              Add Sub-Description
+              Add More Segment
             </Button>
           </div>
-
-          {!isEdit && (
-            <div className="col-span-2 flex items-center gap-2">
-              <Controller
-                name="useDeletedId"
-                control={control}
-                render={({ field }) => (
-                  <input
-                    type="checkbox"
-                    checked={field.value || false}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                )}
-              />
-              <label className="text-sm">Use a previously deleted ID if available</label>
-            </div>
-          )}
         </div>
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 border-t-2 border-[#e7e7e7]">
           <Button
             type="submit"
             className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
           >
-            {isEdit ? 'Update Weft Yarn Type' : 'Create Weft Yarn Type'}
+            {isEdit ? 'Update Measure' : 'Create Measure'}
           </Button>
-          <Link href="/weftyarntype">
+          <Link href="/unitofmeasure">
             <Button
               type="button"
               className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
@@ -237,4 +217,4 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
   );
 };
 
-export default WeftYarnType;
+export default UnitOfMeasure;

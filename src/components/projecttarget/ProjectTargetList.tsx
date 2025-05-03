@@ -19,7 +19,7 @@ const ProjectTargetList = () => {
       const response = await getAllProjectTargets(pageIndex === 0 ? 1 : pageIndex, pageSize);
       setProjectTargets(response.data);
     } catch (error) {
-      console.error(error);
+      console.error(error);zzzzzz
     } finally {
       setLoading(false);
     }

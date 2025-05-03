@@ -30,6 +30,10 @@ import { getAllSelvegeWidths } from '@/apis/selvegewidth';
 import { getAllStuffs } from '@/apis/stuff';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
+import { getAllDeliveryTerms } from '@/apis/deliveryterm';
+import { getAllCommissionTypes } from '@/apis/commissiontype';
+import { getAllPaymentTerms } from '@/apis/paymentterm';
+import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 
 // Zod schema for form validation
 const Schema = z.object({
@@ -161,6 +165,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [stuffs, setStuffs] = useState<{ id: string; name: string }[]>([]);
   const [sellers, setSellers] = useState<{ id: string; name: string }[]>([]);
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
+  const [deliveryTerms, setDeliveryTerms] = useState<{ id: string; name: string }[]>([]);
+  const [commissionTypes, setCommissionTypes] = useState<{ id: string; name: string }[]>([]);
+  const [paymentTerms, setPaymentTerms] = useState<{ id: string; name: string }[]>([]);
+  const [unitsOfMeasure, setUnitsOfMeasure] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [deliveryDetails, setDeliveryDetails] = useState({
     quantity: '',
@@ -250,28 +258,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     { id: 'Sale', name: 'Sale' },
     { id: 'Purchase', name: 'Purchase' },
   ];
-  const unitsOfMeasure = [
-    { id: 'Meter', name: 'Meter' },
-    { id: 'Yard', name: 'Yard' },
-    { id: 'Kilogram', name: 'Kilogram' },
-  ];
-  const paymentTermsOptions = [
-    { id: 'Immediate', name: 'Immediate' },
-    { id: '30 Days', name: '30 Days' },
-    { id: '60 Days', name: '60 Days' },
-  ];
-  const deliveryTermsOptions = [
-    { id: 'FOB', name: 'FOB' },
-    { id: 'CIF', name: 'CIF' },
-    { id: 'EXW', name: 'EXW' },
-  ];
   const commissionFromOptions = [
     { id: 'Seller', name: 'Seller' },
     { id: 'Buyer', name: 'Buyer' },
-  ];
-  const commissionTypeOptions = [
-    { id: 'Percentage', name: 'Percentage' },
-    { id: 'Fixed', name: 'Fixed' },
+    { id: 'Both', name: 'Both' },
   ];
   const dispatchLaterOptions = [
     { id: 'Yes', name: 'Yes' },
@@ -444,7 +434,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     try {
       setLoading(true);
       const response = await getAllWeftYarnType();
-      console.log('Weft Yarn Types Response:', response.data); // Debug log
       setWeftYarnTypes(
         response.data.map((item: any) => ({
           id: item.listid,
@@ -462,7 +451,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     try {
       setLoading(true);
       const response = await getAllWeaves();
-      console.log('Weaves Response:', response.data); // Debug log
       setWeaves(
         response.data.map((item: any) => ({
           id: item.listid,
@@ -595,6 +583,74 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
+  const fetchDeliveryTerms = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllDeliveryTerms();
+      setDeliveryTerms(
+        response.data.map((item: any) => ({
+          id: item.termId,
+          name: item.termName,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching delivery terms:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCommissionTypes = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllCommissionTypes();
+      setCommissionTypes(
+        response.data.map((item: any) => ({
+          id: item.commissionId,
+          name: item.name,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching commission types:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchPaymentTerms = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllPaymentTerms();
+      setPaymentTerms(
+        response.data.map((item: any) => ({
+          id: item.listid,
+          name: item.descriptions,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching payment terms:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUnitsOfMeasure = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllUnitOfMeasures();
+      setUnitsOfMeasure(
+        response.data.map((item: any) => ({
+          id: item.listid,
+          name: item.descriptions,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching units of measure:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const companyId = watch('companyId');
   const branchId = watch('branchId');
   const selectedBlendRatio = watch('blendRatio');
@@ -642,6 +698,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     fetchStuffs();
     fetchSellers();
     fetchBuyers();
+    fetchDeliveryTerms();
+    fetchCommissionTypes();
+    fetchPaymentTerms();
+    fetchUnitsOfMeasure();
     if (initialData) {
       reset({
         ...initialData,
@@ -652,6 +712,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         weftYarnType: initialData.weftYarnType || initialData.weftYarnCount || '',
         weaves: initialData.weaves || '',
       });
+      if (initialData.deliveryDetails) {
+        setDeliveryDetails(initialData.deliveryDetails);
+      }
       if (initialData.buyerDeliveryBreakups) {
         setBuyerDeliveryBreakups(initialData.buyerDeliveryBreakups);
       }
@@ -1074,12 +1137,18 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     value={deliveryDetails.quantity}
                     onChange={(e) => handleDeliveryDetailChange('quantity', e.target.value)}
                   />
-                  <CustomInputDropdown
-                    label="Unit of Measure"
-                    options={unitsOfMeasure}
-                    selectedOption={deliveryDetails.unitOfMeasure || ''}
-                    onChange={(value) => handleDeliveryDetailChange('unitOfMeasure', value)}
-                  />
+                  {unitsOfMeasure.length === 0 && loading ? (
+                    <div>Loading Units of Measure...</div>
+                  ) : (
+                    <CustomInputDropdown
+                      label="Unit of Measure"
+                      options={unitsOfMeasure}
+                      selectedOption={deliveryDetails.unitOfMeasure || ''}
+                      onChange={(value) => handleDeliveryDetailChange('unitOfMeasure', value)}
+                      error={errors.unitOfMeasure?.message}
+                      register={register}
+                    />
+                  )}
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
@@ -1120,18 +1189,30 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     selectedOption={deliveryDetails.pieceLength || ''}
                     onChange={(value) => handleDeliveryDetailChange('pieceLength', value)}
                   />
-                  <CustomInputDropdown
-                    label="Pay Term Seller"
-                    options={paymentTermsOptions}
-                    selectedOption={deliveryDetails.payTermSeller || ''}
-                    onChange={(value) => handleDeliveryDetailChange('payTermSeller', value)}
-                  />
-                  <CustomInputDropdown
-                    label="Pay Term Buyer"
-                    options={paymentTermsOptions}
-                    selectedOption={deliveryDetails.payTermBuyer || ''}
-                    onChange={(value) => handleDeliveryDetailChange('payTermBuyer', value)}
-                  />
+                  {paymentTerms.length === 0 && loading ? (
+                    <div>Loading Payment Terms...</div>
+                  ) : (
+                    <CustomInputDropdown
+                      label="Pay Term Seller"
+                      options={paymentTerms}
+                      selectedOption={deliveryDetails.payTermSeller || ''}
+                      onChange={(value) => handleDeliveryDetailChange('payTermSeller', value)}
+                      error={errors.paymentTermsSeller?.message}
+                      register={register}
+                    />
+                  )}
+                  {paymentTerms.length === 0 && loading ? (
+                    <div>Loading Payment Terms...</div>
+                  ) : (
+                    <CustomInputDropdown
+                      label="Pay Term Buyer"
+                      options={paymentTerms}
+                      selectedOption={deliveryDetails.payTermBuyer || ''}
+                      onChange={(value) => handleDeliveryDetailChange('payTermBuyer', value)}
+                      error={errors.paymentTermsBuyer?.message}
+                      register={register}
+                    />
+                  )}
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
@@ -1167,24 +1248,36 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     value={deliveryDetails.totalAmount}
                     onChange={(e) => handleDeliveryDetailChange('totalAmount', e.target.value)}
                   />
-                  <CustomInputDropdown
-                    label="Delivery Terms"
-                    options={deliveryTermsOptions}
-                    selectedOption={deliveryDetails.deliveryTerms || ''}
-                    onChange={(value) => handleDeliveryDetailChange('deliveryTerms', value)}
-                  />
+                  {deliveryTerms.length === 0 && loading ? (
+                    <div>Loading Delivery Terms...</div>
+                  ) : (
+                    <CustomInputDropdown
+                      label="Delivery Terms"
+                      options={deliveryTerms}
+                      selectedOption={deliveryDetails.deliveryTerms || ''}
+                      onChange={(value) => handleDeliveryDetailChange('deliveryTerms', value)}
+                      error={errors.deliveryTerms?.message}
+                      register={register}
+                    />
+                  )}
                   <CustomInputDropdown
                     label="Commission From"
                     options={commissionFromOptions}
                     selectedOption={deliveryDetails.commissionFrom || ''}
                     onChange={(value) => handleDeliveryDetailChange('commissionFrom', value)}
                   />
-                  <CustomInputDropdown
-                    label="Commission Type"
-                    options={commissionTypeOptions}
-                    selectedOption={deliveryDetails.commissionType || ''}
-                    onChange={(value) => handleDeliveryDetailChange('commissionType', value)}
-                  />
+                  {commissionTypes.length === 0 && loading ? (
+                    <div>Loading Commission Types...</div>
+                  ) : (
+                    <CustomInputDropdown
+                      label="Commission Type"
+                      options={commissionTypes}
+                      selectedOption={deliveryDetails.commissionType || ''}
+                      onChange={(value) => handleDeliveryDetailChange('commissionType', value)}
+                      error={errors.commissionType?.message}
+                      register={register}
+                    />
+                  )}
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
@@ -1405,7 +1498,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           borderThickness="2"
                           label="Created By"
                           value={sampleDetails[0].createdBy}
-                          onChange={(e) => handleSampleDetailChange('createdBy', e.target.value)}                          disabled
+                          onChange={(e) => handleSampleDetailChange('createdBy', e.target.value)}
+                          disabled
                         />
                       </div>
                       <div>
@@ -1523,4 +1617,5 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     </div>
   );
 };
+
 export default ContractForm;

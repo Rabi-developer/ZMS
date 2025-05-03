@@ -5,101 +5,99 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import CustomInput from '@/components/ui/CustomInput';
-import { createWeftYarnType, updateWeftYarnType, getAllWeftYarnType } from '@/apis/weftyarntype';
+import { createCommissionType, updateCommissionType, getAllCommissionTypes } from '@/apis/commissiontype';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdAddBusiness, MdAdd, MdDelete } from 'react-icons/md';
 import Link from 'next/link';
 import { BiSolidErrorAlt } from 'react-icons/bi';
 
-const WeftYarnTypeSchema = z.object({
+const CommissionTypeSchema = z.object({
   listid: z.string().optional(),
-  descriptions: z.string().min(1, 'Description is required'),
-  subDescription: z.string().min(1, 'At least one sub-description is required'),
-  useDeletedId: z.boolean().optional(),
+  description: z.string().min(1, 'description is required'),
+  segment: z.string().min(1, 'At least one detail is required'),
 });
 
-type WeftYarnTypeData = z.infer<typeof WeftYarnTypeSchema>;
+type CommissionTypeData = z.infer<typeof CommissionTypeSchema>;
 
-const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
+const CommissionType = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
   const {
     control,
     handleSubmit,
     formState: { errors },
     setValue,
-  } = useForm<WeftYarnTypeData>({
-    resolver: zodResolver(WeftYarnTypeSchema),
+  } = useForm<CommissionTypeData>({
+    resolver: zodResolver(CommissionTypeSchema),
     defaultValues: {
       listid: '',
-      descriptions: '',
-      subDescription: '',
-      useDeletedId: false,
+      description: '',
+      segment: '',
     },
   });
 
   const [idFocused, setIdFocused] = useState(false);
-  const [subDescriptions, setSubDescriptions] = useState<string[]>(['']);
+  const [details, setDetails] = useState<string[]>(['']);
 
   React.useEffect(() => {
     if (isEdit) {
-      const fetchWeftYarnType = async () => {
-        const listid = window.location.pathname.split('/').pop();
+      const fetchCommissionType = async () => {
+        const listid = window.location.pathname.split('/commissiontype/').pop();
         if (listid) {
           try {
-            const response = await getAllWeftYarnType();
-            const foundWeftYarnType = response.data.find((item: any) => item.listid === listid);
-            if (foundWeftYarnType) {
-              setValue('listid', foundWeftYarnType.listid || '');
-              setValue('descriptions', foundWeftYarnType.descriptions || '');
-              const subDescArray = foundWeftYarnType.subDescription?.split('|')?.filter((s: string) => s) || [''];
-              setSubDescriptions(subDescArray);
-              setValue('subDescription', foundWeftYarnType.subDescription || '');
+            const response = await getAllCommissionTypes();
+            const foundCommissionType = response.data.find((item: any) => item.listid === listid);
+            if (foundCommissionType) {
+              setValue('listid', foundCommissionType.listid || '');
+              setValue('description', foundCommissionType.description || '');
+              const detailArray = foundCommissionType.details?.split('|')?.filter((s: string) => s) || [''];
+              setDetails(detailArray);
+              setValue('segment', foundCommissionType.details || '');
             } else {
-              toast.error('Weft Yarn Type not found');
-              router.push('/weftyarntype');
+              toast.error('Commission Type not found');
+              router.push('/commissiontype');
             }
           } catch (error) {
-            console.error('Error fetching Weft Yarn Type:', error);
-            toast.error('Failed to load Weft Yarn Type');
+            console.error('Error fetching Commission Type:', error);
+            toast.error('Failed to load Commission Type');
           }
         }
       };
-      fetchWeftYarnType();
+      fetchCommissionType();
     }
   }, [isEdit, setValue, router]);
 
-  const handleAddSubDescription = () => {
-    setSubDescriptions([...subDescriptions, '']);
+  const handleAddDetail = () => {
+    setDetails([...details, '']);
   };
 
-  const handleDeleteSubDescription = (index: number) => {
-    if (subDescriptions.length > 1) {
-      const newSubDescriptions = subDescriptions.filter((_, i) => i !== index);
-      setSubDescriptions(newSubDescriptions);
-      setValue('subDescription', newSubDescriptions.join('|'));
+  const handleDeleteDetail = (index: number) => {
+    if (details.length > 1) {
+      const newDetails = details.filter((_, i) => i !== index);
+      setDetails(newDetails);
+      setValue('segment', newDetails.join('|'));
     }
   };
 
-  const handleSubDescriptionChange = (index: number, value: string) => {
-    const newSubDescriptions = [...subDescriptions];
-    newSubDescriptions[index] = value;
-    setSubDescriptions(newSubDescriptions);
-    setValue('subDescription', newSubDescriptions.join('|'));
+  const handleDetailChange = (index: number, value: string) => {
+    const newDetails = [...details];
+    newDetails[index] = value;
+    setDetails(newDetails);
+    setValue('segment', newDetails.join('|'));
   };
 
-  const onSubmit = async (data: WeftYarnTypeData) => {
+  const onSubmit = async (data: CommissionTypeData) => {
     try {
       if (isEdit) {
-        await updateWeftYarnType(data.listid!, data);
-        toast.success('Weft Yarn Type updated successfully!');
+        await updateCommissionType(data.listid!, data);
+        toast.success('Commission Type updated successfully!');
       } else {
-        await createWeftYarnType(data);
-        toast.success('Weft Yarn Type created successfully!');
+        await createCommissionType(data);
+        toast.success('Commission Type created successfully!');
       }
-      router.push('/weftyarntype');
+      router.push('/commissiontype');
     } catch (error) {
-      toast.error('An error occurred while saving the Weft Yarn Type');
+      toast.error('An error occurred while saving the Commission Type');
     }
   };
 
@@ -108,11 +106,11 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded">
         <h1 className="text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
           <MdAddBusiness />
-          {isEdit ? 'EDIT Weft Yarn Type' : 'ADD NEW Weft Yarn Type'}
+          {isEdit ? 'EDIT COMMISSION TYPE' : 'ADD NEW COMMISSION TYPE'}
         </h1>
       </div>
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="grid grid-cols-2 gap-4 p-10 w-full flex令 justify-center">
+        <div className="grid grid-cols-2 gap-4 p-10 w-full flex justify-center">
           <div
             className="relative group"
             onMouseEnter={() => setIdFocused(true)}
@@ -147,15 +145,15 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
           </div>
 
           <Controller
-            name="descriptions"
+            name="description"
             control={control}
             render={({ field }) => (
               <CustomInput
                 {...field}
-                label="Description"
+                label="Name"
                 type="text"
-                error={errors.descriptions?.message}
-                placeholder="Enter description"
+                error={errors.description?.message}
+                placeholder="Enter name"
                 value={field.value || ''}
                 onChange={field.onChange}
               />
@@ -163,8 +161,8 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
           />
 
           <div className="col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Sub-Descriptions</label>
-            {subDescriptions.map((subDesc, index) => (
+            <label className="block text-sm font-medium text-gray-700 mb-2">Details</label>
+            {details.map((detail, index) => (
               <div
                 key={index}
                 className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
@@ -172,15 +170,15 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
                 <CustomInput
                   label=""
                   type="text"
-                  placeholder="Enter sub-description"
-                  value={subDesc}
-                  onChange={(e) => handleSubDescriptionChange(index, e.target.value)}
-                  error={index === 0 ? errors.subDescription?.message : undefined}
+                  placeholder="Enter Detail"
+                  value={detail}
+                  onChange={(e) => handleDetailChange(index, e.target.value)}
+                  error={index === 0 ? errors.segment?.message : undefined}
                 />
-                {subDescriptions.length > 1 && (
+                {details.length > 1 && (
                   <Button
                     type="button"
-                    onClick={() => handleDeleteSubDescription(index)}
+                    onClick={() => handleDeleteDetail(index)}
                     className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
                   >
                     <MdDelete className="text-lg" />
@@ -190,40 +188,22 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
             ))}
             <Button
               type="button"
-              onClick={handleAddSubDescription}
+              onClick={handleAddDetail}
               className="mt-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200"
             >
               <MdAdd className="text-lg" />
-              Add Sub-Description
+              Add More Detail
             </Button>
           </div>
-
-          {!isEdit && (
-            <div className="col-span-2 flex items-center gap-2">
-              <Controller
-                name="useDeletedId"
-                control={control}
-                render={({ field }) => (
-                  <input
-                    type="checkbox"
-                    checked={field.value || false}
-                    onChange={(e) => field.onChange(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                )}
-              />
-              <label className="text-sm">Use a previously deleted ID if available</label>
-            </div>
-          )}
         </div>
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 border-t-2 border-[#e7e7e7]">
           <Button
             type="submit"
             className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
           >
-            {isEdit ? 'Update Weft Yarn Type' : 'Create Weft Yarn Type'}
+            {isEdit ? 'Update Commission Type' : 'Create Commission Type'}
           </Button>
-          <Link href="/weftyarntype">
+          <Link href="/commissiontype">
             <Button
               type="button"
               className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
@@ -237,4 +217,4 @@ const WeftYarnType = ({ isEdit = false }: { isEdit?: boolean }) => {
   );
 };
 
-export default WeftYarnType;
+export default CommissionType;

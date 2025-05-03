@@ -72,10 +72,9 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
     setSearchTerm('');
   };
 
-  // Get display text for input
   const displayText = selectedOption 
-    ? options.find(option => option.id.toString() === selectedOption)?.name || 'Select an option-Search'
-    : 'Select an option-Search';
+    ? options.find(option => option.id.toString() === selectedOption)?.name || ''
+    : '';
 
   return (
     <div className="w-full" ref={dropdownRef}>
@@ -89,7 +88,6 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
           {label}
         </label>
 
-        {/* Search Input */}
         <div className="relative">
           <input
             type="text"
@@ -103,7 +101,6 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
               ${error ? 'border-red-500 focus:ring-red-500' : ''} ${isOpen ? '' : 'rounded-b-lg'}`}
           />
 
-          {/* Sort Button */}
           <div className="absolute right-2 top-2">
             <button
               type="button"
@@ -115,13 +112,12 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
           </div>
         </div>
 
-        {/* Dropdown Menu */}
         {isOpen && (
           <div
             className={`absolute w-full max-h-60 overflow-y-auto bg-white rounded-b-lg shadow-xl z-10 border-${borderThickness} border-${borderColor}`}
           >
             {filteredOptions.length === 0 ? (
-              <div className="px-4 py-2 text-gray-500">No options found</div>
+              <div className="px-4 py-2 text-gray-500">No options found <span className="text-[#ff0000]">There is no save data first save the data</span></div>
             ) : (
               filteredOptions.map((option) => (
                 <div
@@ -137,7 +133,6 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
           </div>
         )}
 
-        {/* Hidden select for form registration */}
         <select
           id="dropdown"
           value={selectedOption}
