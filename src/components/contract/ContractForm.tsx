@@ -35,7 +35,6 @@ import { getAllCommissionTypes } from '@/apis/commissiontype';
 import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
-
 // Zod schema for form validation
 const Schema = z.object({
   contractNumber: z.string().min(1, 'Contract Number is required'),
@@ -75,7 +74,7 @@ const Schema = z.object({
   packing: z.string().optional(),
   pieceLength: z.string().optional(),
   fabricValue: z.string().min(1, 'Fabric Value is required'),
-  gst: z.string().min(1, 'GST Type is required'), // Updated to require GST type ID
+  gst: z.string().min(1, 'GST Type is required'),
   gstValue: z.string().optional(),
   totalAmount: z.string().min(1, 'Total Amount is required'),
   paymentTermsSeller: z.string().optional(),
@@ -170,8 +169,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [commissionTypes, setCommissionTypes] = useState<{ id: string; name: string }[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<{ id: string; name: string }[]>([]);
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<{ id: string; name: string }[]>([]);
-  const [gstTypes, setGstTypes] = useState<{ id: string; name: string }[]>([]); // New state for GST types
   const [loading, setLoading] = useState(false);
+  const [gstTypes, setGstTypes] = useState<{ id: string; name: string }[]>([]);
   const [deliveryDetails, setDeliveryDetails] = useState({
     quantity: '',
     unitOfMeasure: '',
@@ -184,7 +183,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     payTermSeller: '',
     payTermBuyer: '',
     fabricValue: '',
-    gst: '', // Now stores GST type ID
+    gst: '',
     gstValue: '',
     finishWidth: '',
     totalAmount: '',
@@ -197,6 +196,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     sellerRemark: '',
     buyerRemark: '',
     deliveryDate: '',
+    sellerCommission: '',
+  buyerCommission: '',
   });
   const [notes, setNotes] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -591,8 +592,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       const response = await getAllDeliveryTerms();
       setDeliveryTerms(
         response.data.map((item: any) => ({
-          id: item.termId,
-          name: item.termName,
+          id: item.listid,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -608,8 +609,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       const response = await getAllCommissionTypes();
       setCommissionTypes(
         response.data.map((item: any) => ({
-          id: item.commissionId,
-          name: item.descriptions, // Updated to match CommissionType form
+          id: item.listid,
+          name: item.descriptions,
         }))
       );
     } catch (error) {
@@ -652,7 +653,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setLoading(false);
     }
   };
-
   const fetchGstTypes = async () => {
     try {
       setLoading(true);
@@ -669,6 +669,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setLoading(false);
     }
   };
+
+
 
   const companyId = watch('companyId');
   const branchId = watch('branchId');
@@ -722,6 +724,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     fetchPaymentTerms();
     fetchUnitsOfMeasure();
     fetchGstTypes();
+
     if (initialData) {
       reset({
         ...initialData,
@@ -731,7 +734,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
             : 'Sale',
         weftYarnType: initialData.weftYarnType || initialData.weftYarnCount || '',
         weaves: initialData.weaves || '',
-        gst: initialData.deliveryDetails?.gst || '',
       });
       if (initialData.deliveryDetails) {
         setDeliveryDetails(initialData.deliveryDetails);
@@ -751,6 +753,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const handleDeliveryDetailChange = (field: string, value: string) => {
     setDeliveryDetails((prev) => {
       const updatedDetails = { ...prev, [field]: value };
+      console.log(`Updated deliveryDetails[${field}]:`, value, updatedDetails);
 
       if (field === 'commissionPercentage' && value) {
         const commissionPercentage = parseFloat(value);
@@ -758,7 +761,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         const commissionValue = (fabricValue * commissionPercentage) / 100;
         updatedDetails.commissionValue = commissionValue.toFixed(2);
       }
-
       if (field === 'gst' && value) {
         const selectedGst = gstTypes.find((gst) => gst.id === value);
         if (selectedGst) {
@@ -767,6 +769,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           updatedDetails.gstValue = ((fabricValue * percentage) / 100).toFixed(2);
         }
       }
+
 
       return updatedDetails;
     });
@@ -1262,13 +1265,13 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       register={register}
                     />
                   )}
+
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="GST Value"
                     value={deliveryDetails.gstValue}
                     onChange={(e) => handleDeliveryDetailChange('gstValue', e.target.value)}
-                    disabled
                   />
                   <CustomInput
                     variant="floating"
@@ -1302,7 +1305,26 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     selectedOption={deliveryDetails.commissionFrom || ''}
                     onChange={(value) => handleDeliveryDetailChange('commissionFrom', value)}
                   />
-                  {commissionTypes.length === 0 && loading ? (
+                 
+                   {deliveryDetails.commissionFrom === 'Both' && (
+                 <CustomInput
+                 variant="floating"
+                 borderThickness="2"
+                 label="Seller Commission"
+                 value={deliveryDetails.sellerCommission}
+                 onChange={(e) => handleDeliveryDetailChange('sellerCommission', e.target.value)}
+                 />
+                 )}
+               {deliveryDetails.commissionFrom === 'Both' && (
+               <CustomInput
+                variant="floating"
+                borderThickness="2"
+                label="Buyer Commission"
+                value={deliveryDetails.buyerCommission}
+                onChange={(e) => handleDeliveryDetailChange('buyerCommission', e.target.value)}
+                />
+                )}
+                 {commissionTypes.length === 0 && loading ? (
                     <div>Loading Commission Types...</div>
                   ) : (
                     <CustomInputDropdown
