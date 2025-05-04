@@ -33,10 +33,14 @@ export const columns = (
           accessorKey: 'descriptions',
           header: 'Description',
         },
-        {
-          accessorKey: 'segment',
-          header: 'Segment',
-        },
+  {
+    accessorKey: 'segment', 
+    header: 'Segment',
+    cell: ({ row }) => {
+    const segment = row.original.segment;
+    return segment ? segment.split('|').join(', ') : 'No segments';
+    },
+   },
   {
     accessorKey: 'name',
     header: '',

@@ -2,7 +2,7 @@ import apiFetch from "@/components/utils/fetchInstance";
 
 const createCommissionType = async (CommissionType: any) => {
   try {
-    const response = await apiFetch('CommissionType', {
+    const response = await apiFetch('CommisionType', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -17,7 +17,7 @@ const createCommissionType = async (CommissionType: any) => {
 
 const getAllCommissionTypes = async (pageIndex: any = 1, pageSize: any = 10) => {
   try {
-    const response = await apiFetch(`CommissionType?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    const response = await apiFetch(`CommisionType?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
       method: 'GET',
       headers: {},
     }, true);
@@ -29,7 +29,7 @@ const getAllCommissionTypes = async (pageIndex: any = 1, pageSize: any = 10) => 
 
 const getSingleCommissionType = async (id: string) => {
   try {
-    const response = await apiFetch(`CommissionType/${id}`, {
+    const response = await apiFetch(`CommisionType/${id}`, {
       method: 'GET',
       headers: {},
     }, true);
@@ -41,7 +41,7 @@ const getSingleCommissionType = async (id: string) => {
 
 const updateCommissionType = async (id: string, CommissionType: any) => {
   try {
-    const response = await apiFetch(`CommissionType`, {
+    const response = await apiFetch(`CommisionType`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -56,7 +56,7 @@ const updateCommissionType = async (id: string, CommissionType: any) => {
 
 const deleteCommissionType = async (id: string) => {
   try {
-    const response = await apiFetch(`CommissionType/${id}`, {
+    const response = await apiFetch(`CommisionType/${id}`, {
       method: 'DELETE',
       headers: {},
     }, true);

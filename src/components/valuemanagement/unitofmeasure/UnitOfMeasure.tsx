@@ -15,7 +15,7 @@ import { BiSolidErrorAlt } from 'react-icons/bi';
 const UnitOfMeasureSchema = z.object({
   listid: z.string().optional(),
   descriptions: z.string().min(1, 'Description is required'),
-  subDescription: z.string().min(1, 'At least one sub-description is required'),
+  segment: z.string().min(1, 'At least one segment is required'),
 });
 
 type UnitOfMeasureData = z.infer<typeof UnitOfMeasureSchema>;
@@ -32,7 +32,7 @@ const UnitOfMeasure = ({ isEdit = false }: { isEdit?: boolean }) => {
     defaultValues: {
       listid: '',
       descriptions: '',
-      subDescription: '',
+      segment: '',
     },
   });
 
@@ -52,7 +52,7 @@ const UnitOfMeasure = ({ isEdit = false }: { isEdit?: boolean }) => {
               setValue('descriptions', foundUnitOfMeasure.descriptions || '');
               const subDescArray = foundUnitOfMeasure.subDescription?.split('|')?.filter((s: string) => s) || [''];
               setSubDescriptions(subDescArray);
-              setValue('subDescription', foundUnitOfMeasure.subDescription || '');
+              setValue('segment', foundUnitOfMeasure.subDescription || '');
             } else {
               toast.error('Unit of Measure not found');
               router.push('/unitofmeasure');
@@ -75,7 +75,7 @@ const UnitOfMeasure = ({ isEdit = false }: { isEdit?: boolean }) => {
     if (subDescriptions.length > 1) {
       const newSubDescriptions = subDescriptions.filter((_, i) => i !== index);
       setSubDescriptions(newSubDescriptions);
-      setValue('subDescription', newSubDescriptions.join('|'));
+      setValue('segment', newSubDescriptions.join('|'));
     }
   };
 
@@ -83,16 +83,22 @@ const UnitOfMeasure = ({ isEdit = false }: { isEdit?: boolean }) => {
     const newSubDescriptions = [...subDescriptions];
     newSubDescriptions[index] = value;
     setSubDescriptions(newSubDescriptions);
-    setValue('subDescription', newSubDescriptions.join('|'));
+    setValue('segment', newSubDescriptions.join('|'));
   };
 
   const onSubmit = async (data: UnitOfMeasureData) => {
     try {
       if (isEdit) {
-        await updateUnitOfMeasure(data.listid!, data);
+        await updateUnitOfMeasure(data.listid!, {
+          ...data,
+          subDescription: subDescriptions.filter(s => s).join('|'), 
+        });
         toast.success('Unit of Measure updated successfully!');
       } else {
-        await createUnitOfMeasure(data);
+        await createUnitOfMeasure({
+          ...data,
+          subDescription: subDescriptions.filter(s => s).join('|'), 
+        });
         toast.success('Unit of Measure created successfully!');
       }
       router.push('/unitofmeasure');
@@ -100,7 +106,6 @@ const UnitOfMeasure = ({ isEdit = false }: { isEdit?: boolean }) => {
       toast.error('An error occurred while saving the Unit of Measure');
     }
   };
-
   return (
     <div className="container mx-auto bg-white shadow-lg rounded dark:bg-[#030630]">
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded">
@@ -173,7 +178,7 @@ const UnitOfMeasure = ({ isEdit = false }: { isEdit?: boolean }) => {
                   placeholder="Enter Segment"
                   value={subDesc}
                   onChange={(e) => handleSubDescriptionChange(index, e.target.value)}
-                  error={index === 0 ? errors.subDescription?.message : undefined}
+                  error={index === 0 ? errors.segment?.message : undefined}
                 />
                 {subDescriptions.length > 1 && (
                   <Button

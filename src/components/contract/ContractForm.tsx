@@ -34,6 +34,7 @@ import { getAllDeliveryTerms } from '@/apis/deliveryterm';
 import { getAllCommissionTypes } from '@/apis/commissiontype';
 import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
+import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
 
 // Zod schema for form validation
 const Schema = z.object({
@@ -74,7 +75,7 @@ const Schema = z.object({
   packing: z.string().optional(),
   pieceLength: z.string().optional(),
   fabricValue: z.string().min(1, 'Fabric Value is required'),
-  gst: z.string().optional(),
+  gst: z.string().min(1, 'GST Type is required'), // Updated to require GST type ID
   gstValue: z.string().optional(),
   totalAmount: z.string().min(1, 'Total Amount is required'),
   paymentTermsSeller: z.string().optional(),
@@ -169,6 +170,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [commissionTypes, setCommissionTypes] = useState<{ id: string; name: string }[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<{ id: string; name: string }[]>([]);
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<{ id: string; name: string }[]>([]);
+  const [gstTypes, setGstTypes] = useState<{ id: string; name: string }[]>([]); // New state for GST types
   const [loading, setLoading] = useState(false);
   const [deliveryDetails, setDeliveryDetails] = useState({
     quantity: '',
@@ -182,7 +184,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     payTermSeller: '',
     payTermBuyer: '',
     fabricValue: '',
-    gst: '',
+    gst: '', // Now stores GST type ID
     gstValue: '',
     finishWidth: '',
     totalAmount: '',
@@ -607,7 +609,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setCommissionTypes(
         response.data.map((item: any) => ({
           id: item.commissionId,
-          name: item.name,
+          name: item.descriptions, // Updated to match CommissionType form
         }))
       );
     } catch (error) {
@@ -646,6 +648,23 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       );
     } catch (error) {
       console.error('Error fetching units of measure:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchGstTypes = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllGeneralSaleTextTypes();
+      setGstTypes(
+        response.data.map((item: any) => ({
+          id: item.id,
+          name: item.gstType,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching GST types:', error);
     } finally {
       setLoading(false);
     }
@@ -702,6 +721,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     fetchCommissionTypes();
     fetchPaymentTerms();
     fetchUnitsOfMeasure();
+    fetchGstTypes();
     if (initialData) {
       reset({
         ...initialData,
@@ -711,6 +731,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
             : 'Sale',
         weftYarnType: initialData.weftYarnType || initialData.weftYarnCount || '',
         weaves: initialData.weaves || '',
+        gst: initialData.deliveryDetails?.gst || '',
       });
       if (initialData.deliveryDetails) {
         setDeliveryDetails(initialData.deliveryDetails);
@@ -736,6 +757,15 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         const fabricValue = parseFloat(updatedDetails.fabricValue || '0');
         const commissionValue = (fabricValue * commissionPercentage) / 100;
         updatedDetails.commissionValue = commissionValue.toFixed(2);
+      }
+
+      if (field === 'gst' && value) {
+        const selectedGst = gstTypes.find((gst) => gst.id === value);
+        if (selectedGst) {
+          const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
+          const fabricValue = parseFloat(updatedDetails.fabricValue || '0');
+          updatedDetails.gstValue = ((fabricValue * percentage) / 100).toFixed(2);
+        }
       }
 
       return updatedDetails;
@@ -1220,19 +1250,25 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     value={deliveryDetails.fabricValue}
                     onChange={(e) => handleDeliveryDetailChange('fabricValue', e.target.value)}
                   />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="GST (%)"
-                    value={deliveryDetails.gst}
-                    onChange={(e) => handleDeliveryDetailChange('gst', e.target.value)}
-                  />
+                  {gstTypes.length === 0 && loading ? (
+                    <div>Loading GST Types...</div>
+                  ) : (
+                    <CustomInputDropdown
+                      label="GST Type"
+                      options={gstTypes}
+                      selectedOption={deliveryDetails.gst || ''}
+                      onChange={(value) => handleDeliveryDetailChange('gst', value)}
+                      error={errors.gst?.message}
+                      register={register}
+                    />
+                  )}
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="GST Value"
                     value={deliveryDetails.gstValue}
                     onChange={(e) => handleDeliveryDetailChange('gstValue', e.target.value)}
+                    disabled
                   />
                   <CustomInput
                     variant="floating"

@@ -5,19 +5,18 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
-import CustomInput from '@/components/ui/CustomInput';
-import CustomInputDropdown from '../ui/CustomeInputDropdown';
-import { MdAddBusiness } from 'react-icons/md';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { createProjectTarget, updateProjectTarget } from '@/apis/projecttarget'; 
+import { createProjectTarget, updateProjectTarget } from '@/apis/projecttarget';
 import { getAllEmployee } from '@/apis/employee';
-import { AiOutlinePlus, AiOutlineDelete } from "react-icons/ai";
+import { AiOutlinePlus, AiOutlineDelete } from 'react-icons/ai';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { MdAddBusiness } from 'react-icons/md';
+import { FaCheck } from 'react-icons/fa';
 
 // Zod schema for form validation
 const Schema = z.object({
   targetPeriod: z.string().min(1, 'Target Period is required'),
-  targetDate: z.string().min(1, 'Target Date is required'),
+  targetDate: z.string().min(1, 'Target Start Date is required'),
   targetEndDate: z.string().min(1, 'Target End Date is required'),
   targetValue: z.string().min(1, 'Target Value is required'),
   purpose: z.string().min(1, 'Purpose is required'),
@@ -28,8 +27,8 @@ const Schema = z.object({
   sellerName: z.string().min(1, 'Seller Name is required'),
   stepsToComplete: z.string().optional(),
   attachments: z.string().optional(),
-  employeeId: z.string().min(1, "Employee is required"),
-  EmployeeType: z.string().min(1, "Employee Type is required"),
+  employeeId: z.string().min(1, 'Employee is required'),
+  employeeType: z.string().min(1, 'Employee Type is required'),
   duedate: z.string().optional(),
   approvedBy: z.string().min(1, 'Approved By is required'),
   approvalDate: z.string().min(1, 'Approval Date is required'),
@@ -41,9 +40,10 @@ const ProjectTarget = ({ id, initialData }: any) => {
   const [targetPeriod, setTargetPeriod] = useState<string>('');
   const [projectStatus, setProjectStatus] = useState<string>('');
   const [financialHealth, setFinancialHealth] = useState<string>('');
-  const [employeeOptions, setEmployeeOptions] = useState<{ id: string, name: string }[]>([]);
+  const [employeeOptions, setEmployeeOptions] = useState<{ id: string; name: string }[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<string>('');
   const [steps, setSteps] = useState<string[]>(['']);
+  const [employeeType, setEmployeeType] = useState<string>('');
 
   const router = useRouter();
   const {
@@ -51,6 +51,7 @@ const ProjectTarget = ({ id, initialData }: any) => {
     handleSubmit,
     formState: { errors },
     reset,
+    setValue,
   } = useForm<FormData>({
     resolver: zodResolver(Schema),
     defaultValues: initialData || {},
@@ -72,12 +73,18 @@ const ProjectTarget = ({ id, initialData }: any) => {
     setSteps(updatedSteps);
   };
 
+  // Handle project status checkbox selection
+  const handleStatusChange = (status: string) => {
+    setProjectStatus(status);
+    setValue('projectStatus', status, { shouldValidate: true });
+  };
+
   // Fetch employees on component mount
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
         const employees = await getAllEmployee();
-        setEmployeeOptions(employees.map((emp: any) => ({ id: emp.id, name: emp.name })));
+        setEmployeeOptions(employees.data.map((emp: any) => ({ id: emp.id, name: emp.name })));
       } catch (error) {
         console.error('Error fetching employees:', error);
         toast('Failed to fetch employees', { type: 'error' });
@@ -89,18 +96,18 @@ const ProjectTarget = ({ id, initialData }: any) => {
 
   // Dropdown options
   const targetPeriodOptions = [
-    { id: 1, name: 'Week' },
-    { id: 2, name: 'Month' },
-    { id: 3, name: 'Day' },
-    { id: 4, name: 'Year' },
+    { id: 1, name: 'Daily' },
+    { id: 2, name: 'Weekly' },
+    { id: 3, name: '15 Days' },
+    { id: 4, name: 'Monthly' },
   ];
 
   const projectStatusOptions = [
-    { id: 1, name: 'Planning' },
-    { id: 2, name: 'In Progress' },
-    { id: 3, name: 'Completed' },
-    { id: 4, name: 'On Hold' },
-    { id: 5, name: 'Cancelled' },
+    { id: 1, name: 'Planning', color: '#eab308' },
+    { id: 2, name: 'In Progress', color: '#3b82f6' },
+    { id: 3, name: 'Completed', color: '#22c55e' },
+    { id: 4, name: 'On Hold', color: '#f97316' },
+    { id: 5, name: 'Cancelled', color: '#ef4444' },
   ];
 
   const financialHealthOptions = [
@@ -110,9 +117,21 @@ const ProjectTarget = ({ id, initialData }: any) => {
     { id: 4, name: 'Poor' },
   ];
 
+  const employeeTypeOptions = [
+    { id: 1, name: 'Full-Time' },
+    { id: 2, name: 'Part-Time' },
+    { id: 3, name: 'Contract' },
+  ];
+
   useEffect(() => {
     if (initialData) {
       reset(initialData);
+      setTargetPeriod(initialData.targetPeriod || '');
+      setProjectStatus(initialData.projectStatus || '');
+      setFinancialHealth(initialData.financialHealth || '');
+      setSelectedEmployee(initialData.employeeId || '');
+      setEmployeeType(initialData.employeeType || '');
+      setSteps(initialData.stepsToComplete || ['']);
     }
   }, [initialData, reset]);
 
@@ -120,16 +139,14 @@ const ProjectTarget = ({ id, initialData }: any) => {
     try {
       let response;
       if (id) {
-        // Update project target
-        response = await updateProjectTarget(id, data);
+        response = await updateProjectTarget(id, { ...data, stepsToComplete: steps });
         toast('Project Target Updated Successfully', { type: 'success' });
       } else {
-        // Create new project target
-        response = await createProjectTarget(data);
+        response = await createProjectTarget({ ...data, stepsToComplete: steps });
         toast('Project Target Created Successfully', { type: 'success' });
       }
       reset();
-      router.push('/project-target'); // Redirect to the project target list page
+      router.push('/project-target');
     } catch (error) {
       console.error('Error submitting form:', error);
       toast('An error occurred', { type: 'error' });
@@ -137,208 +154,453 @@ const ProjectTarget = ({ id, initialData }: any) => {
   };
 
   return (
-    <div className="container mx-auto bg-white shadow-lg rounded dark:bg-[#030630]">
-      <div className="w-full bg-[#06b6d4] h-[7vh] rounded dark:bg-[#387fbf]">
-        <h1 className="text-base text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-6">
+      <div className="container mx-auto bg-white dark:bg-gray-800 shadow-2xl rounded-lg p-8">
+        {/* Header */}
+        <div className="w-full bg-[#06b6d4] h-[7vh] rounded">
+        <h1 className="text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
           <MdAddBusiness />
-          {id ? 'Edit Project Target' : 'Add New Project Target'}
-        </h1>
-      </div>
+            {id ? 'Edit Project Target' : 'Add New Project Target'}
+          </h1>
+        </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        {/* Target Details */}
-          <h2 className="text-xl font-bold text-black dark:text-white">Target Details</h2>
-          <div className="grid grid-cols-3 gap-4 p-4">
-            <CustomInputDropdown
-              label="Target Period"
-              options={targetPeriodOptions}
-              selectedOption={targetPeriod}
-              onChange={(value) => setTargetPeriod(value)}
-              error={errors.targetPeriod?.message}
-            />
-            <CustomInput
-              type="date"
-              variant="floating"
-              borderThickness="2"
-              label="Target Start Date"
-              id="targetDate"
-              register={register}
-              {...register('targetDate')}
-              error={errors.targetDate?.message}
-            />
-             <CustomInput
-              type="date"
-              variant="floating"
-              borderThickness="2"
-              label="Target End Date"
-              id="targetDate"
-              register={register}
-              {...register('targetEndDate')}
-              error={errors.targetEndDate?.message}
-            />
-           
-        
-       
+        {/* Form */}
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-6">
+          {/* Target Details */}
+          <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+              Target Details
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+              <div className="relative">
+                <select
+                  id="targetPeriod"
+                  value={targetPeriod}
+                  onChange={(e) => {
+                    setTargetPeriod(e.target.value);
+                    setValue('targetPeriod', e.target.value, { shouldValidate: true });
+                  }}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300 appearance-none"
+                >
+                  <option value="">Select Period</option>
+                  {targetPeriodOptions.map((option) => (
+                    <option key={option.id} value={option.name}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+                <label
+                  htmlFor="targetPeriod"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Target Period
+                </label>
+                {errors.targetPeriod && (
+                  <p className="mt-1 text-sm text-red-600">{errors.targetPeriod.message}</p>
+                )}
+              </div>
 
-            
-          <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Target Value"
-              id="targetValue"
-              register={register}
-              {...register('targetValue')}
-              error={errors.targetValue?.message}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Purpose"
-              id="purpose"
-              register={register}
-              {...register('purpose')}
-              error={errors.purpose?.message}
-            />
-            <CustomInputDropdown
-              label="Project Status"
-              options={projectStatusOptions}
-              selectedOption={projectStatus}
-              onChange={(value) => setProjectStatus(value)}
-              error={errors.projectStatus?.message}
-            />
-            <CustomInputDropdown
-              label="Employee"
-              options={employeeOptions}
-              selectedOption={selectedEmployee}
-              onChange={(value) => setSelectedEmployee(value)}
-              error={errors.employeeId?.message}
-            />
-            <CustomInputDropdown
-              label="Financial Health"
-              options={financialHealthOptions}
-              selectedOption={financialHealth}
-              onChange={(value) => setFinancialHealth(value)}
-              error={errors.financialHealth?.message}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Buyer Name"
-              id="buyerName"
-              register={register}
-              {...register('buyerName')}
-              error={errors.buyerName?.message}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Seller Name"
-              id="sellerName"
-              register={register}
-              {...register('sellerName')}
-              error={errors.sellerName?.message}
-            />
-            <CustomInput
-              type="file"
-              variant="floating"
-              borderThickness="2"
-              label="Attachments"
-              id="attachments"
-              register={register}
-              {...register('attachments')}
-              error={errors.attachments?.message}
-            />
-            <CustomInput
-              type='date'
-              variant="floating"
-              borderThickness="2"
-              label="Due Date"
-              id="duedate"
-              register={register}
-              {...register('duedate')}
-              error={errors.duedate?.message}
-            />
+              <div className="relative">
+                <input
+                  id="targetDate"
+                  type="date"
+                  {...register('targetDate')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="targetDate"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Target Start Date
+                </label>
+                {errors.targetDate && (
+                  <p className="mt-1 text-sm text-red-600">{errors.targetDate.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="targetEndDate"
+                  type="date"
+                  {...register('targetEndDate')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="targetEndDate"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Target End Date
+                </label>
+                {errors.targetEndDate && (
+                  <p className="mt-1 text-sm text-red-600">{errors.targetEndDate.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="targetValue"
+                  type="text"
+                  {...register('targetValue')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="targetValue"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Target Value
+                </label>
+                {errors.targetValue && (
+                  <p className="mt-1 text-sm text-red-600">{errors.targetValue.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="purpose"
+                  type="text"
+                  {...register('purpose')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="purpose"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Purpose
+                </label>
+                {errors.purpose && (
+                  <p className="mt-1 text-sm text-red-600">{errors.purpose.message}</p>
+                )}
+              </div>
+
           
-        </div>
 
-        {/* Steps to Complete Project */}
-        <div className="p-4">
-        <h2 className="text-xl font-bold text-black dark:text-white">Steps to Complete Project</h2>
-       {steps.map((step, index) => (
-       <div key={index} className="flex items-center  gap-2 mb-2">
-        <div className='w-[100vh]'>
-        <CustomInput
-        variant="floating"
-        borderThickness="2"
-        label={`Step ${index + 1}`}
-        value={step}
-        onChange={(e) => handleStepChange(index, e.target.value)}
-        />
-        </div>
-        <div className="flex gap-1 mt-7">
-          {index > 0 && (
-          <button
-            type="button"
-            onClick={() => removeStep(index)}
-            className="p-2 bg-red-500 hover:bg-red-600 text-white rounded"
-          >
-            <AiOutlineDelete size={20} />
-          </button>
-          )}
-          <button
-          type="button"
-          onClick={addStep}
-          className="p-2 bg-green-500 hover:bg-green-600 text-white rounded"
-         >
-          <AiOutlinePlus size={20} />
-        </button>
-      </div>
-      
-    </div>
-  ))}
+              <div className="relative">
+                <input
+                  id="projectManager"
+                  type="text"
+                  {...register('projectManager')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="projectManager"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Project Manager
+                </label>
+                {errors.projectManager && (
+                  <p className="mt-1 text-sm text-red-600">{errors.projectManager.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <select
+                  id="financialHealth"
+                  value={financialHealth}
+                  onChange={(e) => {
+                    setFinancialHealth(e.target.value);
+                    setValue('financialHealth', e.target.value, { shouldValidate: true });
+                  }}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300 appearance-none"
+                >
+                  <option value="">Select Health</option>
+                  {financialHealthOptions.map((option) => (
+                    <option key={option.id} value={option.name}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+                <label
+                  htmlFor="financialHealth"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Financial Health
+                </label>
+                {errors.financialHealth && (
+                  <p className="mt-1 text-sm text-red-600">{errors.financialHealth.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="buyerName"
+                  type="text"
+                  {...register('buyerName')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="buyerName"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Buyer Name
+                </label>
+                {errors.buyerName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.buyerName.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="sellerName"
+                  type="text"
+                  {...register('sellerName')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="sellerName"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Seller Name
+                </label>
+                {errors.sellerName && (
+                  <p className="mt-1 text-sm text-red-600">{errors.sellerName.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <select
+                  id="employeeId"
+                  value={selectedEmployee}
+                  onChange={(e) => {
+                    setSelectedEmployee(e.target.value);
+                    setValue('employeeId', e.target.value, { shouldValidate: true });
+                  }}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300 appearance-none"
+                >
+                  <option value="">Select Employee</option>
+                  {employeeOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+                <label
+                  htmlFor="employeeId"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Employee
+                </label>
+                {errors.employeeId && (
+                  <p className="mt-1 text-sm text-red-600">{errors.employeeId.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <select
+                  id="employeeType"
+                  value={employeeType}
+                  onChange={(e) => {
+                    setEmployeeType(e.target.value);
+                    setValue('employeeType', e.target.value, { shouldValidate: true });
+                  }}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300 appearance-none"
+                >
+                  <option value="">Select Type</option>
+                  {employeeTypeOptions.map((option) => (
+                    <option key={option.id} value={option.name}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+                <label
+                  htmlFor="employeeType"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Employee Type
+                </label>
+                {errors.employeeType && (
+                  <p className="mt-1 text-sm text-red-600">{errors.employeeType.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="duedate"
+                  type="date"
+                  {...register('duedate')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="duedate"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Due Date
+                </label>
+                {errors.duedate && (
+                  <p className="mt-1 text-sm text-red-600">{errors.duedate.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="approvedBy"
+                  type="text"
+                  {...register('approvedBy')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="approvedBy"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Approved By
+                </label>
+                {errors.approvedBy && (
+                  <p className="mt-1 text-sm text-red-600">{errors.approvedBy.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="approvalDate"
+                  type="date"
+                  {...register('approvalDate')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="approvalDate"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Approval Date
+                </label>
+                {errors.approvalDate && (
+                  <p className="mt-1 text-sm text-red-600">{errors.approvalDate.message}</p>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  id="attachments"
+                  type="file"
+                  {...register('attachments')}
+                  className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                />
+                <label
+                  htmlFor="attachments"
+                  className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                >
+                  Attachments
+                </label>
+                {errors.attachments && (
+                  <p className="mt-1 text-sm text-red-600">{errors.attachments.message}</p>
+                )}
+              </div>
+            </div>
+          </div>
+          
+   <div className="relative space-y-2">
+  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+    Project Status
+  </label>
+
+  <div className="flex flex-wrap gap-4">
+    {projectStatusOptions.map((option, index) => {
+      const currentIndex = projectStatusOptions.findIndex(
+        (opt) => opt.name === projectStatus
+      );
+      const isSelected = projectStatus === option.name;
+      const isCompleted = index < currentIndex;
+      return (
+        <label
+          key={option.id}
+          className={`relative flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
+            ${isSelected
+              ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] dark:from-[${option.color}/20] dark:to-[${option.color}/30] text-[${option.color}]`
+              : isCompleted
+              ? 'border-green-500 bg-green-50 dark:bg-green-900 text-green-600'
+              : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-gray-400'
+            }`}
+        >
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => handleStatusChange(option.name)}
+            className="hidden"
+          />
+          <span className="text-sm font-semibold">{option.name}</span>
+
+          {isSelected ? (
+            <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />
+          ) : isCompleted ? (
+            <FaCheck className="text-green-600" size={16} />
+          ) : null}
+        </label>
+      );
+    })}
+  </div>
+
   
-             </div>
-             <div className='grid grid-cols-2 gap-4 p-4'>
-             <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Approved By"
-              id="approvedBy"
-              register={register}
-              {...register('approvedBy')}
-              error={errors.approvedBy?.message}
-            />
-            <CustomInput
-              type="date"
-              variant="floating"
-              borderThickness="2"
-              label="Approval Date"
-              id="approvalDate"
-              register={register}
-              {...register('approvalDate')}
-              error={errors.approvalDate?.message}
-            />
-         </div>
-        {/* Submit and Cancel Buttons */}
-        <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 [#e7e7e7]">
-          <Button
-            type="submit"
-            className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
-          >
-            {id ? 'Update' : 'Submit'}
-          </Button>
-          <Link href="/projecttarget">
+
+  {errors.projectStatus && (
+    <p className="mt-1 text-sm text-red-600">{errors.projectStatus.message}</p>
+  )}
+</div>
+
+          {/* Steps to Complete */}
+          <div className="border-b border-gray-200 dark:border-gray-700 pb-4 mb-6">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+              Steps to Complete Project
+            </h2>
+            <div className="mt-4 space-y-4">
+              {steps.map((step, index) => (
+                <div key={index} className="flex items-center gap-4">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={step}
+                      onChange={(e) => handleStepChange(index, e.target.value)}
+                      className="peer w-full px-4 py-3 border-2 border-[#06b6d4] dark:border-[#06b6d4] rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:border-[#06b6d4] focus:ring-2 focus:ring-[#06b6d4] hover:border-[#06b6d4] transition-all duration-300"
+                      placeholder={`Step ${index + 1}`}
+                    />
+                    <label
+                      className="absolute left-3 -top-2.5 px-1 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 peer-focus:text-[#06b6d4] transition-all duration-300"
+                    >
+                      Step {index + 1}
+                    </label>
+                  </div>
+                  <div className="flex gap-2">
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removeStep(index)}
+                        className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-md transition-all duration-300"
+                      >
+                        <AiOutlineDelete size={20} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={addStep}
+                      className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-all duration-300"
+                    >
+                      <AiOutlinePlus size={20} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-4">
+           
             <Button
-              type="button"
-              className="w-[160] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
-            >
-              Cancel
+            type="submit"
+            className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+          >
+              {id ? 'Update' : 'Submit'}
             </Button>
-          </Link>
-        </div>
-      </form>
+            <Link href="/project-target">
+              <Button
+                           type="button"
+                           className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+                         >
+                Cancel
+              </Button>
+            </Link>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
 
-export default ProjectTarget;
+export default ProjectTarget; 

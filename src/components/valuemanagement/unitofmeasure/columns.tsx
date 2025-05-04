@@ -8,7 +8,8 @@ export type UnitOfMeasureType = {
   id: string;
   listid: string;
   descriptions: string;
-  subDescription: string;
+  segment:string
+ 
 };
 
 export const columns = (
@@ -34,9 +35,14 @@ export const columns = (
     header: 'Description',
   },
   {
-    accessorKey: 'subDescription',
+    accessorKey: 'segment', 
     header: 'Segment',
-  },
+    cell: ({ row }) => {
+        const segment = row.original.segment;
+        return segment ? segment.split('|').join(', ') : 'No segments';
+      },
+    },
+
   {
     accessorKey: 'name',
     header: '',

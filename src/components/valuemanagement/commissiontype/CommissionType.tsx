@@ -14,8 +14,8 @@ import { BiSolidErrorAlt } from 'react-icons/bi';
 
 const CommissionTypeSchema = z.object({
   listid: z.string().optional(),
-  description: z.string().min(1, 'description is required'),
-  segment: z.string().min(1, 'At least one detail is required'),
+  descriptions: z.string().min(1, 'Description is required'),
+  segment: z.string().optional(),
 });
 
 type CommissionTypeData = z.infer<typeof CommissionTypeSchema>;
@@ -31,7 +31,7 @@ const CommissionType = ({ isEdit = false }: { isEdit?: boolean }) => {
     resolver: zodResolver(CommissionTypeSchema),
     defaultValues: {
       listid: '',
-      description: '',
+      descriptions: '',
       segment: '',
     },
   });
@@ -49,7 +49,7 @@ const CommissionType = ({ isEdit = false }: { isEdit?: boolean }) => {
             const foundCommissionType = response.data.find((item: any) => item.listid === listid);
             if (foundCommissionType) {
               setValue('listid', foundCommissionType.listid || '');
-              setValue('description', foundCommissionType.description || '');
+              setValue('descriptions', foundCommissionType.description || '');
               const detailArray = foundCommissionType.details?.split('|')?.filter((s: string) => s) || [''];
               setDetails(detailArray);
               setValue('segment', foundCommissionType.details || '');
@@ -145,15 +145,15 @@ const CommissionType = ({ isEdit = false }: { isEdit?: boolean }) => {
           </div>
 
           <Controller
-            name="description"
+            name="descriptions"
             control={control}
             render={({ field }) => (
               <CustomInput
                 {...field}
-                label="Name"
+                label="Description"
                 type="text"
-                error={errors.description?.message}
-                placeholder="Enter name"
+                error={errors.descriptions?.message}
+                placeholder=""
                 value={field.value || ''}
                 onChange={field.onChange}
               />
@@ -161,7 +161,7 @@ const CommissionType = ({ isEdit = false }: { isEdit?: boolean }) => {
           />
 
           <div className="col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Details</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Segment</label>
             {details.map((detail, index) => (
               <div
                 key={index}
@@ -170,7 +170,7 @@ const CommissionType = ({ isEdit = false }: { isEdit?: boolean }) => {
                 <CustomInput
                   label=""
                   type="text"
-                  placeholder="Enter Detail"
+                  placeholder=""
                   value={detail}
                   onChange={(e) => handleDetailChange(index, e.target.value)}
                   error={index === 0 ? errors.segment?.message : undefined}
@@ -201,7 +201,7 @@ const CommissionType = ({ isEdit = false }: { isEdit?: boolean }) => {
             type="submit"
             className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
           >
-            {isEdit ? 'Update Commission Type' : 'Create Commission Type'}
+            {isEdit ? 'Update Commission' : 'Create Commission'}
           </Button>
           <Link href="/commissiontype">
             <Button

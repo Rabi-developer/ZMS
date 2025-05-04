@@ -22,6 +22,10 @@ export const columns = (handleDeleteOpen: (id: string) => void): ColumnDef<Gener
     cell: ({ row }) => <div>{row.original.percentage}%</div>,
   },
   {
+    accessorKey: 'name',
+    header: '',
+  },
+  {
     id: "actions",
     header: "Actions",
     cell: ({ row }) => (

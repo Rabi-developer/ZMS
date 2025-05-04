@@ -15,7 +15,7 @@ import { BiSolidErrorAlt } from 'react-icons/bi';
 const PaymentTermSchema = z.object({
   listid: z.string().optional(),
   descriptions: z.string().min(1, 'Description is required'),
-  subDescription: z.string().min(1, 'At least one sub-description is required'),
+  segment: z.string().optional(),
 });
 
 type PaymentTermData = z.infer<typeof PaymentTermSchema>;
@@ -32,12 +32,12 @@ const PaymentTerm = ({ isEdit = false }: { isEdit?: boolean }) => {
     defaultValues: {
       listid: '',
       descriptions: '',
-      subDescription: '',
+      segment: '',
     },
   });
 
   const [idFocused, setIdFocused] = useState(false);
-  const [subDescriptions, setSubDescriptions] = useState<string[]>(['']);
+  const [segments, setSegments] = useState<string[]>(['']); // Renamed for clarity
 
   React.useEffect(() => {
     if (isEdit) {
@@ -50,9 +50,9 @@ const PaymentTerm = ({ isEdit = false }: { isEdit?: boolean }) => {
             if (foundPaymentTerm) {
               setValue('listid', foundPaymentTerm.listid || '');
               setValue('descriptions', foundPaymentTerm.descriptions || '');
-              const subDescArray = foundPaymentTerm.subDescription?.split('|')?.filter((s: string) => s) || [''];
-              setSubDescriptions(subDescArray);
-              setValue('subDescription', foundPaymentTerm.subDescription || '');
+              const segmentArray = foundPaymentTerm.segment?.split('|')?.filter((s: string) => s) || [''];
+              setSegments(segmentArray);
+              setValue('segment', foundPaymentTerm.segment || '');
             } else {
               toast.error('Payment Term not found');
               router.push('/paymentterm');
@@ -67,32 +67,39 @@ const PaymentTerm = ({ isEdit = false }: { isEdit?: boolean }) => {
     }
   }, [isEdit, setValue, router]);
 
-  const handleAddSubDescription = () => {
-    setSubDescriptions([...subDescriptions, '']);
+  const handleAddSegment = () => {
+    setSegments([...segments, '']);
   };
 
-  const handleDeleteSubDescription = (index: number) => {
-    if (subDescriptions.length > 1) {
-      const newSubDescriptions = subDescriptions.filter((_, i) => i !== index);
-      setSubDescriptions(newSubDescriptions);
-      setValue('subDescription', newSubDescriptions.join('|'));
+  const handleDeleteSegment = (index: number) => {
+    if (segments.length > 1) {
+      const newSegments = segments.filter((_, i) => i !== index);
+      setSegments(newSegments);
+      setValue('segment', newSegments.join('|'));
     }
   };
 
-  const handleSubDescriptionChange = (index: number, value: string) => {
-    const newSubDescriptions = [...subDescriptions];
-    newSubDescriptions[index] = value;
-    setSubDescriptions(newSubDescriptions);
-    setValue('subDescription', newSubDescriptions.join('|'));
+  const handleSegmentChange = (index: number, value: string) => {
+    const newSegments = [...segments];
+    newSegments[index] = value;
+    setSegments(newSegments);
+    setValue('segment', newSegments.join('|')); 
   };
 
   const onSubmit = async (data: PaymentTermData) => {
+    console.log('Form data:', data); 
     try {
       if (isEdit) {
-        await updatePaymentTerm(data.listid!, data);
+        await updatePaymentTerm(data.listid!, {
+          ...data,
+          segment: segments.filter(s => s).join('|'),
+        });
         toast.success('Payment Term updated successfully!');
       } else {
-        await createPaymentTerm(data);
+        await createPaymentTerm({
+          ...data,
+          segment: segments.filter(s => s).join('|'),
+        });
         toast.success('Payment Term created successfully!');
       }
       router.push('/paymentterm');
@@ -162,7 +169,7 @@ const PaymentTerm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
           <div className="col-span-3">
             <label className="block text-sm font-medium text-gray-700 mb-2">Segment</label>
-            {subDescriptions.map((subDesc, index) => (
+            {segments.map((segment, index) => (
               <div
                 key={index}
                 className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
@@ -171,14 +178,14 @@ const PaymentTerm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   label=""
                   type="text"
                   placeholder="Enter Segment"
-                  value={subDesc}
-                  onChange={(e) => handleSubDescriptionChange(index, e.target.value)}
-                  error={index === 0 ? errors.subDescription?.message : undefined}
+                  value={segment}
+                  onChange={(e) => handleSegmentChange(index, e.target.value)}
+                  error={index === 0 ? errors.segment?.message : undefined}
                 />
-                {subDescriptions.length > 1 && (
+                {segments.length > 1 && (
                   <Button
                     type="button"
-                    onClick={() => handleDeleteSubDescription(index)}
+                    onClick={() => handleDeleteSegment(index)}
                     className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
                   >
                     <MdDelete className="text-lg" />
@@ -188,7 +195,7 @@ const PaymentTerm = ({ isEdit = false }: { isEdit?: boolean }) => {
             ))}
             <Button
               type="button"
-              onClick={handleAddSubDescription}
+              onClick={handleAddSegment}
               className="mt-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200"
             >
               <MdAdd className="text-lg" />

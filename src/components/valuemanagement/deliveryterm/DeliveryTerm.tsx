@@ -14,8 +14,8 @@ import { BiSolidErrorAlt } from 'react-icons/bi';
 
 const DeliveryTermSchema = z.object({
   listid: z.string().optional(),
-  description: z.string().min(1, 'Term Name is required'),
-  segment: z.string().min(1, 'At least one condition is required'),
+  descriptions: z.string().min(1, 'Description is required'),
+  segment: z.string().optional(),
 });
 
 type DeliveryTermData = z.infer<typeof DeliveryTermSchema>;
@@ -31,7 +31,7 @@ const DeliveryTerm = ({ isEdit = false }: { isEdit?: boolean }) => {
     resolver: zodResolver(DeliveryTermSchema),
     defaultValues: {
       listid: '',
-      description: '',
+      descriptions: '',
       segment: '',
     },
   });
@@ -49,7 +49,7 @@ const DeliveryTerm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const foundDeliveryTerm = response.data.find((item: any) => item.listid === listid);
             if (foundDeliveryTerm) {
               setValue('listid', foundDeliveryTerm.listid || '');
-              setValue('description', foundDeliveryTerm.description || '');
+              setValue('descriptions', foundDeliveryTerm.description || '');
               const conditionArray = foundDeliveryTerm.segment?.split('|')?.filter((s: string) => s) || [''];
               setsegment(conditionArray);
               setValue('segment', foundDeliveryTerm.segment || '');
@@ -145,14 +145,14 @@ const DeliveryTerm = ({ isEdit = false }: { isEdit?: boolean }) => {
           </div>
 
           <Controller
-            name="description"
+            name="descriptions"
             control={control}
             render={({ field }) => (
               <CustomInput
                 {...field}
                 label="Description"
                 type="text"
-                error={errors.description?.message}
+                error={errors.descriptions?.message}
                 placeholder="Enter term name"
                 value={field.value || ''}
                 onChange={field.onChange}

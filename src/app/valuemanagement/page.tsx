@@ -24,6 +24,22 @@ const forms = [
     description: 'Define payment terms (e.g., Immediate, 30 Days)',
     icon: GiPayMoney,
   },
+  {
+    name: 'Delivery Term',
+    listRoute: '/deliveryterm',
+    createRoute: '/deliveryterm/create',
+    description: 'Delivery Term',
+    icon: GiPayMoney,
+  },
+  {
+    name: 'Commision Type',
+    listRoute: '/commissiontype',
+    createRoute: '/commissiontype/create',
+    description: 'Commision Type',
+    icon: GiPayMoney,
+  },
+
+
 
 ];
 

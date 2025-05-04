@@ -84,7 +84,7 @@ const GeneralSaleTextType = ({ id, initialData }: any) => {
           <CustomInput
             variant="floating"
             borderThickness="2"
-            label="GST Type (e.g., 5% GST)"
+            label="GST Type"
             id="gstType"
             {...register("gstType")}
             register={register}
@@ -93,9 +93,10 @@ const GeneralSaleTextType = ({ id, initialData }: any) => {
 
           {/* Percentage Field */}
           <CustomInput
+            type="number"
             variant="floating"
             borderThickness="2"
-            label="Percentage (e.g., 5)"
+            label="Percentage"
             id="percentage"
             {...register("percentage")}
             register={register}
