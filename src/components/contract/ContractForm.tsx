@@ -35,6 +35,8 @@ import { getAllCommissionTypes } from '@/apis/commissiontype';
 import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
+import ContractSummaryCard from '../contractcard/ContractSummaryCard';
+
 // Zod schema for form validation
 const Schema = z.object({
   contractNumber: z.string().min(1, 'Contract Number is required'),
@@ -43,8 +45,8 @@ const Schema = z.object({
   companyId: z.string().min(1, 'Company is required'),
   branchId: z.string().min(1, 'Branch is required'),
   contractOwner: z.string().min(1, 'Contract Owner is required'),
-  seller: z.string().min(1, 'Seller is required'),
-  buyer: z.string().min(1, 'Buyer is required'),
+  seller: z.string().optional(),
+  buyer: z.string().optional(),
   referenceNumber: z.string().optional(),
   deliveryDate: z.string().min(1, 'Delivery Date is required'),
   refer: z.string().optional(),
@@ -197,7 +199,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     buyerRemark: '',
     deliveryDate: '',
     sellerCommission: '',
-  buyerCommission: '',
+    buyerCommission: '',
   });
   const [notes, setNotes] = useState('');
   const [showForm, setShowForm] = useState(false);
@@ -653,6 +655,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setLoading(false);
     }
   };
+
   const fetchGstTypes = async () => {
     try {
       setLoading(true);
@@ -669,8 +672,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setLoading(false);
     }
   };
-
-
 
   const companyId = watch('companyId');
   const branchId = watch('branchId');
@@ -750,29 +751,65 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   }, [initialData, reset]);
 
+  const calculateDeliveryDetails = (currentDetails: typeof deliveryDetails) => {
+    const updatedDetails = { ...currentDetails };
+
+    // Fabric Value: Quantity * Rate
+    const quantity = parseFloat(updatedDetails.quantity || '0');
+    const rate = parseFloat(updatedDetails.rate || '0');
+    updatedDetails.fabricValue = (quantity * rate).toFixed(2);
+
+    // GST Value: Based on GST Type and Fabric Value
+    const selectedGst = gstTypes.find((gst) => gst.id === updatedDetails.gst);
+    if (selectedGst) {
+      const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
+      const fabricValue = parseFloat(updatedDetails.fabricValue || '0');
+      updatedDetails.gstValue = ((fabricValue * percentage) / 100).toFixed(2);
+    } else {
+      updatedDetails.gstValue = '0.00';
+    }
+
+    // Total Amount: Fabric Value + GST Value
+    const fabricValue = parseFloat(updatedDetails.fabricValue || '0');
+    const gstValue = parseFloat(updatedDetails.gstValue || '0');
+    updatedDetails.totalAmount = (fabricValue + gstValue).toFixed(2);
+
+    // Commission Value
+    const commissionType = updatedDetails.commissionType;
+    const commissionInput = parseFloat(updatedDetails.commissionPercentage || '0');
+    const totalAmount = parseFloat(updatedDetails.totalAmount || '0');
+    if (commissionType) {
+      const commissionTypeName = commissionTypes.find(
+        (type) => type.id === commissionType
+      )?.name.toLowerCase();
+      if (commissionTypeName === 'on value' && commissionInput > 0 && totalAmount > 0) {
+        updatedDetails.commissionValue = ((totalAmount * commissionInput) / 100).toFixed(2);
+      } else if (commissionTypeName === 'on qty' && commissionInput > 0 && quantity > 0) {
+        updatedDetails.commissionValue = (quantity * commissionInput).toFixed(2);
+      } else {
+        updatedDetails.commissionValue = '0.00';
+      }
+    } else {
+      updatedDetails.commissionValue = '0.00';
+    }
+
+    return updatedDetails;
+  };
+
   const handleDeliveryDetailChange = (field: string, value: string) => {
     setDeliveryDetails((prev) => {
       const updatedDetails = { ...prev, [field]: value };
-      console.log(`Updated deliveryDetails[${field}]:`, value, updatedDetails);
-
-      if (field === 'commissionPercentage' && value) {
-        const commissionPercentage = parseFloat(value);
-        const fabricValue = parseFloat(updatedDetails.fabricValue || '0');
-        const commissionValue = (fabricValue * commissionPercentage) / 100;
-        updatedDetails.commissionValue = commissionValue.toFixed(2);
+      if (['quantity', 'rate', 'gst', 'commissionType', 'commissionPercentage'].includes(field)) {
+        return calculateDeliveryDetails(updatedDetails);
       }
-      if (field === 'gst' && value) {
-        const selectedGst = gstTypes.find((gst) => gst.id === value);
-        if (selectedGst) {
-          const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
-          const fabricValue = parseFloat(updatedDetails.fabricValue || '0');
-          updatedDetails.gstValue = ((fabricValue * percentage) / 100).toFixed(2);
-        }
-      }
-
-
       return updatedDetails;
     });
+  };
+
+  const handleEnterKeyPress = (field: string) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      setDeliveryDetails((prev) => calculateDeliveryDetails(prev));
+    }
   };
 
   const addBuyerDeliveryBreakup = () => {
@@ -851,7 +888,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         sellerDeliveryBreakups,
         sampleDetails,
       };
-      console.log('Form Payload:', payload); // Debug log
+      console.log('Form Payload:', payload);
       let response;
       if (id) {
         response = await updateContract(id, payload);
@@ -876,7 +913,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           {id ? 'EDIT CONTRACT' : 'ADD NEW CONTRACT'}
         </h1>
       </div>
-
+      
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="p-2 w-full">
           <div className="p-4">
@@ -985,6 +1022,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 id="referdate"
                 {...register('referdate')}
                 error={errors.referdate?.message}
+              />
+              <CustomInputDropdown
+                label="Fabric Type"
+                options={fabricTypes}
+                selectedOption={watch('fabricType') || ''}
+                onChange={(value) => setValue('fabricType', value, { shouldValidate: true })}
+                error={errors.fabricType?.message}
+                register={register}
               />
             </div>
           </div>
@@ -1149,14 +1194,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       register={register}
                     />
                   )}
-                  <CustomInputDropdown
-                    label="Fabric Type"
-                    options={fabricTypes}
-                    selectedOption={watch('fabricType') || ''}
-                    onChange={(value) => setValue('fabricType', value, { shouldValidate: true })}
-                    error={errors.fabricType?.message}
-                    register={register}
-                  />
                 </div>
               </div>
 
@@ -1252,6 +1289,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     label="Fabric Value"
                     value={deliveryDetails.fabricValue}
                     onChange={(e) => handleDeliveryDetailChange('fabricValue', e.target.value)}
+                    disabled
+                    className="auto-calculated-field"
+
                   />
                   {gstTypes.length === 0 && loading ? (
                     <div>Loading GST Types...</div>
@@ -1265,13 +1305,15 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       register={register}
                     />
                   )}
-
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="GST Value"
                     value={deliveryDetails.gstValue}
                     onChange={(e) => handleDeliveryDetailChange('gstValue', e.target.value)}
+                    disabled
+                    className="auto-calculated-field"
+
                   />
                   <CustomInput
                     variant="floating"
@@ -1286,6 +1328,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     label="Total Amount"
                     value={deliveryDetails.totalAmount}
                     onChange={(e) => handleDeliveryDetailChange('totalAmount', e.target.value)}
+                    disabled
+                   className="auto-calculated-field"
                   />
                   {deliveryTerms.length === 0 && loading ? (
                     <div>Loading Delivery Terms...</div>
@@ -1305,26 +1349,25 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     selectedOption={deliveryDetails.commissionFrom || ''}
                     onChange={(value) => handleDeliveryDetailChange('commissionFrom', value)}
                   />
-                 
-                   {deliveryDetails.commissionFrom === 'Both' && (
-                 <CustomInput
-                 variant="floating"
-                 borderThickness="2"
-                 label="Seller Commission"
-                 value={deliveryDetails.sellerCommission}
-                 onChange={(e) => handleDeliveryDetailChange('sellerCommission', e.target.value)}
-                 />
-                 )}
-               {deliveryDetails.commissionFrom === 'Both' && (
-               <CustomInput
-                variant="floating"
-                borderThickness="2"
-                label="Buyer Commission"
-                value={deliveryDetails.buyerCommission}
-                onChange={(e) => handleDeliveryDetailChange('buyerCommission', e.target.value)}
-                />
-                )}
-                 {commissionTypes.length === 0 && loading ? (
+                  {deliveryDetails.commissionFrom === 'Both' && (
+                    <CustomInput
+                      variant="floating"
+                      borderThickness="2"
+                      label="Seller Commission"
+                      value={deliveryDetails.sellerCommission}
+                      onChange={(e) => handleDeliveryDetailChange('sellerCommission', e.target.value)}
+                    />
+                  )}
+                  {deliveryDetails.commissionFrom === 'Both' && (
+                    <CustomInput
+                      variant="floating"
+                      borderThickness="2"
+                      label="Buyer Commission"
+                      value={deliveryDetails.buyerCommission}
+                      onChange={(e) => handleDeliveryDetailChange('buyerCommission', e.target.value)}
+                    />
+                  )}
+                  {commissionTypes.length === 0 && loading ? (
                     <div>Loading Commission Types...</div>
                   ) : (
                     <CustomInputDropdown
@@ -1343,13 +1386,15 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     value={deliveryDetails.commissionPercentage}
                     onChange={(e) => handleDeliveryDetailChange('commissionPercentage', e.target.value)}
                   />
-                  <CustomInput
+                 <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Commission Value"
                     value={deliveryDetails.commissionValue}
                     onChange={(e) => handleDeliveryDetailChange('commissionValue', e.target.value)}
                     disabled
+                    className="auto-calculated-field"
+
                   />
                   <CustomInputDropdown
                     label="Dispatch Later"
@@ -1558,6 +1603,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           value={sampleDetails[0].createdBy}
                           onChange={(e) => handleSampleDetailChange('createdBy', e.target.value)}
                           disabled
+                          className="auto-calculated-field"
                         />
                       </div>
                       <div>
@@ -1572,6 +1618,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           value={sampleDetails[0].creationDate}
                           onChange={(e) => handleSampleDetailChange('creationDate', e.target.value)}
                           disabled
+                          className="auto-calculated-field"
                         />
                       </div>
                     </div>

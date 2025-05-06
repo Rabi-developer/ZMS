@@ -110,3 +110,22 @@ body.dark {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.5);
 }
+.auto-calculated-field {
+     background-color: #d9f0f4;
+     color: #4dacc3;
+  }
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #e0f7fa inset !important;
+    -webkit-text-fill-color: #7bacc6 !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+  input.auto-calculated-field:-webkit-autofill,
+  input.auto-calculated-field:-webkit-autofill:hover,
+  input.auto-calculated-field:-webkit-autofill:focus,
+  input.auto-calculated-field:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #b9ecfe inset !important;
+    -webkit-text-fill-color: #00a2da !important;
+  }

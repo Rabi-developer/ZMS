@@ -1,12 +1,12 @@
 "use client";
-import ContractList from '@/components/contract/ContractList';
+import ContractForm from '@/components/contract/ContractForm';
 import MainLayout from '@/components/MainLayout/MainLayout'
 
 const Organization = () => {
 
     return (
         <MainLayout>
-             <ContractList/>
+            <ContractForm/>
         </MainLayout>
     )
 }

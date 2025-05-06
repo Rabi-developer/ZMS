@@ -38,7 +38,7 @@ export const columns = (
   header: 'Segment',
   cell: ({ row }) => {
   const segment = row.original.segment;
-  return segment ? segment.split('|').join(', ') : 'No segments';
+  return segment ? segment.split('|').join(', ') : '';
   },
  },
   {

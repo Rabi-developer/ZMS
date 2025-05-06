@@ -1,5 +1,4 @@
 'use client';
-
 import React from 'react';
 import { getAllContract, deleteContract } from '@/apis/contract';
 import { columns, Contract } from './columns';
@@ -10,8 +9,10 @@ import { toast } from 'react-toastify';
 const ContractList = () => {
   const [contracts, setContracts] = React.useState<Contract[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [open, setOpen] = React.useState(false);
+  const [openDelete, setOpenDelete] = React.useState(false);
+  const [openView, setOpenView] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState('');
+  const [selectedContract, setSelectedContract] = React.useState<Contract | null>(null);
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
 
@@ -35,7 +36,7 @@ const ContractList = () => {
   const handleDelete = async () => {
     try {
       await deleteContract(deleteId);
-      setOpen(false);
+      setOpenDelete(false);
       toast('Contract Deleted Successfully', { type: 'success' });
       fetchContracts();
     } catch (error) {
@@ -45,33 +46,143 @@ const ContractList = () => {
   };
 
   const handleDeleteOpen = (id: string) => {
-    setOpen(true);
+    setOpenDelete(true);
     setDeleteId(id);
   };
 
   const handleDeleteClose = () => {
-    setOpen(false);
+    setOpenDelete(false);
     setDeleteId('');
+  };
+
+  const handleViewOpen = (contractId: string) => {
+    const contract = contracts.find((item) => item.id === contractId);
+    setSelectedContract(contract || null);
+    setOpenView(true);
+  };
+
+  const handleViewClose = () => {
+    setOpenView(false);
+    setSelectedContract(null);
   };
 
   return (
     <div className="container bg-white rounded-md">
       <DataTable
-        columns={columns(handleDeleteOpen)}
+        columns={columns(handleDeleteOpen, handleViewOpen)}
         data={contracts}
         loading={loading}
-        link={'/contracts/create'}
+        link={'/contract/create'}
         setPageIndex={setPageIndex}
         pageIndex={pageIndex}
         pageSize={pageSize}
         setPageSize={setPageSize}
       />
-      {open && (
+      {openDelete && (
         <DeleteConfirmModel
           handleDeleteclose={handleDeleteClose}
           handleDelete={handleDelete}
-          isOpen={open}
+          isOpen={openDelete}
         />
+      )}
+      {openView && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
+            <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-5 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+                Contract Details
+              </h2>
+              <button
+                className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
+                onClick={handleViewClose}
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 bg-gray-50">
+              {selectedContract && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 gap-5">
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Contract Number
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.contractNumber}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Contract Type
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.contractType}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Company
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.companyName || '-'}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Branch
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.branchName || '-'}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Seller
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.seller}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Buyer
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.buyer}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Fabric Type
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.fabricType}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Quantity
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.quantity} {selectedContract.unitOfMeasure}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Total Amount
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.totalAmount}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="absolute top-0 left-0 w-24 h-24 bg-cyan-400 opacity-10 rounded-full -translate-x-12 -translate-y-12 pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-24 h-24 bg-blue-400 opacity-10 rounded-full translate-x-12 translate-y-12 pointer-events-none" />
+          </div>
+        </div>
       )}
     </div>
   );
