@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, UseFormRegister } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
@@ -35,115 +35,120 @@ import { getAllCommissionTypes } from '@/apis/commissiontype';
 import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
-import ContractSummaryCard from '../contractcard/ContractSummaryCard';
 
-// Zod schema for form validation
-const Schema = z.object({
-  contractNumber: z.string().min(1, 'Contract Number is required'),
-  date: z.string().min(1, 'Date is required'),
-  contractType: z.enum(['Sale', 'Purchase'], { required_error: 'Contract Type is required' }),
-  companyId: z.string().min(1, 'Company is required'),
-  branchId: z.string().min(1, 'Branch is required'),
-  contractOwner: z.string().min(1, 'Contract Owner is required'),
-  seller: z.string().min(1, 'Seller is required'),
-  buyer: z.string().min(1, 'Buyer is required'),
-  referenceNumber: z.string().optional(),
-  deliveryDate: z.string().min(1, 'Delivery Date is required'),
-  refer: z.string().optional(),
-  referdate: z.string().optional(),
-  fabricType: z.string().min(1, 'Fabric Type is required'),
-  descriptionId: z.string().min(1, 'Description is required'),
-  stuff: z.string().min(1, 'Stuff is required'),
-  blendRatio: z.string().optional(),
-  blendType: z.string().optional(),
-  warpCount: z.string().optional(),
-  warpYarnType: z.string().optional(),
-  weftCount: z.string().optional(),
-  weftYarnType: z.string().min(1, 'Weft Yarn Type is required'),
-  noOfEnds: z.string().optional(),
-  noOfPicks: z.string().optional(),
-  weaves: z.string().optional(),
-  pickInsertion: z.string().optional(),
-  width: z.string().optional(),
-  final: z.string().optional(),
-  selvedge: z.string().optional(),
-  selvedgeWeave: z.string().optional(),
-  selvedgeWidth: z.string().optional(),
-  quantity: z.string().min(1, 'Quantity is required'),
-  unitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
-  tolerance: z.string().optional(),
-  rate: z.string().min(1, 'Rate is required'),
-  packing: z.string().optional(),
-  pieceLength: z.string().optional(),
-  fabricValue: z.string().min(1, 'Fabric Value is required'),
-  gst: z.string().min(1, 'GST Type is required'),
-  gstValue: z.string().optional(),
-  totalAmount: z.string().min(1, 'Total Amount is required'),
-  paymentTermsSeller: z.string().optional(),
-  paymentTermsBuyer: z.string().optional(),
-  deliveryTerms: z.string().optional(),
-  commissionFrom: z.string().optional(),
-  commissionType: z.string().optional(),
-  commissionPercentage: z.string().optional(),
-  commissionValue: z.string().optional(),
-  dispatchAddress: z.string().optional(),
-  sellerRemark: z.string().optional(),
-  buyerRemark: z.string().optional(),
-  createdBy: z.string().optional(),
-  creationDate: z.string().optional(),
-  updatedBy: z.string().optional(),
-  updationDate: z.string().optional(),
-  approvedBy: z.string().optional(),
-  approvedDate: z.string().optional(),
-  endUse: z.string().optional(),
-  buyerDeliveryBreakups: z
-    .array(
-      z.object({
-        qty: z.string().optional(),
-        deliveryDate: z.string().optional(),
-      })
-    )
-    .optional(),
-  sellerDeliveryBreakups: z
-    .array(
-      z.object({
-        qty: z.string().optional(),
-        deliveryDate: z.string().optional(),
-      })
-    )
-    .optional(),
-  sampleDetails: z
-    .array(
-      z.object({
-        sampleQty: z.string().optional(),
-        sampleReceivedDate: z.string().optional(),
-        sampleDeliveredDate: z.string().optional(),
-        createdBy: z.string().optional(),
-        creationDate: z.string().optional(),
-        updatedBy: z.string().optional(),
-        updateDate: z.string().optional(),
-        additionalInfo: z
-          .array(
-            z.object({
-              endUse: z.string().optional(),
-              count: z.string().optional(),
-              weight: z.string().optional(),
-              yarnBags: z.string().optional(),
-              labs: z.string().optional(),
-            })
-          )
-          .optional(),
-      })
-    )
-    .optional(),
+// Update schema to match state types
+const DeliveryBreakupSchema = z.object({
+  Id: z.string().optional(),
+  Qty: z.string(),
+  DeliveryDate: z.string(),
 });
 
-type FormData = z.infer<typeof Schema>;
+const AdditionalInfoSchema = z.object({
+  Id: z.string().optional(),
+  EndUse: z.string(),
+  Count: z.string(),
+  Weight: z.string(),
+  YarnBags: z.string(),
+  Labs: z.string(),
+});
+
+const SampleDetailSchema = z.object({
+  Id: z.string().optional(),
+  SampleQty: z.string(),
+  SampleReceivedDate: z.string(),
+  SampleDeliveredDate: z.string(),
+  CreatedBy: z.string(),
+  CreationDate: z.string(),
+  UpdatedBy: z.string(),
+  UpdateDate: z.string(),
+  AdditionalInfo: z.array(AdditionalInfoSchema),
+});
+
+const ContractSchema = z.object({
+  Id: z.string().optional(),
+  ContractNumber: z.string().min(1, 'Contract Number is required'),
+  Date: z.string().min(1, 'Date is required'),
+  ContractType: z.enum(['Sale', 'Purchase'], { required_error: 'Contract Type is required' }),
+  CompanyId: z.string().min(1, 'Company is required'),
+  BranchId: z.string().min(1, 'Branch is required'),
+  ContractOwner: z.string().min(1, 'Contract Owner is required'),
+  Seller: z.string().min(1, 'Seller is required'),
+  Buyer: z.string().min(1, 'Buyer is required'),
+  ReferenceNumber: z.string().optional(),
+  DeliveryDate: z.string().min(1, 'Delivery Date is required'),
+  Refer: z.string().optional(),
+  Referdate: z.string().optional(),
+  FabricType: z.string().min(1, 'Fabric Type is required'),
+  DescriptionId: z.string().min(1, 'Description is required'),
+  Stuff: z.string().min(1, 'Stuff is required'),
+  BlendRatio: z.string().optional(),
+  BlendType: z.string().optional(),
+  WarpCount: z.string().optional(),
+  WarpYarnType: z.string().optional(),
+  WeftCount: z.string().optional(),
+  WeftYarnType: z.string().min(1, 'Weft Yarn Type is required'),
+  NoOfEnds: z.string().optional(),
+  NoOfPicks: z.string().optional(),
+  Weaves: z.string().optional(),
+  PickInsertion: z.string().optional(),
+  Width: z.string().optional(),
+  Final: z.string().optional(),
+  Selvedge: z.string().optional(),
+  SelvedgeWeave: z.string().optional(),
+  SelvedgeWidth: z.string().optional(),
+  Quantity: z.string().min(1, 'Quantity is required'),
+  UnitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
+  Tolerance: z.string().optional(),
+  Rate: z.string().min(1, 'Rate is required'),
+  Packing: z.string().optional(),
+  PieceLength: z.string().optional(),
+  FabricValue: z.string().min(1, 'Fabric Value is required'),
+  Gst: z.string().min(1, 'GST Type is required'),
+  GstValue: z.string().optional(),
+  TotalAmount: z.string().min(1, 'Total Amount is required'),
+  PaymentTermsSeller: z.string().optional(),
+  PaymentTermsBuyer: z.string().optional(),
+  DeliveryTerms: z.string().optional(),
+  CommissionFrom: z.string().optional(),
+  CommissionType: z.string().optional(),
+  CommissionPercentage: z.string().optional(),
+  CommissionValue: z.string().optional(),
+  DispatchAddress: z.string().optional(),
+  SellerRemark: z.string().optional(),
+  BuyerRemark: z.string().optional(),
+  CreatedBy: z.string().optional(),
+  CreationDate: z.string().optional(),
+  UpdatedBy: z.string().optional(),
+  UpdationDate: z.string().optional(),
+  ApprovedBy: z.string().optional(),
+  ApprovedDate: z.string().optional(),
+  EndUse: z.string().optional(),
+  DispatchLater: z.string().optional(),
+  SellerCommission: z.string().optional(),
+  BuyerCommission: z.string().optional(),
+  FinishWidth: z.string().optional(),
+  BuyerDeliveryBreakups: z.array(DeliveryBreakupSchema).optional(),
+  SellerDeliveryBreakups: z.array(DeliveryBreakupSchema).optional(),
+  SampleDetails: z.array(SampleDetailSchema).optional(),
+  Notes: z.string().optional(),
+});
+
+type FormData = z.infer<typeof ContractSchema>;
 
 type ContractFormProps = {
   id?: string;
-  initialData?: any;
+  initialData?: Partial<FormData>;
 };
+
+// Update CustomInputDropdown props type
+interface CustomDropdownProps {
+  label: string;
+  options: { id: string; name: string }[];
+  selectedOption: string;
+  onChange: (value: string) => void;
+  error?: string;
+  register: UseFormRegister<FormData>;
+}
 
 const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const router = useRouter();
@@ -171,75 +176,41 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [commissionTypes, setCommissionTypes] = useState<{ id: string; name: string }[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<{ id: string; name: string }[]>([]);
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<{ id: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(false);
   const [gstTypes, setGstTypes] = useState<{ id: string; name: string }[]>([]);
-  const [deliveryDetails, setDeliveryDetails] = useState({
-    quantity: '',
-    unitOfMeasure: '',
-    lbs: '',
-    tolerance: '',
-    rate: '',
-    perLbs: '',
-    packing: '',
-    pieceLength: '',
-    payTermSeller: '',
-    payTermBuyer: '',
-    fabricValue: '',
-    gst: '',
-    gstValue: '',
-    finishWidth: '',
-    totalAmount: '',
-    deliveryTerms: '',
-    commissionFrom: '',
-    commissionType: '',
-    commissionPercentage: '',
-    commissionValue: '',
-    dispatchLater: '',
-    sellerRemark: '',
-    buyerRemark: '',
-    deliveryDate: '',
-    sellerCommission: '',
-    buyerCommission: '',
-  });
-  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [buyerDeliveryBreakups, setBuyerDeliveryBreakups] = useState<
-    { qty: string; deliveryDate: string }[]
+    { Id?: string; Qty: string; DeliveryDate: string }[]
   >([]);
   const [sellerDeliveryBreakups, setSellerDeliveryBreakups] = useState<
-    { qty: string; deliveryDate: string }[]
+    { Id?: string; Qty: string; DeliveryDate: string }[]
   >([]);
   const [sampleDetails, setSampleDetails] = useState<
     {
-      sampleQty: string;
-      sampleReceivedDate: string;
-      sampleDeliveredDate: string;
-      createdBy: string;
-      creationDate: string;
-      updatedBy: string;
-      updateDate: string;
-      additionalInfo: {
-        endUse: string;
-        count: string;
-        weight: string;
-        yarnBags: string;
-        labs: string;
-      }[];
+      Id?: string;
+      SampleQty: string;
+      SampleReceivedDate: string;
+      SampleDeliveredDate: string;
+      CreatedBy: string;
+      CreationDate: string;
+      UpdatedBy: string;
+      UpdateDate: string;
+      AdditionalInfo: { Id?: string; EndUse: string; Count: string; Weight: string; YarnBags: string; Labs: string }[];
     }[]
   >([{
-    sampleQty: '',
-    sampleReceivedDate: '',
-    sampleDeliveredDate: '',
-    createdBy: 'Current User',
-    creationDate: new Date().toISOString().split('T')[0],
-    updatedBy: '',
-    updateDate: '',
-    additionalInfo: [{
-      endUse: '',
-      count: '',
-      weight: '',
-      yarnBags: '',
-      labs: '',
+    SampleQty: '',
+    SampleReceivedDate: '',
+    SampleDeliveredDate: '',
+    CreatedBy: 'Current User',
+    CreationDate: new Date().toISOString().split('T')[0],
+    UpdatedBy: '',
+    UpdateDate: '',
+    AdditionalInfo: [{
+      EndUse: '',
+      Count: '',
+      Weight: '',
+      YarnBags: '',
+      Labs: '',
     }],
   }]);
   const [showSamplePopup, setShowSamplePopup] = useState<number | null>(null);
@@ -253,9 +224,31 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     reset,
     setValue,
     watch,
+    trigger,
   } = useForm<FormData>({
-    resolver: zodResolver(Schema),
-    defaultValues: initialData || {},
+    resolver: zodResolver(ContractSchema),
+    defaultValues: initialData || {
+      ContractType: 'Sale',
+      BuyerDeliveryBreakups: [],
+      SellerDeliveryBreakups: [],
+      SampleDetails: [{
+        SampleQty: '',
+        SampleReceivedDate: '',
+        SampleDeliveredDate: '',
+        CreatedBy: 'Current User',
+        CreationDate: currentDate,
+        UpdatedBy: '',
+        UpdateDate: '',
+        AdditionalInfo: [{
+          EndUse: '',
+          Count: '',
+          Weight: '',
+          YarnBags: '',
+          Labs: '',
+        }],
+      }],
+      Notes: '',
+    },
   });
 
   // Dropdown options
@@ -561,7 +554,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setSellers(
         response.data.map((seller: any) => ({
           id: seller.id,
-          name: seller.SellerName,
+          name: seller.sellerName,
         }))
       );
     } catch (error) {
@@ -578,7 +571,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setBuyers(
         response.data.map((buyer: any) => ({
           id: buyer.id,
-          name: buyer.BuyerName,
+          name: buyer.buyerName,
         }))
       );
     } catch (error) {
@@ -673,9 +666,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
-  const companyId = watch('companyId');
-  const branchId = watch('branchId');
-  const selectedBlendRatio = watch('blendRatio');
+  const companyId = watch('CompanyId');
+  const branchId = watch('BranchId');
+  const selectedBlendRatio = watch('BlendRatio');
+  const quantity = watch('Quantity');
+  const rate = watch('Rate');
+  const gst = watch('Gst');
+  const commissionType = watch('CommissionType');
+  const commissionPercentage = watch('CommissionPercentage');
 
   useEffect(() => {
     setShowForm(!!companyId && !!branchId);
@@ -693,12 +691,49 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           name: subDesc.trim(),
         }));
       setBlendTypeOptions(subDescArray);
-      setValue('blendType', subDescArray[0]?.name || '', { shouldValidate: true });
+      setValue('BlendType', subDescArray[0]?.name || '', { shouldValidate: true });
     } else {
       setBlendTypeOptions([]);
-      setValue('blendType', '', { shouldValidate: true });
+      setValue('BlendType', '', { shouldValidate: true });
     }
   }, [selectedBlendRatio, blendRatios, setValue]);
+
+  // Calculate Fabric Value, GST Value, Total Amount, and Commission Value
+  useEffect(() => {
+    // Fabric Value: Quantity * Rate
+    const qty = parseFloat(quantity || '0');
+    const rt = parseFloat(rate || '0');
+    const fabricValue = (qty * rt).toFixed(2);
+    setValue('FabricValue', fabricValue, { shouldValidate: true });
+
+    // GST Value: Based on GST Type and Fabric Value
+    const selectedGst = gstTypes.find((g) => g.id === gst);
+    let gstValue = '0.00';
+    if (selectedGst) {
+      const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
+      gstValue = ((parseFloat(fabricValue) * percentage) / 100).toFixed(2);
+    }
+    setValue('GstValue', gstValue, { shouldValidate: true });
+
+    // Total Amount: Fabric Value + GST Value
+    const totalAmount = (parseFloat(fabricValue) + parseFloat(gstValue)).toFixed(2);
+    setValue('TotalAmount', totalAmount, { shouldValidate: true });
+
+    // Commission Value
+    let commissionValue = '0.00';
+    const commissionInput = parseFloat(commissionPercentage || '0');
+    if (commissionType) {
+      const commissionTypeName = commissionTypes.find(
+        (type) => type.id === commissionType
+      )?.name.toLowerCase();
+      if (commissionTypeName === 'on value' && commissionInput > 0 && parseFloat(totalAmount) > 0) {
+        commissionValue = ((parseFloat(totalAmount) * commissionInput) / 100).toFixed(2);
+      } else if (commissionTypeName === 'on qty' && commissionInput > 0 && qty > 0) {
+        commissionValue = (qty * commissionInput).toFixed(2);
+      }
+    }
+    setValue('CommissionValue', commissionValue, { shouldValidate: true });
+  }, [quantity, rate, gst, commissionType, commissionPercentage, gstTypes, commissionTypes, setValue]);
 
   useEffect(() => {
     fetchCompanies();
@@ -729,166 +764,115 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     if (initialData) {
       reset({
         ...initialData,
-        contractType:
-          initialData.contractType === 'Sale' || initialData.contractType === 'Purchase'
-            ? initialData.contractType
+        ContractType:
+          initialData.ContractType === 'Sale' || initialData.ContractType === 'Purchase'
+            ? initialData.ContractType
             : 'Sale',
-        weftYarnType: initialData.weftYarnType || initialData.weftYarnCount || '',
-        weaves: initialData.weaves || '',
+        WeftYarnType: initialData.WeftYarnType || initialData.WeftCount || '',
+        Weaves: initialData.Weaves || '',
+        BuyerDeliveryBreakups: initialData.BuyerDeliveryBreakups || [],
+        SellerDeliveryBreakups: initialData.SellerDeliveryBreakups || [],
+        SampleDetails: initialData.SampleDetails && initialData.SampleDetails.length > 0
+          ? [initialData.SampleDetails[0]]
+          : sampleDetails,
+        Notes: initialData.Notes || '',
       });
-      if (initialData.deliveryDetails) {
-        setDeliveryDetails(initialData.deliveryDetails);
+      if (initialData.BuyerDeliveryBreakups) {
+        setBuyerDeliveryBreakups(initialData.BuyerDeliveryBreakups);
       }
-      if (initialData.buyerDeliveryBreakups) {
-        setBuyerDeliveryBreakups(initialData.buyerDeliveryBreakups);
+      if (initialData.SellerDeliveryBreakups) {
+        setSellerDeliveryBreakups(initialData.SellerDeliveryBreakups);
       }
-      if (initialData.sellerDeliveryBreakups) {
-        setSellerDeliveryBreakups(initialData.sellerDeliveryBreakups);
-      }
-      if (initialData.sampleDetails && initialData.sampleDetails.length > 0) {
-        setSampleDetails([initialData.sampleDetails[0]]);
+      if (initialData.SampleDetails && initialData.SampleDetails.length > 0) {
+        setSampleDetails([initialData.SampleDetails[0]]);
       }
     }
-  }, [initialData, reset]);
-
-  const calculateDeliveryDetails = (currentDetails: typeof deliveryDetails) => {
-    const updatedDetails = { ...currentDetails };
-
-    // Fabric Value: Quantity * Rate
-    const quantity = parseFloat(updatedDetails.quantity || '0');
-    const rate = parseFloat(updatedDetails.rate || '0');
-    updatedDetails.fabricValue = (quantity * rate).toFixed(2);
-
-    // GST Value: Based on GST Type and Fabric Value
-    const selectedGst = gstTypes.find((gst) => gst.id === updatedDetails.gst);
-    if (selectedGst) {
-      const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
-      const fabricValue = parseFloat(updatedDetails.fabricValue || '0');
-      updatedDetails.gstValue = ((fabricValue * percentage) / 100).toFixed(2);
-    } else {
-      updatedDetails.gstValue = '0.00';
-    }
-
-    // Total Amount: Fabric Value + GST Value
-    const fabricValue = parseFloat(updatedDetails.fabricValue || '0');
-    const gstValue = parseFloat(updatedDetails.gstValue || '0');
-    updatedDetails.totalAmount = (fabricValue + gstValue).toFixed(2);
-
-    // Commission Value
-    const commissionType = updatedDetails.commissionType;
-    const commissionInput = parseFloat(updatedDetails.commissionPercentage || '0');
-    const totalAmount = parseFloat(updatedDetails.totalAmount || '0');
-    if (commissionType) {
-      const commissionTypeName = commissionTypes.find(
-        (type) => type.id === commissionType
-      )?.name.toLowerCase();
-      if (commissionTypeName === 'on value' && commissionInput > 0 && totalAmount > 0) {
-        updatedDetails.commissionValue = ((totalAmount * commissionInput) / 100).toFixed(2);
-      } else if (commissionTypeName === 'on qty' && commissionInput > 0 && quantity > 0) {
-        updatedDetails.commissionValue = (quantity * commissionInput).toFixed(2);
-      } else {
-        updatedDetails.commissionValue = '0.00';
-      }
-    } else {
-      updatedDetails.commissionValue = '0.00';
-    }
-
-    return updatedDetails;
-  };
-
-  const handleDeliveryDetailChange = (field: string, value: string) => {
-    setDeliveryDetails((prev) => {
-      const updatedDetails = { ...prev, [field]: value };
-      if (['quantity', 'rate', 'gst', 'commissionType', 'commissionPercentage'].includes(field)) {
-        return calculateDeliveryDetails(updatedDetails);
-      }
-      return updatedDetails;
-    });
-  };
-
-  const handleEnterKeyPress = (field: string) => (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      setDeliveryDetails((prev) => calculateDeliveryDetails(prev));
-    }
-  };
+  }, [initialData, reset, sampleDetails]);
 
   const addBuyerDeliveryBreakup = () => {
-    setBuyerDeliveryBreakups([...buyerDeliveryBreakups, { qty: '', deliveryDate: '' }]);
+    const newBreakups = [...buyerDeliveryBreakups, { Qty: '', DeliveryDate: '' }];
+    setBuyerDeliveryBreakups(newBreakups);
+    setValue('BuyerDeliveryBreakups', newBreakups, { shouldValidate: true });
   };
 
   const removeBuyerDeliveryBreakup = (index: number) => {
-    setBuyerDeliveryBreakups(buyerDeliveryBreakups.filter((_, i) => i !== index));
+    const newBreakups = buyerDeliveryBreakups.filter((_, i) => i !== index);
+    setBuyerDeliveryBreakups(newBreakups);
+    setValue('BuyerDeliveryBreakups', newBreakups, { shouldValidate: true });
   };
 
   const handleBuyerDeliveryBreakupChange = (index: number, field: string, value: string) => {
     const updatedBreakups = [...buyerDeliveryBreakups];
     updatedBreakups[index] = { ...updatedBreakups[index], [field]: value };
     setBuyerDeliveryBreakups(updatedBreakups);
+    setValue('BuyerDeliveryBreakups', updatedBreakups, { shouldValidate: true });
   };
 
   const addSellerDeliveryBreakup = () => {
-    setSellerDeliveryBreakups([...sellerDeliveryBreakups, { qty: '', deliveryDate: '' }]);
+    const newBreakups = [...sellerDeliveryBreakups, { Qty: '', DeliveryDate: '' }];
+    setSellerDeliveryBreakups(newBreakups);
+    setValue('SellerDeliveryBreakups', newBreakups, { shouldValidate: true });
   };
 
   const removeSellerDeliveryBreakup = (index: number) => {
-    setSellerDeliveryBreakups(sellerDeliveryBreakups.filter((_, i) => i !== index));
+    const newBreakups = sellerDeliveryBreakups.filter((_, i) => i !== index);
+    setSellerDeliveryBreakups(newBreakups);
+    setValue('SellerDeliveryBreakups', newBreakups, { shouldValidate: true });
   };
 
   const handleSellerDeliveryBreakupChange = (index: number, field: string, value: string) => {
     const updatedBreakups = [...sellerDeliveryBreakups];
     updatedBreakups[index] = { ...updatedBreakups[index], [field]: value };
     setSellerDeliveryBreakups(updatedBreakups);
+    setValue('SellerDeliveryBreakups', updatedBreakups, { shouldValidate: true });
   };
 
   const handleSampleDetailChange = (field: string, value: string) => {
     const updatedSampleDetails = [...sampleDetails];
     updatedSampleDetails[0] = { ...updatedSampleDetails[0], [field]: value };
-    if (field === 'createdBy' && value) {
-      updatedSampleDetails[0].creationDate = currentDate;
+    if (field === 'CreatedBy' && value) {
+      updatedSampleDetails[0].CreationDate = currentDate;
     }
-    if (field === 'updatedBy' && value) {
-      updatedSampleDetails[0].updateDate = currentDate;
+    if (field === 'UpdatedBy' && value) {
+      updatedSampleDetails[0].UpdateDate = currentDate;
     }
     setSampleDetails(updatedSampleDetails);
+    setValue('SampleDetails', updatedSampleDetails, { shouldValidate: true });
   };
 
-  const handleAdditionalInfoChange = (
-    infoIndex: number,
-    field: string,
-    value: string
-  ) => {
+  const handleAdditionalInfoChange = (infoIndex: number, field: string, value: string) => {
     const updatedSampleDetails = [...sampleDetails];
-    const updatedAdditionalInfo = [...(updatedSampleDetails[0].additionalInfo || [])];
+    const updatedAdditionalInfo = [...(updatedSampleDetails[0].AdditionalInfo || [])];
     updatedAdditionalInfo[infoIndex] = { ...updatedAdditionalInfo[infoIndex], [field]: value };
-    updatedSampleDetails[0].additionalInfo = updatedAdditionalInfo;
+    updatedSampleDetails[0].AdditionalInfo = updatedAdditionalInfo;
     setSampleDetails(updatedSampleDetails);
+    setValue('SampleDetails', updatedSampleDetails, { shouldValidate: true });
   };
 
   const addAdditionalInfoRow = () => {
     const updatedSampleDetails = [...sampleDetails];
-    const updatedAdditionalInfo = [...(updatedSampleDetails[0].additionalInfo || [])];
+    const updatedAdditionalInfo = [...(updatedSampleDetails[0].AdditionalInfo || [])];
     updatedAdditionalInfo.push({
-      endUse: '',
-      count: '',
-      weight: '',
-      yarnBags: '',
-      labs: '',
+      EndUse: '',
+      Count: '',
+      Weight: '',
+      YarnBags: '',
+      Labs: '',
     });
-    updatedSampleDetails[0].additionalInfo = updatedAdditionalInfo;
+    updatedSampleDetails[0].AdditionalInfo = updatedAdditionalInfo;
     setSampleDetails(updatedSampleDetails);
+    setValue('SampleDetails', updatedSampleDetails, { shouldValidate: true });
   };
 
   const onSubmit = async (data: FormData) => {
     try {
       const payload = {
         ...data,
-        deliveryDetails,
-        notes,
-        buyerDeliveryBreakups,
-        sellerDeliveryBreakups,
-        sampleDetails,
+        BuyerDeliveryBreakups: buyerDeliveryBreakups,
+        SellerDeliveryBreakups: sellerDeliveryBreakups,
+        SampleDetails: sampleDetails,
       };
-      console.log('Form Payload:', payload); // Debug log
+      console.log('Form Payload:', JSON.stringify(payload, null, 2));
       let response;
       if (id) {
         response = await updateContract(id, payload);
@@ -898,7 +882,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         toast('Contract Created Successfully', { type: 'success' });
       }
       reset();
-      router.push('/contracts');
+      router.push('/contract');
     } catch (error) {
       toast('Error submitting contract', { type: 'error' });
       console.error('Error submitting form:', error);
@@ -913,7 +897,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           {id ? 'EDIT CONTRACT' : 'ADD NEW CONTRACT'}
         </h1>
       </div>
-      
+
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="p-2 w-full">
           <div className="p-4">
@@ -921,17 +905,17 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               <CustomInputDropdown
                 label="Company"
                 options={companies}
-                selectedOption={watch('companyId') || ''}
-                onChange={(value) => setValue('companyId', value, { shouldValidate: true })}
-                error={errors.companyId?.message}
+                selectedOption={watch('CompanyId') || ''}
+                onChange={(value) => setValue('CompanyId', value, { shouldValidate: true })}
+                error={errors.CompanyId?.message}
                 register={register}
               />
               <CustomInputDropdown
                 label="Branch"
                 options={branches}
-                selectedOption={watch('branchId') || ''}
-                onChange={(value) => setValue('branchId', value, { shouldValidate: true })}
-                error={errors.branchId?.message}
+                selectedOption={watch('BranchId') || ''}
+                onChange={(value) => setValue('BranchId', value, { shouldValidate: true })}
+                error={errors.BranchId?.message}
                 register={register}
               />
             </div>
@@ -940,52 +924,51 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 variant="floating"
                 borderThickness="2"
                 label="Contract Number"
-                id="contractNumber"
-                {...register('contractNumber')}
-                error={errors.contractNumber?.message}
+                id="ContractNumber"
+                {...register('ContractNumber')}
+                error={errors.ContractNumber?.message}
               />
               <CustomInput
                 type="date"
                 variant="floating"
                 borderThickness="2"
                 label="Date"
-                id="date"
-                {...register('date')}
-                error={errors.date?.message}
+                id="Date"
+                {...register('Date')}
+                error={errors.Date?.message}
               />
               <CustomInputDropdown
                 label="Contract Type"
                 options={contractTypes}
-                selectedOption={watch('contractType') || 'Sale'}
+                selectedOption={watch('ContractType') || 'Sale'}
                 onChange={(value) =>
-                  setValue('contractType', value as 'Sale' | 'Purchase', { shouldValidate: true })
+                  setValue('ContractType', value as 'Sale' | 'Purchase', { shouldValidate: true })
                 }
-                error={errors.contractType?.message}
+                error={errors.ContractType?.message}
                 register={register}
               />
               <CustomInput
                 variant="floating"
                 borderThickness="2"
                 label="Contract Owner"
-                id="contractOwner"
-                {...register('contractOwner')}
-                error={errors.contractOwner?.message}
-
+                id="ContractOwner"
+                {...register('ContractOwner')}
+                error={errors.ContractOwner?.message}
               />
               <CustomInputDropdown
                 label="Seller"
                 options={sellers}
-                selectedOption={watch('seller') || ''}
-                onChange={(value) => setValue('seller', value, { shouldValidate: true })}
-                error={errors.seller?.message}
+                selectedOption={watch('Seller') || ''}
+                onChange={(value) => setValue('Seller', value, { shouldValidate: true })}
+                error={errors.Seller?.message}
                 register={register}
               />
               <CustomInputDropdown
                 label="Buyer"
                 options={buyers}
-                selectedOption={watch('buyer') || ''}
-                onChange={(value) => setValue('buyer', value, { shouldValidate: true })}
-                error={errors.buyer?.message}
+                selectedOption={watch('Buyer') || ''}
+                onChange={(value) => setValue('Buyer', value, { shouldValidate: true })}
+                error={errors.Buyer?.message}
                 register={register}
               />
             </div>
@@ -994,42 +977,42 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 variant="floating"
                 borderThickness="2"
                 label="Reference #"
-                id="referenceNumber"
-                {...register('referenceNumber')}
-                error={errors.referenceNumber?.message}
+                id="ReferenceNumber"
+                {...register('ReferenceNumber')}
+                error={errors.ReferenceNumber?.message}
               />
               <CustomInput
                 type="date"
                 variant="floating"
                 borderThickness="2"
                 label="Delivery Date"
-                id="deliveryDate"
-                {...register('deliveryDate')}
-                error={errors.deliveryDate?.message}
+                id="DeliveryDate"
+                {...register('DeliveryDate')}
+                error={errors.DeliveryDate?.message}
               />
               <CustomInput
                 variant="floating"
                 borderThickness="2"
                 label="Refer.#"
-                id="refer"
-                {...register('refer')}
-                error={errors.refer?.message}
+                id="Refer"
+                {...register('Refer')}
+                error={errors.Refer?.message}
               />
               <CustomInput
                 type="date"
                 variant="floating"
                 borderThickness="2"
                 label="Refer Date"
-                id="referdate"
-                {...register('referdate')}
-                error={errors.referdate?.message}
+                id="Referdate"
+                {...register('Referdate')}
+                error={errors.Referdate?.message}
               />
               <CustomInputDropdown
                 label="Fabric Type"
                 options={fabricTypes}
-                selectedOption={watch('fabricType') || ''}
-                onChange={(value) => setValue('fabricType', value, { shouldValidate: true })}
-                error={errors.fabricType?.message}
+                selectedOption={watch('FabricType') || ''}
+                onChange={(value) => setValue('FabricType', value, { shouldValidate: true })}
+                error={errors.FabricType?.message}
                 register={register}
               />
             </div>
@@ -1043,76 +1026,76 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   <CustomInputDropdown
                     label="Description"
                     options={descriptions}
-                    selectedOption={watch('descriptionId') || ''}
-                    onChange={(value) => setValue('descriptionId', value, { shouldValidate: true })}
-                    error={errors.descriptionId?.message}
+                    selectedOption={watch('DescriptionId') || ''}
+                    onChange={(value) => setValue('DescriptionId', value, { shouldValidate: true })}
+                    error={errors.DescriptionId?.message}
                     register={register}
                   />
                   <CustomInputDropdown
                     label="Stuff"
                     options={stuffs}
-                    selectedOption={watch('stuff') || ''}
-                    onChange={(value) => setValue('stuff', value, { shouldValidate: true })}
-                    error={errors.stuff?.message}
+                    selectedOption={watch('Stuff') || ''}
+                    onChange={(value) => setValue('Stuff', value, { shouldValidate: true })}
+                    error={errors.Stuff?.message}
                     register={register}
                   />
                   <CustomInputDropdown
                     label="Blend Ratio"
                     options={blendRatios}
-                    selectedOption={watch('blendRatio') || ''}
-                    onChange={(value) => setValue('blendRatio', value, { shouldValidate: true })}
-                    error={errors.blendRatio?.message}
+                    selectedOption={watch('BlendRatio') || ''}
+                    onChange={(value) => setValue('BlendRatio', value, { shouldValidate: true })}
+                    error={errors.BlendRatio?.message}
                     register={register}
                   />
                   <CustomInputDropdown
                     label="Blend Type"
                     options={blendTypeOptions}
-                    selectedOption={watch('blendType') || ''}
-                    onChange={(value) => setValue('blendType', value, { shouldValidate: true })}
-                    error={errors.blendType?.message}
+                    selectedOption={watch('BlendType') || ''}
+                    onChange={(value) => setValue('BlendType', value, { shouldValidate: true })}
+                    error={errors.BlendType?.message}
                     register={register}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Warp Count"
-                    id="warpCount"
-                    {...register('warpCount')}
-                    error={errors.warpCount?.message}
+                    id="WarpCount"
+                    {...register('WarpCount')}
+                    error={errors.WarpCount?.message}
                   />
                   <CustomInputDropdown
                     label="Warp Yarn Type"
                     options={warpYarnTypes}
-                    selectedOption={watch('warpYarnType') || ''}
-                    onChange={(value) => setValue('warpYarnType', value, { shouldValidate: true })}
-                    error={errors.warpYarnType?.message}
+                    selectedOption={watch('WarpYarnType') || ''}
+                    onChange={(value) => setValue('WarpYarnType', value, { shouldValidate: true })}
+                    error={errors.WarpYarnType?.message}
                     register={register}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Weft Count"
-                    id="weftCount"
-                    {...register('weftCount')}
-                    error={errors.weftCount?.message}
+                    id="WeftCount"
+                    {...register('WeftCount')}
+                    error={errors.WeftCount?.message}
                   />
                   <CustomInput
                     type="number"
                     variant="floating"
                     borderThickness="2"
                     label="No. of Ends"
-                    id="noOfEnds"
-                    {...register('noOfEnds')}
-                    error={errors.noOfEnds?.message}
+                    id="NoOfEnds"
+                    {...register('NoOfEnds')}
+                    error={errors.NoOfEnds?.message}
                   />
                   <CustomInput
                     type="number"
                     variant="floating"
                     borderThickness="2"
                     label="No. of Picks"
-                    id="noOfPicks"
-                    {...register('noOfPicks')}
-                    error={errors.noOfPicks?.message}
+                    id="NoOfPicks"
+                    {...register('NoOfPicks')}
+                    error={errors.NoOfPicks?.message}
                   />
                   {weaves.length === 0 && loading ? (
                     <div>Loading Weaves...</div>
@@ -1120,18 +1103,18 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     <CustomInputDropdown
                       label="Weaves"
                       options={weaves}
-                      selectedOption={watch('weaves') || ''}
-                      onChange={(value) => setValue('weaves', value, { shouldValidate: true })}
-                      error={errors.weaves?.message}
+                      selectedOption={watch('Weaves') || ''}
+                      onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
+                      error={errors.Weaves?.message}
                       register={register}
                     />
                   )}
                   <CustomInputDropdown
                     label="Pick Insertion"
                     options={pickInsertions}
-                    selectedOption={watch('pickInsertion') || ''}
-                    onChange={(value) => setValue('pickInsertion', value, { shouldValidate: true })}
-                    error={errors.pickInsertion?.message}
+                    selectedOption={watch('PickInsertion') || ''}
+                    onChange={(value) => setValue('PickInsertion', value, { shouldValidate: true })}
+                    error={errors.PickInsertion?.message}
                     register={register}
                   />
                   <CustomInput
@@ -1139,48 +1122,48 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     variant="floating"
                     borderThickness="2"
                     label="Width"
-                    id="width"
-                    {...register('width')}
-                    error={errors.width?.message}
+                    id="Width"
+                    {...register('Width')}
+                    error={errors.Width?.message}
                   />
                   <CustomInputDropdown
                     label="Final"
                     options={finals}
-                    selectedOption={watch('final') || ''}
-                    onChange={(value) => setValue('final', value, { shouldValidate: true })}
-                    error={errors.final?.message}
+                    selectedOption={watch('Final') || ''}
+                    onChange={(value) => setValue('Final', value, { shouldValidate: true })}
+                    error={errors.Final?.message}
                     register={register}
                   />
                   <CustomInputDropdown
                     label="Selvedge"
                     options={selvedges}
-                    selectedOption={watch('selvedge') || ''}
-                    onChange={(value) => setValue('selvedge', value, { shouldValidate: true })}
-                    error={errors.selvedge?.message}
+                    selectedOption={watch('Selvedge') || ''}
+                    onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
+                    error={errors.Selvedge?.message}
                     register={register}
                   />
                   <CustomInputDropdown
                     label="Selvedge Weave"
                     options={selvedgeWeaves}
-                    selectedOption={watch('selvedgeWeave') || ''}
-                    onChange={(value) => setValue('selvedgeWeave', value, { shouldValidate: true })}
-                    error={errors.selvedgeWeave?.message}
+                    selectedOption={watch('SelvedgeWeave') || ''}
+                    onChange={(value) => setValue('SelvedgeWeave', value, { shouldValidate: true })}
+                    error={errors.SelvedgeWeave?.message}
                     register={register}
                   />
                   <CustomInputDropdown
                     label="Selvedge Width"
                     options={selvedgeWidths}
-                    selectedOption={watch('selvedgeWidth') || ''}
-                    onChange={(value) => setValue('selvedgeWidth', value, { shouldValidate: true })}
-                    error={errors.selvedgeWidth?.message}
+                    selectedOption={watch('SelvedgeWidth') || ''}
+                    onChange={(value) => setValue('SelvedgeWidth', value, { shouldValidate: true })}
+                    error={errors.SelvedgeWidth?.message}
                     register={register}
                   />
                   <CustomInputDropdown
                     label="End Use"
                     options={endUses}
-                    selectedOption={watch('endUse') || ''}
-                    onChange={(value) => setValue('endUse', value, { shouldValidate: true })}
-                    error={errors.endUse?.message}
+                    selectedOption={watch('EndUse') || ''}
+                    onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
+                    error={errors.EndUse?.message}
                     register={register}
                   />
                   {weftYarnTypes.length === 0 && loading ? (
@@ -1189,9 +1172,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     <CustomInputDropdown
                       label="Weft Yarn Type"
                       options={weftYarnTypes}
-                      selectedOption={watch('weftYarnType') || ''}
-                      onChange={(value) => setValue('weftYarnType', value, { shouldValidate: true })}
-                      error={errors.weftYarnType?.message}
+                      selectedOption={watch('WeftYarnType') || ''}
+                      onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
+                      error={errors.WeftYarnType?.message}
                       register={register}
                     />
                   )}
@@ -1205,8 +1188,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     variant="floating"
                     borderThickness="2"
                     label="Quantity"
-                    value={deliveryDetails.quantity}
-                    onChange={(e) => handleDeliveryDetailChange('quantity', e.target.value)}
+                    id="Quantity"
+                    {...register('Quantity')}
+                    error={errors.Quantity?.message}
                   />
                   {unitsOfMeasure.length === 0 && loading ? (
                     <div>Loading Units of Measure...</div>
@@ -1214,51 +1198,46 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     <CustomInputDropdown
                       label="Unit of Measure"
                       options={unitsOfMeasure}
-                      selectedOption={deliveryDetails.unitOfMeasure || ''}
-                      onChange={(value) => handleDeliveryDetailChange('unitOfMeasure', value)}
-                      error={errors.unitOfMeasure?.message}
+                      selectedOption={watch('UnitOfMeasure') || ''}
+                      onChange={(value) => {
+                        setValue('UnitOfMeasure', value, { shouldValidate: true });
+                        trigger('UnitOfMeasure');
+                      }}
+                      error={errors.UnitOfMeasure?.message}
                       register={register}
                     />
                   )}
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
-                    label="LBS"
-                    value={deliveryDetails.lbs}
-                    onChange={(e) => handleDeliveryDetailChange('lbs', e.target.value)}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
                     label="Tolerance (%)"
-                    value={deliveryDetails.tolerance}
-                    onChange={(e) => handleDeliveryDetailChange('tolerance', e.target.value)}
+                    id="Tolerance"
+                    {...register('Tolerance')}
+                    error={errors.Tolerance?.message}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Rate"
-                    value={deliveryDetails.rate}
-                    onChange={(e) => handleDeliveryDetailChange('rate', e.target.value)}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="/LBS"
-                    value={deliveryDetails.perLbs}
-                    onChange={(e) => handleDeliveryDetailChange('perLbs', e.target.value)}
+                    id="Rate"
+                    {...register('Rate')}
+                    error={errors.Rate?.message}
                   />
                   <CustomInputDropdown
                     label="Packing"
                     options={packings}
-                    selectedOption={deliveryDetails.packing || ''}
-                    onChange={(value) => handleDeliveryDetailChange('packing', value)}
+                    selectedOption={watch('Packing') || ''}
+                    onChange={(value) => setValue('Packing', value, { shouldValidate: true })}
+                    error={errors.Packing?.message}
+                    register={register}
                   />
                   <CustomInputDropdown
                     label="Piece Length"
                     options={pieceLengths}
-                    selectedOption={deliveryDetails.pieceLength || ''}
-                    onChange={(value) => handleDeliveryDetailChange('pieceLength', value)}
+                    selectedOption={watch('PieceLength') || ''}
+                    onChange={(value) => setValue('PieceLength', value, { shouldValidate: true })}
+                    error={errors.PieceLength?.message}
+                    register={register}
                   />
                   {paymentTerms.length === 0 && loading ? (
                     <div>Loading Payment Terms...</div>
@@ -1266,9 +1245,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     <CustomInputDropdown
                       label="Pay Term Seller"
                       options={paymentTerms}
-                      selectedOption={deliveryDetails.payTermSeller || ''}
-                      onChange={(value) => handleDeliveryDetailChange('payTermSeller', value)}
-                      error={errors.paymentTermsSeller?.message}
+                      selectedOption={watch('PaymentTermsSeller') || ''}
+                      onChange={(value) => setValue('PaymentTermsSeller', value, { shouldValidate: true })}
+                      error={errors.PaymentTermsSeller?.message}
                       register={register}
                     />
                   )}
@@ -1278,9 +1257,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     <CustomInputDropdown
                       label="Pay Term Buyer"
                       options={paymentTerms}
-                      selectedOption={deliveryDetails.payTermBuyer || ''}
-                      onChange={(value) => handleDeliveryDetailChange('payTermBuyer', value)}
-                      error={errors.paymentTermsBuyer?.message}
+                      selectedOption={watch('PaymentTermsBuyer') || ''}
+                      onChange={(value) => setValue('PaymentTermsBuyer', value, { shouldValidate: true })}
+                      error={errors.PaymentTermsBuyer?.message}
                       register={register}
                     />
                   )}
@@ -1288,11 +1267,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     variant="floating"
                     borderThickness="2"
                     label="Fabric Value"
-                    value={deliveryDetails.fabricValue}
-                    onChange={(e) => handleDeliveryDetailChange('fabricValue', e.target.value)}
+                    id="FabricValue"
+                    {...register('FabricValue')}
+                    error={errors.FabricValue?.message}
                     disabled
                     className="auto-calculated-field"
-
                   />
                   {gstTypes.length === 0 && loading ? (
                     <div>Loading GST Types...</div>
@@ -1300,9 +1279,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     <CustomInputDropdown
                       label="GST Type"
                       options={gstTypes}
-                      selectedOption={deliveryDetails.gst || ''}
-                      onChange={(value) => handleDeliveryDetailChange('gst', value)}
-                      error={errors.gst?.message}
+                      selectedOption={watch('Gst') || ''}
+                      onChange={(value) => {
+                        setValue('Gst', value, { shouldValidate: true });
+                        trigger('Gst');
+                      }}
+                      error={errors.Gst?.message}
                       register={register}
                     />
                   )}
@@ -1310,27 +1292,29 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     variant="floating"
                     borderThickness="2"
                     label="GST Value"
-                    value={deliveryDetails.gstValue}
-                    onChange={(e) => handleDeliveryDetailChange('gstValue', e.target.value)}
+                    id="GstValue"
+                    {...register('GstValue')}
+                    error={errors.GstValue?.message}
                     disabled
                     className="auto-calculated-field"
-
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Finish Width"
-                    value={deliveryDetails.finishWidth}
-                    onChange={(e) => handleDeliveryDetailChange('finishWidth', e.target.value)}
+                    id="FinishWidth"
+                    {...register('FinishWidth')}
+                    error={errors.FinishWidth?.message}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Total Amount"
-                    value={deliveryDetails.totalAmount}
-                    onChange={(e) => handleDeliveryDetailChange('totalAmount', e.target.value)}
+                    id="TotalAmount"
+                    {...register('TotalAmount')}
+                    error={errors.TotalAmount?.message}
                     disabled
-                   className="auto-calculated-field"
+                    className="auto-calculated-field"
                   />
                   {deliveryTerms.length === 0 && loading ? (
                     <div>Loading Delivery Terms...</div>
@@ -1338,34 +1322,38 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     <CustomInputDropdown
                       label="Delivery Terms"
                       options={deliveryTerms}
-                      selectedOption={deliveryDetails.deliveryTerms || ''}
-                      onChange={(value) => handleDeliveryDetailChange('deliveryTerms', value)}
-                      error={errors.deliveryTerms?.message}
+                      selectedOption={watch('DeliveryTerms') || ''}
+                      onChange={(value) => setValue('DeliveryTerms', value, { shouldValidate: true })}
+                      error={errors.DeliveryTerms?.message}
                       register={register}
                     />
                   )}
                   <CustomInputDropdown
                     label="Commission From"
                     options={commissionFromOptions}
-                    selectedOption={deliveryDetails.commissionFrom || ''}
-                    onChange={(value) => handleDeliveryDetailChange('commissionFrom', value)}
+                    selectedOption={watch('CommissionFrom') || ''}
+                    onChange={(value) => setValue('CommissionFrom', value, { shouldValidate: true })}
+                    error={errors.CommissionFrom?.message}
+                    register={register}
                   />
-                  {deliveryDetails.commissionFrom === 'Both' && (
+                  {watch('CommissionFrom') === 'Both' && (
                     <CustomInput
                       variant="floating"
                       borderThickness="2"
                       label="Seller Commission"
-                      value={deliveryDetails.sellerCommission}
-                      onChange={(e) => handleDeliveryDetailChange('sellerCommission', e.target.value)}
+                      id="SellerCommission"
+                      {...register('SellerCommission')}
+                      error={errors.SellerCommission?.message}
                     />
                   )}
-                  {deliveryDetails.commissionFrom === 'Both' && (
+                  {watch('CommissionFrom') === 'Both' && (
                     <CustomInput
                       variant="floating"
                       borderThickness="2"
                       label="Buyer Commission"
-                      value={deliveryDetails.buyerCommission}
-                      onChange={(e) => handleDeliveryDetailChange('buyerCommission', e.target.value)}
+                      id="BuyerCommission"
+                      {...register('BuyerCommission')}
+                      error={errors.BuyerCommission?.message}
                     />
                   )}
                   {commissionTypes.length === 0 && loading ? (
@@ -1374,9 +1362,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     <CustomInputDropdown
                       label="Commission Type"
                       options={commissionTypes}
-                      selectedOption={deliveryDetails.commissionType || ''}
-                      onChange={(value) => handleDeliveryDetailChange('commissionType', value)}
-                      error={errors.commissionType?.message}
+                      selectedOption={watch('CommissionType') || ''}
+                      onChange={(value) => setValue('CommissionType', value, { shouldValidate: true })}
+                      error={errors.CommissionType?.message}
                       register={register}
                     />
                   )}
@@ -1384,46 +1372,52 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     variant="floating"
                     borderThickness="2"
                     label="Commission (%)"
-                    value={deliveryDetails.commissionPercentage}
-                    onChange={(e) => handleDeliveryDetailChange('commissionPercentage', e.target.value)}
+                    id="CommissionPercentage"
+                    {...register('CommissionPercentage')}
+                    error={errors.CommissionPercentage?.message}
                   />
-                 <CustomInput
+                  <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Commission Value"
-                    value={deliveryDetails.commissionValue}
-                    onChange={(e) => handleDeliveryDetailChange('commissionValue', e.target.value)}
+                    id="CommissionValue"
+                    {...register('CommissionValue')}
+                    error={errors.CommissionValue?.message}
                     disabled
                     className="auto-calculated-field"
-
                   />
                   <CustomInputDropdown
                     label="Dispatch Later"
                     options={dispatchLaterOptions}
-                    selectedOption={deliveryDetails.dispatchLater || ''}
-                    onChange={(value) => handleDeliveryDetailChange('dispatchLater', value)}
+                    selectedOption={watch('DispatchLater') || ''}
+                    onChange={(value) => setValue('DispatchLater', value, { shouldValidate: true })}
+                    error={errors.DispatchLater?.message}
+                    register={register}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Seller Remark"
-                    value={deliveryDetails.sellerRemark}
-                    onChange={(e) => handleDeliveryDetailChange('sellerRemark', e.target.value)}
+                    id="SellerRemark"
+                    {...register('SellerRemark')}
+                    error={errors.SellerRemark?.message}
                   />
                   <CustomInput
                     variant="floating"
                     borderThickness="2"
                     label="Buyer Remark"
-                    value={deliveryDetails.buyerRemark}
-                    onChange={(e) => handleDeliveryDetailChange('buyerRemark', e.target.value)}
+                    id="BuyerRemark"
+                    {...register('BuyerRemark')}
+                    error={errors.BuyerRemark?.message}
                   />
                   <CustomInput
                     type="date"
                     variant="floating"
                     borderThickness="2"
                     label="Delivery Date"
-                    value={deliveryDetails.deliveryDate}
-                    onChange={(e) => handleDeliveryDetailChange('deliveryDate', e.target.value)}
+                    id="DeliveryDate"
+                    {...register('DeliveryDate')}
+                    error={errors.DeliveryDate?.message}
                   />
                 </div>
               </div>
@@ -1455,9 +1449,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             variant="floating"
                             borderThickness="2"
                             label="Qty"
-                            value={breakup.qty}
+                            value={breakup.Qty}
                             onChange={(e) =>
-                              handleBuyerDeliveryBreakupChange(index, 'qty', e.target.value)
+                              handleBuyerDeliveryBreakupChange(index, 'Qty', e.target.value)
                             }
                           />
                           <CustomInput
@@ -1465,9 +1459,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             variant="floating"
                             borderThickness="2"
                             label="Del. Date"
-                            value={breakup.deliveryDate}
+                            value={breakup.DeliveryDate}
                             onChange={(e) =>
-                              handleBuyerDeliveryBreakupChange(index, 'deliveryDate', e.target.value)
+                              handleBuyerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)
                             }
                           />
                           <Button
@@ -1511,9 +1505,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             variant="floating"
                             borderThickness="2"
                             label="Qty"
-                            value={breakup.qty}
+                            value={breakup.Qty}
                             onChange={(e) =>
-                              handleSellerDeliveryBreakupChange(index, 'qty', e.target.value)
+                              handleSellerDeliveryBreakupChange(index, 'Qty', e.target.value)
                             }
                           />
                           <CustomInput
@@ -1521,9 +1515,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             variant="floating"
                             borderThickness="2"
                             label="Del. Date"
-                            value={breakup.deliveryDate}
+                            value={breakup.DeliveryDate}
                             onChange={(e) =>
-                              handleSellerDeliveryBreakupChange(index, 'deliveryDate', e.target.value)
+                              handleSellerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)
                             }
                           />
                           <Button
@@ -1563,8 +1557,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           variant="floating"
                           borderThickness="2"
                           label="Sample Quantity"
-                          value={sampleDetails[0].sampleQty}
-                          onChange={(e) => handleSampleDetailChange('sampleQty', e.target.value)}
+                          value={sampleDetails[0].SampleQty}
+                          onChange={(e) => handleSampleDetailChange('SampleQty', e.target.value)}
                         />
                       </div>
                       <div>
@@ -1576,8 +1570,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           variant="floating"
                           borderThickness="2"
                           label="Received Date"
-                          value={sampleDetails[0].sampleReceivedDate}
-                          onChange={(e) => handleSampleDetailChange('sampleReceivedDate', e.target.value)}
+                          value={sampleDetails[0].SampleReceivedDate}
+                          onChange={(e) => handleSampleDetailChange('SampleReceivedDate', e.target.value)}
                         />
                       </div>
                       <div>
@@ -1589,8 +1583,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           variant="floating"
                           borderThickness="2"
                           label="Delivered Date"
-                          value={sampleDetails[0].sampleDeliveredDate}
-                          onChange={(e) => handleSampleDetailChange('sampleDeliveredDate', e.target.value)}
+                          value={sampleDetails[0].SampleDeliveredDate}
+                          onChange={(e) => handleSampleDetailChange('SampleDeliveredDate', e.target.value)}
                         />
                       </div>
                       <div>
@@ -1601,8 +1595,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           variant="floating"
                           borderThickness="2"
                           label="Created By"
-                          value={sampleDetails[0].createdBy}
-                          onChange={(e) => handleSampleDetailChange('createdBy', e.target.value)}
+                          value={sampleDetails[0].CreatedBy}
+                          onChange={(e) => handleSampleDetailChange('CreatedBy', e.target.value)}
                           disabled
                           className="auto-calculated-field"
                         />
@@ -1616,8 +1610,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           variant="floating"
                           borderThickness="2"
                           label="Creation Date"
-                          value={sampleDetails[0].creationDate}
-                          onChange={(e) => handleSampleDetailChange('creationDate', e.target.value)}
+                          value={sampleDetails[0].CreationDate}
+                          onChange={(e) => handleSampleDetailChange('CreationDate', e.target.value)}
                           disabled
                           className="auto-calculated-field"
                         />
@@ -1627,54 +1621,67 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 </div>
               </div>
 
+              <div className="p-4">
+                <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Notes</h2>
+                <textarea
+                  className="w-full p-2 border rounded text-base"
+                  rows={4}
+                  {...register('Notes')}
+                  placeholder="Enter any additional notes"
+                />
+                {errors.Notes && <p className="text-red-500">{errors.Notes.message}</p>}
+              </div>
+
               {showSamplePopup !== null && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                   <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl max-w-3xl w-full shadow-2xl">
                     <h2 className="text-2xl font-bold text-[#06b6d4] dark:text-white mb-6">Additional Sample Information</h2>
-                    {(sampleDetails[0].additionalInfo || []).map((info, infoIndex) => (
+                    {(sampleDetails[0].AdditionalInfo || []).map((info, infoIndex) => (
                       <div key={infoIndex} className="grid grid-cols-3 gap-6 mb-6 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
                         <CustomInputDropdown
                           label="End Use"
                           options={endUses}
-                          selectedOption={info.endUse || ''}
+                          selectedOption={info.EndUse || ''}
                           onChange={(value) =>
-                            handleAdditionalInfoChange(infoIndex, 'endUse', value)
+                            handleAdditionalInfoChange(infoIndex, 'EndUse', value)
                           }
+                          error={errors.SampleDetails?.[0]?.AdditionalInfo?.[infoIndex]?.EndUse?.message}
+                          register={register}
                         />
                         <CustomInput
                           variant="floating"
                           borderThickness="2"
                           label="Count"
-                          value={info.count}
+                          value={info.Count}
                           onChange={(e) =>
-                            handleAdditionalInfoChange(infoIndex, 'count', e.target.value)
+                            handleAdditionalInfoChange(infoIndex, 'Count', e.target.value)
                           }
                         />
                         <CustomInput
                           variant="floating"
                           borderThickness="2"
                           label="Weight"
-                          value={info.weight}
+                          value={info.Weight}
                           onChange={(e) =>
-                            handleAdditionalInfoChange(infoIndex, 'weight', e.target.value)
+                            handleAdditionalInfoChange(infoIndex, 'Weight', e.target.value)
                           }
                         />
                         <CustomInput
                           variant="floating"
                           borderThickness="2"
                           label="Yarn Bags"
-                          value={info.yarnBags}
+                          value={info.YarnBags}
                           onChange={(e) =>
-                            handleAdditionalInfoChange(infoIndex, 'yarnBags', e.target.value)
+                            handleAdditionalInfoChange(infoIndex, 'YarnBags', e.target.value)
                           }
                         />
                         <CustomInput
                           variant="floating"
                           borderThickness="2"
                           label="Labs"
-                          value={info.labs}
+                          value={info.Labs}
                           onChange={(e) =>
-                            handleAdditionalInfoChange(infoIndex, 'labs', e.target.value)
+                            handleAdditionalInfoChange(infoIndex, 'Labs', e.target.value)
                           }
                         />
                       </div>

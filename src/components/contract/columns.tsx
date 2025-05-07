@@ -383,7 +383,7 @@ export const columns = (
           >
             <Eye className="h-4 w-4" />
           </Button>
-          <Link href={`/contracts/edit/${contractId}`}>
+          <Link href={`/contract/edit/${contractId}`}>
             <Button variant="outline" size="sm">
               <Edit className="h-4 w-4" />
             </Button>
