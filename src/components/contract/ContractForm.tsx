@@ -45,8 +45,8 @@ const Schema = z.object({
   companyId: z.string().min(1, 'Company is required'),
   branchId: z.string().min(1, 'Branch is required'),
   contractOwner: z.string().min(1, 'Contract Owner is required'),
-  seller: z.string().optional(),
-  buyer: z.string().optional(),
+  seller: z.string().min(1, 'Seller is required'),
+  buyer: z.string().min(1, 'Buyer is required'),
   referenceNumber: z.string().optional(),
   deliveryDate: z.string().min(1, 'Delivery Date is required'),
   refer: z.string().optional(),
@@ -888,7 +888,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         sellerDeliveryBreakups,
         sampleDetails,
       };
-      console.log('Form Payload:', payload);
+      console.log('Form Payload:', payload); // Debug log
       let response;
       if (id) {
         response = await updateContract(id, payload);
@@ -970,6 +970,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 id="contractOwner"
                 {...register('contractOwner')}
                 error={errors.contractOwner?.message}
+
               />
               <CustomInputDropdown
                 label="Seller"
@@ -1709,7 +1710,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           >
             {id ? 'Update' : 'Save'}
           </Button>
-          <Link href="/contracts">
+          <Link href="/contract">
             <Button
               type="button"
               className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"

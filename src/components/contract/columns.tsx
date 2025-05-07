@@ -4,6 +4,7 @@ import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
+
 export type Contract = {
   id: string;
   contractNumber: string;
