@@ -4,7 +4,6 @@ import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-
 export type Contract = {
   id: string;
   contractNumber: string;
@@ -67,6 +66,7 @@ export type Contract = {
   approvedBy?: string;
   approvedDate?: string;
   endUse?: string;
+  status?: 'Pending' | 'Approved' | 'Canceled' | 'Dispatched';
   buyerDeliveryBreakups?: { qty: string; deliveryDate: string }[];
   sellerDeliveryBreakups?: { qty: string; deliveryDate: string }[];
   sampleDetails?: {
@@ -89,8 +89,31 @@ export type Contract = {
 
 export const columns = (
   handleDeleteOpen: (id: string) => void,
-  handleViewOpen: (id: string) => void
+  handleViewOpen: (id: string) => void,
+  handleCheckboxChange: (id: string, checked: boolean) => void
 ): ColumnDef<Contract>[] => [
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        checked={table.getIsAllRowsSelected()}
+        onChange={table.getToggleAllRowsSelectedHandler()}
+        className="h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
+      />
+    ),
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        checked={row.getIsSelected()}
+        onChange={(e) => {
+          row.getToggleSelectedHandler()(e);
+          handleCheckboxChange(row.original.id, e.target.checked);
+        }}
+        className="h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
+      />
+    ),
+  },
   {
     accessorKey: 'contractNumber',
     header: ({ column }) => (
@@ -329,46 +352,36 @@ export const columns = (
   },
   {
     accessorKey: 'name',
-    header: '',
+    header: 'Name',
   },
-  // {
-  //   accessorKey: 'buyerDeliveryBreakups',
-  //   header: 'Buyer Delivery Breakups',
-  //   cell: ({ row }) => {
-  //     const breakups = row.original.buyerDeliveryBreakups || [];
-  //     return breakups.length > 0
-  //       ? breakups.map((b, i) => (
-  //           <div key={i}>{`Qty: ${b.qty}, Date: ${b.deliveryDate}`}</div>
-  //         ))
-  //       : '-';
-  //   },
-  // },
-  // {
-  //   accessorKey: 'sellerDeliveryBreakups',
-  //   header: 'Seller Delivery Breakups',
-  //   cell: ({ row }) => {
-  //     const breakups = row.original.sellerDeliveryBreakups || [];
-  //     return breakups.length > 0
-  //       ? breakups.map((b, i) => (
-  //           <div key={i}>{`Qty: ${b.qty}, Date: ${b.deliveryDate}`}</div>
-  //         ))
-  //       : '-';
-  //   },
-  // },
-  // {
-  //   accessorKey: 'sampleDetails',
-  //   header: 'Sample Details',
-  //   cell: ({ row }) => {
-  //     const samples = row.original.sampleDetails || [];
-  //     return samples.length > 0
-  //       ? samples.map((s, i) => (
-  //           <div key={i}>
-  //             {`Qty: ${s.sampleQty}, Received: ${s.sampleReceivedDate}, Delivered: ${s.sampleDeliveredDate}`}
-  //           </div>
-  //         ))
-  //       : '-';
-  //   },
-  // },
+  {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = row.original.status || 'Pending';
+      const getStatusStyles = (status: string) => {
+        switch (status) {
+          case 'Pending':
+            return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+          case 'Approved':
+            return 'bg-green-100 text-green-800 border-green-300';
+          case 'Canceled':
+            return 'bg-red-100 text-red-800 border-red-300';
+          case 'Dispatched':
+            return 'bg-blue-100 text-blue-800 border-blue-300';
+          default:
+            return 'bg-gray-100 text-gray-800 border-gray-300';
+        }
+      };
+      return (
+        <div
+          className={`inline-block px-4 py-1 rounded-full border font-medium text-sm ${getStatusStyles(status)}`}
+        >
+          {status}
+        </div>
+      );
+    },
+  },
   {
     header: 'Actions',
     id: 'actions',

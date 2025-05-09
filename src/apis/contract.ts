@@ -85,9 +85,23 @@ const getAllAccountHierarchy = async () => {
     };
 
     return transformHierarchy(response.data);
-    
   } catch (error: any) {
     throw new Error(`Failed to fetch account hierarchy: ${error.message}`);
+  }
+};
+
+const updateContractStatus = async (contractStatus: { id: string; status: string }) => {
+  try {
+    const response = await apiFetch('Contract/status', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ Id: contractStatus.id, Status: contractStatus.status }),
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
   }
 };
 
@@ -98,4 +112,5 @@ export {
   updateContract,
   deleteContract,
   getAllAccountHierarchy,
+  updateContractStatus,
 };
