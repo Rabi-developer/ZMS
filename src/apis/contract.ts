@@ -93,7 +93,7 @@ const getAllAccountHierarchy = async () => {
 const updateContractStatus = async (contractStatus: { id: string; status: string }) => {
   try {
     const response = await apiFetch('Contract/status', {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },

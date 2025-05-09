@@ -9,7 +9,7 @@ import { toast } from 'react-toastify';
 
 // Extend Contract type to include status
 interface ExtendedContract extends Contract {
-  status?: 'Pending' | 'Approved' | 'Canceled' | 'Dispatched';
+  status?: 'Pending' | 'Approved' | 'Canceled' | 'Closed Dispatch' | 'Closed Payment' | 'Complete Closed';
 }
 
 const ContractList = () => {
@@ -188,7 +188,7 @@ const ContractList = () => {
       />
 
       {/* Bulk Status Update Checkboxes */}
-      <div className="mt-4 space-y-2">
+      {/* <div className="mt-4 space-y-2">
         <label className="text-sm font-medium text-gray-700">
           Update Status for Selected Contracts
         </label>
@@ -219,7 +219,7 @@ const ContractList = () => {
             );
           })}
         </div>
-      </div>
+      </div> */}
 
       {openDelete && (
         <DeleteConfirmModel

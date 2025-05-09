@@ -1,8 +1,12 @@
+
 'use client';
 import { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { updateContractStatus } from '@/apis/contract';
+import { toast } from 'react-toastify';
+import React from 'react';
 
 export type Contract = {
   id: string;
@@ -66,7 +70,7 @@ export type Contract = {
   approvedBy?: string;
   approvedDate?: string;
   endUse?: string;
-  status?: 'Pending' | 'Approved' | 'Canceled' | 'Dispatched';
+  status?: 'Pending' | 'Approved' | 'Canceled' | 'Closed Dispatch' | 'Closed Payment' | 'Complete Closed';
   buyerDeliveryBreakups?: { qty: string; deliveryDate: string }[];
   sellerDeliveryBreakups?: { qty: string; deliveryDate: string }[];
   sampleDetails?: {
@@ -86,6 +90,15 @@ export type Contract = {
     }[];
   }[];
 };
+
+const statusOptions = [
+  'Pending',
+  'Approved',
+  'Canceled',
+  'Closed Dispatch',
+  'Closed Payment',
+  'Complete Closed',
+];
 
 export const columns = (
   handleDeleteOpen: (id: string) => void,
@@ -358,27 +371,33 @@ export const columns = (
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => {
-      const status = row.original.status || 'Pending';
-      const getStatusStyles = (status: string) => {
-        switch (status) {
-          case 'Pending':
-            return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-          case 'Approved':
-            return 'bg-green-100 text-green-800 border-green-300';
-          case 'Canceled':
-            return 'bg-red-100 text-red-800 border-red-300';
-          case 'Dispatched':
-            return 'bg-blue-100 text-blue-800 border-blue-300';
-          default:
-            return 'bg-gray-100 text-gray-800 border-gray-300';
-        }
-      };
+      const [updating, setUpdating] = React.useState(false);
+      const contract = row.original;
       return (
-        <div
-          className={`inline-block px-4 py-1 rounded-full border font-medium text-sm ${getStatusStyles(status)}`}
+        <select
+          className="border rounded px-2 py-1 text-sm"
+          value={contract.status || 'Pending'}
+          disabled={updating}
+          onChange={async (e) => {
+            const newStatus = e.target.value;
+            setUpdating(true);
+            try {
+              await updateContractStatus({ id: contract.id, status: newStatus });
+              toast('Status updated!', { type: 'success' });
+              // Optionally, trigger a refresh if needed
+            } catch (err) {
+              toast('Failed to update status', { type: 'error' });
+            } finally {
+              setUpdating(false);
+            }
+          }}
         >
-          {status}
-        </div>
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
       );
     },
   },
