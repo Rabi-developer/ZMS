@@ -1,11 +1,12 @@
 'use client';
 import React from 'react';
 import { FaCheck } from 'react-icons/fa';
-import { getAllContract, deleteContract, updateContract } from '@/apis/contract';
+import { getAllContract, deleteContract, updateContractStatus } from '@/apis/contract';
 import { columns, Contract } from './columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
+import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
 
 // Extend Contract type to include status
 interface ExtendedContract extends Contract {
@@ -25,20 +26,53 @@ const ContractList = () => {
   const [selectedStatusFilter, setSelectedStatusFilter] = React.useState<string>('All');
   const [selectedContractIds, setSelectedContractIds] = React.useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = React.useState<string | null>(null);
+  const [updating, setUpdating] = React.useState(false);
+ 
+    const statusOptions = ['All', 'Pending', 'Approved', 'Canceled', 'Closed Dispatch','Closed Payment','Complete Closed' ];
 
-  const statusOptions = ['All', 'Pending', 'Approved', 'Canceled', 'Dispatched'];
-  const statusSteps = ['Pending', 'Approved', 'Canceled', 'Dispatched'];
   const statusOptionsConfig = [
     { id: 1, name: 'Pending', color: '#eab308' },
     { id: 2, name: 'Approved', color: '#22c55e' },
     { id: 3, name: 'Canceled', color: '#ef4444' },
-    { id: 4, name: 'Dispatched', color: '#3b82f6' },
+    { id: 4, name: 'Closed Dispatch', color: '#3b82f6' },
+    { id: 5, name: 'Closed Payment', color: '#8b5cf6' },
+    { id: 6, name: 'Complete Closed', color: '#ec4899' },
   ];
+
+  // Define dropdown options with 'All' included
+  const dropdownOptions = [
+    { id: 0, name: 'All' },
+    ...statusOptionsConfig.map((option) => ({
+      id: option.id,
+      name: option.name,
+    })),
+  ];
+
+  // Function to get status styles for the view modal
+  const getStatusStyles = (status: string) => {
+    switch (status) {
+      case 'Pending':
+        return 'bg-[#eab308]/10 text-[#eab308] border-[#eab308]';
+      case 'Approved':
+        return 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]';
+      case 'Canceled':
+        return 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]';
+      case 'Closed Dispatch':
+        return 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]';
+      case 'Closed Payment':
+        return 'bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]';
+      case 'Complete Closed':
+        return 'bg-[#ec4899]/10 text-[#ec4899] border-[#ec4899]';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
 
   const fetchContracts = async () => {
     try {
       setLoading(true);
       const response = await getAllContract(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      console.log('Fetched contracts:', response.data);
       setContracts(response.data);
     } catch (error) {
       console.error('Error fetching contracts:', error);
@@ -52,16 +86,15 @@ const ContractList = () => {
     fetchContracts();
   }, [pageIndex, pageSize]);
 
-  // Filter contracts based on selected status
   React.useEffect(() => {
-    if (selectedStatusFilter === 'All') {
-      setFilteredContracts(contracts);
-    } else {
-      setFilteredContracts(
-        contracts.filter((contract) => contract.status === selectedStatusFilter)
-      );
-    }
-  }, [contracts, selectedStatusFilter]);
+  if (selectedStatusFilter === 'All') {
+    setFilteredContracts(contracts);
+  } else {
+    setFilteredContracts(
+      contracts.filter((contract) => contract.status === selectedStatusFilter)
+    );
+  }
+}, [contracts, selectedStatusFilter]);
 
   const handleDelete = async () => {
     try {
@@ -89,6 +122,7 @@ const ContractList = () => {
     const contract = contracts.find((item) => item.id === contractId);
     setSelectedContract(contract || null);
     setOpenView(true);
+    console.log('Selected contract for view:', contract);
   };
 
   const handleViewClose = () => {
@@ -96,71 +130,66 @@ const ContractList = () => {
     setSelectedContract(null);
   };
 
-  const handleStatusUpdate = async (contractId: string, newStatus: string) => {
-    try {
-      await updateContract(contractId, { status: newStatus });
-      toast('Contract Status Updated Successfully', { type: 'success' });
-      fetchContracts();
-    } catch (error) {
-      console.error('Failed to update contract status:', error);
-      toast('Failed to update contract status', { type: 'error' });
-    }
-  };
-
   const handleCheckboxChange = (contractId: string, checked: boolean) => {
-    setSelectedContractIds((prev) =>
-      checked ? [...prev, contractId] : prev.filter((id) => id !== contractId)
+    setSelectedContractIds((prev) => {
+      const newSelectedIds = checked
+        ? [...prev, contractId]
+        : prev.filter((id) => id !== contractId);
+
+      // Determine the status to highlight based on selected contracts
+      if (newSelectedIds.length === 0) {
+        // No contracts selected, clear status
+        setSelectedBulkStatus(null);
+      } else if (newSelectedIds.length === 1) {
+        // Single contract selected, set status to its status
+        const selectedContract = contracts.find((c) => c.id === newSelectedIds[0]);
+        setSelectedBulkStatus(selectedContract?.status || 'Pending');
+      } else {
+        // Multiple contracts selected, check if they have the same status
+        const selectedContracts = contracts.filter((c) => newSelectedIds.includes(c.id));
+        const statuses = selectedContracts.map((c) => c.status || 'Pending');
+        const allSameStatus = statuses.every((status) => status === statuses[0]);
+        setSelectedBulkStatus(allSameStatus ? statuses[0] : null);
+      }
+
+      console.log('Selected contract IDs:', newSelectedIds);
+      return newSelectedIds;
+    });
+  };
+
+ const handleBulkStatusUpdate = async (newStatus: string) => {
+  if (selectedContractIds.length === 0) {
+    toast('Please select at least one contract', { type: 'warning' });
+    return;
+  }
+  try {
+    setUpdating(true);
+    console.log('Updating status for contracts:', selectedContractIds, 'to', newStatus);
+    const updatePromises = selectedContractIds.map((id) =>
+      updateContractStatus({ id, status: newStatus }).then((response) => {
+        console.log(`Update response for contract ${id}:`, response);
+        return response;
+      }).catch((error) => {
+        console.error(`Error updating contract ${id}:`, error);
+        throw error;
+      })
     );
-    // Clear selectedBulkStatus when selection changes
-    if (!checked) {
-      setSelectedBulkStatus(null);
-    }
-  };
-
-  const handleBulkStatusUpdate = async (newStatus: string) => {
-    if (selectedContractIds.length === 0) {
-      return;
-    }
-    try {
-      setLoading(true);
-      await Promise.all(
-        selectedContractIds.map((id) =>
-          updateContract(id, { status: newStatus })
-        )
-      );
-      setSelectedBulkStatus(newStatus);
-      setSelectedContractIds([]);
-      fetchContracts();
-    } catch (error) {
-      console.error('Failed to update selected contracts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Status color mapping for table badges
-  const getStatusStyles = (status: string) => {
-    switch (status) {
-      case 'Pending':
-        return 'bg-[#eab308]/10 text-[#eab308] border-[#eab308]';
-      case 'Approved':
-        return 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]';
-      case 'Canceled':
-        return 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]';
-      case 'Closed Dispatch':
-        return 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]';
-        case 'Closed Payment':
-        return 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]';
-        case 'Compelete Closed':
-        return 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
+    await Promise.all(updatePromises);
+    setSelectedBulkStatus(newStatus);
+    setSelectedContractIds([]); // Clear selections after update
+    setSelectedStatusFilter(newStatus); // Update the filter to show contracts with the new status
+    toast('Contracts Status Updated Successfully', { type: 'success' });
+    await fetchContracts(); // Ensure fresh data is fetched
+  } catch (error: any) {
+    console.error('Failed to update selected contracts:', error);
+    toast(`Failed to update contract status: ${error.message || 'Unknown error'}`, { type: 'error' });
+  } finally {
+    setUpdating(false);
+  }
+};
 
   return (
     <div className="container bg-white rounded-md p-6">
-      {/* Status Filter */}
       <div className="mb-4 flex items-center">
         <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
         <select
@@ -175,7 +204,7 @@ const ContractList = () => {
           ))}
         </select>
       </div>
-
+       <div className=''> 
       <DataTable
         columns={columns(handleDeleteOpen, handleViewOpen, handleCheckboxChange)}
         data={filteredContracts}
@@ -186,40 +215,32 @@ const ContractList = () => {
         pageSize={pageSize}
         setPageSize={setPageSize}
       />
-
-      {/* Bulk Status Update Checkboxes */}
-      {/* <div className="mt-4 space-y-2">
-        <label className="text-sm font-medium text-gray-700">
-          Update Status for Selected Contracts
-        </label>
-        <div className="flex flex-wrap gap-4">
+      </div>
+      {/* Status Update Buttons */}
+        <div className="mt-4 space-y-2 border-t-2 border-b-2   h-[10vh]">
+        <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
             return (
-              <label
+              <button
                 key={option.id}
-                className={`relative flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
+                onClick={() => handleBulkStatusUpdate(option.name)}
+                disabled={updating}
+                className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
                   ${isSelected
                     ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]`
                     : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                  }`}
+                  } ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => handleBulkStatusUpdate(option.name)}
-                  className="hidden"
-                  disabled={selectedContractIds.length === 0 || loading}
-                />
-                <span className="text-sm font-semibold">{option.name}</span>
+                <span className="text-sm font-semibold text-center">{option.name}</span>
                 {isSelected && (
                   <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />
                 )}
-              </label>
+              </button>
             );
           })}
         </div>
-      </div> */}
+      </div>
 
       {openDelete && (
         <DeleteConfirmModel
@@ -242,44 +263,10 @@ const ContractList = () => {
                 ×
               </button>
             </div>
-            <div className="p-6 bg-gray-50">
+            <div className="p-6 flex bg-gray-50">
               {selectedContract && (
-                <div className="space-y-6">
-                  <div className="col-span-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Contract Status
-                    </label>
-                    <div className="flex items-center justify-between bg-gray-100 p-4 rounded-lg">
-                      {statusSteps.map((status, index) => (
-                        <div key={status} className="flex flex-col items-center relative">
-                          <input
-                            type="radio"
-                            id={`status-${status}`}
-                            value={status}
-                            checked={(selectedContract.status || 'Pending') === status}
-                            onChange={() => handleStatusUpdate(selectedContract.id, status)}
-                            className="h-6 w-6 text-[#154593] focus:ring-[#0e61e7] cursor-pointer"
-                          />
-                          <label
-                            htmlFor={`status-${status}`}
-                            className="text-sm mt-2 text-gray-700"
-                          >
-                            {status}
-                          </label>
-                          {index < statusSteps.length - 1 && (
-                            <div
-                              className={`absolute top-3 left-1/2 w-1/2 h-1 ${
-                                statusSteps.indexOf(selectedContract.status || 'Pending') > index
-                                  ? 'bg-[#154593]'
-                                  : 'bg-gray-300'
-                              }`}
-                            />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-5">
+                <div className=" flex space-y-6">
+                  <div className="flex grid grid-cols-2 gap-4 gap-5">
                     <div className="group">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
                         Contract Number
@@ -350,6 +337,20 @@ const ContractList = () => {
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
                         {selectedContract.totalAmount}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Status
+                      </span>
+                      <div>
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
+                            selectedContract.status || 'Pending'
+                          )}`}
+                        >
+                          {selectedContract.status || 'Pending'}
+                        </span>
                       </div>
                     </div>
                   </div>

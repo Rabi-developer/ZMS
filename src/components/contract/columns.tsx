@@ -1,12 +1,8 @@
-
 'use client';
 import { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { updateContractStatus } from '@/apis/contract';
-import { toast } from 'react-toastify';
-import React from 'react';
 
 export type Contract = {
   id: string;
@@ -91,15 +87,6 @@ export type Contract = {
   }[];
 };
 
-const statusOptions = [
-  'Pending',
-  'Approved',
-  'Canceled',
-  'Closed Dispatch',
-  'Closed Payment',
-  'Complete Closed',
-];
-
 export const columns = (
   handleDeleteOpen: (id: string) => void,
   handleViewOpen: (id: string) => void,
@@ -183,30 +170,30 @@ export const columns = (
     accessorKey: 'referdate',
     header: 'Refer Date',
   },
-  {
-    accessorKey: 'fabricType',
-    header: 'Fabric Type',
-  },
-  {
-    accessorKey: 'descriptionName',
-    header: 'Description',
-  },
-  {
-    accessorKey: 'stuff',
-    header: 'Stuff',
-  },
-  {
-    accessorKey: 'blendRatio',
-    header: 'Blend Ratio',
-  },
-  {
-    accessorKey: 'blendType',
-    header: 'Blend Type',
-  },
-  {
-    accessorKey: 'warpCount',
-    header: 'Warp Count',
-  },
+  // {
+  //   accessorKey: 'fabricType',
+  //   header: 'Fabric Type',
+  // },
+  // {
+  //   accessorKey: 'descriptionName',
+  //   header: 'Description',
+  // },
+  // {
+  //   accessorKey: 'stuff',
+  //   header: 'Stuff',
+  // },
+  // {
+  //   accessorKey: 'blendRatio',
+  //   header: 'Blend Ratio',
+  // },
+  // {
+  //   accessorKey: 'blendType',
+  //   header: 'Blend Type',
+  // },
+  // {
+  //   accessorKey: 'warpCount',
+  //   header: 'Warp Count',
+  // },
   {
     accessorKey: 'warpYarnType',
     header: 'Warp Yarn Type',
@@ -366,40 +353,6 @@ export const columns = (
   {
     accessorKey: 'name',
     header: 'Name',
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => {
-      const [updating, setUpdating] = React.useState(false);
-      const contract = row.original;
-      return (
-        <select
-          className="border rounded px-2 py-1 text-sm"
-          value={contract.status || 'Pending'}
-          disabled={updating}
-          onChange={async (e) => {
-            const newStatus = e.target.value;
-            setUpdating(true);
-            try {
-              await updateContractStatus({ id: contract.id, status: newStatus });
-              toast('Status updated!', { type: 'success' });
-              // Optionally, trigger a refresh if needed
-            } catch (err) {
-              toast('Failed to update status', { type: 'error' });
-            } finally {
-              setUpdating(false);
-            }
-          }}
-        >
-          {statusOptions.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
-      );
-    },
   },
   {
     header: 'Actions',
