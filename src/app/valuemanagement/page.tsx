@@ -38,6 +38,13 @@ const forms = [
     description: 'Commision Type',
     icon: GiPayMoney,
   },
+  {
+    name: 'Vehicle Type',
+    listRoute: '/vehicletype',
+    createRoute: '/vehicletype/create',
+    description: 'Vehicle Type',
+    icon: GiPayMoney,
+  },
 
 
 
