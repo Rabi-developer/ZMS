@@ -14,12 +14,10 @@ import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
 import { Contract } from '../contract/columns';
+import { createDispatchNote, updateDispatchNote } from '@/apis/dispatchnote';
 
 // Placeholder API for creating dispatch note (implement as needed)
-const createDispatchNote = async (payload: any) => {
-  console.log('Creating dispatch note:', payload);
-  return { success: true };
-};
+
 
 // Schema for form validation
 const DispatchNoteSchema = z.object({
@@ -38,7 +36,7 @@ type FormData = z.infer<typeof DispatchNoteSchema>;
 
 // Extend Contract type (status included but not displayed)
 interface ExtendedContract extends Contract {
-
+//as main issue han
 }
 
 interface CustomDropdownProps {
@@ -177,6 +175,7 @@ const DispatchNote = () => {
     setValue('ContractNumber', contract.contractNumber, { shouldValidate: true });
     console.log('Selected contract:', contract);
   };
+  
 
   const onSubmit = async (data: FormData) => {
     try {

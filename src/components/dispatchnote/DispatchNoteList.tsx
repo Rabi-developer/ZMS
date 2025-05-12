@@ -195,6 +195,15 @@ const DispatchNoteList = () => {
                     </div>
                   </div>
 
+                </div>
+              )}
+            </div>
+            <div className="absolute top-0 left-0 w-24 h-24 bg-cyan-400 opacity-10 rounded-full -translate-x-12 -translate-y-12 pointer-events-none" />
+            <div className="absolute bottom-0 right-0 w-24 h-24 bg-blue-400 opacity-10 rounded-full translate-x-12 translate-y-12 pointer-events-none" />
+          </div>
+        </div>
+      )}
+      
                   <div className="mt-4">
                     <h2 className="text-xl text-[#06b6d4] font-bold">Related Contracts</h2>
                     <div className="border rounded p-4 mt-2">
@@ -231,14 +240,6 @@ const DispatchNoteList = () => {
                       )}
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-            <div className="absolute top-0 left-0 w-24 h-24 bg-cyan-400 opacity-10 rounded-full -translate-x-12 -translate-y-12 pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-24 h-24 bg-blue-400 opacity-10 rounded-full translate-x-12 translate-y-12 pointer-events-none" />
-          </div>
-        </div>
-      )}
     </div>
   );
 };
