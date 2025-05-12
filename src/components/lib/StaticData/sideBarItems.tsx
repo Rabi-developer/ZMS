@@ -242,8 +242,8 @@ export const sideBarItems = [
   color: '#33a4d8',
 },
 {
-  text: "",
-  href: "/",
+  text: "Dispatch Note",
+  href: "/dispatchnote",
   icon: PiWebhooksLogoFill,
   color: '#33a4d8',
 },

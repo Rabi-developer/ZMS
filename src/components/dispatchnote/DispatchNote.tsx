@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
-import { Contract } from './columns'; 
+import { Contract } from '../contract/columns';
 
 // Placeholder API for creating dispatch note (implement as needed)
 const createDispatchNote = async (payload: any) => {
@@ -38,7 +38,7 @@ type FormData = z.infer<typeof DispatchNoteSchema>;
 
 // Extend Contract type (status included but not displayed)
 interface ExtendedContract extends Contract {
-  status?: string;
+
 }
 
 interface CustomDropdownProps {
@@ -183,7 +183,7 @@ const DispatchNote = () => {
       await createDispatchNote(data);
       toast('Dispatch Note Created Successfully', { type: 'success' });
       reset();
-      router.push('/dispatch-notes');
+      router.push('/dispatchnote');
     } catch (error) {
       toast('Error creating dispatch note', { type: 'error' });
       console.error('Error submitting form:', error);
@@ -301,6 +301,9 @@ const DispatchNote = () => {
                         <th className="p-3 font-medium">Seller</th>
                         <th className="p-3 font-medium">Buyer</th>
                         <th className="p-3 font-medium">Date</th>
+                        <th className="p-3 font-medium">Quantity</th>
+                        <th className="p-3 font-medium">Total Amount</th>
+
                       </tr>
                     </thead>
                     <tbody>
@@ -317,6 +320,8 @@ const DispatchNote = () => {
                             <td className="p-3">{seller ? seller.name : contract.seller || '-'}</td>
                             <td className="p-3">{buyer ? buyer.name : contract.buyer || '-'}</td>
                             <td className="p-3">{contract.date || '-'}</td>
+                            <td className="p-3">{contract.quantity || '-'}</td>
+                            <td className="p-3">{contract.totalAmount || '-'}</td>
                           </tr>
                         );
                       })}
@@ -339,7 +344,7 @@ const DispatchNote = () => {
           >
             Save
           </Button>
-          <Link href="/dispatch-notes">
+          <Link href="/dispatchnote">
             <Button
               type="button"
               className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"

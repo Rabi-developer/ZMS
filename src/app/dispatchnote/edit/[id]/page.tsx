@@ -1,11 +1,11 @@
+import DispatchNote from '@/components/dispatchnote/DispatchNote'
 import MainLayout from '@/components/MainLayout/MainLayout'
-import DispatchNoteList from '@/components/dispatchnote/DispatchNoteList'
 
 const DescriptionPage = () => {
 
     return (
         <MainLayout>
-            <DispatchNoteList/>
+            <DispatchNote/>
         </MainLayout>
     )
 }
