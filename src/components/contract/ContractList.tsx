@@ -176,10 +176,10 @@ const ContractList = () => {
     );
     await Promise.all(updatePromises);
     setSelectedBulkStatus(newStatus);
-    setSelectedContractIds([]); // Clear selections after update
-    setSelectedStatusFilter(newStatus); // Update the filter to show contracts with the new status
+    setSelectedContractIds([]); 
+    setSelectedStatusFilter(newStatus); 
     toast('Contracts Status Updated Successfully', { type: 'success' });
-    await fetchContracts(); // Ensure fresh data is fetched
+    await fetchContracts();
   } catch (error: any) {
     console.error('Failed to update selected contracts:', error);
     toast(`Failed to update contract status: ${error.message || 'Unknown error'}`, { type: 'error' });
@@ -192,7 +192,7 @@ const ContractList = () => {
     <div className="container bg-white rounded-md p-6">
       <div className="mb-4 flex items-center">
         <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
-        <select
+        <select 
           value={selectedStatusFilter}
           onChange={(e) => setSelectedStatusFilter(e.target.value)}
           className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -217,7 +217,7 @@ const ContractList = () => {
       />
       </div>
       {/* Status Update Buttons */}
-        <div className="mt-4 space-y-2 border-t-2 border-b-2   h-[10vh]">
+        <div className="mt-4 space-y-2 border-t-2  h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;

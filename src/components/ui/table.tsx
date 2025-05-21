@@ -198,7 +198,7 @@ export function DataTable<TData, TValue>({
   return (
     <>
     <div className="dark:bg-[#030630] rounded"> 
-      <div className="flex justify-between px-9 py-4 mt-10 ">
+      <div className="flex justify-between px-9 mt-2  ">
         {/* Create Button */}
         {link && (
             <Button
@@ -210,7 +210,7 @@ export function DataTable<TData, TValue>({
             </Button>
           )}
 
-   <div className="flex gap-2">
+   <div className="flex gap-2 mt-2">
       {/* Search Bar */}
       {hide && (
           <div className="relative max-w-sm w-full">
@@ -229,7 +229,7 @@ export function DataTable<TData, TValue>({
         
              {/* Column Filter */}
                 <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild>
               <Button variant="outline" className="gap-2 bg-white  border-[#06b6d4] focus:ring-2 focus:ring-[#0891b2] transition-all duration-200" >
                 <FaFilter
                 
@@ -253,54 +253,56 @@ export function DataTable<TData, TValue>({
   </div>
 
       </div>
-
-      <div className=" overflow-x-auto mt-6 rounded-lg  ml-8 ">
-        <Table className=" border-inherit overflow-x-auto w-full">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} >
-                {headerGroup.headers.map((header) => (
-                    <TableHead 
-                    key={header.id} 
-                    className="text-sm font-semibold border-t-2 border-b-2 border-[#bfdbfe] bg-[#e0f2fe] text-[#06b6d4] dark:text-[#387fbf]" 
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                  
-                ))}
-              </TableRow>
+<div>
+ <div className="overflow-x-auto mt-7 rounded-lg ml-8">
+  <div className="max-h-[500px] overflow-y-auto">
+    <Table className="border-inherit w-full">
+      <TableHeader className=" bg-[#e0f2fe]">
+        {table.getHeaderGroups().map((headerGroup) => (
+          <TableRow
+           key={headerGroup.id}>
+            {headerGroup.headers.map((header) => (
+              <TableHead
+                key={header.id}
+                className="text-sm font-semibold border-t-2 border-b-2 border-[#bfdbfe] text-[#06b6d4] dark:text-[#387fbf]   w-[10.1vh]"
+              >
+                {header.isPlaceholder
+                  ? null
+                  : flexRender(header.column.columnDef.header, header.getContext())}
+              </TableHead>
             ))}
-          </TableHeader>
-          <TableBody className="border-b-2 border-[#bfdbfe]">
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-4 text-sm text-gray-600">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-              <TableCell colSpan={columns.length} className="text-center text-gray-500 py-8">
-                {loading ? (
-                  <Loader />
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <FaPersonCircleXmark size={32} className="mb-2 text-gray-500" />
-                    <span>No Record Found</span>
-                  </div>
-                )}
-              </TableCell>
+          </TableRow>
+        ))}
+      </TableHeader>
+      <TableBody className="border-b-2 border-[#bfdbfe] ">
+        {table.getRowModel().rows.length ? (
+          table.getRowModel().rows.map((row) => (
+            <TableRow key={row.id} className="border-b  border-gray-200 hover:bg-gray-100">
+              {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id} className="py-1 pl-2 px-1 text- text-gray-600">
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
             </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+          ))
+        ) : (
+          <TableRow>
+            <TableCell colSpan={columns.length} className="text-center text-gray-500 py-8">
+              {loading ? (
+                <Loader />
+              ) : (
+                <div className="flex flex-col items-center">
+                  <FaPersonCircleXmark size={32} className="mb-2 text-gray-500" />
+                  <span>No Record Found</span>
+                </div>
+              )}
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  </div>
+</div>
 
 
 {/* Pagination Controls */}
@@ -361,6 +363,7 @@ export function DataTable<TData, TValue>({
       <FaArrowRight size={14} />
     </button>
   </div>
+</div>
 </div>
 </div>
 

@@ -48,7 +48,7 @@ const FormsOverview = () => {
       <div className="container mx-auto px-4 py-12">
       
 <div className="relative mb-12">
-  <div className="absolute inset-0 bg-gradient-to-r from-[#06b6d4] via-[#3b82f6] to-[#0891b2] opacity-90 blur-lg rounded-3xl animate-pulse"></div>
+  <div className="absolute inset-0 bg-gradient-to-r from-[#0891b2] opacity-90 blur-lg rounded-3xl animate-pulse"></div>
 
   <div className="relative bg-white/30 dark:bg-[#0f172a]/40 backdrop-blur-2xl p-10 rounded-3xl shadow-2xl border border-white/30 transition-all duration-300 hover:scale-105 hover:shadow-3xl">
     

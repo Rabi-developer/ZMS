@@ -5,13 +5,17 @@ import { columns, DispatchNote } from './columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllDispatchNotes, deleteDispatchNote } from '@/apis/dispatchnote';
-import { getAllContract } from '@/apis/contract'; 
+import { getAllContract } from '@/apis/contract';
+import { getAllSellers } from '@/apis/seller';
+import { getAllBuyer } from '@/apis/buyer';
 import { Contract } from '../contract/columns';
 import { MdLocalShipping } from 'react-icons/md';
 
 const DispatchNoteList = () => {
   const [dispatchNotes, setDispatchNotes] = React.useState<DispatchNote[]>([]);
   const [contracts, setContracts] = React.useState<Contract[]>([]);
+  const [sellers, setSellers] = React.useState<{ id: string; name: string }[]>([]);
+  const [buyers, setBuyers] = React.useState<{ id: string; name: string }[]>([]);
   const [filteredContracts, setFilteredContracts] = React.useState<Contract[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [openDelete, setOpenDelete] = React.useState(false);
@@ -22,6 +26,7 @@ const DispatchNoteList = () => {
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
 
+  // Fetch Dispatch Notes
   const fetchDispatchNotes = async () => {
     try {
       setLoading(true);
@@ -36,6 +41,7 @@ const DispatchNoteList = () => {
     }
   };
 
+  // Fetch Contracts
   const fetchContracts = async () => {
     try {
       setLoading(true);
@@ -50,11 +56,53 @@ const DispatchNoteList = () => {
     }
   };
 
+  // Fetch Sellers
+  const fetchSellers = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllSellers();
+      const sellerData = response.data.map((seller: any) => ({
+        id: seller.id,
+        name: seller.sellerName,
+      }));
+      setSellers(sellerData);
+      console.log('Fetched sellers:', sellerData);
+    } catch (error) {
+      console.error('Error fetching sellers:', error);
+      toast('Failed to fetch sellers', { type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch Buyers
+  const fetchBuyers = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllBuyer();
+      const buyerData = response.data.map((buyer: any) => ({
+        id: buyer.id,
+        name: buyer.buyerName,
+      }));
+      setBuyers(buyerData);
+      console.log('Fetched buyers:', buyerData);
+    } catch (error) {
+      console.error('Error fetching buyers:', error);
+      toast('Failed to fetch buyers', { type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data on mount
   React.useEffect(() => {
     fetchDispatchNotes();
     fetchContracts();
+    fetchSellers();
+    fetchBuyers();
   }, [pageIndex, pageSize]);
 
+  // Handle Delete
   const handleDelete = async () => {
     try {
       await deleteDispatchNote(deleteId);
@@ -77,14 +125,16 @@ const DispatchNoteList = () => {
     setDeleteId('');
   };
 
+  // Handle View Modal Open
   const handleViewOpen = (dispatchNoteId: string) => {
     const dispatchNote = dispatchNotes.find((item) => item.id === dispatchNoteId);
     setSelectedDispatchNote(dispatchNote || null);
     setOpenView(true);
 
     if (dispatchNote) {
+      // Filter contracts by seller and buyer
       const relatedContracts = contracts.filter(
-        (contract) => contract.contractNumber === dispatchNote.contractNumber
+        (contract) => contract.seller === dispatchNote.seller && contract.buyer === dispatchNote.buyer
       );
       setFilteredContracts(relatedContracts);
       console.log('Filtered contracts for dispatch note:', relatedContracts);
@@ -127,119 +177,154 @@ const DispatchNoteList = () => {
         />
       )}
 
-      {openView && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
-            <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-5 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
-                Dispatch Note Details
-              </h2>
-              <button
-                className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
-                onClick={handleViewClose}
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 bg-gray-50">
-              {selectedDispatchNote && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="group">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Date
-                      </span>
-                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedDispatchNote.date}
-                      </div>
-                    </div>
-                    <div className="group">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Bilty Number
-                      </span>
-                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedDispatchNote.bilty}
-                      </div>
-                    </div>
-                    <div className="group">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Seller
-                      </span>
-                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedDispatchNote.seller}
-                      </div>
-                    </div>
-                    <div className="group">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Buyer
-                      </span>
-                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedDispatchNote.buyer}
-                      </div>
-                    </div>
-                    <div className="group">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Contract Number
-                      </span>
-                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedDispatchNote.contractNumber}
-                      </div>
-                    </div>
-                    <div className="group">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Driver Name
-                      </span>
-                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedDispatchNote.driverName}
-                      </div>
-                    </div>
-                  </div>
-
+    {openView && (
+  <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+    <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
+      <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-5 flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+          Dispatch Note Details
+        </h2>
+        <button
+          className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
+          onClick={handleViewClose}
+        >
+          ×
+        </button>
+      </div>
+      {/* Scrollable content area */}
+      <div className="p-6 bg-gray-50 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-gray-100">
+        {selectedDispatchNote && (
+          <div className="space-y-6">
+            {/* <div className="grid grid-cols-2 gap-4 overflow-x-auto">
+              <div className="group">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                  Date
+                </span>
+                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                  {selectedDispatchNote.date}
                 </div>
-              )}
+              </div>
+              <div className="group">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                  Bilty Number
+                </span>
+                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                  {selectedDispatchNote.bilty}
+                </div>
+              </div>
+              <div className="group">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                  Seller
+                </span>
+                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                  {sellers.find((s) => s.id === selectedDispatchNote.seller)?.name ||
+                    selectedDispatchNote.seller}
+                </div>
+              </div>
+              <div className="group">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                  Buyer
+                </span>
+                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                  {buyers.find((b) => b.id === selectedDispatchNote.buyer)?.name ||
+                    selectedDispatchNote.buyer}
+                </div>
+              </div>
+              <div className="group">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                  Contract Number
+                </span>
+                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                  {selectedDispatchNote.contractNumber}
+                </div>
+              </div>
+              <div className="group">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                  Driver Name
+                </span>
+                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                  {selectedDispatchNote.driverName}
+                </div>
+              </div>
+              <div className="group">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                  Vehicle Type
+                </span>
+                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                  {selectedDispatchNote.vehicleType || '-'}
+                </div>
+              </div>
+              <div className="group">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                  Vehicle
+                </span>
+                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                  {selectedDispatchNote.vehicle || '-'}
+                </div>
+              </div>
+              <div className="group col-span-2">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                  Remarks
+                </span>
+                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                  {selectedDispatchNote.remarks || '-'}
+                </div>
+              </div>
+            </div> */}
+
+            {/* Related Contracts Table */}
+            <div className="mt-6 overflow-x-auto scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-gray-100">
+              <h2 className="text-xl text-[#06b6d4] font-bold">Related Contracts</h2>
+              <div className="border rounded p-4 mt-2">
+                {filteredContracts.length > 0 ? (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#06b6d4] text-white">
+                        <th className="p-3 font-medium">Contract #</th>
+                        <th className="p-3 font-medium">Seller</th>
+                        <th className="p-3 font-medium">Buyer</th>
+                        <th className="p-3 font-medium">Date</th>
+                        <th className="p-3 font-medium">Quantity</th>
+                        <th className="p-3 font-medium">Total Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredContracts.map((contract) => {
+                        const seller = sellers.find((s) => s.id === contract.seller);
+                        const buyer = buyers.find((b) => b.id === contract.buyer);
+                        return (
+                          <tr
+                            key={contract.id}
+                            className="border-b hover:bg-gray-100"
+                          >
+                            <td className="p-3">{contract.contractNumber || '-'}</td>
+                            <td className="p-3">
+                              {seller ? seller.name : contract.seller || '-'}
+                            </td>
+                            <td className="p-3">
+                              {buyer ? buyer.name : contract.buyer || '-'}
+                            </td>
+                            <td className="p-3">{contract.date || '-'}</td>
+                            <td className="p-3">{contract.quantity || '-'}</td>
+                            <td className="p-3">{contract.totalAmount || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-gray-500">No related contracts found.</p>
+                )}
+              </div>
             </div>
-            <div className="absolute top-0 left-0 w-24 h-24 bg-cyan-400 opacity-10 rounded-full -translate-x-12 -translate-y-12 pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-24 h-24 bg-blue-400 opacity-10 rounded-full translate-x-12 translate-y-12 pointer-events-none" />
           </div>
-        </div>
-      )}
-      
-                  <div className="mt-4">
-                    <h2 className="text-xl text-[#06b6d4] font-bold">Related Contracts</h2>
-                    <div className="border rounded p-4 mt-2">
-                      {filteredContracts.length > 0 ? (
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="bg-[#06b6d4] text-white">
-                              <th className="p-3 font-medium">Contract #</th>
-                              <th className="p-3 font-medium">Seller</th>
-                              <th className="p-3 font-medium">Buyer</th>
-                              <th className="p-3 font-medium">Date</th>
-                              <th className="p-3 font-medium">Quantity</th>
-                              <th className="p-3 font-medium">Total Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredContracts.map((contract) => (
-                              <tr
-                                key={contract.id}
-                                className="border-b hover:bg-gray-100"
-                              >
-                                <td className="p-3">{contract.contractNumber || '-'}</td>
-                                <td className="p-3">{contract.seller || '-'}</td>
-                                <td className="p-3">{contract.buyer || '-'}</td>
-                                <td className="p-3">{contract.date || '-'}</td>
-                                <td className="p-3">{contract.quantity || '-'}</td>
-                                <td className="p-3">{contract.totalAmount || '-'}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      ) : (
-                        <p className="text-gray-500">No related contracts found.</p>
-                      )}
-                    </div>
-                  </div>
+        )}
+      </div>
+      <div className="absolute top-0 left-0 w-24 h-24 bg-cyan-400 opacity-10 rounded-full -translate-x-12 -translate-y-12 pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-24 h-24 bg-blue-400 opacity-10 rounded-full translate-x-12 translate-y-12 pointer-events-none" />
+    </div>
+  </div>
+)}
     </div>
   );
 };

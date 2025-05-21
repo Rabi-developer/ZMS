@@ -368,7 +368,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
           >
             {id ? "Update" : "Submit"}
           </Button>
-          <Link href="/seller">
+          <Link href="/saller">
             <Button
               type="button"
               className="w-[160] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
