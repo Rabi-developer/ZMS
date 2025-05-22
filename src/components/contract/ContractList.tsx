@@ -27,8 +27,8 @@ const ContractList = () => {
   const [selectedContractIds, setSelectedContractIds] = React.useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = React.useState<string | null>(null);
   const [updating, setUpdating] = React.useState(false);
- 
-    const statusOptions = ['All', 'Pending', 'Approved', 'Canceled', 'Closed Dispatch','Closed Payment','Complete Closed' ];
+
+  const statusOptions = ['All', 'Pending', 'Approved', 'Canceled', 'Closed Dispatch', 'Closed Payment', 'Complete Closed'];
 
   const statusOptionsConfig = [
     { id: 1, name: 'Pending', color: '#eab308' },
@@ -68,6 +68,34 @@ const ContractList = () => {
     }
   };
 
+  // Function to format fabric details for selected contracts
+  const getFabricDetails = () => {
+    if (selectedContractIds.length === 0) {
+      return 'No contract selected';
+    }
+
+    // For simplicity, show details for the first selected contract
+    // You can modify this to handle multiple contracts differently (e.g., combine or show a message)
+    const selectedContract = contracts.find((contract) => contract.id === selectedContractIds[0]);
+    if (!selectedContract) {
+      return 'N/A';
+    }
+
+    const fabricDetails = [
+      `${selectedContract.warpCount || ''}${selectedContract.warpYarnType || ''}`,
+      `${selectedContract.weftCount || ''}${selectedContract.weftYarnType || ''}`,
+      `${selectedContract.noOfEnds || ''} * ${selectedContract.noOfPicks || ''}`,
+      selectedContract.weaves || '',
+      selectedContract.width || '',
+      selectedContract.final || '',
+      selectedContract.selvedge || '',
+    ]
+      .filter((item) => item.trim() !== '')
+      .join(' / ');
+
+    return fabricDetails || 'N/A';
+  };
+
   const fetchContracts = async () => {
     try {
       setLoading(true);
@@ -87,14 +115,14 @@ const ContractList = () => {
   }, [pageIndex, pageSize]);
 
   React.useEffect(() => {
-  if (selectedStatusFilter === 'All') {
-    setFilteredContracts(contracts);
-  } else {
-    setFilteredContracts(
-      contracts.filter((contract) => contract.status === selectedStatusFilter)
-    );
-  }
-}, [contracts, selectedStatusFilter]);
+    if (selectedStatusFilter === 'All') {
+      setFilteredContracts(contracts);
+    } else {
+      setFilteredContracts(
+        contracts.filter((contract) => contract.status === selectedStatusFilter)
+      );
+    }
+  }, [contracts, selectedStatusFilter]);
 
   const handleDelete = async () => {
     try {
@@ -138,14 +166,11 @@ const ContractList = () => {
 
       // Determine the status to highlight based on selected contracts
       if (newSelectedIds.length === 0) {
-        // No contracts selected, clear status
         setSelectedBulkStatus(null);
       } else if (newSelectedIds.length === 1) {
-        // Single contract selected, set status to its status
         const selectedContract = contracts.find((c) => c.id === newSelectedIds[0]);
         setSelectedBulkStatus(selectedContract?.status || 'Pending');
       } else {
-        // Multiple contracts selected, check if they have the same status
         const selectedContracts = contracts.filter((c) => newSelectedIds.includes(c.id));
         const statuses = selectedContracts.map((c) => c.status || 'Pending');
         const allSameStatus = statuses.every((status) => status === statuses[0]);
@@ -157,42 +182,42 @@ const ContractList = () => {
     });
   };
 
- const handleBulkStatusUpdate = async (newStatus: string) => {
-  if (selectedContractIds.length === 0) {
-    toast('Please select at least one contract', { type: 'warning' });
-    return;
-  }
-  try {
-    setUpdating(true);
-    console.log('Updating status for contracts:', selectedContractIds, 'to', newStatus);
-    const updatePromises = selectedContractIds.map((id) =>
-      updateContractStatus({ id, status: newStatus }).then((response) => {
-        console.log(`Update response for contract ${id}:`, response);
-        return response;
-      }).catch((error) => {
-        console.error(`Error updating contract ${id}:`, error);
-        throw error;
-      })
-    );
-    await Promise.all(updatePromises);
-    setSelectedBulkStatus(newStatus);
-    setSelectedContractIds([]); 
-    setSelectedStatusFilter(newStatus); 
-    toast('Contracts Status Updated Successfully', { type: 'success' });
-    await fetchContracts();
-  } catch (error: any) {
-    console.error('Failed to update selected contracts:', error);
-    toast(`Failed to update contract status: ${error.message || 'Unknown error'}`, { type: 'error' });
-  } finally {
-    setUpdating(false);
-  }
-};
+  const handleBulkStatusUpdate = async (newStatus: string) => {
+    if (selectedContractIds.length === 0) {
+      toast('Please select at least one contract', { type: 'warning' });
+      return;
+    }
+    try {
+      setUpdating(true);
+      console.log('Updating status for contracts:', selectedContractIds, 'to', newStatus);
+      const updatePromises = selectedContractIds.map((id) =>
+        updateContractStatus({ id, status: newStatus }).then((response) => {
+          console.log(`Update response for contract ${id}:`, response);
+          return response;
+        }).catch((error) => {
+          console.error(`Error updating contract ${id}:`, error);
+          throw error;
+        })
+      );
+      await Promise.all(updatePromises);
+      setSelectedBulkStatus(newStatus);
+      setSelectedContractIds([]);
+      setSelectedStatusFilter(newStatus);
+      toast('Contracts Status Updated Successfully', { type: 'success' });
+      await fetchContracts();
+    } catch (error: any) {
+      console.error('Failed to update selected contracts:', error);
+      toast(`Failed to update contract status: ${error.message || 'Unknown error'}`, { type: 'error' });
+    } finally {
+      setUpdating(false);
+    }
+  };
 
   return (
     <div className="container bg-white rounded-md p-6">
       <div className="mb-4 flex items-center">
         <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
-        <select 
+        <select
           value={selectedStatusFilter}
           onChange={(e) => setSelectedStatusFilter(e.target.value)}
           className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -204,20 +229,33 @@ const ContractList = () => {
           ))}
         </select>
       </div>
-       <div className=''> 
-      <DataTable
-        columns={columns(handleDeleteOpen, handleViewOpen, handleCheckboxChange)}
-        data={filteredContracts}
-        loading={loading}
-        link={'/contract/create'}
-        setPageIndex={setPageIndex}
-        pageIndex={pageIndex}
-        pageSize={pageSize}
-        setPageSize={setPageSize}
-      />
+      <div className="">
+        <DataTable
+          columns={columns(handleDeleteOpen, handleViewOpen, handleCheckboxChange)}
+          data={filteredContracts}
+          loading={loading}
+          link={'/contract/create'}
+          setPageIndex={setPageIndex}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          setPageSize={setPageSize}
+        />
+      </div>
+      {/* Fabric Details Input Field */}
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Fabric Details
+        </label>
+        <input
+          type="text"
+          value={getFabricDetails()}
+          readOnly
+          className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-800 focus:outline-none"
+          placeholder="Select a contract to view fabric details"
+        />
       </div>
       {/* Status Update Buttons */}
-        <div className="mt-4 space-y-2 border-t-2  h-[10vh]">
+      <div className="mt-4 space-y-2 border-t-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -265,7 +303,7 @@ const ContractList = () => {
             </div>
             <div className="p-6 flex bg-gray-50">
               {selectedContract && (
-                <div className=" flex space-y-6">
+                <div className="flex space-y-6">
                   <div className="flex grid grid-cols-2 gap-4 gap-5">
                     <div className="group">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">

@@ -170,186 +170,186 @@ export const columns = (
     accessorKey: 'referdate',
     header: 'Refer Date',
   },
-  // {
-  //   accessorKey: 'fabricType',
-  //   header: 'Fabric Type',
-  // },
-  // {
-  //   accessorKey: 'descriptionName',
-  //   header: 'Description',
-  // },
-  // {
-  //   accessorKey: 'stuff',
-  //   header: 'Stuff',
-  // },
-  // {
-  //   accessorKey: 'blendRatio',
-  //   header: 'Blend Ratio',
-  // },
-  // {
-  //   accessorKey: 'blendType',
-  //   header: 'Blend Type',
-  // },
-  // {
-  //   accessorKey: 'warpCount',
-  //   header: 'Warp Count',
-  // },
-  // {
-  //   accessorKey: 'warpYarnType',
-  //   header: 'Warp Yarn Type',
-  // },
-  // {
-  //   accessorKey: 'weftCount',
-  //   header: 'Weft Count',
-  // },
-  // {
-  //   accessorKey: 'weftYarnType',
-  //   header: 'Weft Yarn Type',
-  // },
-  // {
-  //   accessorKey: 'noOfEnds',
-  //   header: 'No. of Ends',
-  // },
-  // {
-  //   accessorKey: 'noOfPicks',
-  //   header: 'No. of Picks',
-  // },
-  // {
-  //   accessorKey: 'weaves',
-  //   header: 'Weaves',
-  // },
-  // {
-  //   accessorKey: 'pickInsertion',
-  //   header: 'Pick Insertion',
-  // },
-  // {
-  //   accessorKey: 'width',
-  //   header: 'Width',
-  // },
-  // {
-  //   accessorKey: 'final',
-  //   header: 'Final',
-  // },
-  // {
-  //   accessorKey: 'selvedge',
-  //   header: 'Selvedge',
-  // },
-  // {
-  //   accessorKey: 'selvedgeWeave',
-  //   header: 'Selvedge Weave',
-  // },
-  // {
-  //   accessorKey: 'selvedgeWidth',
-  //   header: 'Selvedge Width',
-  // },
-  // {
-  //   accessorKey: 'quantity',
-  //   header: 'Quantity',
-  // },
-  // {
-  //   accessorKey: 'unitOfMeasure',
-  //   header: 'Unit of Measure',
-  // },
-  // {
-  //   accessorKey: 'tolerance',
-  //   header: 'Tolerance (%)',
-  // },
-  // {
-  //   accessorKey: 'rate',
-  //   header: 'Rate',
-  // },
-  // {
-  //   accessorKey: 'packing',
-  //   header: 'Packing',
-  // },
-  // {
-  //   accessorKey: 'pieceLength',
-  //   header: 'Piece Length',
-  // },
-  // {
-  //   accessorKey: 'fabricValue',
-  //   header: 'Fabric Value',
-  // },
-  // {
-  //   accessorKey: 'gst',
-  //   header: 'GST Type',
-  // },
-  // {
-  //   accessorKey: 'gstValue',
-  //   header: 'GST Value',
-  // },
-  // {
-  //   accessorKey: 'totalAmount',
-  //   header: 'Total Amount',
-  // },
-  // {
-  //   accessorKey: 'paymentTermsSeller',
-  //   header: 'Payment Terms Seller',
-  // },
-  // {
-  //   accessorKey: 'paymentTermsBuyer',
-  //   header: 'Payment Terms Buyer',
-  // },
-  // {
-  //   accessorKey: 'deliveryTerms',
-  //   header: 'Delivery Terms',
-  // },
-  // {
-  //   accessorKey: 'commissionFrom',
-  //   header: 'Commission From',
-  // },
-  // {
-  //   accessorKey: 'commissionType',
-  //   header: 'Commission Type',
-  // },
-  // {
-  //   accessorKey: 'commissionPercentage',
-  //   header: 'Commission (%)',
-  // },
-  // {
-  //   accessorKey: 'commissionValue',
-  //   header: 'Commission Value',
-  // },
-  // {
-  //   accessorKey: 'dispatchAddress',
-  //   header: 'Dispatch Address',
-  // },
-  // {
-  //   accessorKey: 'sellerRemark',
-  //   header: 'Seller Remark',
-  // },
-  // {
-  //   accessorKey: 'buyerRemark',
-  //   header: 'Buyer Remark',
-  // },
-  // {
-  //   accessorKey: 'createdBy',
-  //   header: 'Created By',
-  // },
-  // {
-  //   accessorKey: 'creationDate',
-  //   header: 'Creation Date',
-  // },
-  // {
-  //   accessorKey: 'updatedBy',
-  //   header: 'Updated By',
-  // },
-  // {
-  //   accessorKey: 'updationDate',
-  //   header: 'Updation Date',
-  // },
-  // {
-  //   accessorKey: 'approvedBy',
-  //   header: 'Approved By',
-  // },
-  // {
-  //   accessorKey: 'approvedDate',
-  //   header: 'Approved Date',
-  // },
-  // {
-  //   accessorKey: 'endUse',
-  //   header: 'End Use',
-  // },
+  {
+    accessorKey: 'fabricType',
+    header: 'Fabric Type',
+  },
+  {
+    accessorKey: 'descriptionName',
+    header: 'Description',
+  },
+  {
+    accessorKey: 'stuff',
+    header: 'Stuff',
+  },
+  {
+    accessorKey: 'blendRatio',
+    header: 'Blend Ratio',
+  },
+  {
+    accessorKey: 'blendType',
+    header: 'Blend Type',
+  },
+  {
+    accessorKey: 'warpCount',
+    header: 'Warp Count',
+  },
+  {
+    accessorKey: 'warpYarnType',
+    header: 'Warp Yarn Type',
+  },
+  {
+    accessorKey: 'weftCount',
+    header: 'Weft Count',
+  },
+  {
+    accessorKey: 'weftYarnType',
+    header: 'Weft Yarn Type',
+  },
+  {
+    accessorKey: 'noOfEnds',
+    header: 'No. of Ends',
+  },
+  {
+    accessorKey: 'noOfPicks',
+    header: 'No. of Picks',
+  },
+  {
+    accessorKey: 'weaves',
+    header: 'Weaves',
+  },
+  {
+    accessorKey: 'pickInsertion',
+    header: 'Pick Insertion',
+  },
+  {
+    accessorKey: 'width',
+    header: 'Width',
+  },
+  {
+    accessorKey: 'final',
+    header: 'Final',
+  },
+  {
+    accessorKey: 'selvedge',
+    header: 'Selvedge',
+  },
+  {
+    accessorKey: 'selvedgeWeave',
+    header: 'Selvedge Weave',
+  },
+  {
+    accessorKey: 'selvedgeWidth',
+    header: 'Selvedge Width',
+  },
+  {
+    accessorKey: 'quantity',
+    header: 'Quantity',
+  },
+  {
+    accessorKey: 'unitOfMeasure',
+    header: 'Unit of Measure',
+  },
+  {
+    accessorKey: 'tolerance',
+    header: 'Tolerance (%)',
+  },
+  {
+    accessorKey: 'rate',
+    header: 'Rate',
+  },
+  {
+    accessorKey: 'packing',
+    header: 'Packing',
+  },
+  {
+    accessorKey: 'pieceLength',
+    header: 'Piece Length',
+  },
+  {
+    accessorKey: 'fabricValue',
+    header: 'Fabric Value',
+  },
+  {
+    accessorKey: 'gst',
+    header: 'GST Type',
+  },
+  {
+    accessorKey: 'gstValue',
+    header: 'GST Value',
+  },
+  {
+    accessorKey: 'totalAmount',
+    header: 'Total Amount',
+  },
+  {
+    accessorKey: 'paymentTermsSeller',
+    header: 'Payment Terms Seller',
+  },
+  {
+    accessorKey: 'paymentTermsBuyer',
+    header: 'Payment Terms Buyer',
+  },
+  {
+    accessorKey: 'deliveryTerms',
+    header: 'Delivery Terms',
+  },
+  {
+    accessorKey: 'commissionFrom',
+    header: 'Commission From',
+  },
+  {
+    accessorKey: 'commissionType',
+    header: 'Commission Type',
+  },
+  {
+    accessorKey: 'commissionPercentage',
+    header: 'Commission (%)',
+  },
+  {
+    accessorKey: 'commissionValue',
+    header: 'Commission Value',
+  },
+  {
+    accessorKey: 'dispatchAddress',
+    header: 'Dispatch Address',
+  },
+  {
+    accessorKey: 'sellerRemark',
+    header: 'Seller Remark',
+  },
+  {
+    accessorKey: 'buyerRemark',
+    header: 'Buyer Remark',
+  },
+  {
+    accessorKey: 'createdBy',
+    header: 'Created By',
+  },
+  {
+    accessorKey: 'creationDate',
+    header: 'Creation Date',
+  },
+  {
+    accessorKey: 'updatedBy',
+    header: 'Updated By',
+  },
+  {
+    accessorKey: 'updationDate',
+    header: 'Updation Date',
+  },
+  {
+    accessorKey: 'approvedBy',
+    header: 'Approved By',
+  },
+  {
+    accessorKey: 'approvedDate',
+    header: 'Approved Date',
+  },
+  {
+    accessorKey: 'endUse',
+    header: 'End Use',
+  },
   {
     accessorKey: 'name',
     header: 'Name',

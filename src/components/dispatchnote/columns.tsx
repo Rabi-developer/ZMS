@@ -1,4 +1,4 @@
-'use client';
+// ./columns.tsx
 import { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,12 @@ export type DispatchNote = {
   creationDate?: string;
   updatedBy?: string;
   updationDate?: string;
+  contracts?: {
+    contractId: string;
+    contractNumber: string;
+    base: string;
+    dispatchQty: string;
+  }[];
 };
 
 export const columns = (
