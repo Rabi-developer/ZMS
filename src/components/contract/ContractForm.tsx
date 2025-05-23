@@ -828,18 +828,18 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   };
 
   const handleSampleDetailChange = (field: string, value: string) => {
-    const updatedSampleDetails = [...sampleDetails];
-    updatedSampleDetails[0] = { ...updatedSampleDetails[0], [field]: value };
-    if (field === 'CreatedBy' && value) {
-      updatedSampleDetails[0].CreationDate = currentDate;
-    }
-    if (field === 'UpdatedBy' && value) {
-      updatedSampleDetails[0].UpdateDate = currentDate;
-    }
-    setSampleDetails(updatedSampleDetails);
-    setValue('SampleDetails', updatedSampleDetails, { shouldValidate: true });
-  };
-
+  const updatedSampleDetails = [...sampleDetails];
+  updatedSampleDetails[0] = { ...updatedSampleDetails[0], [field]: value };
+  if (field !== 'CreatedBy' && field !== 'CreationDate' && field !== 'UpdatedBy' && field !== 'UpdateDate') {
+    updatedSampleDetails[0].UpdatedBy = currentUser;
+    updatedSampleDetails[0].UpdateDate = currentDate;
+  }
+  if (field === 'CreatedBy' && value) {
+    updatedSampleDetails[0].CreationDate = currentDate;
+  }
+  setSampleDetails(updatedSampleDetails);
+  setValue('SampleDetails', updatedSampleDetails, { shouldValidate: true });
+};
   const handleAdditionalInfoChange = (infoIndex: number, field: string, value: string) => {
     const updatedSampleDetails = [...sampleDetails];
     const updatedAdditionalInfo = [...(updatedSampleDetails[0].AdditionalInfo || [])];
@@ -890,842 +890,883 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   };
 
   return (
-    <div className="container mx-auto bg-white shadow-lg rounded dark:bg-[#030630]">
-      <div className="w-full bg-[#06b6d4] h-[7vh] rounded dark:bg-[#387fbf]">
-        <h1 className="text-base text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
+    <div className="container mx-auto bg-white shadow-lg rounded-lg dark:bg-[#030630] p-6">
+      <div className="w-full bg-[#06b6d4] h-[7vh] rounded-t-lg flex items-center">
+        <h1 className="text-2xl font-mono ml-6 text-white flex items-center gap-2">
           <MdAddBusiness />
           {id ? 'EDIT CONTRACT' : 'ADD NEW CONTRACT'}
         </h1>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="p-2 w-full">
-          <div className="p-4">
-            <div className="grid grid-cols-2 gap-4">
-              <CustomInputDropdown
-                label="Company"
-                options={companies}
-                selectedOption={watch('CompanyId') || ''}
-                onChange={(value) => setValue('CompanyId', value, { shouldValidate: true })}
-                error={errors.CompanyId?.message}
-                register={register}
-              />
-              <CustomInputDropdown
-                label="Branch"
-                options={branches}
-                selectedOption={watch('BranchId') || ''}
-                onChange={(value) => setValue('BranchId', value, { shouldValidate: true })}
-                error={errors.BranchId?.message}
-                register={register}
-              />
+        <div className="flex flex-row gap-6 p-6">
+          {/* First Div: Input Fields (70% width) */}
+          <div className="w-11/12 space-y-6">
+            <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+              <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">General Information</h2>
+              <div className="grid grid-cols-5 gap-4">
+                <CustomInputDropdown
+                  label="Company"
+                  options={companies}
+                  selectedOption={watch('CompanyId') || ''}
+                  onChange={(value) => setValue('CompanyId', value, { shouldValidate: true })}
+                  error={errors.CompanyId?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Branch"
+                  options={branches}
+                  selectedOption={watch('BranchId') || ''}
+                  onChange={(value) => setValue('BranchId', value, { shouldValidate: true })}
+                  error={errors.BranchId?.message}
+                  register={register}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Contract Number"
+                  id="ContractNumber"
+                  {...register('ContractNumber')}
+                  error={errors.ContractNumber?.message}
+                />
+                <CustomInput
+                  type="date"
+                  variant="floating"
+                  borderThickness="2"
+                  label="Date"
+                  id="Date"
+                  {...register('Date')}
+                  error={errors.Date?.message}
+                />
+                <CustomInputDropdown
+                  label="Contract Type"
+                  options={contractTypes}
+                  selectedOption={watch('ContractType') || 'Sale'}
+                  onChange={(value) =>
+                    setValue('ContractType', value as 'Sale' | 'Purchase', { shouldValidate: true })
+                  }
+                  error={errors.ContractType?.message}
+                  register={register}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Contract Owner"
+                  id="ContractOwner"
+                  {...register('ContractOwner')}
+                  error={errors.ContractOwner?.message}
+                />
+                <CustomInputDropdown
+                  label="Seller"
+                  options={sellers}
+                  selectedOption={watch('Seller') || ''}
+                  onChange={(value) => setValue('Seller', value, { shouldValidate: true })}
+                  error={errors.Seller?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Buyer"
+                  options={buyers}
+                  selectedOption={watch('Buyer') || ''}
+                  onChange={(value) => setValue('Buyer', value, { shouldValidate: true })}
+                  error={errors.Buyer?.message}
+                  register={register}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Reference #"
+                  id="ReferenceNumber"
+                  {...register('ReferenceNumber')}
+                  error={errors.ReferenceNumber?.message}
+                />
+                <CustomInput
+                  type="date"
+                  variant="floating"
+                  borderThickness="2"
+                  label="Refer Date"
+                  id="Referdate"
+                  {...register('Referdate')}
+                  error={errors.Referdate?.message}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Refer.#"
+                  id="Refer"
+                  {...register('Refer')}
+                  error={errors.Refer?.message}
+                />
+                <CustomInputDropdown
+                  label="Fabric Type"
+                  options={fabricTypes}
+                  selectedOption={watch('FabricType') || ''}
+                  onChange={(value) => setValue('FabricType', value, { shouldValidate: true })}
+                  error={errors.FabricType?.message}
+                  register={register}
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <CustomInput
-                variant="floating"
-                borderThickness="2"
-                label="Contract Number"
-                id="ContractNumber"
-                {...register('ContractNumber')}
-                error={errors.ContractNumber?.message}
-              />
-              <CustomInput
-                type="date"
-                variant="floating"
-                borderThickness="2"
-                label="Date"
-                id="Date"
-                {...register('Date')}
-                error={errors.Date?.message}
-              />
-              <CustomInputDropdown
-                label="Contract Type"
-                options={contractTypes}
-                selectedOption={watch('ContractType') || 'Sale'}
-                onChange={(value) =>
-                  setValue('ContractType', value as 'Sale' | 'Purchase', { shouldValidate: true })
-                }
-                error={errors.ContractType?.message}
-                register={register}
-              />
-              <CustomInput
-                variant="floating"
-                borderThickness="2"
-                label="Contract Owner"
-                id="ContractOwner"
-                {...register('ContractOwner')}
-                error={errors.ContractOwner?.message}
-              />
-              <CustomInputDropdown
-                label="Seller"
-                options={sellers}
-                selectedOption={watch('Seller') || ''}
-                onChange={(value) => setValue('Seller', value, { shouldValidate: true })}
-                error={errors.Seller?.message}
-                register={register}
-              />
-              <CustomInputDropdown
-                label="Buyer"
-                options={buyers}
-                selectedOption={watch('Buyer') || ''}
-                onChange={(value) => setValue('Buyer', value, { shouldValidate: true })}
-                error={errors.Buyer?.message}
-                register={register}
-              />
+
+            <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+              <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Items</h2>
+              <div className="grid grid-cols-6 gap-4">
+                <CustomInputDropdown
+                  label="Description"
+                  options={descriptions}
+                  selectedOption={watch('DescriptionId') || ''}
+                  onChange={(value) => setValue('DescriptionId', value, { shouldValidate: true })}
+                  error={errors.DescriptionId?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Stuff"
+                  options={stuffs}
+                  selectedOption={watch('Stuff') || ''}
+                  onChange={(value) => setValue('Stuff', value, { shouldValidate: true })}
+                  error={errors.Stuff?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Blend Ratio"
+                  options={blendRatios}
+                  selectedOption={watch('BlendRatio') || ''}
+                  onChange={(value) => setValue('BlendRatio', value, { shouldValidate: true })}
+                  error={errors.BlendRatio?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Blend Type"
+                  options={blendTypeOptions}
+                  selectedOption={watch('BlendType') || ''}
+                  onChange={(value) => setValue('BlendType', value, { shouldValidate: true })}
+                  error={errors.BlendType?.message}
+                  register={register}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Warp Count"
+                  id="WarpCount"
+                  {...register('WarpCount')}
+                  error={errors.WarpCount?.message}
+                />
+                <CustomInputDropdown
+                  label="Warp Yarn Type"
+                  options={warpYarnTypes}
+                  selectedOption={watch('WarpYarnType') || ''}
+                  onChange={(value) => setValue('WarpYarnType', value, { shouldValidate: true })}
+                  error={errors.WarpYarnType?.message}
+                  register={register}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Weft Count"
+                  id="WeftCount"
+                  {...register('WeftCount')}
+                  error={errors.WeftCount?.message}
+                />
+                <CustomInput
+                  type="number"
+                  variant="floating"
+                  borderThickness="2"
+                  label="No. of Ends"
+                  id="NoOfEnds"
+                  {...register('NoOfEnds')}
+                  error={errors.NoOfEnds?.message}
+                />
+                <CustomInput
+                  type="number"
+                  variant="floating"
+                  borderThickness="2"
+                  label="No. of Picks"
+                  id="NoOfPicks"
+                  {...register('NoOfPicks')}
+                  error={errors.NoOfPicks?.message}
+                />
+                {weaves.length === 0 && loading ? (
+                  <div>Loading Weaves...</div>
+                ) : (
+                  <CustomInputDropdown
+                    label="Weaves"
+                    options={weaves}
+                    selectedOption={watch('Weaves') || ''}
+                    onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
+                    error={errors.Weaves?.message}
+                    register={register}
+                  />
+                )}
+                <CustomInputDropdown
+                  label="Pick Insertion"
+                  options={pickInsertions}
+                  selectedOption={watch('PickInsertion') || ''}
+                  onChange={(value) => setValue('PickInsertion', value, { shouldValidate: true })}
+                  error={errors.PickInsertion?.message}
+                  register={register}
+                />
+                <CustomInput
+                  type="number"
+                  variant="floating"
+                  borderThickness="2"
+                  label="Width"
+                  id="Width"
+                  {...register('Width')}
+                  error={errors.Width?.message}
+                />
+                <CustomInputDropdown
+                  label="Final"
+                  options={finals}
+                  selectedOption={watch('Final') || ''}
+                  onChange={(value) => setValue('Final', value, { shouldValidate: true })}
+                  error={errors.Final?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Selvedge"
+                  options={selvedges}
+                  selectedOption={watch('Selvedge') || ''}
+                  onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
+                  error={errors.Selvedge?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Selvedge Weave"
+                  options={selvedgeWeaves}
+                  selectedOption={watch('SelvedgeWeave') || ''}
+                  onChange={(value) => setValue('SelvedgeWeave', value, { shouldValidate: true })}
+                  error={errors.SelvedgeWeave?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Selvedge Width"
+                  options={selvedgeWidths}
+                  selectedOption={watch('SelvedgeWidth') || ''}
+                  onChange={(value) => setValue('SelvedgeWidth', value, { shouldValidate: true })}
+                  error={errors.SelvedgeWidth?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="End Use"
+                  options={endUses}
+                  selectedOption={watch('EndUse') || ''}
+                  onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
+                  error={errors.EndUse?.message}
+                  register={register}
+                />
+                {weftYarnTypes.length === 0 && loading ? (
+                  <div>Loading Weft Yarn Types...</div>
+                ) : (
+                  <CustomInputDropdown
+                    label="Weft Yarn Type"
+                    options={weftYarnTypes}
+                    selectedOption={watch('WeftYarnType') || ''}
+                    onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
+                    error={errors.WeftYarnType?.message}
+                    register={register}
+                  />
+                )}
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <CustomInput
-                variant="floating"
-                borderThickness="2"
-                label="Reference #"
-                id="ReferenceNumber"
-                {...register('ReferenceNumber')}
-                error={errors.ReferenceNumber?.message}
-              />
-              <CustomInput
-                type="date"
-                variant="floating"
-                borderThickness="2"
-                label="Delivery Date"
-                id="DeliveryDate"
-                {...register('DeliveryDate')}
-                error={errors.DeliveryDate?.message}
-              />
-              <CustomInput
-                variant="floating"
-                borderThickness="2"
-                label="Refer.#"
-                id="Refer"
-                {...register('Refer')}
-                error={errors.Refer?.message}
-              />
-              <CustomInput
-                type="date"
-                variant="floating"
-                borderThickness="2"
-                label="Refer Date"
-                id="Referdate"
-                {...register('Referdate')}
-                error={errors.Referdate?.message}
-              />
-              <CustomInputDropdown
-                label="Fabric Type"
-                options={fabricTypes}
-                selectedOption={watch('FabricType') || ''}
-                onChange={(value) => setValue('FabricType', value, { shouldValidate: true })}
-                error={errors.FabricType?.message}
-                register={register}
-              />
+
+            <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+              <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Delivery Details</h2>
+              <div className="grid grid-cols-5 gap-4">
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Quantity"
+                  id="Quantity"
+                  {...register('Quantity')}
+                  error={errors.Quantity?.message}
+                />
+                 <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Rate"
+                  id="Rate"
+                  {...register('Rate')}
+                  error={errors.Rate?.message}
+                />
+                 <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Fabric Value"
+                  id="FabricValue"
+                  {...register('FabricValue')}
+                  error={errors.FabricValue?.message}
+                  disabled
+                  className="auto-calculated-field"
+                />
+                {gstTypes.length === 0 && loading ? (
+                  <div>Loading GST Types...</div>
+                ) : (
+                  <CustomInputDropdown
+                    label="GST Type"
+                    options={gstTypes}
+                    selectedOption={watch('Gst') || ''}
+                    onChange={(value) => {
+                      setValue('Gst', value, { shouldValidate: true });
+                      trigger('Gst');
+                    }}
+                    error={errors.Gst?.message}
+                    register={register}
+                  />
+                )}
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="GST Value"
+                  id="GstValue"
+                  {...register('GstValue')}
+                  error={errors.GstValue?.message}
+                  disabled
+                  className="auto-calculated-field"
+                />
+                {commissionTypes.length === 0 && loading ? (
+                  <div>Loading Commission Types...</div>
+                ) : (
+                  <CustomInputDropdown
+                    label="Commission Type"
+                    options={commissionTypes}
+                    selectedOption={watch('CommissionType') || ''}
+                    onChange={(value) => setValue('CommissionType', value, { shouldValidate: true })}
+                    error={errors.CommissionType?.message}
+                    register={register}
+                  />
+                )}
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Commission (%)"
+                  id="CommissionPercentage"
+                  {...register('CommissionPercentage')}
+                  error={errors.CommissionPercentage?.message}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Commission Value"
+                  id="CommissionValue"
+                  {...register('CommissionValue')}
+                  error={errors.CommissionValue?.message}
+                  disabled
+                  className="auto-calculated-field"
+                />
+                 <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Total Amount"
+                  id="TotalAmount"
+                  {...register('TotalAmount')}
+                  error={errors.TotalAmount?.message}
+                  disabled
+                  className="auto-calculated-field"
+                />
+                {unitsOfMeasure.length === 0 && loading ? (
+                  <div>Loading Units of Measure...</div>
+                ) : (
+                  <CustomInputDropdown
+                    label="Unit of Measure"
+                    options={unitsOfMeasure}
+                    selectedOption={watch('UnitOfMeasure') || ''}
+                    onChange={(value) => {
+                      setValue('UnitOfMeasure', value, { shouldValidate: true });
+                      trigger('UnitOfMeasure');
+                    }}
+                    error={errors.UnitOfMeasure?.message}
+                    register={register}
+                  />
+                )}
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Tolerance (%)"
+                  id="Tolerance"
+                  {...register('Tolerance')}
+                  error={errors.Tolerance?.message}
+                />
+               
+                <CustomInputDropdown
+                  label="Packing"
+                  options={packings}
+                  selectedOption={watch('Packing') || ''}
+                  onChange={(value) => setValue('Packing', value, { shouldValidate: true })}
+                  error={errors.Packing?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Piece Length"
+                  options={pieceLengths}
+                  selectedOption={watch('PieceLength') || ''}
+                  onChange={(value) => setValue('PieceLength', value, { shouldValidate: true })}
+                  error={errors.PieceLength?.message}
+                  register={register}
+                />
+                {paymentTerms.length === 0 && loading ? (
+                  <div>Loading Payment Terms...</div>
+                ) : (
+                  <CustomInputDropdown
+                    label="Pay Term Seller"
+                    options={paymentTerms}
+                    selectedOption={watch('PaymentTermsSeller') || ''}
+                    onChange={(value) => setValue('PaymentTermsSeller', value, { shouldValidate: true })}
+                    error={errors.PaymentTermsSeller?.message}
+                    register={register}
+                  />
+                )}
+                {paymentTerms.length === 0 && loading ? (
+                  <div>Loading Payment Terms...</div>
+                ) : (
+                  <CustomInputDropdown
+                    label="Pay Term Buyer"
+                    options={paymentTerms}
+                    selectedOption={watch('PaymentTermsBuyer') || ''}
+                    onChange={(value) => setValue('PaymentTermsBuyer', value, { shouldValidate: true })}
+                    error={errors.PaymentTermsBuyer?.message}
+                    register={register}
+                  />
+                )}
+               
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Finish Width"
+                  id="FinishWidth"
+                  {...register('FinishWidth')}
+                  error={errors.FinishWidth?.message}
+                />
+               
+                {deliveryTerms.length === 0 && loading ? (
+                  <div>Loading Delivery Terms...</div>
+                ) : (
+                  <CustomInputDropdown
+                    label="Delivery Terms"
+                    options={deliveryTerms}
+                    selectedOption={watch('DeliveryTerms') || ''}
+                    onChange={(value) => setValue('DeliveryTerms', value, { shouldValidate: true })}
+                    error={errors.DeliveryTerms?.message}
+                    register={register}
+                  />
+                )}
+                <CustomInputDropdown
+                  label="Commission From"
+                  options={commissionFromOptions}
+                  selectedOption={watch('CommissionFrom') || ''}
+                  onChange={(value) => setValue('CommissionFrom', value, { shouldValidate: true })}
+                  error={errors.CommissionFrom?.message}
+                  register={register}
+                />
+                {watch('CommissionFrom') === 'Both' && (
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="Seller Commission"
+                    id="SellerCommission"
+                    {...register('SellerCommission')}
+                    error={errors.SellerCommission?.message}
+                  />
+                )}
+                {watch('CommissionFrom') === 'Both' && (
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="Buyer Commission"
+                    id="BuyerCommission"
+                    {...register('BuyerCommission')}
+                    error={errors.BuyerCommission?.message}
+                  />
+                )}
+              
+                <CustomInputDropdown
+                  label="Dispatch Later"
+                  options={dispatchLaterOptions}
+                  selectedOption={watch('DispatchLater') || ''}
+                  onChange={(value) => setValue('DispatchLater', value, { shouldValidate: true })}
+                  error={errors.DispatchLater?.message}
+                  register={register}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Seller Remark"
+                  id="SellerRemark"
+                  {...register('SellerRemark')}
+                  error={errors.SellerRemark?.message}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Buyer Remark"
+                  id="BuyerRemark"
+                  {...register('BuyerRemark')}
+                  error={errors.BuyerRemark?.message}
+                />
+                <CustomInput
+                  type="date"
+                  variant="floating"
+                  borderThickness="2"
+                  label="Delivery Date"
+                  id="DeliveryDate"
+                  {...register('DeliveryDate')}
+                  error={errors.DeliveryDate?.message}
+                />
+              </div>
             </div>
           </div>
-
-          {showForm && (
-            <>
-              <div className="p-4 border rounded-2xl mx-auto">
-                <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Items</h2>
-                <div className="grid grid-cols-3 gap-4">
-                  <CustomInputDropdown
-                    label="Description"
-                    options={descriptions}
-                    selectedOption={watch('DescriptionId') || ''}
-                    onChange={(value) => setValue('DescriptionId', value, { shouldValidate: true })}
-                    error={errors.DescriptionId?.message}
-                    register={register}
-                  />
-                  <CustomInputDropdown
-                    label="Stuff"
-                    options={stuffs}
-                    selectedOption={watch('Stuff') || ''}
-                    onChange={(value) => setValue('Stuff', value, { shouldValidate: true })}
-                    error={errors.Stuff?.message}
-                    register={register}
-                  />
-                  <CustomInputDropdown
-                    label="Blend Ratio"
-                    options={blendRatios}
-                    selectedOption={watch('BlendRatio') || ''}
-                    onChange={(value) => setValue('BlendRatio', value, { shouldValidate: true })}
-                    error={errors.BlendRatio?.message}
-                    register={register}
-                  />
-                  <CustomInputDropdown
-                    label="Blend Type"
-                    options={blendTypeOptions}
-                    selectedOption={watch('BlendType') || ''}
-                    onChange={(value) => setValue('BlendType', value, { shouldValidate: true })}
-                    error={errors.BlendType?.message}
-                    register={register}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Warp Count"
-                    id="WarpCount"
-                    {...register('WarpCount')}
-                    error={errors.WarpCount?.message}
-                  />
-                  <CustomInputDropdown
-                    label="Warp Yarn Type"
-                    options={warpYarnTypes}
-                    selectedOption={watch('WarpYarnType') || ''}
-                    onChange={(value) => setValue('WarpYarnType', value, { shouldValidate: true })}
-                    error={errors.WarpYarnType?.message}
-                    register={register}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Weft Count"
-                    id="WeftCount"
-                    {...register('WeftCount')}
-                    error={errors.WeftCount?.message}
-                  />
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="No. of Ends"
-                    id="NoOfEnds"
-                    {...register('NoOfEnds')}
-                    error={errors.NoOfEnds?.message}
-                  />
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="No. of Picks"
-                    id="NoOfPicks"
-                    {...register('NoOfPicks')}
-                    error={errors.NoOfPicks?.message}
-                  />
-                  {weaves.length === 0 && loading ? (
-                    <div>Loading Weaves...</div>
-                  ) : (
-                    <CustomInputDropdown
-                      label="Weaves"
-                      options={weaves}
-                      selectedOption={watch('Weaves') || ''}
-                      onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
-                      error={errors.Weaves?.message}
-                      register={register}
-                    />
-                  )}
-                  <CustomInputDropdown
-                    label="Pick Insertion"
-                    options={pickInsertions}
-                    selectedOption={watch('PickInsertion') || ''}
-                    onChange={(value) => setValue('PickInsertion', value, { shouldValidate: true })}
-                    error={errors.PickInsertion?.message}
-                    register={register}
-                  />
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Width"
-                    id="Width"
-                    {...register('Width')}
-                    error={errors.Width?.message}
-                  />
-                  <CustomInputDropdown
-                    label="Final"
-                    options={finals}
-                    selectedOption={watch('Final') || ''}
-                    onChange={(value) => setValue('Final', value, { shouldValidate: true })}
-                    error={errors.Final?.message}
-                    register={register}
-                  />
-                  <CustomInputDropdown
-                    label="Selvedge"
-                    options={selvedges}
-                    selectedOption={watch('Selvedge') || ''}
-                    onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
-                    error={errors.Selvedge?.message}
-                    register={register}
-                  />
-                  <CustomInputDropdown
-                    label="Selvedge Weave"
-                    options={selvedgeWeaves}
-                    selectedOption={watch('SelvedgeWeave') || ''}
-                    onChange={(value) => setValue('SelvedgeWeave', value, { shouldValidate: true })}
-                    error={errors.SelvedgeWeave?.message}
-                    register={register}
-                  />
-                  <CustomInputDropdown
-                    label="Selvedge Width"
-                    options={selvedgeWidths}
-                    selectedOption={watch('SelvedgeWidth') || ''}
-                    onChange={(value) => setValue('SelvedgeWidth', value, { shouldValidate: true })}
-                    error={errors.SelvedgeWidth?.message}
-                    register={register}
-                  />
-                  <CustomInputDropdown
-                    label="End Use"
-                    options={endUses}
-                    selectedOption={watch('EndUse') || ''}
-                    onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
-                    error={errors.EndUse?.message}
-                    register={register}
-                  />
-                  {weftYarnTypes.length === 0 && loading ? (
-                    <div>Loading Weft Yarn Types...</div>
-                  ) : (
-                    <CustomInputDropdown
-                      label="Weft Yarn Type"
-                      options={weftYarnTypes}
-                      selectedOption={watch('WeftYarnType') || ''}
-                      onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
-                      error={errors.WeftYarnType?.message}
-                      register={register}
-                    />
-                  )}
-                </div>
+          {/* Second Div: Delivery Breakups and Sample Details (30% width) */}
+          <div className="w-3/12 space-y-6">
+            <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Buyer Delivery Breakups</h2>
+                <Button
+                  type="button"
+                  onClick={addBuyerDeliveryBreakup}
+                  className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <MdAdd /> Add Row
+                </Button>
               </div>
-
-              <div className="p-4">
-                <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Delivery Details</h2>
-                <div className="grid grid-cols-4 gap-4 border rounded p-4">
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Quantity"
-                    id="Quantity"
-                    {...register('Quantity')}
-                    error={errors.Quantity?.message}
-                  />
-                  {unitsOfMeasure.length === 0 && loading ? (
-                    <div>Loading Units of Measure...</div>
-                  ) : (
-                    <CustomInputDropdown
-                      label="Unit of Measure"
-                      options={unitsOfMeasure}
-                      selectedOption={watch('UnitOfMeasure') || ''}
-                      onChange={(value) => {
-                        setValue('UnitOfMeasure', value, { shouldValidate: true });
-                        trigger('UnitOfMeasure');
-                      }}
-                      error={errors.UnitOfMeasure?.message}
-                      register={register}
-                    />
-                  )}
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Tolerance (%)"
-                    id="Tolerance"
-                    {...register('Tolerance')}
-                    error={errors.Tolerance?.message}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Rate"
-                    id="Rate"
-                    {...register('Rate')}
-                    error={errors.Rate?.message}
-                  />
-                  <CustomInputDropdown
-                    label="Packing"
-                    options={packings}
-                    selectedOption={watch('Packing') || ''}
-                    onChange={(value) => setValue('Packing', value, { shouldValidate: true })}
-                    error={errors.Packing?.message}
-                    register={register}
-                  />
-                  <CustomInputDropdown
-                    label="Piece Length"
-                    options={pieceLengths}
-                    selectedOption={watch('PieceLength') || ''}
-                    onChange={(value) => setValue('PieceLength', value, { shouldValidate: true })}
-                    error={errors.PieceLength?.message}
-                    register={register}
-                  />
-                  {paymentTerms.length === 0 && loading ? (
-                    <div>Loading Payment Terms...</div>
-                  ) : (
-                    <CustomInputDropdown
-                      label="Pay Term Seller"
-                      options={paymentTerms}
-                      selectedOption={watch('PaymentTermsSeller') || ''}
-                      onChange={(value) => setValue('PaymentTermsSeller', value, { shouldValidate: true })}
-                      error={errors.PaymentTermsSeller?.message}
-                      register={register}
-                    />
-                  )}
-                  {paymentTerms.length === 0 && loading ? (
-                    <div>Loading Payment Terms...</div>
-                  ) : (
-                    <CustomInputDropdown
-                      label="Pay Term Buyer"
-                      options={paymentTerms}
-                      selectedOption={watch('PaymentTermsBuyer') || ''}
-                      onChange={(value) => setValue('PaymentTermsBuyer', value, { shouldValidate: true })}
-                      error={errors.PaymentTermsBuyer?.message}
-                      register={register}
-                    />
-                  )}
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Fabric Value"
-                    id="FabricValue"
-                    {...register('FabricValue')}
-                    error={errors.FabricValue?.message}
-                    disabled
-                    className="auto-calculated-field"
-                  />
-                  {gstTypes.length === 0 && loading ? (
-                    <div>Loading GST Types...</div>
-                  ) : (
-                    <CustomInputDropdown
-                      label="GST Type"
-                      options={gstTypes}
-                      selectedOption={watch('Gst') || ''}
-                      onChange={(value) => {
-                        setValue('Gst', value, { shouldValidate: true });
-                        trigger('Gst');
-                      }}
-                      error={errors.Gst?.message}
-                      register={register}
-                    />
-                  )}
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="GST Value"
-                    id="GstValue"
-                    {...register('GstValue')}
-                    error={errors.GstValue?.message}
-                    disabled
-                    className="auto-calculated-field"
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Finish Width"
-                    id="FinishWidth"
-                    {...register('FinishWidth')}
-                    error={errors.FinishWidth?.message}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Total Amount"
-                    id="TotalAmount"
-                    {...register('TotalAmount')}
-                    error={errors.TotalAmount?.message}
-                    disabled
-                    className="auto-calculated-field"
-                  />
-                  {deliveryTerms.length === 0 && loading ? (
-                    <div>Loading Delivery Terms...</div>
-                  ) : (
-                    <CustomInputDropdown
-                      label="Delivery Terms"
-                      options={deliveryTerms}
-                      selectedOption={watch('DeliveryTerms') || ''}
-                      onChange={(value) => setValue('DeliveryTerms', value, { shouldValidate: true })}
-                      error={errors.DeliveryTerms?.message}
-                      register={register}
-                    />
-                  )}
-                  <CustomInputDropdown
-                    label="Commission From"
-                    options={commissionFromOptions}
-                    selectedOption={watch('CommissionFrom') || ''}
-                    onChange={(value) => setValue('CommissionFrom', value, { shouldValidate: true })}
-                    error={errors.CommissionFrom?.message}
-                    register={register}
-                  />
-                  {watch('CommissionFrom') === 'Both' && (
-                    <CustomInput
-                      variant="floating"
-                      borderThickness="2"
-                      label="Seller Commission"
-                      id="SellerCommission"
-                      {...register('SellerCommission')}
-                      error={errors.SellerCommission?.message}
-                    />
-                  )}
-                  {watch('CommissionFrom') === 'Both' && (
-                    <CustomInput
-                      variant="floating"
-                      borderThickness="2"
-                      label="Buyer Commission"
-                      id="BuyerCommission"
-                      {...register('BuyerCommission')}
-                      error={errors.BuyerCommission?.message}
-                    />
-                  )}
-                  {commissionTypes.length === 0 && loading ? (
-                    <div>Loading Commission Types...</div>
-                  ) : (
-                    <CustomInputDropdown
-                      label="Commission Type"
-                      options={commissionTypes}
-                      selectedOption={watch('CommissionType') || ''}
-                      onChange={(value) => setValue('CommissionType', value, { shouldValidate: true })}
-                      error={errors.CommissionType?.message}
-                      register={register}
-                    />
-                  )}
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Commission (%)"
-                    id="CommissionPercentage"
-                    {...register('CommissionPercentage')}
-                    error={errors.CommissionPercentage?.message}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Commission Value"
-                    id="CommissionValue"
-                    {...register('CommissionValue')}
-                    error={errors.CommissionValue?.message}
-                    disabled
-                    className="auto-calculated-field"
-                  />
-                  <CustomInputDropdown
-                    label="Dispatch Later"
-                    options={dispatchLaterOptions}
-                    selectedOption={watch('DispatchLater') || ''}
-                    onChange={(value) => setValue('DispatchLater', value, { shouldValidate: true })}
-                    error={errors.DispatchLater?.message}
-                    register={register}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Seller Remark"
-                    id="SellerRemark"
-                    {...register('SellerRemark')}
-                    error={errors.SellerRemark?.message}
-                  />
-                  <CustomInput
-                    variant="floating"
-                    borderThickness="2"
-                    label="Buyer Remark"
-                    id="BuyerRemark"
-                    {...register('BuyerRemark')}
-                    error={errors.BuyerRemark?.message}
-                  />
-                  <CustomInput
-                    type="date"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Delivery Date"
-                    id="DeliveryDate"
-                    {...register('DeliveryDate')}
-                    error={errors.DeliveryDate?.message}
-                  />
+              <div className="border rounded-lg p-4 bg-white dark:bg-gray-700">
+                <div className="grid grid-cols-3 gap-4 font-bold text-gray-700 dark:text-gray-300">
+                  <div>Qty</div>
+                  <div>Del. Date</div>
+                  <div>Actions</div>
                 </div>
-              </div>
-
-              <div className="p-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">
-                    Buyer Delivery Breakups
-                  </h2>
-                  <Button
-                    type="button"
-                    onClick={addBuyerDeliveryBreakup}
-                    className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
-                  >
-                    <MdAdd /> Add Row
-                  </Button>
-                </div>
-                <div className="border rounded p-4 mt-2">
-                  <div className="grid grid-cols-3 gap-4 font-bold">
-                    <div>Qty</div>
-                    <div>Del. Date</div>
-                    <div>Actions</div>
-                  </div>
-                  {buyerDeliveryBreakups.length > 0 && (
-                    <>
-                      {buyerDeliveryBreakups.map((breakup, index) => (
-                        <div key={index} className="grid grid-cols-3 gap-4 mt-2 items-center">
-                          <CustomInput
-                            variant="floating"
-                            borderThickness="2"
-                            label="Qty"
-                            value={breakup.Qty}
-                            onChange={(e) =>
-                              handleBuyerDeliveryBreakupChange(index, 'Qty', e.target.value)
-                            }
-                          />
-                          <CustomInput
-                            type="date"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Del. Date"
-                            value={breakup.DeliveryDate}
-                            onChange={(e) =>
-                              handleBuyerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)
-                            }
-                          />
-                          <Button
-                            type="button"
-                            onClick={() => removeBuyerDeliveryBreakup(index)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center gap-2"
-                          >
-                            <MdDelete /> Delete
-                          </Button>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">
-                    Seller Delivery Breakups
-                  </h2>
-                  <Button
-                    type="button"
-                    onClick={addSellerDeliveryBreakup}
-                    className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
-                  >
-                    <MdAdd /> Add Row
-                  </Button>
-                </div>
-                <div className="border rounded p-4 mt-2">
-                  <div className="grid grid-cols-3 gap-4 font-bold">
-                    <div>Qty</div>
-                    <div>Del. Date</div>
-                    <div>Actions</div>
-                  </div>
-                  {sellerDeliveryBreakups.length > 0 && (
-                    <>
-                      {sellerDeliveryBreakups.map((breakup, index) => (
-                        <div key={index} className="grid grid-cols-3 gap-4 mt-2 items-center">
-                          <CustomInput
-                            variant="floating"
-                            borderThickness="2"
-                            label="Qty"
-                            value={breakup.Qty}
-                            onChange={(e) =>
-                              handleSellerDeliveryBreakupChange(index, 'Qty', e.target.value)
-                            }
-                          />
-                          <CustomInput
-                            type="date"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Del. Date"
-                            value={breakup.DeliveryDate}
-                            onChange={(e) =>
-                              handleSellerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)
-                            }
-                          />
-                          <Button
-                            type="button"
-                            onClick={() => removeSellerDeliveryBreakup(index)}
-                            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded flex items-center gap-2"
-                          >
-                            <MdDelete /> Delete
-                          </Button>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
-                  <Button
-                    type="button"
-                    onClick={() => setShowSamplePopup(0)}
-                    className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
-                  >
-                    <MdInfo /> Additional Info
-                  </Button>
-                </div>
-                <div className="border rounded-2xl p-6 mt-4 bg-gray-50 dark:bg-gray-800 shadow-sm">
-                  <div className="grid grid-cols-1 gap-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Sample Quantity
-                        </label>
+                {buyerDeliveryBreakups.length > 0 && (
+                  <>
+                    {buyerDeliveryBreakups.map((breakup, index) => (
+                      <div key={index} className="grid grid-cols-3 gap-4 mt-2 items-center">
                         <CustomInput
-                          type="number"
                           variant="floating"
                           borderThickness="2"
-                          label="Sample Quantity"
-                          value={sampleDetails[0].SampleQty}
-                          onChange={(e) => handleSampleDetailChange('SampleQty', e.target.value)}
+                          label=""
+                          value={breakup.Qty}
+                          onChange={(e) =>
+                            handleBuyerDeliveryBreakupChange(index, 'Qty', e.target.value)
+                          }
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Received Date
-                        </label>
                         <CustomInput
                           type="date"
                           variant="floating"
                           borderThickness="2"
-                          label="Received Date"
-                          value={sampleDetails[0].SampleReceivedDate}
-                          onChange={(e) => handleSampleDetailChange('SampleReceivedDate', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Delivered Date
-                        </label>
-                        <CustomInput
-                          type="date"
-                          variant="floating"
-                          borderThickness="2"
-                          label="Delivered Date"
-                          value={sampleDetails[0].SampleDeliveredDate}
-                          onChange={(e) => handleSampleDetailChange('SampleDeliveredDate', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Created By
-                        </label>
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label="Created By"
-                          value={sampleDetails[0].CreatedBy}
-                          onChange={(e) => handleSampleDetailChange('CreatedBy', e.target.value)}
-                          disabled
-                          className="auto-calculated-field"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Creation Date
-                        </label>
-                        <CustomInput
-                          type="date"
-                          variant="floating"
-                          borderThickness="2"
-                          label="Creation Date"
-                          value={sampleDetails[0].CreationDate}
-                          onChange={(e) => handleSampleDetailChange('CreationDate', e.target.value)}
-                          disabled
-                          className="auto-calculated-field"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4">
-                <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Notes</h2>
-                <textarea
-                  className="w-full p-2 border rounded text-base"
-                  rows={4}
-                  {...register('Notes')}
-                  placeholder="Enter any additional notes"
-                />
-                {errors.Notes && <p className="text-red-500">{errors.Notes.message}</p>}
-              </div>
-
-              {showSamplePopup !== null && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl max-w-3xl w-full shadow-2xl">
-                    <h2 className="text-2xl font-bold text-[#06b6d4] dark:text-white mb-6">Additional Sample Information</h2>
-                    {(sampleDetails[0].AdditionalInfo || []).map((info, infoIndex) => (
-                      <div key={infoIndex} className="grid grid-cols-3 gap-6 mb-6 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
-                        <CustomInputDropdown
-                          label="End Use"
-                          options={endUses}
-                          selectedOption={info.EndUse || ''}
-                          onChange={(value) =>
-                            handleAdditionalInfoChange(infoIndex, 'EndUse', value)
-                          }
-                          error={errors.SampleDetails?.[0]?.AdditionalInfo?.[infoIndex]?.EndUse?.message}
-                          register={register}
-                        />
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label="Count"
-                          value={info.Count}
+                          label=""
+                          value={breakup.DeliveryDate}
                           onChange={(e) =>
-                            handleAdditionalInfoChange(infoIndex, 'Count', e.target.value)
+                            handleBuyerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)
                           }
                         />
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label="Weight"
-                          value={info.Weight}
-                          onChange={(e) =>
-                            handleAdditionalInfoChange(infoIndex, 'Weight', e.target.value)
-                          }
-                        />
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label="Yarn Bags"
-                          value={info.YarnBags}
-                          onChange={(e) =>
-                            handleAdditionalInfoChange(infoIndex, 'YarnBags', e.target.value)
-                          }
-                        />
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label="Labs"
-                          value={info.Labs}
-                          onChange={(e) =>
-                            handleAdditionalInfoChange(infoIndex, 'Labs', e.target.value)
-                          }
-                        />
+                        <Button
+                          type="button"
+                          onClick={() => removeBuyerDeliveryBreakup(index)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                        >
+                          <MdDelete /> Delete
+                        </Button>
                       </div>
                     ))}
-                    <div className="flex justify-between mt-6">
-                      <Button
-                        type="button"
-                        onClick={() => addAdditionalInfoRow()}
-                        className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-6 py-2 rounded-lg flex items-center gap-2"
-                      >
-                        <MdAdd /> Add Row
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => setShowSamplePopup(null)}
-                        className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
-                      >
-                        Close
-                      </Button>
-                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Seller Delivery Breakups</h2>
+                <Button
+                  type="button"
+                  onClick={addSellerDeliveryBreakup}
+                  className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <MdAdd /> Add Row
+                </Button>
+              </div>
+              <div className="border rounded-lg p-4 bg-white dark:bg-gray-700">
+                <div className="grid grid-cols-3 gap-4 font-bold text-gray-700 dark:text-gray-300">
+                  <div>Qty</div>
+                  <div>Del. Date</div>
+                  <div>Actions</div>
+                </div>
+                {sellerDeliveryBreakups.length > 0 && (
+                  <>
+                    {sellerDeliveryBreakups.map((breakup, index) => (
+                      <div key={index} className="grid grid-cols-3 gap-4 mt-2 items-center">
+                        <CustomInput
+                          variant="floating"
+                          borderThickness="2"
+                          label=""
+                          value={breakup.Qty}
+                          onChange={(e) =>
+                            handleSellerDeliveryBreakupChange(index, 'Qty', e.target.value)
+                          }
+                        />
+                        <CustomInput
+                          type="date"
+                          variant="floating"
+                          borderThickness="2"
+                          label=""
+                          value={breakup.DeliveryDate}
+                          onChange={(e) =>
+                            handleSellerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)
+                          }
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => removeSellerDeliveryBreakup(index)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                        >
+                          <MdDelete /> Delete
+                        </Button>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
+                <Button
+                  type="button"
+                  onClick={() => setShowSamplePopup(0)}
+                  className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <MdInfo /> Additional Info
+                </Button>
+              </div>
+              <div className="border rounded-lg p-4 bg-white dark:bg-gray-700">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Sample Quantity
+                    </label>
+                    <CustomInput
+                      type="number"
+                      variant="floating"
+                      borderThickness="2"
+                      label="Sample Quantity"
+                      value={sampleDetails[0].SampleQty}
+                      onChange={(e) => handleSampleDetailChange('SampleQty', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Received Date
+                    </label>
+                    <CustomInput
+                      type="date"
+                      variant="floating"
+                      borderThickness="2"
+                      label="Received Date"
+                      value={sampleDetails[0].SampleReceivedDate}
+                      onChange={(e) => handleSampleDetailChange('SampleReceivedDate', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Delivered Date
+                    </label>
+                    <CustomInput
+                      type="date"
+                      variant="floating"
+                      borderThickness="2"
+                      label="Delivered Date"
+                      value={sampleDetails[0].SampleDeliveredDate}
+                      onChange={(e) => handleSampleDetailChange('SampleDeliveredDate', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Created By
+                    </label>
+                    <CustomInput
+                      variant="floating"
+                      borderThickness="2"
+                      label="Created By"
+                      value={sampleDetails[0].CreatedBy}
+                      onChange={(e) => handleSampleDetailChange('CreatedBy', e.target.value)}
+                      disabled
+                      className="auto-calculated-field"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Creation Date
+                    </label>
+                    <CustomInput
+                      type="date"
+                      variant="floating"
+                      borderThickness="2"
+                      label="Creation Date"
+                      value={sampleDetails[0].CreationDate}
+                      onChange={(e) => handleSampleDetailChange('CreationDate', e.target.value)}
+                      disabled
+                      className="auto-calculated-field"
+                    />
                   </div>
                 </div>
-              )}
-            </>
-          )}
+              </div>
+            </div>
+             <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+              <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Notes</h2>
+              <textarea
+                className="w-full p-2 border rounded-lg text-base dark:bg-gray-700 dark:text-white"
+                rows={4}
+                {...register('Notes')}
+                placeholder="Enter any additional notes"
+              />
+              {errors.Notes && <p className="text-red-500">{errors.Notes.message}</p>}
+            </div>
+          </div>
+          
         </div>
+
+        {/* Sample Details Popup */}
+        {showSamplePopup !== null && (
+          <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+  <div className="flex justify-between items-center mb-4">
+    <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
+    <Button
+      type="button"
+      onClick={() => setShowSamplePopup(0)}
+      className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2"
+    >
+      <MdInfo /> Additional Info
+    </Button>
+  </div>
+  <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+  <div className="flex justify-between items-center mb-4">
+    <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
+    <Button
+      type="button"
+      onClick={() => setShowSamplePopup(0)}
+      className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2"
+    >
+      <MdInfo /> Additional Info
+    </Button>
+  </div>
+  <div className="border rounded-lg p-4 bg-white dark:bg-gray-700">
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Sample Quantity
+        </label>
+        <CustomInput
+          type="number"
+          variant="floating"
+          borderThickness="2"
+          label="Sample Quantity"
+          value={sampleDetails[0].SampleQty}
+          onChange={(e) => handleSampleDetailChange('SampleQty', e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Received Date
+        </label>
+        <CustomInput
+          type="date"
+          variant="floating"
+          borderThickness="2"
+          label="Received Date"
+          value={sampleDetails[0].SampleReceivedDate}
+          onChange={(e) => handleSampleDetailChange('SampleReceivedDate', e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Delivered Date
+        </label>
+        <CustomInput
+          type="date"
+          variant="floating"
+          borderThickness="2"
+          label="Delivered Date"
+          value={sampleDetails[0].SampleDeliveredDate}
+          onChange={(e) => handleSampleDetailChange('SampleDeliveredDate', e.target.value)}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Created By
+        </label>
+        <CustomInput
+          variant="floating"
+          borderThickness="2"
+          label="Created By"
+          value={sampleDetails[0].CreatedBy}
+          onChange={(e) => handleSampleDetailChange('CreatedBy', e.target.value)}
+          disabled
+          className="auto-calculated-field"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Creation Date
+        </label>
+        <CustomInput
+          type="date"
+          variant="floating"
+          borderThickness="2"
+          label="Creation Date"
+          value={sampleDetails[0].CreationDate}
+          onChange={(e) => handleSampleDetailChange('CreationDate', e.target.value)}
+          disabled
+          className="auto-calculated-field"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Updated By
+        </label>
+        <CustomInput
+          variant="floating"
+          borderThickness="2"
+          label="Updated By"
+          value={sampleDetails[0].UpdatedBy}
+          onChange={(e) => handleSampleDetailChange('UpdatedBy', e.target.value)}
+          disabled
+          className="auto-calculated-field"
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Update Date
+        </label>
+        <CustomInput
+          type="date"
+          variant="floating"
+          borderThickness="2"
+          label="Update Date"
+          value={sampleDetails[0].UpdateDate}
+          onChange={(e) => handleSampleDetailChange('UpdateDate', e.target.value)}
+          disabled
+          className="auto-calculated-field"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+        )}
 
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">
           <Button
             type="submit"
-            className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
-            disabled={!showForm}
+            className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
           >
-            {id ? 'Update' : 'Save'}
+            {id ? "Update" : "Submit"}
           </Button>
           <Link href="/contract">
             <Button
               type="button"
-              className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+              className="w-[160] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
             >
               Cancel
             </Button>
           </Link>
-        </div>
+        </div>  
       </form>
     </div>
   );

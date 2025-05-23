@@ -36,7 +36,7 @@ export type Contract = {
   pickInsertion?: string;
   width?: string;
   final?: string;
-  selvedge?: string;
+  selvege?: string;
   selvedgeWeave?: string;
   selvedgeWidth?: string;
   quantity: string;
@@ -231,16 +231,16 @@ export const columns = (
     header: 'Final',
   },
   {
-    accessorKey: 'selvedge',
-    header: 'Selvedge',
+    accessorKey: 'selvege',
+    header: 'Selvege',
   },
   {
-    accessorKey: 'selvedgeWeave',
-    header: 'Selvedge Weave',
+    accessorKey: 'selvegeWeaves',
+    header: 'Selvege Weaves',
   },
   {
-    accessorKey: 'selvedgeWidth',
-    header: 'Selvedge Width',
+    accessorKey: 'selvegeWidth',
+    header: 'Selvege Width',
   },
   {
     accessorKey: 'quantity',

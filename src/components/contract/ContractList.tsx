@@ -88,7 +88,7 @@ const ContractList = () => {
       selectedContract.weaves || '',
       selectedContract.width || '',
       selectedContract.final || '',
-      selectedContract.selvedge || '',
+      selectedContract.selvege || '',
     ]
       .filter((item) => item.trim() !== '')
       .join(' / ');
