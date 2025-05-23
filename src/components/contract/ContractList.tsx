@@ -1,17 +1,16 @@
 'use client';
 import React from 'react';
-import { FaCheck } from 'react-icons/fa';
+import { FaCheck, FaFileExcel, FaFilePdf, FaSignature } from 'react-icons/fa';
 import { getAllContract, deleteContract, updateContractStatus } from '@/apis/contract';
 import { columns, Contract } from './columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
-import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
+import * as XLSX from 'xlsx';
+import ContractPDFExport from './ContractPDFExport';
+import SignatureCanvas from 'react-signature-canvas';
 
-// Extend Contract type to include status
-interface ExtendedContract extends Contract {
-  status?: 'Pending' | 'Approved' | 'Canceled' | 'Closed Dispatch' | 'Closed Payment' | 'Complete Closed';
-}
+type ExtendedContract = Contract;
 
 const ContractList = () => {
   const [contracts, setContracts] = React.useState<ExtendedContract[]>([]);
@@ -27,6 +26,14 @@ const ContractList = () => {
   const [selectedContractIds, setSelectedContractIds] = React.useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = React.useState<string | null>(null);
   const [updating, setUpdating] = React.useState(false);
+  const [startDate, setStartDate] = React.useState<string | null>(null);
+  const [endDate, setEndDate] = React.useState<string | null>(null);
+  const [sellerSignature, setSellerSignature] = React.useState<string | undefined>(undefined);
+  const [buyerSignature, setBuyerSignature] = React.useState<string | undefined>(undefined);
+
+  // Canvas refs for signatures
+  const sellerSigCanvas = React.useRef<SignatureCanvas | null>(null);
+  const buyerSigCanvas = React.useRef<SignatureCanvas | null>(null);
 
   const statusOptions = ['All', 'Pending', 'Approved', 'Canceled', 'Closed Dispatch', 'Closed Payment', 'Complete Closed'];
 
@@ -39,16 +46,6 @@ const ContractList = () => {
     { id: 6, name: 'Complete Closed', color: '#ec4899' },
   ];
 
-  // Define dropdown options with 'All' included
-  const dropdownOptions = [
-    { id: 0, name: 'All' },
-    ...statusOptionsConfig.map((option) => ({
-      id: option.id,
-      name: option.name,
-    })),
-  ];
-
-  // Function to get status styles for the view modal
   const getStatusStyles = (status: string) => {
     switch (status) {
       case 'Pending':
@@ -68,39 +65,134 @@ const ContractList = () => {
     }
   };
 
-  // Function to format fabric details for selected contracts
-  const getFabricDetails = () => {
+  const exportToExcel = () => {
     if (selectedContractIds.length === 0) {
-      return 'No contract selected';
+      toast('Please select at least one contract', { type: 'warning' });
+      return;
     }
 
-    // For simplicity, show details for the first selected contract
-    // You can modify this to handle multiple contracts differently (e.g., combine or show a message)
-    const selectedContract = contracts.find((contract) => contract.id === selectedContractIds[0]);
-    if (!selectedContract) {
-      return 'N/A';
+    const dataToExport = filteredContracts
+      .filter((contract) => selectedContractIds.includes(contract.id))
+      .map((contract) => ({
+        'Contract Number': contract.contractNumber,
+        'Date': contract.date || '-',
+        'Contract Type': contract.contractType,
+        'Seller': contract.buyer, // Show buyer's name
+        'Buyer': contract.buyer,
+        'Description': contract.descriptionName || '-',
+        'Finish Width': contract.width || '-',
+        'Quantity': `${contract.quantity} ${contract.unitOfMeasure}`,
+        'Rate': contract.rate || '-',
+        'Piece Length': contract.pieceLength || '-',
+        'Delivery': contract.refer || '-',
+        'Payment Terms': `Seller: ${contract.paymentTermsSeller || '-'} | Buyer: ${contract.paymentTermsBuyer || '-'}`,
+        'Packing': contract.packing || '-',
+        'GST': contract.gst || '-',
+        'GST Value': contract.gstValue || '-',
+        'Fabric Value': contract.fabricValue || '-',
+        'Total Amount': contract.totalAmount,
+        'Commission': contract.commissionPercentage || '-',
+        'Commission Value': contract.commissionValue || '-',
+        'Dispatch Address': contract.dispatchAddress || '-',
+        'Remarks': `Seller: ${contract.sellerRemark || '-'} | Buyer: ${contract.buyerRemark || '-'}`,
+      }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Contracts');
+
+    const wscols = Array(21).fill({ wch: 20 });
+    worksheet['!cols'] = wscols;
+
+    XLSX.writeFile(workbook, 'Contracts.xlsx');
+  };
+
+  const exportSingleRowToExcel = (contractId: string) => {
+    const contract = contracts.find((c) => c.id === contractId);
+    if (!contract) {
+      toast('Contract not found', { type: 'error' });
+      return;
     }
 
-    const fabricDetails = [
-      `${selectedContract.warpCount || ''}${selectedContract.warpYarnType || ''}`,
-      `${selectedContract.weftCount || ''}${selectedContract.weftYarnType || ''}`,
-      `${selectedContract.noOfEnds || ''} * ${selectedContract.noOfPicks || ''}`,
-      selectedContract.weaves || '',
-      selectedContract.width || '',
-      selectedContract.final || '',
-      selectedContract.selvege || '',
-    ]
-      .filter((item) => item.trim() !== '')
-      .join(' / ');
+    const dataToExport = [{
+      'Contract Number': contract.contractNumber,
+      'Date': contract.date || '-',
+      'Contract Type': contract.contractType,
+      'Seller': contract.buyer, // Show buyer's name
+      'Buyer': contract.buyer,
+      'Description': contract.descriptionName || '-',
+      'Finish Width': contract.width || '-',
+      'Quantity': `${contract.quantity} ${contract.unitOfMeasure}`,
+      'Rate': contract.rate || '-',
+      'Piece Length': contract.pieceLength || '-',
+      'Delivery': contract.refer || '-',
+      'Payment Terms': `Seller: ${contract.paymentTermsSeller || '-'} | Buyer: ${contract.paymentTermsBuyer || '-'}`,
+      'Packing': contract.packing || '-',
+      'GST': contract.gst || '-',
+      'GST Value': contract.gstValue || '-',
+      'Fabric Value': contract.fabricValue || '-',
+      'Total Amount': contract.totalAmount,
+      'Commission': contract.commissionPercentage || '-',
+      'Commission Value': contract.commissionValue || '-',
+      'Dispatch Address': contract.dispatchAddress || '-',
+      'Remarks': `Seller: ${contract.sellerRemark || '-'} | Buyer: ${contract.buyerRemark || '-'}`,
+    }];
 
-    return fabricDetails || 'N/A';
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Contract');
+
+    const wscols = Array(21).fill({ wch: 20 });
+    worksheet['!cols'] = wscols;
+
+    XLSX.writeFile(workbook, `Contract_${contract.contractNumber}.xlsx`);
+  };
+
+  const handleExportToPDF = (includeSellerSignature: boolean = false) => {
+    if (selectedContractIds.length === 0) {
+      toast('Please select at least one contract', { type: 'warning' });
+      return;
+    }
+    selectedContractIds.forEach((id) => {
+      const contract = contracts.find((c) => c.id === id);
+      if (contract) {
+        ContractPDFExport.exportToPDF({
+          contract,
+          sellerSignature: includeSellerSignature ? sellerSignature : undefined,
+          buyerSignature,
+        });
+      }
+    });
+  };
+
+  const handleSignatureUpload = (type: 'seller' | 'buyer') => {
+    const canvas = type === 'seller' ? sellerSigCanvas.current : buyerSigCanvas.current;
+    if (canvas && !canvas.isEmpty()) {
+      const base64 = canvas.toDataURL('image/png');
+      if (type === 'seller') {
+        setSellerSignature(base64);
+        toast('Seller signature drawn. Click "Export PDF" to download the signed PDF.', { type: 'info' });
+      } else {
+        setBuyerSignature(base64);
+        toast('Buyer signature drawn.', { type: 'info' });
+      }
+    }
+  };
+
+  const handleSignAndExport = () => {
+    if (selectedContractIds.length === 0) {
+      toast('Please select at least one contract', { type: 'warning' });
+      return;
+    }
+    // Open the view modal for the first selected contract
+    const firstContractId = selectedContractIds[0];
+    handleViewOpen(firstContractId);
   };
 
   const fetchContracts = async () => {
     try {
       setLoading(true);
       const response = await getAllContract(pageIndex === 0 ? 1 : pageIndex, pageSize);
-      console.log('Fetched contracts:', response.data);
       setContracts(response.data);
     } catch (error) {
       console.error('Error fetching contracts:', error);
@@ -115,14 +207,24 @@ const ContractList = () => {
   }, [pageIndex, pageSize]);
 
   React.useEffect(() => {
-    if (selectedStatusFilter === 'All') {
-      setFilteredContracts(contracts);
-    } else {
-      setFilteredContracts(
-        contracts.filter((contract) => contract.status === selectedStatusFilter)
-      );
+    let filtered = contracts;
+
+    if (startDate && endDate) {
+      filtered = filtered.filter((contract) => {
+        if (!contract.date) return false;
+        const contractDate = new Date(contract.date).getTime();
+        const start = new Date(startDate).getTime();
+        const end = new Date(endDate).getTime();
+        return contractDate >= start && contractDate <= end;
+      });
     }
-  }, [contracts, selectedStatusFilter]);
+
+    if (selectedStatusFilter !== 'All') {
+      filtered = filtered.filter((contract) => contract.status === selectedStatusFilter);
+    }
+
+    setFilteredContracts(filtered);
+  }, [contracts, selectedStatusFilter, startDate, endDate]);
 
   const handleDelete = async () => {
     try {
@@ -150,7 +252,6 @@ const ContractList = () => {
     const contract = contracts.find((item) => item.id === contractId);
     setSelectedContract(contract || null);
     setOpenView(true);
-    console.log('Selected contract for view:', contract);
   };
 
   const handleViewClose = () => {
@@ -164,7 +265,6 @@ const ContractList = () => {
         ? [...prev, contractId]
         : prev.filter((id) => id !== contractId);
 
-      // Determine the status to highlight based on selected contracts
       if (newSelectedIds.length === 0) {
         setSelectedBulkStatus(null);
       } else if (newSelectedIds.length === 1) {
@@ -177,7 +277,6 @@ const ContractList = () => {
         setSelectedBulkStatus(allSameStatus ? statuses[0] : null);
       }
 
-      console.log('Selected contract IDs:', newSelectedIds);
       return newSelectedIds;
     });
   };
@@ -189,15 +288,8 @@ const ContractList = () => {
     }
     try {
       setUpdating(true);
-      console.log('Updating status for contracts:', selectedContractIds, 'to', newStatus);
       const updatePromises = selectedContractIds.map((id) =>
-        updateContractStatus({ id, status: newStatus }).then((response) => {
-          console.log(`Update response for contract ${id}:`, response);
-          return response;
-        }).catch((error) => {
-          console.error(`Error updating contract ${id}:`, error);
-          throw error;
-        })
+        updateContractStatus({ id, status: newStatus })
       );
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
@@ -206,7 +298,6 @@ const ContractList = () => {
       toast('Contracts Status Updated Successfully', { type: 'success' });
       await fetchContracts();
     } catch (error: any) {
-      console.error('Failed to update selected contracts:', error);
       toast(`Failed to update contract status: ${error.message || 'Unknown error'}`, { type: 'error' });
     } finally {
       setUpdating(false);
@@ -215,19 +306,46 @@ const ContractList = () => {
 
   return (
     <div className="container bg-white rounded-md p-6">
-      <div className="mb-4 flex items-center">
-        <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
-        <select
-          value={selectedStatusFilter}
-          onChange={(e) => setSelectedStatusFilter(e.target.value)}
-          className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center">
+            <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
+            <select
+              value={selectedStatusFilter}
+              onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Date Range:</label>
+            <input
+              type="date"
+              value={startDate || ''}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+            <span className="text-gray-500">to</span>
+            <input
+              type="date"
+              value={endDate || ''}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            />
+          </div>
+        </div>
+        <button
+          onClick={exportToExcel}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
         >
-          {statusOptions.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
+          <FaFileExcel size={18} />
+          Download Excel
+        </button>
       </div>
       <div className="">
         <DataTable
@@ -241,20 +359,6 @@ const ContractList = () => {
           setPageSize={setPageSize}
         />
       </div>
-      {/* Fabric Details Input Field */}
-      <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Fabric Details
-        </label>
-        <input
-          type="text"
-          value={getFabricDetails()}
-          readOnly
-          className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-800 focus:outline-none"
-          placeholder="Select a contract to view fabric details"
-        />
-      </div>
-      {/* Status Update Buttons */}
       <div className="mt-4 space-y-2 border-t-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
@@ -277,6 +381,42 @@ const ContractList = () => {
               </button>
             );
           })}
+          <button
+            onClick={handleSignAndExport}
+            disabled={selectedContractIds.length === 0}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 ${
+              selectedContractIds.length === 0
+                ? 'bg-cyan-300 cursor-not-allowed'
+                : 'bg-cyan-600 hover:bg-cyan-700 text-white'
+            }`}
+          >
+            <FaSignature size={18} />
+            Sign and Export PDF
+          </button>
+          <button
+            onClick={() => handleExportToPDF(true)}
+            disabled={selectedContractIds.length === 0}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 ${
+              selectedContractIds.length === 0
+                ? 'bg-red-300 cursor-not-allowed'
+                : 'bg-red-600 hover:bg-red-700 text-white'
+            }`}
+          >
+            <FaFilePdf size={18} />
+            Export PDF
+          </button>
+          <button
+            onClick={exportToExcel}
+            disabled={selectedContractIds.length === 0}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 ${
+              selectedContractIds.length === 0
+                ? 'bg-green-300 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            }`}
+          >
+            <FaFileExcel size={18} />
+            Export Excel
+          </button>
         </div>
       </div>
 
@@ -301,16 +441,24 @@ const ContractList = () => {
                 ×
               </button>
             </div>
-            <div className="p-6 flex bg-gray-50">
+            <div className="p-6 bg-gray-50">
               {selectedContract && (
-                <div className="flex space-y-6">
-                  <div className="flex grid grid-cols-2 gap-4 gap-5">
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="group">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
                         Contract Number
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
                         {selectedContract.contractNumber}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Date
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.date || '-'}
                       </div>
                     </div>
                     <div className="group">
@@ -323,26 +471,10 @@ const ContractList = () => {
                     </div>
                     <div className="group">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Company
-                      </span>
-                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.companyName || '-'}
-                      </div>
-                    </div>
-                    <div className="group">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Branch
-                      </span>
-                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.branchName || '-'}
-                      </div>
-                    </div>
-                    <div className="group">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
                         Seller
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.seller}
+                        {selectedContract.buyer} {/* Show buyer's name */}
                       </div>
                     </div>
                     <div className="group">
@@ -351,14 +483,6 @@ const ContractList = () => {
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
                         {selectedContract.buyer}
-                      </div>
-                    </div>
-                    <div className="group">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                        Fabric Type
-                      </span>
-                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.fabricType}
                       </div>
                     </div>
                     <div className="group">
@@ -392,11 +516,37 @@ const ContractList = () => {
                       </div>
                     </div>
                   </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Seller Signature
+                      </label>
+                      <SignatureCanvas
+                        ref={sellerSigCanvas}
+                        penColor="black"
+                        canvasProps={{
+                          className: 'border border-gray-300 rounded-md w-full h-24',
+                        }}
+                        onEnd={() => handleSignatureUpload('seller')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Buyer Signature
+                      </label>
+                      <SignatureCanvas
+                        ref={buyerSigCanvas}
+                        penColor="black"
+                        canvasProps={{
+                          className: 'border border-gray-300 rounded-md w-full h-24',
+                        }}
+                        onEnd={() => handleSignatureUpload('buyer')}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="absolute top-0 left-0 w-24 h-24 bg-cyan-400 opacity-10 rounded-full -translate-x-12 -translate-y-12 pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-24 h-24 bg-blue-400 opacity-10 rounded-full translate-x-12 translate-y-12 pointer-events-none" />
           </div>
         </div>
       )}

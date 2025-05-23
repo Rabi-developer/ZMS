@@ -827,19 +827,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     setValue('SellerDeliveryBreakups', updatedBreakups, { shouldValidate: true });
   };
 
-  const handleSampleDetailChange = (field: string, value: string) => {
-  const updatedSampleDetails = [...sampleDetails];
-  updatedSampleDetails[0] = { ...updatedSampleDetails[0], [field]: value };
-  if (field !== 'CreatedBy' && field !== 'CreationDate' && field !== 'UpdatedBy' && field !== 'UpdateDate') {
-    updatedSampleDetails[0].UpdatedBy = currentUser;
-    updatedSampleDetails[0].UpdateDate = currentDate;
-  }
-  if (field === 'CreatedBy' && value) {
-    updatedSampleDetails[0].CreationDate = currentDate;
-  }
-  setSampleDetails(updatedSampleDetails);
-  setValue('SampleDetails', updatedSampleDetails, { shouldValidate: true });
-};
+ const handleSampleDetailChange = (field: string, value: string) => {
+    const updatedSampleDetails = [...sampleDetails];
+    updatedSampleDetails[0] = { ...updatedSampleDetails[0], [field]: value };
+    if (field === 'CreatedBy' && value) {
+      updatedSampleDetails[0].CreationDate = currentDate;
+    }
+    if (field === 'UpdatedBy' && value) {
+      updatedSampleDetails[0].UpdateDate = currentDate;
+    }
+    setSampleDetails(updatedSampleDetails);
+    setValue('SampleDetails', updatedSampleDetails, { shouldValidate: true });
+  };
+
   const handleAdditionalInfoChange = (infoIndex: number, field: string, value: string) => {
     const updatedSampleDetails = [...sampleDetails];
     const updatedAdditionalInfo = [...(updatedSampleDetails[0].AdditionalInfo || [])];
@@ -1525,16 +1525,16 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
             </div>
 
             <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
-                <Button
-                  type="button"
-                  onClick={() => setShowSamplePopup(0)}
-                  className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2"
-                >
-                  <MdInfo /> Additional Info
-                </Button>
-              </div>
+               <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
+                  <Button
+                    type="button"
+                    onClick={() => setShowSamplePopup(0)}
+                    className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
+                  >
+                    <MdInfo /> Additional Info
+                  </Button>
+                </div>
               <div className="border rounded-lg p-4 bg-white dark:bg-gray-700">
                 <div className="grid grid-cols-1 gap-4">
                   <div>
