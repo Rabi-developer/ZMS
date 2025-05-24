@@ -20,7 +20,7 @@ export type Contract = {
   deliveryDate: string;
   refer?: string;
   referdate?: string;
-  fabricType: string;
+  fabricType  : string;
   descriptionId: string;
   descriptionName?: string;
   stuff: string;

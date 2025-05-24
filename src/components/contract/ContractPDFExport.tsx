@@ -11,10 +11,11 @@ interface ExportToPDFProps {
   contract: Contract | null;
   sellerSignature?: string;
   buyerSignature?: string;
+  zmsSignature?: string;
 }
 
 const ContractPDFExport = {
-  exportToPDF: ({ contract, sellerSignature, buyerSignature }: ExportToPDFProps) => {
+  exportToPDF: ({ contract, sellerSignature, buyerSignature, zmsSignature }: ExportToPDFProps) => {
     if (!contract) {
       toast('Contract not found', { type: 'error' });
       return;
@@ -22,29 +23,31 @@ const ContractPDFExport = {
 
     const doc = new jsPDF();
 
-    // Header (unchanged)
+    // Header
     doc.setFillColor(6, 182, 212);
     doc.rect(0, 0, 210, 35, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(255, 255, 255);
-    doc.text('Contract Details', 105, 12, { align: 'center' });
+    doc.text('Z.M.SOURCING', 105, 12, { align: 'center' });
     doc.setFontSize(11);
-    doc.text('ZMS Textiles Ltd.', 105, 22, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(230, 230, 230);
     doc.text(
-      'Office No. 108, 1st Floor S.P Chamber, Plot No. B-9, B-1, Main Estate Avenue,',
+      ' Office No. 108, 1st Floor S.P Chamber, Plot No. B-9, B-1,',
       105,
-      28,
+      22,
       { align: 'center' }
     );
-    doc.text('Near Metro Chowrangi, S.I.T.E Karachi | Tel: +92-21-32550917-18', 105, 32, {
+    doc.text(' Main Estate Avenue, Near Metro Chowrangi, S.I.T.E Karachi', 105, 25, {
+      align: 'center',
+    });
+    doc.text('  Tel : +92-21-32550917-18  Email : info@zmt.com.pk', 105, 28, {
       align: 'center',
     });
 
-    // Logo (unchanged)
+    // Logo
     try {
       doc.addImage(ZMS_LOGO, 'PNG', 15, 8, 25, 18);
     } catch (error) {
@@ -54,23 +57,30 @@ const ContractPDFExport = {
       doc.text('[ZMS Logo]', 15, 18);
     }
 
-    // Document ID (unchanged)
+    // Document ID
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(7);
     doc.setTextColor(255, 255, 255);
     doc.text(`Document ID: ${contract.contractNumber}`, 195, 12, { align: 'right' });
 
-    // Format Finish Width (unchanged)
+    // PURCHASE CONTRACT Heading
+    let yPos = 45;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(6, 182, 212); // Match the color scheme of the header
+    doc.text('PURCHASE CONTRACT', 105, yPos, { align: 'center' });
+    yPos += 10; // Adjust yPos to account for the heading
+
+    // Format Finish Width
     const formattedWidth = contract.width ? contract.width.replace('/', '"/"') + '"' : '-';
 
-    // Contract Details (unchanged)
-    let yPos = 45;
+    // Contract Details
     const leftColX = 15;
     const rightColX = 105;
     const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [6, 182, 212] as [number, number, number] };
     const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [33, 33, 33] as [number, number, number] };
 
-    // Contract and Date in one row (unchanged)
+    // Contract and Date in one row
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     doc.setTextColor(...labelStyle.color);
@@ -99,7 +109,7 @@ const ContractPDFExport = {
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
-    doc.text(contract.buyer, leftColX + doc.getTextWidth('Seller:') + 2, yPos);
+    doc.text(contract.seller, leftColX + doc.getTextWidth('Seller:') + 2, yPos);
 
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
@@ -110,7 +120,8 @@ const ContractPDFExport = {
     doc.setTextColor(...valueStyle.color);
     doc.text(contract.contractType, rightColX + doc.getTextWidth('Contract Type:') + 2, yPos);
 
-    yPos += 6; // Move to next row
+    yPos += 6;
+
     const fields = [
       { label: 'Buyer:', value: contract.buyer },
       { label: 'Description:', value: contract.descriptionName || '-' },
@@ -123,17 +134,17 @@ const ContractPDFExport = {
         label: 'Payment Terms:',
         value: `Seller: ${contract.paymentTermsSeller || '-'} | Buyer: ${contract.paymentTermsBuyer || '-'}`,
       },
-      { label: 'Packing:', value: contract.packing || '-' },
-      { label: 'GST:', value: contract.gst || '-' },
+      { label: 'Packing:', value: contract.packing || '' },
+      { label: 'GST:', value: contract.gst || '' },
       { label: 'GST Value:', value: contract.gstValue || '-' },
       { label: 'Fabric Value:', value: contract.fabricValue || '-' },
       { label: 'Total Amount:', value: contract.totalAmount.toString() },
       { label: 'Commission:', value: contract.commissionPercentage || '-' },
       { label: 'Commission Value:', value: contract.commissionValue || '-' },
-      { label: 'Dispatch Address:', value: contract.dispatchAddress || '-' },
+      { label: 'Dispatch Address:', value: contract.dispatchAddress || '' },
       {
         label: 'Remarks:',
-        value: `Seller: ${contract.sellerRemark || '-'} | Buyer: ${contract.buyerRemark || '-'}`,
+        value: `Seller: ${contract.sellerRemark || ''} | Buyer: ${contract.buyerRemark || ''}`,
       },
     ];
 
@@ -161,11 +172,11 @@ const ContractPDFExport = {
     });
 
     // Section Divider
-    yPos += 20;
+    yPos += 30;
     doc.setLineWidth(0.2);
     doc.setDrawColor(200, 200, 200);
     doc.line(15, yPos, 195, yPos);
-    yPos += 20;
+    yPos += 35;
 
     // Terms and Conditions Table
     autoTable(doc, {
@@ -198,41 +209,73 @@ const ContractPDFExport = {
       },
     });
 
-    // Signatures (unchanged)
-    const signatureY = 255;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(6, 182, 212);
-    doc.text('Signature:', 15, signatureY);
-    if (sellerSignature) {
-      doc.addImage(sellerSignature, 'PNG', 15, signatureY + 2, 50, 15);
-    } else {
-      doc.setLineWidth(0.3);
-      doc.setDrawColor(33, 33, 33);
-      doc.line(15, signatureY + 10, 75, signatureY + 10);
-    }
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(33, 33, 33);
-    doc.text(`Name: ${contract.buyer || '-'}`, 15, signatureY + 20);
+    
+const signatureY = 255;
+const signatureWidth = 50;
+const gap = 5;
+const totalWidth = 3 * signatureWidth + 2 * gap; 
+const startX = 10;
+const centerX = 120 - signatureWidth / 2; 
+const endX = 220 - signatureWidth; 
+const labelColor: [number, number, number] = [6, 182, 212];
+const textColor: [number, number, number] = [33, 33, 33];
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(6, 182, 212);
-    doc.text('Buyer Signature:', 105, signatureY);
-    if (buyerSignature) {
-      doc.addImage(buyerSignature, 'PNG', 105, signatureY + 2, 50, 15);
-    } else {
-      doc.setLineWidth(0.3);
-      doc.setDrawColor(33, 33, 33);
-      doc.line(105, signatureY + 10, 165, signatureY + 10);
-    }
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(33, 33, 33);
-    doc.text(`Name: ${contract.buyer || '-'}`, 105, signatureY + 20);
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(9);
+doc.setTextColor(...labelColor);
+if (zmsSignature) {
+  doc.addImage(zmsSignature, 'PNG', startX, signatureY + 2, signatureWidth, 15);
+} else {
+  doc.setLineWidth(0.3);
+  doc.setDrawColor(...textColor);
+  doc.line(startX, signatureY + 10, startX + signatureWidth, signatureY + 10);
+}
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(12);
+doc.setTextColor(...textColor);
+const zmsText = 'Z.M.SOURCING';
+const zmsTextWidth = doc.getTextWidth(zmsText);
+doc.text(zmsText, startX, signatureY + 20);
+doc.setLineWidth(0.3);
+doc.setDrawColor(...textColor);
+doc.line(startX, signatureY + 21, startX + zmsTextWidth, signatureY + 21);
 
-    // Footer (unchanged)
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(9);
+doc.setTextColor(...labelColor);
+if (sellerSignature) {
+  doc.addImage(sellerSignature, 'PNG', centerX, signatureY + 2, signatureWidth, 15);
+} else {
+ 
+}
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(12);
+doc.setTextColor(...textColor);
+const sellerText = `${contract.seller || '-'}`;
+const sellerTextWidth = doc.getTextWidth(sellerText);
+doc.text(sellerText, centerX, signatureY + 20);
+doc.setLineWidth(0.3);
+doc.setDrawColor(...textColor);
+doc.line(centerX, signatureY + 21, centerX + sellerTextWidth, signatureY + 21);
+
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(9);
+doc.setTextColor(...labelColor);
+if (buyerSignature) {
+  doc.addImage(buyerSignature, 'PNG', endX, signatureY + 2, signatureWidth, 15);
+} else {
+  
+}
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(12);
+doc.setTextColor(...textColor);
+const buyerText = `${contract.buyer || '-'}`;
+const buyerTextWidth = doc.getTextWidth(buyerText);
+doc.text(buyerText, endX, signatureY + 20);
+doc.setLineWidth(0.3);
+doc.setDrawColor(...textColor);
+doc.line(endX, signatureY + 21, endX + buyerTextWidth, signatureY + 21);
+
     doc.setFillColor(6, 182, 212);
     doc.rect(0, 280, 210, 17, 'F');
     doc.setFont('helvetica', 'normal');
@@ -254,7 +297,7 @@ const ContractPDFExport = {
     );
     doc.text('Confidential - ZMS Textiles Ltd.', 105, 290, { align: 'center' });
 
-    doc.save(`Contract_${contract.contractNumber}.pdf`);
+    doc.save(`ZMS Sourcing Contract:(Seller:${contract.seller})( Buyer:${contract.buyer}).pdf`);
   },
 };
 

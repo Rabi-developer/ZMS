@@ -28,12 +28,10 @@ const ContractList = () => {
   const [updating, setUpdating] = React.useState(false);
   const [startDate, setStartDate] = React.useState<string | null>(null);
   const [endDate, setEndDate] = React.useState<string | null>(null);
-  const [sellerSignature, setSellerSignature] = React.useState<string | undefined>(undefined);
-  const [buyerSignature, setBuyerSignature] = React.useState<string | undefined>(undefined);
+  const [zmsSignature, setZmsSignature] = React.useState<string | undefined>(undefined);
 
-  // Canvas refs for signatures
-  const sellerSigCanvas = React.useRef<SignatureCanvas | null>(null);
-  const buyerSigCanvas = React.useRef<SignatureCanvas | null>(null);
+  // Canvas ref for Z.M.SOURCING signature
+  const zmsSigCanvas = React.useRef<SignatureCanvas | null>(null);
 
   const statusOptions = ['All', 'Pending', 'Approved', 'Canceled', 'Closed Dispatch', 'Closed Payment', 'Complete Closed'];
 
@@ -77,7 +75,7 @@ const ContractList = () => {
         'Contract Number': contract.contractNumber,
         'Date': contract.date || '-',
         'Contract Type': contract.contractType,
-        'Seller': contract.buyer, // Show buyer's name
+        'Seller': contract.seller, // Show seller's name
         'Buyer': contract.buyer,
         'Description': contract.descriptionName || '-',
         'Finish Width': contract.width || '-',
@@ -118,7 +116,7 @@ const ContractList = () => {
       'Contract Number': contract.contractNumber,
       'Date': contract.date || '-',
       'Contract Type': contract.contractType,
-      'Seller': contract.buyer, // Show buyer's name
+      'Seller': contract.seller, // Show seller's name
       'Buyer': contract.buyer,
       'Description': contract.descriptionName || '-',
       'Finish Width': contract.width || '-',
@@ -148,7 +146,7 @@ const ContractList = () => {
     XLSX.writeFile(workbook, `Contract_${contract.contractNumber}.xlsx`);
   };
 
-  const handleExportToPDF = (includeSellerSignature: boolean = false) => {
+  const handleExportToPDF = () => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
       return;
@@ -158,24 +156,17 @@ const ContractList = () => {
       if (contract) {
         ContractPDFExport.exportToPDF({
           contract,
-          sellerSignature: includeSellerSignature ? sellerSignature : undefined,
-          buyerSignature,
+          zmsSignature,
         });
       }
     });
   };
 
-  const handleSignatureUpload = (type: 'seller' | 'buyer') => {
-    const canvas = type === 'seller' ? sellerSigCanvas.current : buyerSigCanvas.current;
-    if (canvas && !canvas.isEmpty()) {
-      const base64 = canvas.toDataURL('image/png');
-      if (type === 'seller') {
-        setSellerSignature(base64);
-        toast('Seller signature drawn. Click "Export PDF" to download the signed PDF.', { type: 'info' });
-      } else {
-        setBuyerSignature(base64);
-        toast('Buyer signature drawn.', { type: 'info' });
-      }
+  const handleSignatureUpload = () => {
+    if (zmsSigCanvas.current && !zmsSigCanvas.current.isEmpty()) {
+      const base64 = zmsSigCanvas.current.toDataURL('image/png');
+      setZmsSignature(base64);
+      toast('Z.M.SOURCING signature drawn. Click "Export PDF" to download the signed PDF.', { type: 'info' });
     }
   };
 
@@ -394,7 +385,7 @@ const ContractList = () => {
             Sign and Export PDF
           </button>
           <button
-            onClick={() => handleExportToPDF(true)}
+            onClick={handleExportToPDF}
             disabled={selectedContractIds.length === 0}
             className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 ${
               selectedContractIds.length === 0
@@ -474,7 +465,7 @@ const ContractList = () => {
                         Seller
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.buyer} {/* Show buyer's name */}
+                        {selectedContract.seller}
                       </div>
                     </div>
                     <div className="group">
@@ -519,28 +510,15 @@ const ContractList = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Seller Signature
+                        Z.M.SOURCING Signature
                       </label>
                       <SignatureCanvas
-                        ref={sellerSigCanvas}
+                        ref={zmsSigCanvas}
                         penColor="black"
                         canvasProps={{
                           className: 'border border-gray-300 rounded-md w-full h-24',
                         }}
-                        onEnd={() => handleSignatureUpload('seller')}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Buyer Signature
-                      </label>
-                      <SignatureCanvas
-                        ref={buyerSigCanvas}
-                        penColor="black"
-                        canvasProps={{
-                          className: 'border border-gray-300 rounded-md w-full h-24',
-                        }}
-                        onEnd={() => handleSignatureUpload('buyer')}
+                        onEnd={() => handleSignatureUpload()}
                       />
                     </div>
                   </div>
