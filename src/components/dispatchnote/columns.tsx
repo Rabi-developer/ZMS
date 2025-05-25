@@ -1,4 +1,3 @@
-// ./columns.tsx
 import { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,9 +18,14 @@ export type DispatchNote = {
   creationDate?: string;
   updatedBy?: string;
   updationDate?: string;
-  contracts?: {
-    contractId: string;
+  relatedContracts?: {
+    id: string;
     contractNumber: string;
+    seller: string;
+    buyer: string;
+    date: string;
+    quantity: string;
+    totalAmount: string;
     base: string;
     dispatchQty: string;
   }[];
@@ -116,7 +120,7 @@ export const columns = (
           >
             <Eye className="h-4 w-4" />
           </Button>
-          <Link href={`/dispatch-note/edit/${dispatchNoteId}`}>
+          <Link href={`/dispatchnote/edit/${dispatchNoteId}`}>
             <Button variant="outline" size="sm">
               <Edit className="h-4 w-4" />
             </Button>

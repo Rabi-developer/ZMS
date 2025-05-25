@@ -43,9 +43,9 @@ const getSingleDispatchNote = async (id: string) => {
 };
 
 // Update DispatchNote
-const updateDispatchNote = async (id: string, DispatchNote: any) => {
+const updateDispatchNote = async ( DispatchNote: any) => {
   try {
-    const response = await apiFetch(`DispatchNote/${id}`, {
+    const response = await apiFetch(`DispatchNote/`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

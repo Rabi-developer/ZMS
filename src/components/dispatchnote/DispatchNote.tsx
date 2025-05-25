@@ -1,8 +1,7 @@
-
 'use client';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, UseFormRegister } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
@@ -14,8 +13,8 @@ import { Button } from '@/components/ui/button';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
+import { createDispatchNote, updateDispatchNote } from '@/apis/dispatchnote';
 import { Contract } from '../contract/columns';
-import { createDispatchNote } from '@/apis/dispatchnote';
 
 // Schema for form validation
 const DispatchNoteSchema = z.object({
@@ -28,8 +27,6 @@ const DispatchNoteSchema = z.object({
   ContractNumber: z.string().min(1, 'Contract number is required'),
   Remarks: z.string().optional(),
   DriverName: z.string().min(1, 'Driver name is required'),
-  Base: z.string().optional(),
-  DispatchQty: z.string().optional(),
 });
 
 type FormData = z.infer<typeof DispatchNoteSchema>;
@@ -42,23 +39,49 @@ interface ExtendedContract extends Contract {
   isSelected?: boolean;
 }
 
-interface CustomDropdownProps {
-  label: string;
-  options: { id: string; name: string }[];
-  selectedOption: string;
-  onChange: (value: string) => void;
-  error?: string;
-  register: UseFormRegister<FormData>;
+// Interface for dispatch note data
+interface DispatchNoteData {
+  id?: string;
+  date?: string;
+  bilty?: string;
+  seller?: string;
+  buyer?: string;
+  vehicleType?: string;
+  vehicle?: string;
+  contractNumber?: string;
+  remarks?: string;
+  driverName?: string;
+  createdBy?: string;
+  creationDate?: string;
+  updatedBy?: string;
+  updationDate?: string;
+  relatedContracts?: {
+    id?: string;
+    contractNumber?: string;
+    seller?: string;
+    buyer?: string;
+    date?: string;
+    quantity?: string;
+    totalAmount?: string;
+    base?: string;
+    dispatchQty?: string;
+  }[];
 }
 
-const DispatchNote = () => {
+interface DispatchNoteProps {
+  isEdit?: boolean;
+  initialData?: DispatchNoteData;
+}
+
+const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
   const router = useRouter();
   const [sellers, setSellers] = useState<{ id: string; name: string }[]>([]);
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
   const [contracts, setContracts] = useState<ExtendedContract[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<ExtendedContract[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  const [fetchingSellers, setFetchingSellers] = useState(false);
+  const [fetchingBuyers, setFetchingBuyers] = useState(false);
 
   // Static options for Vehicle Type and Vehicle
   const vehicleTypes = [
@@ -100,36 +123,46 @@ const DispatchNote = () => {
   // Fetch Sellers
   const fetchSellers = async () => {
     try {
-      setLoading(true);
+      setFetchingSellers(true);
       const response = await getAllSellers();
-      const sellerData = response.data.map((seller: any) => ({
-        id: seller.id,
-        name: seller.sellerName,
-      }));
-      setSellers(sellerData);
+      if (response && response.data) {
+        const sellerData = response.data.map((seller: any) => ({
+          id: String(seller.id),
+          name: seller.sellerName,
+        }));
+        setSellers(sellerData);
+      } else {
+        setSellers([]);
+        toast('No sellers found', { type: 'warning' });
+      }
     } catch (error) {
-      console.error('Error fetching sellers:', error);
+      setSellers([]);
       toast('Failed to fetch sellers', { type: 'error' });
     } finally {
-      setLoading(false);
+      setFetchingSellers(false);
     }
   };
 
   // Fetch Buyers
   const fetchBuyers = async () => {
     try {
-      setLoading(true);
+      setFetchingBuyers(true);
       const response = await getAllBuyer();
-      const buyerData = response.data.map((buyer: any) => ({
-        id: buyer.id,
-        name: buyer.buyerName,
-      }));
-      setBuyers(buyerData);
+      if (response && response.data) {
+        const buyerData = response.data.map((buyer: any) => ({
+          id: String(buyer.id),
+          name: buyer.buyerName,
+        }));
+        setBuyers(buyerData);
+      } else {
+        setBuyers([]);
+        toast('No buyers found', { type: 'warning' });
+      }
     } catch (error) {
-      console.error('Error fetching buyers:', error);
+      setBuyers([]);
       toast('Failed to fetch buyers', { type: 'error' });
     } finally {
-      setLoading(false);
+      setFetchingBuyers(false);
     }
   };
 
@@ -138,44 +171,122 @@ const DispatchNote = () => {
     try {
       setLoading(true);
       const response = await getAllContract(1, 100);
-      setContracts(response.data);
+      console.log('Raw contracts from getAllContract:', response.data);
+
+      if (response && response.data) {
+        let updatedContracts: ExtendedContract[] = [];
+
+        if (isEdit && initialData?.relatedContracts) {
+          // In edit mode, only include contracts matching initialData.relatedContracts
+          const relatedContractNumbers = initialData.relatedContracts.map((rc) => rc.contractNumber);
+          updatedContracts = response.data
+            .filter((contract: Contract) => relatedContractNumbers.includes(contract.contractNumber))
+            .map((contract: Contract) => {
+              // Find the matching related contract by contractNumber and id
+              const relatedContract = initialData.relatedContracts!.find(
+                (rc) => rc.contractNumber === contract.contractNumber && rc.id
+              );
+              return {
+                ...contract,
+                isSelected: relatedContract?.contractNumber === initialData.contractNumber,
+                base: relatedContract?.base || '',
+                dispatchQty: relatedContract?.dispatchQty || '',
+              };
+            });
+
+          // Ensure we have exactly the same number of contracts as in initialData.relatedContracts
+          const contractMap = new Map<string, ExtendedContract>();
+          initialData.relatedContracts.forEach((rc) => {
+            const contract = updatedContracts.find(
+              (c) => c.contractNumber === rc.contractNumber && !contractMap.has(rc.id!)
+            );
+            if (contract && rc.id) {
+              contractMap.set(rc.id, { ...contract, id: rc.id });
+            }
+          });
+          updatedContracts = Array.from(contractMap.values());
+        } else {
+          // In create mode, include all contracts
+          updatedContracts = response.data.map((contract: Contract) => ({
+            ...contract,
+            isSelected: false,
+            base: '',
+            dispatchQty: '',
+          }));
+        }
+
+        console.log('Processed contracts:', updatedContracts);
+        setContracts(updatedContracts);
+      } else {
+        setContracts([]);
+        toast('No contracts found', { type: 'warning' });
+      }
     } catch (error) {
-      console.error('Error fetching contracts:', error);
-      toast('Failed to fetch contracts', { type: 'error' });
       setContracts([]);
+      toast('Failed to fetch contracts', { type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
-  // Robust filter: match by ID or by name
+  // Initialize form with initialData when editing
   useEffect(() => {
-    const selectedSellerObj = sellers.find(s => String(s.id) === String(selectedSeller));
-    const selectedBuyerObj = buyers.find(b => String(b.id) === String(selectedBuyer));
-
-    let filtered = contracts.filter((contract) => {
-      // If contract.seller and contract.buyer are IDs
-      if (
-        String(contract.seller) === String(selectedSeller) &&
-        String(contract.buyer) === String(selectedBuyer)
-      ) {
-        return true;
+    if (isEdit && initialData) {
+      if (!initialData.id) {
+        toast('Invalid dispatch note data', { type: 'error' });
+        router.push('/dispatchnote');
+        return;
       }
-      // If contract.seller and contract.buyer are names
-      if (
-        contract.seller === selectedSellerObj?.name &&
-        contract.buyer === selectedBuyerObj?.name
-      ) {
-        return true;
-      }
-      return false;
-    });
-
-    if (selectedContractId) {
-      filtered = filtered.filter((contract) => contract.id === selectedContractId);
+      setValue('Date', initialData.date?.split('T')[0] || '');
+      setValue('Bilty', initialData.bilty || '');
+      setValue(
+        'Seller',
+        sellers.find((s) => s.name === initialData.seller)?.id || initialData.seller || ''
+      );
+      setValue(
+        'Buyer',
+        buyers.find((b) => b.name === initialData.buyer)?.id || initialData.buyer || ''
+      );
+      setValue('VehicleType', initialData.vehicleType || '');
+      setValue('Vehicle', initialData.vehicle || '');
+      setValue('ContractNumber', initialData.contractNumber || '');
+      setValue('Remarks', initialData.remarks || '');
+      setValue('DriverName', initialData.driverName || '');
     }
+  }, [isEdit, initialData, sellers, buyers, setValue, router]);
+
+  // Filter contracts by Seller and Buyer, or use initialData in edit mode
+  useEffect(() => {
+    let filtered: ExtendedContract[] = [];
+
+    if (isEdit && initialData?.relatedContracts) {
+      // In edit mode, use only contracts from initialData
+      filtered = contracts.filter((contract) =>
+        initialData.relatedContracts!.some(
+          (rc) => rc.contractNumber === contract.contractNumber && rc.id === contract.id
+        )
+      );
+    } else {
+      // In create mode, filter by selected seller and buyer
+      const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
+      const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
+
+      filtered = contracts.filter((contract) => {
+        if (
+          (String(contract.seller) === String(selectedSeller) ||
+            contract.seller === selectedSellerObj?.name) &&
+          (String(contract.buyer) === String(selectedBuyer) ||
+            contract.buyer === selectedBuyerObj?.name)
+        ) {
+          return true;
+        }
+        return false;
+      });
+    }
+
+    console.log('Filtered contracts:', filtered);
     setFilteredContracts(filtered);
-  }, [selectedSeller, selectedBuyer, contracts, selectedContractId, sellers, buyers]);
+  }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers]);
 
   // Fetch data on mount
   useEffect(() => {
@@ -184,6 +295,7 @@ const DispatchNote = () => {
     fetchContracts();
   }, []);
 
+  // Handle contract row selection
   const handleContractSelect = (contractId: string, checked: boolean) => {
     setContracts((prev) =>
       prev.map((contract) =>
@@ -195,10 +307,8 @@ const DispatchNote = () => {
     const selectedContract = contracts.find((c) => c.id === contractId);
     if (selectedContract && checked) {
       setValue('ContractNumber', selectedContract.contractNumber, { shouldValidate: true });
-      setSelectedContractId(contractId);
     } else {
       setValue('ContractNumber', '', { shouldValidate: true });
-      setSelectedContractId(null);
     }
   };
 
@@ -213,24 +323,6 @@ const DispatchNote = () => {
         contract.id === contractId ? { ...contract, [field]: value } : contract
       )
     );
-  };
-
-  const onSubmit = async (data: FormData) => {
-    try {
-      // Include Base and DispatchQty in the payload
-      const payload = {
-        ...data,
-        Base: data.Base,
-        DispatchQty: data.DispatchQty,
-      };
-      await createDispatchNote(payload);
-      toast('Dispatch Note Created Successfully', { type: 'success' });
-      reset();
-      router.push('/dispatchnote');
-    } catch (error) {
-      toast('Error creating dispatch note', { type: 'error' });
-      console.error('Error submitting form:', error);
-    }
   };
 
   // Format Fabric Details
@@ -249,12 +341,91 @@ const DispatchNote = () => {
     return fabricDetails || 'N/A';
   };
 
+  const onSubmit = async (data: FormData) => {
+    try {
+      // Include all contracts with non-empty base or dispatchQty
+      const relatedContracts = contracts
+        .filter((contract) => contract.base || contract.dispatchQty)
+        .map((contract) => {
+          if (isEdit) {
+            // For update, include id from initialData
+            const relatedContract = initialData?.relatedContracts?.find(
+              (rc) => rc.contractNumber === contract.contractNumber && rc.id === contract.id
+            );
+            return {
+              id: relatedContract?.id || contract.id,
+              contractNumber: contract.contractNumber || '',
+              seller: contract.seller || '',
+              buyer: contract.buyer || '',
+              date: contract.date || '',
+              quantity: contract.quantity || '',
+              totalAmount: contract.totalAmount || '',
+              base: contract.base || '',
+              dispatchQty: contract.dispatchQty || '',
+            };
+          }
+          // For create, exclude id
+          return {
+            contractNumber: contract.contractNumber || '',
+            seller: contract.seller || '',
+            buyer: contract.buyer || '',
+            date: contract.date || '',
+            quantity: contract.quantity || '',
+            totalAmount: contract.totalAmount || '',
+            base: contract.base || '',
+            dispatchQty: contract.dispatchQty || '',
+          };
+        });
+
+      // Ensure at least one contract is filled
+      if (relatedContracts.length === 0) {
+        toast('Please fill at least one contract with Base or Dispatch Quantity', { type: 'error' });
+        return;
+      }
+
+      const payload = {
+        ...(isEdit && { id: initialData?.id }), // Include id for update
+        date: data.Date,
+        bilty: data.Bilty,
+        seller: sellers.find((s) => s.id === data.Seller)?.name || data.Seller,
+        buyer: buyers.find((b) => b.id === data.Buyer)?.name || data.Buyer,
+        vehicleType: data.VehicleType,
+        vehicle: data.Vehicle,
+        contractNumber: data.ContractNumber,
+        remarks: data.Remarks,
+        driverName: data.DriverName,
+        
+        creationDate: isEdit
+          ? initialData?.creationDate || new Date().toISOString()
+          : new Date().toISOString(),
+       
+        updationDate: new Date().toISOString(),
+        relatedContracts,
+      };
+
+      if (isEdit) {
+        await updateDispatchNote( payload);
+        toast('Dispatch Note Updated Successfully', { type: 'success' });
+      } else {
+        await createDispatchNote(payload);
+        toast('Dispatch Note Created Successfully', { type: 'success' });
+      }
+
+      reset();
+      router.push('/dispatchnote');
+    } catch (error) {
+      toast(`Error ${isEdit ? 'updating' : 'creating'} dispatch note: ${(error as Error).message}`, {
+        type: 'error',
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto bg-white shadow-lg rounded dark:bg-[#030630]">
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded dark:bg-[#387fbf]">
         <h1 className="text-base text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
           <MdLocalShipping />
-          ADD DISPATCH NOTE
+          {isEdit ? 'UPDATE DISPATCH NOTE' : 'ADD DISPATCH NOTE'}
         </h1>
       </div>
 
@@ -312,7 +483,7 @@ const DispatchNote = () => {
                 options={vehicles}
                 selectedOption={watch('Vehicle') || ''}
                 onChange={(value) => setValue('Vehicle', value, { shouldValidate: true })}
-                error={errors.VehicleType?.message}
+                error={errors.Vehicle?.message}
                 register={register}
               />
               <CustomInput
@@ -347,13 +518,14 @@ const DispatchNote = () => {
           <div className="p-4">
             <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
             <div className="border rounded p-4 mt-2">
-              {loading ? (
-                <p className="text-gray-500">Loading contracts...</p>
+              {(loading || fetchingSellers || fetchingBuyers) ? (
+                <p className="text-gray-500">Loading contracts, sellers, or buyers...</p>
               ) : selectedSeller && selectedBuyer ? (
                 filteredContracts.length > 0 ? (
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-[#06b6d4] text-white">
+                        <th className="p-3 font-medium">Select</th>
                         <th className="p-3 font-medium">Contract #</th>
                         <th className="p-3 font-medium">Seller</th>
                         <th className="p-3 font-medium">Buyer</th>
@@ -367,14 +539,28 @@ const DispatchNote = () => {
                     </thead>
                     <tbody>
                       {filteredContracts.map((contract) => {
-                        const seller = sellers.find((s) => String(s.id) === String(contract.seller) || s.name === contract.seller);
-                        const buyer = buyers.find((b) => String(b.id) === String(contract.buyer) || b.name === contract.buyer);
+                        const seller = sellers.find(
+                          (s) => String(s.id) === String(contract.seller) || s.name === contract.seller
+                        );
+                        const buyer = buyers.find(
+                          (b) => String(b.id) === String(contract.buyer) || b.name === contract.buyer
+                        );
                         return (
                           <tr
                             key={contract.id}
-                            className="border-b hover:bg-gray-100 cursor-pointer"
+                            className={`border-b hover:bg-gray-100 cursor-pointer ${
+                              contract.isSelected ? 'bg-blue-100' : ''
+                            }`}
                             onClick={() => handleContractSelect(contract.id, !contract.isSelected)}
                           >
+                            <td className="p-3">
+                              <input
+                                type="checkbox"
+                                checked={contract.isSelected || false}
+                                onChange={(e) => handleContractSelect(contract.id, e.target.checked)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </td>
                             <td className="p-3">{contract.contractNumber || '-'}</td>
                             <td className="p-3">{seller ? seller.name : contract.seller || '-'}</td>
                             <td className="p-3">{buyer ? buyer.name : contract.buyer || '-'}</td>
@@ -390,6 +576,7 @@ const DispatchNote = () => {
                                   handleContractInputChange(contract.id, 'base', e.target.value)
                                 }
                                 className="w-full p-2 border border-gray-300 rounded"
+                                onClick={(e) => e.stopPropagation()}
                               />
                             </td>
                             <td className="p-3">
@@ -400,6 +587,7 @@ const DispatchNote = () => {
                                   handleContractInputChange(contract.id, 'dispatchQty', e.target.value)
                                 }
                                 className="w-full p-2 border border-gray-300 rounded"
+                                onClick={(e) => e.stopPropagation()}
                               />
                             </td>
                           </tr>
