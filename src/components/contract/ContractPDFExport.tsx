@@ -66,7 +66,7 @@ const ContractPDFExport = {
     let yPos = 45;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(6, 182, 212);
     doc.text('Purchase Contract', 105, yPos, { align: 'center' });
     yPos += 10;
 
@@ -76,10 +76,7 @@ const ContractPDFExport = {
     const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [6, 182, 212] as [number, number, number] }; // Cyan label color
     const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [33, 33, 33] as [number, number, number] }; // Dark gray value color
 
-    // Seller Info with Border (Left)
-    doc.setDrawColor(100, 100, 100); // Darker gray border
-    doc.setLineWidth(0.5); // Thicker line
-    doc.rect(leftColX - 5, yPos - 5, 80, 15); // Width 80, height 15
+    // Seller Info (Left, no border)
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     doc.setTextColor(...labelStyle.color); // Cyan text for "Seller:"
@@ -105,10 +102,7 @@ const ContractPDFExport = {
     doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 10, yPos);
     doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 10, yPos + 6);
 
-    // Buyer Info with Border (Right)
-    doc.setDrawColor(100, 100, 100); // Darker gray border
-    doc.setLineWidth(0.5); // Thicker line
-    doc.rect(rightColX - 5, yPos - 5, 75, 15); // Width 75, height 15
+    // Buyer Info (Right, no border)
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     doc.setTextColor(...labelStyle.color); // Cyan text for "Buyer:"
@@ -276,7 +270,7 @@ const ContractPDFExport = {
         if (data.section === 'body' && data.row.index === 0) {
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
-          doc.setTextColor(255, 255, 255); // White text to match financial table header
+          doc.setTextColor(...labelStyle.color); // Cyan text to match Seller/Buyer labels
           doc.text('Terms and Conditions', 15, data.cell.y - 5);
         }
       },
