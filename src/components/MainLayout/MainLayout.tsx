@@ -53,7 +53,7 @@ const MainLayout = ({ children }: any) => {
         </div>
         {/* Main Content */}
         <div
-          className={`pt-20 px-6 transition-all duration-300
+          className={`pt-20 px-6 transition-all duration-300 
             ${isSidebarCollapsed ? "md:ml-[70px]" : "md:ml-[310px]"}
             ml-0`}
          >

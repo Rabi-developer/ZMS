@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { FaCheck, FaFileExcel, FaFilePdf, FaSignature } from 'react-icons/fa';
+import { FaCheck, FaFileExcel, FaFilePdf, FaSignature, FaEnvelope, FaWhatsapp } from 'react-icons/fa';
 import { getAllContract, deleteContract, updateContractStatus } from '@/apis/contract';
 import { columns, Contract } from './columns';
 import { DataTable } from '@/components/ui/table';
@@ -18,6 +18,8 @@ const ContractList = () => {
   const [loading, setLoading] = React.useState(false);
   const [openDelete, setOpenDelete] = React.useState(false);
   const [openView, setOpenView] = React.useState(false);
+  const [openEmailModal, setOpenEmailModal] = React.useState(false);
+  const [openWhatsAppModal, setOpenWhatsAppModal] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState('');
   const [selectedContract, setSelectedContract] = React.useState<ExtendedContract | null>(null);
   const [pageIndex, setPageIndex] = React.useState(0);
@@ -29,8 +31,12 @@ const ContractList = () => {
   const [startDate, setStartDate] = React.useState<string | null>(null);
   const [endDate, setEndDate] = React.useState<string | null>(null);
   const [zmsSignature, setZmsSignature] = React.useState<string | undefined>(undefined);
+  // Modal-specific states
+  const [emailRecipient, setEmailRecipient] = React.useState('');
+  const [whatsappNumber, setWhatsappNumber] = React.useState('');
+  const [uploadedFile, setUploadedFile] = React.useState<File | null>(null);
+  const [messageBody, setMessageBody] = React.useState('');
 
-  // Canvas ref for Z.M.SOURCING signature
   const zmsSigCanvas = React.useRef<SignatureCanvas | null>(null);
 
   const statusOptions = ['All', 'Pending', 'Approved', 'Canceled', 'Closed Dispatch', 'Closed Payment', 'Complete Closed'];
@@ -64,38 +70,49 @@ const ContractList = () => {
   };
 
   const exportToExcel = () => {
-    if (selectedContractIds.length === 0) {
-      toast('Please select at least one contract', { type: 'warning' });
-      return;
+    let dataToExport: ExtendedContract[] = [];
+
+    if (selectedContractIds.length > 0) {
+      dataToExport = filteredContracts.filter((contract) =>
+        selectedContractIds.includes(contract.id)
+      );
+      if (dataToExport.length === 0) {
+        toast('No contracts match the selected criteria', { type: 'warning' });
+        return;
+      }
+    } else {
+      dataToExport = filteredContracts;
+      if (dataToExport.length === 0) {
+        toast('No contracts available to export', { type: 'warning' });
+        return;
+      }
     }
 
-    const dataToExport = filteredContracts
-      .filter((contract) => selectedContractIds.includes(contract.id))
-      .map((contract) => ({
-        'Contract Number': contract.contractNumber,
-        'Date': contract.date || '-',
-        'Contract Type': contract.contractType,
-        'Seller': contract.seller, // Show seller's name
-        'Buyer': contract.buyer,
-        'Description': contract.descriptionName || '-',
-        'Finish Width': contract.width || '-',
-        'Quantity': `${contract.quantity} ${contract.unitOfMeasure}`,
-        'Rate': contract.rate || '-',
-        'Piece Length': contract.pieceLength || '-',
-        'Delivery': contract.refer || '-',
-        'Payment Terms': `Seller: ${contract.paymentTermsSeller || '-'} | Buyer: ${contract.paymentTermsBuyer || '-'}`,
-        'Packing': contract.packing || '-',
-        'GST': contract.gst || '-',
-        'GST Value': contract.gstValue || '-',
-        'Fabric Value': contract.fabricValue || '-',
-        'Total Amount': contract.totalAmount,
-        'Commission': contract.commissionPercentage || '-',
-        'Commission Value': contract.commissionValue || '-',
-        'Dispatch Address': contract.dispatchAddress || '-',
-        'Remarks': `Seller: ${contract.sellerRemark || '-'} | Buyer: ${contract.buyerRemark || '-'}`,
-      }));
+    const formattedData = dataToExport.map((contract) => ({
+      'Contract Number': contract.contractNumber,
+      'Date': contract.date || '-',
+      'Contract Type': contract.contractType,
+      'Seller': contract.seller,
+      'Buyer': contract.buyer,
+      'Description': contract.descriptionName || '-',
+      'Finish Width': contract.width || '-',
+      'Quantity': `${contract.quantity} ${contract.unitOfMeasure}`,
+      'Rate': contract.rate || '-',
+      'Piece Length': contract.pieceLength || '-',
+      'Delivery': contract.refer || '-',
+      'Payment Terms': `Seller: ${contract.paymentTermsSeller || '-'} | Buyer: ${contract.paymentTermsBuyer || '-'}`,
+      'Packing': contract.packing || '-',
+      'GST': contract.gst || '-',
+      'GST Value': contract.gstValue || '-',
+      'Fabric Value': contract.fabricValue || '-',
+      'Total Amount': contract.totalAmount,
+      'Commission': contract.commissionPercentage || '-',
+      'Commission Value': contract.commissionValue || '-',
+      'Dispatch Address': contract.dispatchAddress || '-',
+      'Remarks': `Seller: ${contract.sellerRemark || '-'} | Buyer: ${contract.buyerRemark || '-'}`,
+    }));
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Contracts');
 
@@ -116,7 +133,7 @@ const ContractList = () => {
       'Contract Number': contract.contractNumber,
       'Date': contract.date || '-',
       'Contract Type': contract.contractType,
-      'Seller': contract.seller, // Show seller's name
+      'Seller': contract.seller,
       'Buyer': contract.buyer,
       'Description': contract.descriptionName || '-',
       'Finish Width': contract.width || '-',
@@ -146,20 +163,172 @@ const ContractList = () => {
     XLSX.writeFile(workbook, `Contract_${contract.contractNumber}.xlsx`);
   };
 
-  const handleExportToPDF = () => {
+  const handleExportToPDF = async () => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
       return;
     }
-    selectedContractIds.forEach((id) => {
+    for (const id of selectedContractIds) {
       const contract = contracts.find((c) => c.id === id);
       if (contract) {
-        ContractPDFExport.exportToPDF({
-          contract,
-          zmsSignature,
-        });
+        try {
+          const pdfBlob = await ContractPDFExport.exportToPDF({
+            contract,
+            zmsSignature,
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            selleraddress: contract.dispatchAddress,
+            buyeraddress: undefined,
+          });
+          if (!pdfBlob) {
+            throw new Error('Failed to generate PDF Blob');
+          }
+          const url = URL.createObjectURL(pdfBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `ZMS Sourcing Contract: (Seller:${contract.seller})(Buyer:${contract.buyer}).pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error('Failed to generate PDF:', error);
+          toast('Failed to generate PDF', { type: 'error' });
+        }
       }
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (selectedContractIds.length === 0 && !uploadedFile) {
+      toast('Please select at least one contract or upload a file', { type: 'warning' });
+      return;
+    }
+    if (!emailRecipient) {
+      toast('Please enter a recipient email', { type: 'warning' });
+      return;
+    }
+
+    try {
+      const attachmentUrls: string[] = [];
+
+      for (const id of selectedContractIds) {
+        const contract = contracts.find((c) => c.id === id);
+        if (contract) {
+          const pdfBlob = await ContractPDFExport.exportToPDF({
+            contract,
+            zmsSignature,
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            selleraddress: contract.dispatchAddress,
+            buyeraddress: undefined,
+          });
+          if (!pdfBlob) {
+            throw new Error(`Failed to generate PDF for contract ${contract.contractNumber}`);
+          }
+          const pdfUrl = await uploadPDFToServer(pdfBlob, `Contract_${contract.contractNumber}.pdf`);
+          attachmentUrls.push(pdfUrl);
+        }
+      }
+
+      if (uploadedFile) {
+        const fileUrl = await uploadPDFToServer(uploadedFile, uploadedFile.name);
+        attachmentUrls.push(fileUrl);
+      }
+
+      if (attachmentUrls.length === 0) {
+        toast('No files to send', { type: 'error' });
+        return;
+      }
+
+      await sendEmailWithAttachments(attachmentUrls, emailRecipient, messageBody);
+      toast('Files sent via email successfully', { type: 'success' });
+      setOpenEmailModal(false);
+      resetModalInputs();
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      toast('Failed to send email', { type: 'error' });
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (selectedContractIds.length === 0 && !uploadedFile) {
+      toast('Please select at least one contract or upload a file', { type: 'warning' });
+      return;
+    }
+    if (!whatsappNumber) {
+      toast('Please enter a WhatsApp number', { type: 'warning' });
+      return;
+    }
+
+    try {
+      const attachmentUrls: string[] = [];
+
+      for (const id of selectedContractIds) {
+        const contract = contracts.find((c) => c.id === id);
+        if (contract) {
+          const pdfBlob = await ContractPDFExport.exportToPDF({
+            contract,
+            zmsSignature,
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            selleraddress: contract.dispatchAddress,
+            buyeraddress: undefined,
+          });
+          if (!pdfBlob) {
+            throw new Error(`Failed to generate PDF for contract ${contract.contractNumber}`);
+          }
+          const pdfUrl = await uploadPDFToServer(pdfBlob, `Contract_${contract.contractNumber}.pdf`);
+          attachmentUrls.push(pdfUrl);
+        }
+      }
+
+      if (uploadedFile) {
+        const fileUrl = await uploadPDFToServer(uploadedFile, uploadedFile.name);
+        attachmentUrls.push(fileUrl);
+      }
+
+      if (attachmentUrls.length === 0) {
+        toast('No files to send', { type: 'error' });
+        return;
+      }
+
+      const message = `${messageBody || 'Please find the attached files:'}\n${attachmentUrls.join('\n')}`;
+      const encodedMessage = encodeURIComponent(message);
+      const cleanedNumber = whatsappNumber.replace(/[^0-9]/g, '');
+      const whatsappUrl = `https://wa.me/${cleanedNumber}?text=${encodedMessage}`;
+      window.open(whatsappUrl, '_blank');
+      toast('WhatsApp message prepared with file links', { type: 'info' });
+      setOpenWhatsAppModal(false);
+      resetModalInputs();
+    } catch (error) {
+      console.error('Failed to prepare WhatsApp message:', error);
+      toast('Failed to prepare WhatsApp message', { type: 'error' });
+    }
+  };
+
+  const uploadPDFToServer = async (file: Blob | File, fileName: string): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file, fileName);
+    const response = await fetch('/api/upload-pdf', {
+      method: 'POST',
+      body: formData,
     });
+    if (!response.ok) throw new Error('Failed to upload file');
+    const data = await response.json();
+    return data.url;
+  };
+
+  const sendEmailWithAttachments = async (attachmentUrls: string[], recipient: string, message: string) => {
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: recipient,
+        subject: 'ZMS Sourcing Contract Files',
+        body: message || 'Please find the attached files.',
+        attachments: attachmentUrls,
+      }),
+    });
+    if (!response.ok) throw new Error('Failed to send email');
   };
 
   const handleSignatureUpload = () => {
@@ -175,17 +344,36 @@ const ContractList = () => {
       toast('Please select at least one contract', { type: 'warning' });
       return;
     }
-    // Open the view modal for the first selected contract
     const firstContractId = selectedContractIds[0];
     handleViewOpen(firstContractId);
   };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    if (file && file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast('File size exceeds 10MB limit', { type: 'error' });
+      return;
+    }
+    if (file) {
+      setUploadedFile(file);
+      toast(`File "${file.name}" selected for upload`, { type: 'info' });
+    } else {
+      setUploadedFile(null);
+    }
+  };
+
+  const resetModalInputs = () => {
+    setEmailRecipient('');
+    setWhatsappNumber('');
+    setUploadedFile(null);
+    setMessageBody('');
+  };
+
   const getFabricDetails = () => {
     if (selectedContractIds.length === 0) {
       return 'No contract selected';
     }
 
-    // For simplicity, show details for the first selected contract
-    // You can modify this to handle multiple contracts differently (e.g., combine or show a message)
     const selectedContract = contracts.find((contract) => contract.id === selectedContractIds[0]);
     if (!selectedContract) {
       return 'N/A';
@@ -322,9 +510,9 @@ const ContractList = () => {
   };
 
   return (
-    <div className="container bg-white rounded-md p-6">
+    <div className="container bg-white rounded-md p-6 h-[110vh]">
       <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
             <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
             <select
@@ -375,21 +563,20 @@ const ContractList = () => {
           pageSize={pageSize}
           setPageSize={setPageSize}
         />
-        {/* Fabric Details Input Field */}
-      <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Fabric Details
-        </label>
-        <input
-          type="text"
-          value={getFabricDetails()}
-          readOnly
-          className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-800 focus:outline-none"
-          placeholder="Select a contract to view fabric details"
-        />
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Fabric Details
+          </label>
+          <input
+            type="text"
+            value={getFabricDetails()}
+            readOnly
+            className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-800 focus:outline-none"
+            placeholder="Select a contract to view fabric details"
+          />
+        </div>
       </div>
-      </div>
-      <div className="mt-4 space-y-2 border-t-2 h-[10vh]">
+      <div className="mt-4 space-y-2 border-t-2  border-b-2 h-[18vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -438,7 +625,7 @@ const ContractList = () => {
           <button
             onClick={exportToExcel}
             disabled={selectedContractIds.length === 0}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 ${
+            className={`flex items-center gap-2 px-4 py-2 h-16 w-15 rounded-md transition-all duration-200 ${
               selectedContractIds.length === 0
                 ? 'bg-green-300 cursor-not-allowed'
                 : 'bg-green-600 hover:bg-green-700 text-white'
@@ -446,6 +633,30 @@ const ContractList = () => {
           >
             <FaFileExcel size={18} />
             Export Excel
+          </button>
+          <button
+            onClick={() => setOpenEmailModal(true)}
+            disabled={selectedContractIds.length === 0}
+            className={`flex items-center gap-2 px-4 py-2 h-16  rounded-md transition-all duration-200 ${
+              selectedContractIds.length === 0
+                ? 'bg-blue-300 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            <FaEnvelope size={18} />
+            Email
+          </button>
+          <button
+            onClick={() => setOpenWhatsAppModal(true)}
+            disabled={selectedContractIds.length === 0}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 ${
+              selectedContractIds.length === 0
+                ? 'bg-green-300 cursor-not-allowed'
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            }`}
+          >
+            <FaWhatsapp size={18} />
+            WhatsApp
           </button>
         </div>
       </div>
@@ -563,6 +774,154 @@ const ContractList = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      {openEmailModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-5 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+                Send Email
+              </h2>
+              <button
+                className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
+                onClick={() => {
+                  setOpenEmailModal(false);
+                  resetModalInputs();
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 bg-gray-50 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Recipient Email
+                </label>
+                <input
+                  type="email"
+                  value={emailRecipient}
+                  onChange={(e) => setEmailRecipient(e.target.value)}
+                  placeholder="Enter recipient email"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Attach File (Optional)
+                </label>
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  accept=".pdf,.doc,.docx,.jpg,.png"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Message (Optional)
+                </label>
+                <textarea
+                  value={messageBody}
+                  onChange={(e) => setMessageBody(e.target.value)}
+                  placeholder="Enter your message"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={4}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setOpenEmailModal(false);
+                    resetModalInputs();
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-all duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSendEmail}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-all duration-200"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {openWhatsAppModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
+            <div className="bg-gradient-to-r from-green-500 to-green-600 p-5 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+                Send WhatsApp
+              </h2>
+              <button
+                className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
+                onClick={() => {
+                  setOpenWhatsAppModal(false);
+                  resetModalInputs();
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 bg-gray-50 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  WhatsApp Number
+                </label>
+                <input
+                  type="tel"
+                  value={whatsappNumber}
+                  onChange={(e) => setWhatsappNumber(e.target.value)}
+                  placeholder="e.g., +923001234567"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Attach File (Optional)
+                </label>
+                <input
+                  type="file"
+                  onChange={handleFileChange}
+                  accept=".pdf,.doc,.docx,.jpg,.png"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Message (Optional)
+                </label>
+                <textarea
+                  value={messageBody}
+                  onChange={(e) => setMessageBody(e.target.value)}
+                  placeholder="Enter your message"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  rows={4}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    setOpenWhatsAppModal(false);
+                    resetModalInputs();
+                  }}
+                  className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-all duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSendWhatsApp}
+                  className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-all duration-200"
+                >
+                  Send
+                </button>
+              </div>
             </div>
           </div>
         </div>

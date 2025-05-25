@@ -363,6 +363,7 @@ const ContractPDFExport = {
     doc.text('Confidential - ZMS Textiles Ltd.', 105, 280, { align: 'center' });
 
     doc.save(`ZMS Sourcing Contract: (Seller:${contract.seller})(Buyer:${contract.buyer}).pdf`);
+    return doc.output('blob');
   },
 };
 
