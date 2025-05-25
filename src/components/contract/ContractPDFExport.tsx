@@ -6,7 +6,12 @@ import { Contract } from './columns';
 
 // Load ZMS logo (assumes logo is in public/ZMS-logo.png)
 const ZMS_LOGO = '/ZMS-logo.png';
-
+// Style constants
+const styles = {
+  label: { size: 9, color: [0, 0, 0] as [number, number, number] },
+  value: { size: 9, color: [0, 0, 0] as [number, number, number] },
+  margins: { left: 15, right: 15 }
+};
 interface ExportToPDFProps {
   contract: Contract | null;
   sellerSignature?: string;
@@ -61,41 +66,73 @@ const ContractPDFExport = {
     doc.text('Purchase Contract', 105, yPos, { align: 'center' });
     yPos += 10;
 
-    // Buyer and Seller Information (Side by Side)
+    // Seller and Buyer Information (Seller on left, Buyer on right with gap)
     const leftColX = 15;
-    const rightColX = 105;
+    const rightColX = 115; // Adjusted to position Buyer near the right with a gap
     const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [0, 0, 0] as [number, number, number] };
     const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [0, 0, 0] as [number, number, number] };
 
-    // Buyer Info
+    // Seller Info with Border (Left)
+    doc.setDrawColor(100, 100, 100); // Darker gray border for better appearance
+    doc.setLineWidth(0.5); // Thicker line for visibility
+    doc.rect(leftColX - 5, yPos - 5, 80, 15); // Reduced width from 90 to 80, height 15
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     doc.setTextColor(...labelStyle.color);
-    doc.text('Buyer:', leftColX, yPos);
+    doc.text('Seller:', leftColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
-    const buyerName = contract.buyer || '-';
-    const buyerAddressText = buyeraddress || 'M/S Union Fabrics (Pvt) Ltd'; 
-    doc.text(buyerName, leftColX + doc.getTextWidth('Buyer:') + 10, yPos);
-    doc.text(buyerAddressText, leftColX + doc.getTextWidth('Buyer:') + 10, yPos + 6);
+    let sellerName = contract.seller || '-';
+    let sellerAddressText = selleraddress || 'M/S Ahmed Fine Textile Mills Ltd.59/3';
+    const maxSellerWidth = 65; // Adjusted for smaller box width
+    if (doc.getTextWidth(sellerName) > maxSellerWidth) {
+      while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
+        sellerName = sellerName.slice(0, -1);
+      }
+      sellerName += '...';
+    }
+    if (doc.getTextWidth(sellerAddressText) > maxSellerWidth) {
+      while (doc.getTextWidth(sellerAddressText + '...') > maxSellerWidth && sellerAddressText.length > 0) {
+        sellerAddressText = sellerAddressText.slice(0, -1);
+      }
+      sellerAddressText += '...';
+    }
+    doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 10, yPos);
+    doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 10, yPos + 6);
 
-    // Seller Info
+    // Buyer Info with Border (Right)
+    doc.setDrawColor(100, 100, 100); // Darker gray border
+    doc.setLineWidth(0.5); // Thicker line
+    doc.rect(rightColX - 5, yPos - 5, 75, 15); // Reduced width from 85 to 75, height 15
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     doc.setTextColor(...labelStyle.color);
-    doc.text('Seller:', rightColX, yPos);
+    doc.text('Buyer:', rightColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
-    const sellerName = contract.seller || '-';
-    const sellerAddressText = selleraddress || 'M/S Ahmed Fine Textile Mills Ltd.59/3'
-    doc.text(sellerName, rightColX + doc.getTextWidth('Seller:') + 10, yPos);
-    doc.text(sellerAddressText, rightColX + doc.getTextWidth('Seller:') + 10, yPos + 6);
+    let buyerName = contract.buyer || '-';
+    let buyerAddressText = buyeraddress || 'M/S Union Fabrics (Pvt) Ltd';
+    const maxBuyerWidth = 60; // Adjusted for smaller box width
+    if (doc.getTextWidth(buyerName) > maxBuyerWidth) {
+      while (doc.getTextWidth(buyerName + '...') > maxBuyerWidth && buyerName.length > 0) {
+        buyerName = buyerName.slice(0, -1);
+      }
+      buyerName += '...';
+    }
+    if (doc.getTextWidth(buyerAddressText) > maxBuyerWidth) {
+      while (doc.getTextWidth(buyerAddressText + '...') > maxBuyerWidth && buyerAddressText.length > 0) {
+        buyerAddressText = buyerAddressText.slice(0, -1);
+      }
+      buyerAddressText += '...';
+    }
+    doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 10, yPos);
+    doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 10, yPos + 6);
 
-    yPos += 15;
+    yPos += 17; // Adjusted for box height (15) + minimal gap (2)
 
-    
+    // Fields (Description, Blend Ratio, Construction)
     const fields = [
       { label: 'Description:', value: contract.descriptionName || '-' },
       { label: 'Blend Ratio:', value: contract.blendRatio || '-' },
@@ -129,53 +166,42 @@ const ContractPDFExport = {
       yPos += 6;
     });
 
-    yPos += 10;
-
-    // Main Table for Width, Quantity, Pick Rate, PKR/Mtr, Amount, Delivery, Warp Wt., Weft Wt.
+    // Financial Table with Blank Rows
     autoTable(doc, {
       startY: yPos,
-      head: [['Width', 'Qty', 'Pick Rate', 'PKR / Mtr', 'Amount', 'Delivery', 'Warp Wt.', 'Weft Wt.']],
+      head: [['Width', 'Quantity', 'Rate', 'Amount', 'Delivery', 'Warp', 'Weft']],
       body: [
         [
-          contract.width ? contract.width.replace('/', '"/"') + '"' : '-',
-          `${contract.quantity} ${contract.unitOfMeasure}` || '-',
-          contract.rate || '-',
-          contract.rate || '-',
-          contract.totalAmount.toString() || '-',
+          contract.width ? `${contract.width}"` : '-',
+          `${contract.quantity} ${contract.unitOfMeasure}`,
+          contract.rate,
+          contract.totalAmount,
           contract.refer || '-',
-          contract.weftCount || '-',
           contract.warpCount || '-',
+          contract.weftCount || '-',
         ],
-        ['', '', '', '', '', '', '', ''], 
-        ['', '', '', '', '', '', '', ''], 
-        ['', '', '', '', '', '', '', ''],
-        ['', '', '',  'GST:', contract.gstValue || '-', '', ''], 
-        ['', '', '',  'Total Amount:', contract.totalAmount.toString() ||  '', ''], 
+        ['', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', ''],
+        ['', '', 'GST:', contract.gstValue || '-', '', '', ''],
+        ['', '', 'Total Amount:', contract.totalAmount.toString(), '', '', '']
       ],
-      theme: 'striped',
-      styles: {
-        font: 'helvetica',
-        fontSize: 8,
-        cellPadding: { top: 2, bottom: 2, left: 4, right: 4 },
-        textColor: [0, 0, 0],
-        lineWidth: 0.1,
-        lineColor: [0, 0, 0],
-        halign: 'left',
-      },
-      headStyles: {
-        fillColor: [200, 200, 200],
-        textColor: [0, 0, 0],
-        fontStyle: 'bold',
-      },
+      styles: { fontSize: 9, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.3 },
+      headStyles: { fillColor: [28, 78, 128], textColor: [255, 255, 255], lineWidth: 0.3, lineColor: [200, 200, 200] },
       columnStyles: {
-        4: { halign: 'right' }, // Align GST and Total Amount labels to the right
-        5: { halign: 'left' },  // Align GST and Total Amount values to the left
+        2: { halign: 'right' },
+        3: { halign: 'right' }
       },
       margin: { left: 15, right: 15 },
+      theme: 'grid',
+      didParseCell: (data) => {
+        if (data.row.index >= 4) {
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
     });
 
-    // Update yPos after table
-    yPos = (doc as any).lastAutoTable.finalY + 10;
+    yPos = (doc as any).lastAutoTable.finalY + 15;
 
     // Additional Fields
     const additionalFields = [
@@ -215,7 +241,7 @@ const ContractPDFExport = {
     });
 
     // Section Divider
-    yPos += 15;
+    yPos += 10;
     doc.setLineWidth(0.2);
     doc.setDrawColor(200, 200, 200);
     doc.line(15, yPos, 195, yPos);
@@ -308,6 +334,11 @@ const ContractPDFExport = {
     doc.setLineWidth(0.3);
     doc.setDrawColor(...textColor);
     doc.line(endX, signatureY + 21, endX + buyerTextWidth, signatureY + 21);
+
+    // Footer Divider Line
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(200, 200, 200);
+    doc.line(15, 275, 195, 275); // Line before footer at y=275
 
     // Footer
     doc.setFont('helvetica', 'normal');
