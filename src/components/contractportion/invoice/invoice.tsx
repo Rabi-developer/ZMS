@@ -160,54 +160,10 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       setLoading(true);
       const response = await getAllContract(1, 100);
       if (response && response.data) {
-        let updatedContracts: ExtendedContract[] = [];
-
-        if (isEdit && initialData?.relatedContracts) {
-          const relatedContractNumbers = initialData.relatedContracts.map((rc) => rc.contractNumber);
-          updatedContracts = response.data
-            .filter((contract: Contract) => relatedContractNumbers.includes(contract.contractNumber))
-            .map((contract: Contract) => {
-              const relatedContract = initialData.relatedContracts!.find(
-                (rc) => rc.contractNumber === contract.contractNumber && rc.id
-              );
-              return {
-                ...contract,
-                isSelected: relatedContract?.contractNumber === initialData.relatedContracts?.[0]?.contractNumber,
-                dispatchQty: relatedContract?.dispatchQty || '',
-                invoiceQty: relatedContract?.invoiceQty || '',
-                invoiceRate: relatedContract?.invoiceRate || '',
-                gstPercentage: relatedContract?.gstPercentage || '',
-                wht: relatedContract?.wht || '',
-                whtPercentage: relatedContract?.whtPercentage || '',
-              };
-            });
-
-          const contractMap = new Map<string, ExtendedContract>();
-          initialData.relatedContracts.forEach((rc) => {
-            const contract = updatedContracts.find(
-              (c) => c.contractNumber === rc.contractNumber && !contractMap.has(rc.id!)
-            );
-            if (contract && rc.id) {
-              contractMap.set(rc.id, { ...contract, id: rc.id });
-            }
-          });
-          updatedContracts = Array.from(contractMap.values());
-        } else {
-          updatedContracts = response.data
-            .filter((contract: Contract) => contract.dispatchQty) // Only contracts with dispatchQty
-            .map((contract: Contract) => ({
-              ...contract,
-              isSelected: false,
-              invoiceQty: '',
-              invoiceRate: '',
-              gstPercentage: '',
-              wht: '',
-              whtPercentage: '',
-            }));
-        }
-
-        setContracts(updatedContracts);
-      } else {
+        
+         setContracts(response.data);
+        } 
+       else {
         setContracts([]);
         toast('No contracts found', { type: 'warning' });
       }
@@ -256,20 +212,17 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     } else {
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
       const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
-
       filtered = contracts.filter((contract) => {
-        if (
-          contract.dispatchQty &&
-          (String(contract.seller) === String(selectedSeller) ||
-            contract.seller === selectedSellerObj?.name) &&
-          (String(contract.buyer) === String(selectedBuyer) ||
-            contract.buyer === selectedBuyerObj?.name)
+        if ((contract.seller === selectedSellerObj?.name) &&
+        
+            contract.buyer === selectedBuyerObj?.name
         ) {
           return true;
         }
         return false;
       });
     }
+    console.log('Filtered Contracts:', filtered);
 
     setFilteredContracts(filtered);
   }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers]);
