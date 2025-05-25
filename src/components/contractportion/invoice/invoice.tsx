@@ -434,7 +434,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     [...filteredContracts, ...additionalContracts].forEach((contract) => {
       const dispatchQty = parseFloat(contract.dispatchQty || '0') || 0;
       const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
-      const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
+      const gst = parseFloat(contract.gst || contract.gst || '0') || 0;
       const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
 
       const invoiceValue = dispatchQty * invoiceRate;
@@ -694,7 +694,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                       {[...filteredContracts, ...additionalContracts].map((contract, index) => {
                         const dispatchQty = parseFloat(contract.dispatchQty || '0') || 0;
                         const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
-                        const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
+                        const gst = parseFloat(contract.gst || contract.gst || '0') || 0;
                         const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
 
                         const invoiceValue = dispatchQty * invoiceRate;
