@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import { string, z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
-import { getAllDispatchNotes } from '@/apis/dispatchnote'; 
+import { getAllDispatchNotes } from '@/apis/dispatchnote';
 import { Contract } from '@/components/contract/columns';
 import { createInvoice, updateInvoice } from '@/apis/invoice';
 
@@ -31,17 +31,16 @@ const InvoiceSchema = z.object({
 type FormData = z.infer<typeof InvoiceSchema>;
 
 interface ExtendedContract extends Contract {
-  dispatchQty: string; // Required to match Contract
+  dispatchQty: string;
   invoiceQty?: string;
   invoiceRate?: string;
   gstPercentage?: string;
   wht?: string;
   whtPercentage?: string;
   isSelected?: boolean;
-  dispatchNoteId?: string; // Add to track associated dispatch note
+  dispatchNoteId?: string;
 }
 
-// Interface for dispatch note data (to match DispatchNoteList)
 interface DispatchNoteData {
   id: string;
   date?: string;
@@ -70,7 +69,6 @@ interface DispatchNoteData {
   }[];
 }
 
-// Interface for invoice data
 interface InvoiceData {
   id?: string;
   invoiceNumber?: string;
@@ -94,7 +92,7 @@ interface InvoiceData {
     totalAmount?: string;
     dispatchQty?: string;
     invoiceQty?: string;
-    invoiceRate?: string;
+    rate?: string;
     gstPercentage?: string;
     wht?: string;
     whtPercentage?: string;
@@ -112,11 +110,14 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
   const [contracts, setContracts] = useState<ExtendedContract[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<ExtendedContract[]>([]);
-  const [dispatchNotes, setDispatchNotes] = useState<DispatchNoteData[]>([]); // State for dispatch notes
+  const [dispatchNotes, setDispatchNotes] = useState<DispatchNoteData[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingSellers, setFetchingSellers] = useState(false);
   const [fetchingBuyers, setFetchingBuyers] = useState(false);
-  const [fetchingDispatchNotes, setFetchingDispatchNotes] = useState(false); // State for dispatch notes loading
+  const [fetchingDispatchNotes, setFetchingDispatchNotes] = useState(false);
+
+  // State to manage additional contract rows
+  const [additionalContracts, setAdditionalContracts] = useState<ExtendedContract[]>([]);
 
   const {
     register,
@@ -191,7 +192,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   const fetchDispatchNotes = async () => {
     try {
       setFetchingDispatchNotes(true);
-      const response = await getAllDispatchNotes(1, 100); // Fetch all dispatch notes
+      const response = await getAllDispatchNotes(1, 100);
       if (response && response.data) {
         setDispatchNotes(response.data);
       } else {
@@ -216,8 +217,8 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           ...contract,
           dispatchQty: '',
           invoiceQty: '',
-          invoiceRate: '',
-          gstPercentage: '',
+          invoiceRate: contract.rate || '',
+          gstPercentage: contract.gst || '',
           wht: '',
           whtPercentage: '',
           isSelected: false,
@@ -233,8 +234,8 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
               isSelected: !!relatedContract,
               dispatchQty: relatedContract?.dispatchQty || '',
               invoiceQty: relatedContract?.invoiceQty || '',
-              invoiceRate: relatedContract?.invoiceRate || '',
-              gstPercentage: relatedContract?.gstPercentage || '',
+              invoiceRate: relatedContract?.rate || contract.rate || '',
+              gstPercentage: relatedContract?.gstPercentage || contract.gst || '',
               wht: relatedContract?.wht || '',
               whtPercentage: relatedContract?.whtPercentage || '',
             };
@@ -282,7 +283,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   useEffect(() => {
     let filtered: ExtendedContract[] = [];
 
-    // Get all contract IDs from dispatch notes
     const dispatchNoteContracts = dispatchNotes.flatMap((dn) =>
       dn.relatedContracts?.map((rc) => ({
         id: rc.id,
@@ -304,19 +304,14 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
       const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
 
-      console.log(dispatchNoteContracts)
       filtered = contracts
         .filter((contract) => {
-          // Match by seller and buyer
           const matchesSellerAndBuyer =
-            (contract.seller === selectedSellerObj?.name ) &&
-            (contract.buyer === selectedBuyerObj?.name);
-
-          // Check if contract is in dispatch notes
+            contract.seller === selectedSellerObj?.name &&
+            contract.buyer === selectedBuyerObj?.name;
           const isInDispatchNote = dispatchNoteContracts.some(
             (dc) => dc.contractNumber === contract.contractNumber
           );
-
           return matchesSellerAndBuyer && isInDispatchNote;
         })
         .map((contract) => {
@@ -330,10 +325,9 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           };
         });
     }
-    console.log('Filtered Contracts:', filtered);
 
-    setFilteredContracts(filtered);
-  }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers, dispatchNotes]);
+    setFilteredContracts([...filtered, ...additionalContracts]);
+  }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers, dispatchNotes, additionalContracts]);
 
   // Fetch data on mount
   useEffect(() => {
@@ -352,19 +346,67 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           : { ...contract, isSelected: false }
       )
     );
+    setAdditionalContracts((prev) =>
+      prev.map((contract) =>
+        contract.id === contractId
+          ? { ...contract, isSelected: checked }
+          : { ...contract, isSelected: false }
+      )
+    );
   };
 
   // Handle input changes for table fields
   const handleContractInputChange = (
     contractId: string,
-    field: 'invoiceQty' | 'invoiceRate' | 'gstPercentage' | 'wht' | 'whtPercentage',
-    value: string
+    field: 'invoiceQty' | 'invoiceRate' | 'gstPercentage' | 'wht' | 'whtPercentage' | 'contractNumber',
+    value: string,
+    isAdditional: boolean = false
   ) => {
-    setContracts((prev) =>
-      prev.map((contract) =>
-        contract.id === contractId ? { ...contract, [field]: value } : contract
-      )
-    );
+    if (isAdditional) {
+      setAdditionalContracts((prev) =>
+        prev.map((contract) =>
+          contract.id === contractId ? { ...contract, [field]: value } : contract
+        )
+      );
+    } else {
+      setContracts((prev) =>
+        prev.map((contract) =>
+          contract.id === contractId ? { ...contract, [field]: value } : contract
+        )
+      );
+    }
+  };
+
+  // Add new contract row
+  const addNewContractRow = () => {
+    const newContract: ExtendedContract = {
+      id: `new-${Date.now()}-${Math.random()}`,
+      dispatchQty: '',
+      invoiceQty: '',
+      invoiceRate: '',
+      gstPercentage: '',
+      wht: '',
+      whtPercentage: '',
+      isSelected: true,
+      contractNumber: '',
+      date: '',
+      contractType: 'Sale',
+      companyId: '',
+      branchId: '',
+      contractOwner: '',
+      seller: sellers.find((s) => s.id === selectedSeller)?.name || '',
+      buyer: buyers.find((b) => b.id === selectedBuyer)?.name || '',
+      deliveryDate: '',
+      fabricType: '',
+      descriptionId: '',
+      stuff: '',
+      quantity: '',
+      unitOfMeasure: '',
+      rate: '',
+      totalAmount: '',
+      gst: '',
+    };
+    setAdditionalContracts((prev) => [...prev, newContract]);
   };
 
   // Format Fabric Details
@@ -389,14 +431,14 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     let totalGSTValue = 0;
     let totalInvoiceValueWithGST = 0;
 
-    filteredContracts.forEach((contract) => {
-      const invoiceQty = parseFloat(contract.invoiceQty || '0') || 0;
-      const invoiceRate = parseFloat(contract.invoiceRate || '0') || 0;
-      const gstPercentage = parseFloat(contract.gstPercentage || '0') || 0;
+    [...filteredContracts, ...additionalContracts].forEach((contract) => {
+      const dispatchQty = parseFloat(contract.dispatchQty || '0') || 0;
+      const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
+      const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
       const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
 
-      const invoiceValue = invoiceQty * invoiceRate;
-      const gstValue = invoiceValue * (gstPercentage / 100);
+      const invoiceValue = dispatchQty * invoiceRate;
+      const gstValue = invoiceValue * (gst / 100);
       const invoiceValueWithGST = invoiceValue + gstValue;
       const whtValue = invoiceValueWithGST * (whtPercentage / 100);
       const totalContractInvoiceValue = invoiceValueWithGST - whtValue;
@@ -411,23 +453,24 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
 
   const onSubmit = async (data: FormData) => {
     try {
-      const relatedContracts = contracts
+      const relatedContracts = [...contracts, ...additionalContracts]
         .filter(
           (contract) =>
-            contract.invoiceQty ||
-            contract.invoiceRate ||
-            contract.gstPercentage ||
-            contract.wht ||
-            contract.whtPercentage
+            contract.isSelected &&
+            (contract.invoiceQty ||
+              contract.invoiceRate ||
+              contract.gstPercentage ||
+              contract.wht ||
+              contract.whtPercentage)
         )
         .map((contract) => {
           const invoiceQty = parseFloat(contract.invoiceQty || '0') || 0;
-          const invoiceRate = parseFloat(contract.invoiceRate || '0') || 0;
-          const gstPercentage = parseFloat(contract.gstPercentage || '0') || 0;
+          const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
+          const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
           const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
 
           const invoiceValue = invoiceQty * invoiceRate;
-          const gstValue = invoiceValue * (gstPercentage / 100);
+          const gstValue = invoiceValue * (gst / 100);
           const invoiceValueWithGST = invoiceValue + gstValue;
           const whtValue = invoiceValueWithGST * (whtPercentage / 100);
 
@@ -445,8 +488,9 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
               totalAmount: contract.totalAmount || '',
               dispatchQty: contract.dispatchQty || '',
               invoiceQty: contract.invoiceQty || '',
-              invoiceRate: contract.invoiceRate || '',
-              gstPercentage: contract.gstPercentage || '',
+              invoiceRate: contract.invoiceRate || contract.rate || '',
+              gst: contract.gst || '',
+              gstPercentage: contract.gstPercentage || contract.gst || '',
               wht: whtValue.toFixed(2),
               whtPercentage: contract.whtPercentage || '',
             };
@@ -460,15 +504,16 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
             totalAmount: contract.totalAmount || '',
             dispatchQty: contract.dispatchQty || '',
             invoiceQty: contract.invoiceQty || '',
-            invoiceRate: contract.invoiceRate || '',
-            gstPercentage: contract.gstPercentage || '',
+            invoiceRate: contract.invoiceRate || contract.rate || '',
+            gst: contract.gst || '',
+            gstPercentage: contract.gstPercentage || contract.gst || '',
             wht: whtValue.toFixed(2),
             whtPercentage: contract.whtPercentage || '',
           };
         });
 
       if (relatedContracts.length === 0) {
-        toast('Please fill at least one contract with Invoice Quantity, Rate, GST%, or WHT%', {
+        toast('Please select at least one contract and fill in required fields.', {
           type: 'error',
         });
         return;
@@ -610,12 +655,21 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           </div>
 
           <div className="p-4">
-            <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
+              <Button
+                type="button"
+                onClick={addNewContractRow}
+                className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2"
+              >
+                Add Contract
+              </Button>
+            </div>
             <div className="border rounded p-4 mt-2">
               {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes) ? (
                 <p className="text-gray-500">Loading contracts, sellers, buyers, or dispatch notes...</p>
               ) : selectedSeller && selectedBuyer ? (
-                filteredContracts.length > 0 ? (
+                [...filteredContracts, ...additionalContracts].length > 0 ? (
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-[#06b6d4] text-white">
@@ -637,17 +691,19 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredContracts.map((contract) => {
-                        const invoiceQty = parseFloat(contract.invoiceQty || '0') || 0;
-                        const invoiceRate = parseFloat(contract.invoiceRate || '0') || 0;
-                        const gstPercentage = parseFloat(contract.gstPercentage || '0') || 0;
+                      {[...filteredContracts, ...additionalContracts].map((contract, index) => {
+                        const dispatchQty = parseFloat(contract.dispatchQty || '0') || 0;
+                        const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
+                        const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
                         const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
 
-                        const invoiceValue = invoiceQty * invoiceRate;
-                        const gstValue = invoiceValue * (gstPercentage / 100);
+                        const invoiceValue = dispatchQty * invoiceRate;
+                        const gstValue = invoiceValue * (gst / 100);
                         const invoiceValueWithGST = invoiceValue + gstValue;
                         const whtValue = invoiceValueWithGST * (whtPercentage / 100);
                         const totalInvoiceValue = invoiceValueWithGST - whtValue;
+
+                        const isAdditional = additionalContracts.some((c) => c.id === contract.id);
 
                         return (
                           <tr
@@ -665,42 +721,45 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                                 onClick={(e) => e.stopPropagation()}
                               />
                             </td>
-                            <td className="p-3">{contract.contractNumber || '-'}</td>
+                            <td className="p-3">
+                              {isAdditional ? (
+                                <input
+                                  type="text"
+                                  value={contract.contractNumber || ''}
+                                  onChange={(e) =>
+                                    handleContractInputChange(
+                                      contract.id,
+                                      'contractNumber' as any,
+                                      e.target.value,
+                                      true
+                                    )
+                                  }
+                                  className="w-full p-2 border border-gray-300 rounded"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              ) : (
+                                contract.contractNumber || '-'
+                              )}
+                            </td>
                             <td className="p-3">{getFabricDetails(contract)}</td>
                             <td className="p-3">{contract.dispatchQty || '-'}</td>
+                             <td className="p-3">{contract.dispatchQty || '-'}</td>
+
                             <td className="p-3">
-                              <input
-                                type="number"
-                                value={contract.invoiceQty || ''}
-                                onChange={(e) =>
-                                  handleContractInputChange(contract.id, 'invoiceQty', e.target.value)
-                                }
-                                className="w-full p-2 border border-gray-300 rounded"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </td>
-                            <td className="p-3">
-                              <input
-                                type="number"
-                                value={contract.invoiceRate || ''}
-                                onChange={(e) =>
-                                  handleContractInputChange(contract.id, 'invoiceRate', e.target.value)
-                                }
-                                className="w-full p-2 border border-gray-300 rounded"
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                              {contract.invoiceRate || contract.rate || '-'}
                             </td>
                             <td className="p-3">{invoiceValue.toFixed(2)}</td>
                             <td className="p-3">{contract.gst || '-'}</td>
                             <td className="p-3">
                               <input
                                 type="number"
-                                value={contract.gstPercentage || ''}
+                                value={contract.gstPercentage || contract.gst || ''}
                                 onChange={(e) =>
                                   handleContractInputChange(
                                     contract.id,
                                     'gstPercentage',
-                                    e.target.value
+                                    e.target.value,
+                                    isAdditional
                                   )
                                 }
                                 className="w-full p-2 border border-gray-300 rounded"
@@ -718,7 +777,8 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                                   handleContractInputChange(
                                     contract.id,
                                     'whtPercentage',
-                                    e.target.value
+                                    e.target.value,
+                                    isAdditional
                                   )
                                 }
                                 className="w-full p-2 border border-gray-300 rounded"
@@ -730,25 +790,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                           </tr>
                         );
                       })}
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <tr key={`blank-${index}`} className="border-b">
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                          <td className="p-3"></td>
-                        </tr>
-                      ))}
                       <tr className="bg-gray-100 font-bold">
                         <td className="p-3"></td>
                         <td className="p-3"></td>

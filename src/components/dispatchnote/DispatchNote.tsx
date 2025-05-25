@@ -34,7 +34,7 @@ type FormData = z.infer<typeof DispatchNoteSchema>;
 interface ExtendedContract extends Contract {
   status?: 'Pending' | 'Approved' | 'Canceled' | 'Closed Dispatch' | 'Closed Payment' | 'Complete Closed';
   base?: string;
-  dispatchQty: string; // Change from optional to required
+  dispatchQty: string; 
   isSelected?: boolean;
 }
 
