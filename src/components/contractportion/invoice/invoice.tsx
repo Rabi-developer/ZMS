@@ -380,31 +380,33 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   // Add new contract row
   const addNewContractRow = () => {
     const newContract: ExtendedContract = {
-      id: `new-${Date.now()}-${Math.random()}`,
-      dispatchQty: '',
-      invoiceQty: '',
-      invoiceRate: '',
-      gstPercentage: '',
-      wht: '',
-      whtPercentage: '',
-      isSelected: true,
-      contractNumber: '',
-      date: '',
-      contractType: 'Sale',
-      companyId: '',
-      branchId: '',
-      contractOwner: '',
-      seller: sellers.find((s) => s.id === selectedSeller)?.name || '',
-      buyer: buyers.find((b) => b.id === selectedBuyer)?.name || '',
-      deliveryDate: '',
-      fabricType: '',
-      descriptionId: '',
-      stuff: '',
-      quantity: '',
-      unitOfMeasure: '',
-      rate: '',
-      totalAmount: '',
-      gst: '',
+        id: `new-${Date.now()}-${Math.random()}`,
+        dispatchQty: '',
+        invoiceQty: '',
+        invoiceRate: '',
+        gstPercentage: '',
+        wht: '',
+        whtPercentage: '',
+        isSelected: true,
+        contractNumber: '',
+        date: '',
+        contractType: 'Sale',
+        companyId: '',
+        branchId: '',
+        contractOwner: '',
+        seller: sellers.find((s) => s.id === selectedSeller)?.name || '',
+        buyer: buyers.find((b) => b.id === selectedBuyer)?.name || '',
+        deliveryDate: '',
+        fabricType: '',
+        descriptionId: '',
+        stuff: '',
+        quantity: '',
+        unitOfMeasure: '',
+        rate: '',
+        totalAmount: '',
+        gst: '',
+        weftYarnType: '',
+        fabricValue: ''
     };
     setAdditionalContracts((prev) => [...prev, newContract]);
   };
@@ -657,13 +659,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           <div className="p-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
-              <Button
-                type="button"
-                onClick={addNewContractRow}
-                className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2"
-              >
-                Add Contract
-              </Button>
+              
             </div>
             <div className="border rounded p-4 mt-2">
               {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes) ? (
@@ -750,22 +746,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                             </td>
                             <td className="p-3">{invoiceValue.toFixed(2)}</td>
                             <td className="p-3">{contract.gst || '-'}</td>
-                            <td className="p-3">
-                              <input
-                                type="number"
-                                value={contract.gstPercentage || contract.gst || ''}
-                                onChange={(e) =>
-                                  handleContractInputChange(
-                                    contract.id,
-                                    'gstPercentage',
-                                    e.target.value,
-                                    isAdditional
-                                  )
-                                }
-                                className="w-full p-2 border border-gray-300 rounded"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </td>
+                            <td className="p-3">{contract.gst || '-'}</td>
                             <td className="p-3">{gstValue.toFixed(2)}</td>
                             <td className="p-3">{invoiceValueWithGST.toFixed(2)}</td>
                             <td className="p-3">{whtValue.toFixed(2)}</td>
