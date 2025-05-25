@@ -179,6 +179,32 @@ const ContractList = () => {
     const firstContractId = selectedContractIds[0];
     handleViewOpen(firstContractId);
   };
+  const getFabricDetails = () => {
+    if (selectedContractIds.length === 0) {
+      return 'No contract selected';
+    }
+
+    // For simplicity, show details for the first selected contract
+    // You can modify this to handle multiple contracts differently (e.g., combine or show a message)
+    const selectedContract = contracts.find((contract) => contract.id === selectedContractIds[0]);
+    if (!selectedContract) {
+      return 'N/A';
+    }
+
+    const fabricDetails = [
+      `${selectedContract.warpCount || ''}${selectedContract.warpYarnType || ''}`,
+      `${selectedContract.weftCount || ''}${selectedContract.weftYarnType || ''}`,
+      `${selectedContract.noOfEnds || ''} * ${selectedContract.noOfPicks || ''}`,
+      selectedContract.weaves || '',
+      selectedContract.width || '',
+      selectedContract.final || '',
+      selectedContract.selvedge || '',
+    ]
+      .filter((item) => item.trim() !== '')
+      .join(' / ');
+
+    return fabricDetails || 'N/A';
+  };
 
   const fetchContracts = async () => {
     try {
@@ -349,6 +375,19 @@ const ContractList = () => {
           pageSize={pageSize}
           setPageSize={setPageSize}
         />
+        {/* Fabric Details Input Field */}
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Fabric Details
+        </label>
+        <input
+          type="text"
+          value={getFabricDetails()}
+          readOnly
+          className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-800 focus:outline-none"
+          placeholder="Select a contract to view fabric details"
+        />
+      </div>
       </div>
       <div className="mt-4 space-y-2 border-t-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">

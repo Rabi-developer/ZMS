@@ -24,26 +24,23 @@ const ContractPDFExport = {
     const doc = new jsPDF();
 
     // Header
-    doc.setFillColor(6, 182, 212);
-    doc.rect(0, 0, 210, 35, 'F');
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
-    doc.setTextColor(255, 255, 255);
-    doc.text('Z.M.SOURCING', 105, 12, { align: 'center' });
-    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Z.M. Sourcing', 105, 12, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
-    doc.setTextColor(230, 230, 230);
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
     doc.text(
-      ' Office No. 108, 1st Floor S.P Chamber, Plot No. B-9, B-1,',
+      'Office No. 108, 1st Floor S.P Chamber, Plot No. B-9, B-1,',
       105,
       22,
       { align: 'center' }
     );
-    doc.text(' Main Estate Avenue, Near Metro Chowrangi, S.I.T.E Karachi', 105, 25, {
+    doc.text('Main Estate Avenue, Near Metro Chowrangi, S.I.T.E Karachi', 105, 27, {
       align: 'center',
     });
-    doc.text('  Tel : +92-21-32550917-18  Email : info@zmt.com.pk', 105, 28, {
+    doc.text('Tel: +92-21-32550917-18  Email: info@zmt.com.pk', 105, 32, {
       align: 'center',
     });
 
@@ -53,23 +50,23 @@ const ContractPDFExport = {
     } catch (error) {
       console.error('Failed to load logo:', error);
       doc.setFontSize(9);
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(0, 0, 0);
       doc.text('[ZMS Logo]', 15, 18);
     }
 
     // Document ID
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(7);
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(0, 0, 0);
     doc.text(`Document ID: ${contract.contractNumber}`, 195, 12, { align: 'right' });
 
     // PURCHASE CONTRACT Heading
     let yPos = 45;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.setTextColor(6, 182, 212); // Match the color scheme of the header
-    doc.text('PURCHASE CONTRACT', 105, yPos, { align: 'center' });
-    yPos += 10; // Adjust yPos to account for the heading
+    doc.setTextColor(0, 0, 0);
+    doc.text('Purchase Contract', 105, yPos, { align: 'center' });
+    yPos += 10;
 
     // Format Finish Width
     const formattedWidth = contract.width ? contract.width.replace('/', '"/"') + '"' : '-';
@@ -77,10 +74,10 @@ const ContractPDFExport = {
     // Contract Details
     const leftColX = 15;
     const rightColX = 105;
-    const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [6, 182, 212] as [number, number, number] };
-    const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [33, 33, 33] as [number, number, number] };
+    const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [0, 0, 0] as [number, number, number] };
+    const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [0, 0, 0] as [number, number, number] };
 
-    // Contract and Date in one row
+    // First row: Contract and Date
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     doc.setTextColor(...labelStyle.color);
@@ -88,7 +85,7 @@ const ContractPDFExport = {
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
-    doc.text(contract.contractNumber, leftColX + doc.getTextWidth('Contract:') + 2, yPos);
+    doc.text(contract.contractNumber, leftColX + doc.getTextWidth('Contract:') + 10, yPos);
 
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
@@ -97,11 +94,11 @@ const ContractPDFExport = {
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
-    doc.text(contract.date || '-', rightColX + doc.getTextWidth('Date:') + 2, yPos);
+    doc.text(contract.date || '-', rightColX + doc.getTextWidth('Date:') + 10, yPos);
 
     yPos += 6;
 
-    // Seller and Contract Type in one row
+    // Second row: Seller and Contract Type
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     doc.setTextColor(...labelStyle.color);
@@ -109,7 +106,7 @@ const ContractPDFExport = {
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
-    doc.text(contract.seller, leftColX + doc.getTextWidth('Seller:') + 2, yPos);
+    doc.text(contract.seller, leftColX + doc.getTextWidth('Seller:') + 10, yPos);
 
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
@@ -118,11 +115,12 @@ const ContractPDFExport = {
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
-    doc.text(contract.contractType, rightColX + doc.getTextWidth('Contract Type:') + 2, yPos);
+    doc.text(contract.contractType, rightColX + doc.getTextWidth('Contract Type:') + 10, yPos);
 
     yPos += 6;
 
-    const fields = [
+    // Remaining fields in a single column
+    const remainingFields = [
       { label: 'Buyer:', value: contract.buyer },
       { label: 'Description:', value: contract.descriptionName || '-' },
       { label: 'Finish Width:', value: formattedWidth },
@@ -148,7 +146,13 @@ const ContractPDFExport = {
       },
     ];
 
-    fields.forEach((field) => {
+    // Calculate max label width for alignment
+    doc.setFont(labelStyle.font, labelStyle.style);
+    doc.setFontSize(labelStyle.size);
+    const maxLabelWidth = Math.max(...remainingFields.map(field => doc.getTextWidth(field.label)));
+
+    // Render remaining fields
+    remainingFields.forEach((field) => {
       const maxWidth = 180;
       let value = field.value;
       if (doc.getTextWidth(value) > maxWidth) {
@@ -158,25 +162,27 @@ const ContractPDFExport = {
         value += '...';
       }
 
+      // Label
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
       doc.setTextColor(...labelStyle.color);
       doc.text(field.label, leftColX, yPos);
 
+      // Value
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
-      doc.text(value, leftColX + doc.getTextWidth(field.label) + 2, yPos);
+      doc.text(value, leftColX + maxLabelWidth + 10, yPos);
 
       yPos += 6;
     });
 
     // Section Divider
-    yPos += 30;
+    yPos += 20;
     doc.setLineWidth(0.2);
     doc.setDrawColor(200, 200, 200);
     doc.line(15, yPos, 195, yPos);
-    yPos += 35;
+    yPos += 25;
 
     // Terms and Conditions Table
     autoTable(doc, {
@@ -190,7 +196,7 @@ const ContractPDFExport = {
         font: 'helvetica',
         fontSize: 8,
         cellPadding: { top: 2, bottom: 2, left: 4, right: 4 },
-        textColor: [33, 33, 33],
+        textColor: [0, 0, 0],
         lineWidth: 0,
         halign: 'left',
       },
@@ -203,85 +209,80 @@ const ContractPDFExport = {
         if (data.section === 'body' && data.row.index === 0) {
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
-          doc.setTextColor(6, 182, 212);
+          doc.setTextColor(0, 0, 0);
           doc.text('Terms and Conditions', 15, data.cell.y - 5);
         }
       },
     });
 
+    // Adjust signature position to fit on page
+    const signatureY = 240;
+    const signatureWidth = 50;
+    const gap = 5;
+    const startX = 10;
+    const centerX = 120 - signatureWidth / 2;
+    const endX = 220 - signatureWidth;
+    const labelColor: [number, number, number] = [0, 0, 0];
+    const textColor: [number, number, number] = [0, 0, 0];
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...labelColor);
+    if (zmsSignature) {
+      doc.addImage(zmsSignature, 'PNG', startX, signatureY + 2, signatureWidth, 15);
+    } else {
     
-const signatureY = 255;
-const signatureWidth = 50;
-const gap = 5;
-const totalWidth = 3 * signatureWidth + 2 * gap; 
-const startX = 10;
-const centerX = 120 - signatureWidth / 2; 
-const endX = 220 - signatureWidth; 
-const labelColor: [number, number, number] = [6, 182, 212];
-const textColor: [number, number, number] = [33, 33, 33];
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(...textColor);
+    const zmsText = 'Z.M. Sourcing';
+    const zmsTextWidth = doc.getTextWidth(zmsText);
+    doc.text(zmsText, startX, signatureY + 20);
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(...textColor);
+    doc.line(startX, signatureY + 21, startX + zmsTextWidth, signatureY + 21);
 
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(9);
-doc.setTextColor(...labelColor);
-if (zmsSignature) {
-  doc.addImage(zmsSignature, 'PNG', startX, signatureY + 2, signatureWidth, 15);
-} else {
-  doc.setLineWidth(0.3);
-  doc.setDrawColor(...textColor);
-  doc.line(startX, signatureY + 10, startX + signatureWidth, signatureY + 10);
-}
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(12);
-doc.setTextColor(...textColor);
-const zmsText = 'Z.M.SOURCING';
-const zmsTextWidth = doc.getTextWidth(zmsText);
-doc.text(zmsText, startX, signatureY + 20);
-doc.setLineWidth(0.3);
-doc.setDrawColor(...textColor);
-doc.line(startX, signatureY + 21, startX + zmsTextWidth, signatureY + 21);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...labelColor);
+    if (sellerSignature) {
+      doc.addImage(sellerSignature, 'PNG', centerX, signatureY + 2, signatureWidth, 15);
+    } else {
+     
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(...textColor);
+    const sellerText = `${contract.seller || '-'}`;
+    const sellerTextWidth = doc.getTextWidth(sellerText);
+    doc.text(sellerText, centerX, signatureY + 20);
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(...textColor);
+    doc.line(centerX, signatureY + 21, centerX + sellerTextWidth, signatureY + 21);
 
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(9);
-doc.setTextColor(...labelColor);
-if (sellerSignature) {
-  doc.addImage(sellerSignature, 'PNG', centerX, signatureY + 2, signatureWidth, 15);
-} else {
- 
-}
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(12);
-doc.setTextColor(...textColor);
-const sellerText = `${contract.seller || '-'}`;
-const sellerTextWidth = doc.getTextWidth(sellerText);
-doc.text(sellerText, centerX, signatureY + 20);
-doc.setLineWidth(0.3);
-doc.setDrawColor(...textColor);
-doc.line(centerX, signatureY + 21, centerX + sellerTextWidth, signatureY + 21);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...labelColor);
+    if (buyerSignature) {
+      doc.addImage(buyerSignature, 'PNG', endX, signatureY + 2, signatureWidth, 15);
+    } else {
+      
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(...textColor);
+    const buyerText = `${contract.buyer || '-'}`;
+    const buyerTextWidth = doc.getTextWidth(buyerText);
+    doc.text(buyerText, endX, signatureY + 20);
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(...textColor);
+    doc.line(endX, signatureY + 21, endX + buyerTextWidth, signatureY + 21);
 
-doc.setFont('helvetica', 'bold');
-doc.setFontSize(9);
-doc.setTextColor(...labelColor);
-if (buyerSignature) {
-  doc.addImage(buyerSignature, 'PNG', endX, signatureY + 2, signatureWidth, 15);
-} else {
-  
-}
-doc.setFont('helvetica', 'normal');
-doc.setFontSize(12);
-doc.setTextColor(...textColor);
-const buyerText = `${contract.buyer || '-'}`;
-const buyerTextWidth = doc.getTextWidth(buyerText);
-doc.text(buyerText, endX, signatureY + 20);
-doc.setLineWidth(0.3);
-doc.setDrawColor(...textColor);
-doc.line(endX, signatureY + 21, endX + buyerTextWidth, signatureY + 21);
-
-    doc.setFillColor(6, 182, 212);
-    doc.rect(0, 280, 210, 17, 'F');
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.setTextColor(255, 255, 255);
-    doc.text('Page 1 of 1', 195, 290, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    doc.text('Page 1 of 1', 195, 280, { align: 'right' });
     doc.text(
       `Generated on ${new Date().toLocaleString('en-US', {
         timeZone: 'Asia/Karachi',
@@ -293,11 +294,11 @@ doc.line(endX, signatureY + 21, endX + buyerTextWidth, signatureY + 21);
         hour12: true,
       })}`,
       15,
-      290
+      280
     );
-    doc.text('Confidential - ZMS Textiles Ltd.', 105, 290, { align: 'center' });
+    doc.text('Confidential - ZMS Textiles Ltd.', 105, 280, { align: 'center' });
 
-    doc.save(`ZMS Sourcing Contract: (Seller:${contract.seller})( Buyer:${contract.buyer}).pdf`);
+    doc.save(`ZMS Sourcing Contract: (Seller:${contract.seller})(Buyer:${contract.buyer}).pdf`);
   },
 };
 
