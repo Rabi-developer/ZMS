@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
-import { getAllDispatchNotes } from '@/apis/dispatchnote'; // Import the API for fetching dispatch notes
+import { getAllDispatchNotes } from '@/apis/dispatchnote'; 
 import { Contract } from '@/components/contract/columns';
 import { createInvoice, updateInvoice } from '@/apis/invoice';
 
@@ -304,23 +304,24 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
       const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
 
+      console.log(dispatchNoteContracts)
       filtered = contracts
         .filter((contract) => {
           // Match by seller and buyer
           const matchesSellerAndBuyer =
-            (contract.seller === selectedSellerObj?.name || String(contract.seller) === String(selectedSeller)) &&
-            (contract.buyer === selectedBuyerObj?.name || String(contract.buyer) === String(selectedBuyer));
+            (contract.seller === selectedSellerObj?.name ) &&
+            (contract.buyer === selectedBuyerObj?.name);
 
           // Check if contract is in dispatch notes
           const isInDispatchNote = dispatchNoteContracts.some(
-            (dc) => dc.contractNumber === contract.contractNumber && dc.id === contract.id
+            (dc) => dc.contractNumber === contract.contractNumber
           );
 
           return matchesSellerAndBuyer && isInDispatchNote;
         })
         .map((contract) => {
           const dispatchContract = dispatchNoteContracts.find(
-            (dc) => dc.contractNumber === contract.contractNumber && dc.id === contract.id
+            (dc) => dc.contractNumber === contract.contractNumber
           );
           return {
             ...contract,
@@ -329,6 +330,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           };
         });
     }
+    console.log('Filtered Contracts:', filtered);
 
     setFilteredContracts(filtered);
   }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers, dispatchNotes]);
