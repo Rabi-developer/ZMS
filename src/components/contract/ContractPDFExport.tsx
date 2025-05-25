@@ -185,7 +185,7 @@ const ContractPDFExport = {
         ['', '', 'Total Amount:', contract.totalAmount.toString(), '', '', '']
       ],
       styles: { fontSize: 9, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.3 },
-      headStyles: { fillColor: [28, 78, 128], textColor: [255, 255, 255], lineWidth: 0.3, lineColor: [200, 200, 200] },
+      headStyles: { fillColor: [6, 182, 212], textColor: [255, 255, 255], lineWidth: 0.3, lineColor: [200, 200, 200] },
       columnStyles: {
         2: { halign: 'right' },
         3: { halign: 'right' }
