@@ -19,7 +19,7 @@ export type Buyer = {
   STN: string;
   MTN: string;
   PayableCode: string;
-  accountNo: string; // comma separated string
+  accountNo: string; 
   PaymentStatus?: string;
   OrderDate?: string;
   DeliveryDate?: string;
@@ -43,6 +43,11 @@ export const columns = (handleDeleteOpen: (id: string) => void): ColumnDef<Buyer
     accessorKey: 'name',
     header: '',
   },
+  {
+    accessorKey: 'address',
+    header: 'Address',
+  },
+ 
   {
     accessorKey: 'buyerType',
     header: 'Buyer Type',
