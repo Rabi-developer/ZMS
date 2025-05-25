@@ -297,7 +297,7 @@ doc.line(endX, signatureY + 21, endX + buyerTextWidth, signatureY + 21);
     );
     doc.text('Confidential - ZMS Textiles Ltd.', 105, 290, { align: 'center' });
 
-    doc.save(`ZMS Sourcing Contract:(Seller:${contract.seller})( Buyer:${contract.buyer}).pdf`);
+    doc.save(`ZMS Sourcing Contract: (Seller:${contract.seller})( Buyer:${contract.buyer}).pdf`);
   },
 };
 
