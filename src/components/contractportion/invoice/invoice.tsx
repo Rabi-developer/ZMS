@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
+import { getAllDispatchNotes } from '@/apis/dispatchnote'; // Import the API for fetching dispatch notes
 import { Contract } from '@/components/contract/columns';
 import { createInvoice, updateInvoice } from '@/apis/invoice';
 
@@ -30,13 +31,43 @@ const InvoiceSchema = z.object({
 type FormData = z.infer<typeof InvoiceSchema>;
 
 interface ExtendedContract extends Contract {
-  dispatchQty: string; // Make required to match Contract
+  dispatchQty: string; // Required to match Contract
   invoiceQty?: string;
   invoiceRate?: string;
   gstPercentage?: string;
   wht?: string;
   whtPercentage?: string;
   isSelected?: boolean;
+  dispatchNoteId?: string; // Add to track associated dispatch note
+}
+
+// Interface for dispatch note data (to match DispatchNoteList)
+interface DispatchNoteData {
+  id: string;
+  date?: string;
+  bilty?: string;
+  seller?: string;
+  buyer?: string;
+  vehicleType?: string;
+  vehicle?: string;
+  contractNumber?: string;
+  remarks?: string;
+  driverName?: string;
+  createdBy?: string;
+  creationDate?: string;
+  updatedBy?: string;
+  updationDate?: string;
+  relatedContracts?: {
+    id?: string;
+    contractNumber?: string;
+    seller?: string;
+    buyer?: string;
+    date?: string;
+    quantity?: string;
+    totalAmount?: string;
+    base?: string;
+    dispatchQty?: string;
+  }[];
 }
 
 // Interface for invoice data
@@ -81,9 +112,11 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
   const [contracts, setContracts] = useState<ExtendedContract[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<ExtendedContract[]>([]);
+  const [dispatchNotes, setDispatchNotes] = useState<DispatchNoteData[]>([]); // State for dispatch notes
   const [loading, setLoading] = useState(false);
   const [fetchingSellers, setFetchingSellers] = useState(false);
   const [fetchingBuyers, setFetchingBuyers] = useState(false);
+  const [fetchingDispatchNotes, setFetchingDispatchNotes] = useState(false); // State for dispatch notes loading
 
   const {
     register,
@@ -154,16 +187,62 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     }
   };
 
-  // Fetch Contracts (filtered by Dispatch Note)
+  // Fetch Dispatch Notes
+  const fetchDispatchNotes = async () => {
+    try {
+      setFetchingDispatchNotes(true);
+      const response = await getAllDispatchNotes(1, 100); // Fetch all dispatch notes
+      if (response && response.data) {
+        setDispatchNotes(response.data);
+      } else {
+        setDispatchNotes([]);
+        toast('No dispatch notes found', { type: 'warning' });
+      }
+    } catch (error) {
+      setDispatchNotes([]);
+      toast('Failed to fetch dispatch notes', { type: 'error' });
+    } finally {
+      setFetchingDispatchNotes(false);
+    }
+  };
+
+  // Fetch Contracts
   const fetchContracts = async () => {
     try {
       setLoading(true);
       const response = await getAllContract(1, 100);
       if (response && response.data) {
-        
-         setContracts(response.data);
-        } 
-       else {
+        let updatedContracts: ExtendedContract[] = response.data.map((contract: Contract) => ({
+          ...contract,
+          dispatchQty: '',
+          invoiceQty: '',
+          invoiceRate: '',
+          gstPercentage: '',
+          wht: '',
+          whtPercentage: '',
+          isSelected: false,
+        }));
+
+        if (isEdit && initialData?.relatedContracts) {
+          updatedContracts = updatedContracts.map((contract) => {
+            const relatedContract = initialData.relatedContracts!.find(
+              (rc) => rc.contractNumber === contract.contractNumber && rc.id === contract.id
+            );
+            return {
+              ...contract,
+              isSelected: !!relatedContract,
+              dispatchQty: relatedContract?.dispatchQty || '',
+              invoiceQty: relatedContract?.invoiceQty || '',
+              invoiceRate: relatedContract?.invoiceRate || '',
+              gstPercentage: relatedContract?.gstPercentage || '',
+              wht: relatedContract?.wht || '',
+              whtPercentage: relatedContract?.whtPercentage || '',
+            };
+          });
+        }
+
+        setContracts(updatedContracts);
+      } else {
         setContracts([]);
         toast('No contracts found', { type: 'warning' });
       }
@@ -199,9 +278,21 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     }
   }, [isEdit, initialData, sellers, buyers, setValue, router]);
 
-  // Filter contracts by Seller, Buyer, and Dispatch Note association
+  // Filter contracts by Seller, Buyer, and Dispatch Notes
   useEffect(() => {
     let filtered: ExtendedContract[] = [];
+
+    // Get all contract IDs from dispatch notes
+    const dispatchNoteContracts = dispatchNotes.flatMap((dn) =>
+      dn.relatedContracts?.map((rc) => ({
+        id: rc.id,
+        contractNumber: rc.contractNumber,
+        seller: rc.seller,
+        buyer: rc.buyer,
+        dispatchQty: rc.dispatchQty || '',
+        dispatchNoteId: dn.id,
+      })) || []
+    );
 
     if (isEdit && initialData?.relatedContracts) {
       filtered = contracts.filter((contract) =>
@@ -212,26 +303,42 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     } else {
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
       const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
-      filtered = contracts.filter((contract) => {
-        if ((contract.seller === selectedSellerObj?.name) &&
-        
-            contract.buyer === selectedBuyerObj?.name
-        ) {
-          return true;
-        }
-        return false;
-      });
+
+      filtered = contracts
+        .filter((contract) => {
+          // Match by seller and buyer
+          const matchesSellerAndBuyer =
+            (contract.seller === selectedSellerObj?.name || String(contract.seller) === String(selectedSeller)) &&
+            (contract.buyer === selectedBuyerObj?.name || String(contract.buyer) === String(selectedBuyer));
+
+          // Check if contract is in dispatch notes
+          const isInDispatchNote = dispatchNoteContracts.some(
+            (dc) => dc.contractNumber === contract.contractNumber && dc.id === contract.id
+          );
+
+          return matchesSellerAndBuyer && isInDispatchNote;
+        })
+        .map((contract) => {
+          const dispatchContract = dispatchNoteContracts.find(
+            (dc) => dc.contractNumber === contract.contractNumber && dc.id === contract.id
+          );
+          return {
+            ...contract,
+            dispatchQty: dispatchContract?.dispatchQty || '',
+            dispatchNoteId: dispatchContract?.dispatchNoteId,
+          };
+        });
     }
-    console.log('Filtered Contracts:', filtered);
 
     setFilteredContracts(filtered);
-  }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers]);
+  }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers, dispatchNotes]);
 
   // Fetch data on mount
   useEffect(() => {
     fetchSellers();
     fetchBuyers();
     fetchContracts();
+    fetchDispatchNotes();
   }, []);
 
   // Handle contract row selection
@@ -385,7 +492,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
         await updateInvoice(payload);
         toast('Invoice Updated Successfully', { type: 'success' });
       } else {
-        await createInvoice(payload); 
+        await createInvoice(payload);
         toast('Invoice Created Successfully', { type: 'success' });
       }
 
@@ -503,8 +610,8 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           <div className="p-4">
             <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
             <div className="border rounded p-4 mt-2">
-              {(loading || fetchingSellers || fetchingBuyers) ? (
-                <p className="text-gray-500">Loading contracts, sellers, or buyers...</p>
+              {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes) ? (
+                <p className="text-gray-500">Loading contracts, sellers, buyers, or dispatch notes...</p>
               ) : selectedSeller && selectedBuyer ? (
                 filteredContracts.length > 0 ? (
                   <table className="w-full text-left border-collapse">
