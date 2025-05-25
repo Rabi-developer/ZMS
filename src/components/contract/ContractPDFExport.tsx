@@ -8,8 +8,8 @@ import { Contract } from './columns';
 const ZMS_LOGO = '/ZMS-logo.png';
 // Style constants
 const styles = {
-  label: { size: 9, color: [0, 0, 0] as [number, number, number] },
-  value: { size: 9, color: [0, 0, 0] as [number, number, number] },
+  label: { size: 9, color: [6, 182, 212] as [number, number, number] }, // Cyan label color
+  value: { size: 9, color: [33, 33, 33] as [number, number, number] }, // Dark gray value color
   margins: { left: 15, right: 15 }
 };
 interface ExportToPDFProps {
@@ -30,14 +30,18 @@ const ContractPDFExport = {
 
     const doc = new jsPDF();
 
+    // Header Background
+    doc.setFillColor(6, 182, 212);
+    doc.rect(0, 0, 210, 35, 'F');
+
     // Header
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(255, 255, 255); // White text for contrast
     doc.text('Z.M. Sourcing', 105, 12, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(255, 255, 255); // White text
     doc.text('Suit No. 108, SP Chamber, Main Estate Avenue,', 105, 22, { align: 'center' });
     doc.text('SITE Karachi', 105, 27, { align: 'center' });
     doc.text('Phone: +92 21 32550917-18 Email: info@zmt.com.pk', 105, 32, { align: 'center' });
@@ -48,14 +52,14 @@ const ContractPDFExport = {
     } catch (error) {
       console.error('Failed to load logo:', error);
       doc.setFontSize(9);
-      doc.setTextColor(0, 0, 0);
+      doc.setTextColor(255, 255, 255); // White text for placeholder
       doc.text('[ZMS Logo]', 15, 18);
     }
 
     // Document ID
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(7);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(255, 255, 255); // White text
     doc.text(`Document ID: ${contract.contractNumber}`, 195, 12, { align: 'right' });
 
     // PURCHASE CONTRACT Heading
@@ -69,20 +73,20 @@ const ContractPDFExport = {
     // Seller and Buyer Information (Seller on left, Buyer on right with gap)
     const leftColX = 15;
     const rightColX = 115; // Adjusted to position Buyer near the right with a gap
-    const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [0, 0, 0] as [number, number, number] };
-    const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [0, 0, 0] as [number, number, number] };
+    const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [6, 182, 212] as [number, number, number] }; // Cyan label color
+    const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [33, 33, 33] as [number, number, number] }; // Dark gray value color
 
     // Seller Info with Border (Left)
-    doc.setDrawColor(100, 100, 100); // Darker gray border for better appearance
-    doc.setLineWidth(0.5); // Thicker line for visibility
-    doc.rect(leftColX - 5, yPos - 5, 80, 15); // Reduced width from 90 to 80, height 15
+    doc.setDrawColor(100, 100, 100); // Darker gray border
+    doc.setLineWidth(0.5); // Thicker line
+    doc.rect(leftColX - 5, yPos - 5, 80, 15); // Width 80, height 15
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...labelStyle.color);
+    doc.setTextColor(...labelStyle.color); // Cyan text for "Seller:"
     doc.text('Seller:', leftColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
-    doc.setTextColor(...valueStyle.color);
+    doc.setTextColor(...valueStyle.color); // Dark gray for values
     let sellerName = contract.seller || '-';
     let sellerAddressText = selleraddress || 'M/S Ahmed Fine Textile Mills Ltd.59/3';
     const maxSellerWidth = 65; // Adjusted for smaller box width
@@ -104,14 +108,14 @@ const ContractPDFExport = {
     // Buyer Info with Border (Right)
     doc.setDrawColor(100, 100, 100); // Darker gray border
     doc.setLineWidth(0.5); // Thicker line
-    doc.rect(rightColX - 5, yPos - 5, 75, 15); // Reduced width from 85 to 75, height 15
+    doc.rect(rightColX - 5, yPos - 5, 75, 15); // Width 75, height 15
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...labelStyle.color);
+    doc.setTextColor(...labelStyle.color); // Cyan text for "Buyer:"
     doc.text('Buyer:', rightColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
-    doc.setTextColor(...valueStyle.color);
+    doc.setTextColor(...valueStyle.color); // Dark gray for values
     let buyerName = contract.buyer || '-';
     let buyerAddressText = buyeraddress || 'M/S Union Fabrics (Pvt) Ltd';
     const maxBuyerWidth = 60; // Adjusted for smaller box width
@@ -155,12 +159,12 @@ const ContractPDFExport = {
 
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...labelStyle.color);
+      doc.setTextColor(...labelStyle.color); // Cyan text for field labels
       doc.text(field.label, leftColX, yPos);
 
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
-      doc.setTextColor(...valueStyle.color);
+      doc.setTextColor(...valueStyle.color); // Dark gray for values
       doc.text(value, leftColX + maxLabelWidth + 10, yPos);
 
       yPos += 6;
@@ -229,12 +233,12 @@ const ContractPDFExport = {
 
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...labelStyle.color);
+      doc.setTextColor(...labelStyle.color); // Cyan text for additional field labels
       doc.text(field.label, leftColX, yPos);
 
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
-      doc.setTextColor(...valueStyle.color);
+      doc.setTextColor(...valueStyle.color); // Dark gray for values
       doc.text(value, leftColX + maxAdditionalLabelWidth + 10, yPos);
 
       yPos += 6;
@@ -272,7 +276,7 @@ const ContractPDFExport = {
         if (data.section === 'body' && data.row.index === 0) {
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
-          doc.setTextColor(0, 0, 0);
+          doc.setTextColor(255, 255, 255); // White text to match financial table header
           doc.text('Terms and Conditions', 15, data.cell.y - 5);
         }
       },
@@ -340,10 +344,14 @@ const ContractPDFExport = {
     doc.setDrawColor(200, 200, 200);
     doc.line(15, 275, 195, 275); // Line before footer at y=275
 
+    // Footer Background
+    doc.setFillColor(6, 182, 212);
+    doc.rect(0, 275, 210, 22, 'F'); // Footer background from y=275 to y=297
+
     // Footer
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(255, 255, 255); // White text for contrast
     doc.text('Page 1 of 1', 195, 280, { align: 'right' });
     doc.text(
       `Generated on ${new Date().toLocaleString('en-US', {
