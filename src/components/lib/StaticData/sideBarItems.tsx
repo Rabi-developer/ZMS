@@ -247,6 +247,13 @@ export const sideBarItems = [
   icon: PiWebhooksLogoFill,
   color: '#33a4d8',
 },
+{
+  text: "Invoice",
+  href: "/invoice",
+  icon: RiPresentationLine,
+  color: '#33a4d8',
+},
+
 
 
 

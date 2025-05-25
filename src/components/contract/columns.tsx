@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export type Contract = {
+  dispatchQty: string;
   id: string;
   contractNumber: string;
   date: string;
