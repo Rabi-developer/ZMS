@@ -54,7 +54,7 @@ const MainLayout = ({ children }: any) => {
         {/* Main Content */}
         <div
           className={`pt-20 px-6 transition-all duration-300 
-            ${isSidebarCollapsed ? "md:ml-[70px]" : "md:ml-[310px]"}
+            ${isSidebarCollapsed ? "md:ml-[70px]" : "md:ml-[320px]"}
             ml-0`}
          >
           <ToastContainer />

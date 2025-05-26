@@ -26,14 +26,14 @@ const InvoiceList = () => {
   const [startDate, setStartDate] = React.useState<string | null>(null);
   const [endDate, setEndDate] = React.useState<string | null>(null);
 
-  // Status options and config
-  const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'Closed ', 'UnApproved', ]
+  // Status options aligned with getStatusStyles
+  const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'Closed', 'UnApproved'];
 
   const statusOptionsConfig = [
     { id: 1, name: 'Prepared', color: '#eab308' },
     { id: 2, name: 'Approved', color: '#22c55e' },
     { id: 3, name: 'Canceled', color: '#ef4444' },
-    { id: 4, name: 'Closed ', color: '#3b82f6' },
+    { id: 4, name: 'Closed', color: '#3b82f6' },
     { id: 5, name: 'UnApproved', color: '#8b5cf6' },
   ];
 
@@ -54,7 +54,6 @@ const InvoiceList = () => {
     fetchInvoices();
   }, [pageIndex, pageSize]);
 
-  // Filter invoices by status and date range
   React.useEffect(() => {
     let filtered = invoices;
 
@@ -196,28 +195,41 @@ const InvoiceList = () => {
         'Total Invoice Value': '',
       };
 
-      const contractRows = invoice.relatedContracts?.map((contract) => ({
-        'Invoice Number': '',
-        'Invoice Date': '',
-        'Due Date': '',
-        'Seller': '',
-        'Buyer': '',
-        'Status': '',
-        'Remarks': '',
-        'Contract Number': contract.contractNumber || '-',
-        'Fabric Details': contract.fabricDetails || '-',
-        'Dispatch Quantity': contract.dispatchQty || '-',
-        'Invoice Quantity': contract.invoiceQty || '-',
-        'Invoice Rate': contract.invoiceRate || '-',
-        'Invoice Value': contract.invoiceValue || '-',
-        'GST': contract.gst || '-',
-        'GST %': contract.gstPercentage || '-',
-        'GST Value': contract.gstValue || '-',
-        'Invoice Value with GST': contract.invoiceValueWithGst || '-',
-        'WHT %': contract.whtPercentage || '-',
-        'WHT Value': contract.whtValue || '-',
-        'Total Invoice Value': contract.totalInvoiceValue || '-',
-      })) || [];
+      const contractRows = invoice.relatedContracts?.map((contract) => {
+        const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
+        const invoiceRate = parseFloat(contract.invoiceRate || '0') || 0;
+        const gstPercentage = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
+        const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
+
+        const invoiceValue = contract.invoiceValue || (invoiceQty * invoiceRate).toFixed(2);
+        const gstValue = contract.gstValue || (parseFloat(invoiceValue) * (gstPercentage / 100)).toFixed(2);
+        const invoiceValueWithGst = contract.invoiceValueWithGst || (parseFloat(invoiceValue) + parseFloat(gstValue)).toFixed(2);
+        const whtValue = contract.whtValue || (parseFloat(invoiceValueWithGst) * (whtPercentage / 100)).toFixed(2);
+        const totalInvoiceValue = contract.totalInvoiceValue || (parseFloat(invoiceValueWithGst) - parseFloat(whtValue)).toFixed(2);
+
+        return {
+          'Invoice Number': '',
+          'Invoice Date': '',
+          'Due Date': '',
+          'Seller': '',
+          'Buyer': '',
+          'Status': '',
+          'Remarks': '',
+          'Contract Number': contract.contractNumber || '-',
+          'Fabric Details': contract.fabricDetails || '-',
+          'Dispatch Quantity': contract.dispatchQty || '-',
+          'Invoice Quantity': contract.invoiceQty || '-',
+          'Invoice Rate': contract.invoiceRate || '-',
+          'Invoice Value': invoiceValue || '-',
+          'GST': contract.gst || '-',
+          'GST %': contract.gstPercentage || '-',
+          'GST Value': gstValue || '-',
+          'Invoice Value with GST': invoiceValueWithGst || '-',
+          'WHT %': contract.whtPercentage || '-',
+          'WHT Value': whtValue || '-',
+          'Total Invoice Value': totalInvoiceValue || '-',
+        };
+      }) || [];
 
       return [invoiceData, ...contractRows];
     });
@@ -226,7 +238,6 @@ const InvoiceList = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Invoices');
 
-    // Set column widths
     const wscols = [
       { wch: 15 }, // Invoice Number
       { wch: 12 }, // Invoice Date
@@ -252,6 +263,25 @@ const InvoiceList = () => {
     worksheet['!cols'] = wscols;
 
     XLSX.writeFile(workbook, 'Invoices.xlsx');
+  };
+
+  const getFabricDetails = (contract: Invoice['relatedContracts'][0]) => {
+    return (
+      [
+        contract.warpCount || '',
+        contract.warpYarnType || '',
+        contract.weftCount || '',
+        contract.weftYarnType || '',
+        contract.noOfEnds || '',
+        contract.noOfPicks ? `* ${contract.noOfPicks}` : '',
+        contract.weaves || '',
+        contract.width || '',
+        contract.final || '',
+        contract.selvedge || '',
+      ]
+        .filter((item) => item.trim() !== '')
+        .join(' / ') || '-'
+    );
   };
 
   return (
@@ -372,23 +402,36 @@ const InvoiceList = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {invoice.relatedContracts.map((contract) => (
-                        <tr key={contract.id} className="border-b hover:bg-gray-100">
-                          <td className="p-3">{contract.contractNumber || '-'}</td>
-                          <td className="p-3">{contract.fabricDetails || '-'}</td>
-                          <td className="p-3">{contract.dispatchQty || '-'}</td>
-                          <td className="p-3">{contract.invoiceQty || '-'}</td>
-                          <td className="p-3">{contract.invoiceRate || '-'}</td>
-                          <td className="p-3">{contract.invoiceValue || '-'}</td>
-                          <td className="p-3">{contract.gst || '-'}</td>
-                          <td className="p-3">{contract.gstPercentage || '-'}</td>
-                          <td className="p-3">{contract.gstValue || '-'}</td>
-                          <td className="p-3">{contract.invoiceValueWithGst || '-'}</td>
-                          <td className="p-3">{contract.whtPercentage || '-'}</td>
-                          <td className="p-3">{contract.whtValue || '-'}</td>
-                          <td className="p-3">{contract.totalInvoiceValue || '-'}</td>
-                        </tr>
-                      ))}
+                      {invoice.relatedContracts.map((contract) => {
+                        const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
+                        const invoiceRate = parseFloat(contract.invoiceRate || '0') || 0;
+                        const gstPercentage = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
+                        const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
+
+                        const invoiceValue = contract.invoiceValue || (invoiceQty * invoiceRate).toFixed(2);
+                        const gstValue = contract.gstValue || (parseFloat(invoiceValue) * (gstPercentage / 100)).toFixed(2);
+                        const invoiceValueWithGst = contract.invoiceValueWithGst || (parseFloat(invoiceValue) + parseFloat(gstValue)).toFixed(2);
+                        const whtValue = contract.whtValue || (parseFloat(invoiceValueWithGst) * (whtPercentage / 100)).toFixed(2);
+                        const totalInvoiceValue = contract.totalInvoiceValue || (parseFloat(invoiceValueWithGst) - parseFloat(whtValue)).toFixed(2);
+
+                        return (
+                          <tr key={contract.id} className="border-b hover:bg-gray-100">
+                            <td className="p-3">{contract.contractNumber || '-'}</td>
+                            <td className="p-3">{contract.fabricDetails || getFabricDetails(contract)}</td>
+                            <td className="p-3">{contract.dispatchQty || '-'}</td>
+                            <td className="p-3">{contract.invoiceQty || '-'}</td>
+                            <td className="p-3">{contract.invoiceRate || '-'}</td>
+                            <td className="p-3">{invoiceValue || '-'}</td>
+                            <td className="p-3">{contract.gst || '-'}</td>
+                            <td className="p-3">{contract.gstPercentage || '-'}</td>
+                            <td className="p-3">{gstValue || '-'}</td>
+                            <td className="p-3">{invoiceValueWithGst || '-'}</td>
+                            <td className="p-3">{contract.whtPercentage || '-'}</td>
+                            <td className="p-3">{whtValue || '-'}</td>
+                            <td className="p-3">{totalInvoiceValue || '-'}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -510,23 +553,36 @@ const InvoiceList = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {selectedInvoice.relatedContracts.map((contract) => (
-                            <tr key={contract.id} className="border-b hover:bg-gray-100">
-                              <td className="p-3">{contract.contractNumber || '-'}</td>
-                              <td className="p-3">{contract.fabricDetails || '-'}</td>
-                              <td className="p-3">{contract.dispatchQty || '-'}</td>
-                              <td className="p-3">{contract.invoiceQty || '-'}</td>
-                              <td className="p-3">{contract.invoiceRate || '-'}</td>
-                              <td className="p-3">{contract.invoiceValue || '-'}</td>
-                              <td className="p-3">{contract.gst || '-'}</td>
-                              <td className="p-3">{contract.gstPercentage || '-'}</td>
-                              <td className="p-3">{contract.gstValue || '-'}</td>
-                              <td className="p-3">{contract.invoiceValueWithGst || '-'}</td>
-                              <td className="p-3">{contract.whtPercentage || '-'}</td>
-                              <td className="p-3">{contract.whtValue || '-'}</td>
-                              <td className="p-3">{contract.totalInvoiceValue || '-'}</td>
-                            </tr>
-                          ))}
+                          {selectedInvoice.relatedContracts.map((contract) => {
+                            const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
+                            const invoiceRate = parseFloat(contract.invoiceRate || '0') || 0;
+                            const gstPercentage = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
+                            const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
+
+                            const invoiceValue = contract.invoiceValue || (invoiceQty * invoiceRate).toFixed(2);
+                            const gstValue = contract.gstValue || (parseFloat(invoiceValue) * (gstPercentage / 100)).toFixed(2);
+                            const invoiceValueWithGst = contract.invoiceValueWithGst || (parseFloat(invoiceValue) + parseFloat(gstValue)).toFixed(2);
+                            const whtValue = contract.whtValue || (parseFloat(invoiceValueWithGst) * (whtPercentage / 100)).toFixed(2);
+                            const totalInvoiceValue = contract.totalInvoiceValue || (parseFloat(invoiceValueWithGst) - parseFloat(whtValue)).toFixed(2);
+
+                            return (
+                              <tr key={contract.id} className="border-b hover:bg-gray-100">
+                                <td className="p-3">{contract.contractNumber || '-'}</td>
+                                <td className="p-3">{contract.fabricDetails || getFabricDetails(contract)}</td>
+                                <td className="p-3">{contract.dispatchQty || '-'}</td>
+                                <td className="p-3">{contract.invoiceQty || '-'}</td>
+                                <td className="p-3">{contract.invoiceRate || '-'}</td>
+                                <td className="p-3">{invoiceValue || '-'}</td>
+                                <td className="p-3">{contract.gst || '-'}</td>
+                                <td className="p-3">{contract.gstPercentage || '-'}</td>
+                                <td className="p-3">{gstValue || '-'}</td>
+                                <td className="p-3">{invoiceValueWithGst || '-'}</td>
+                                <td className="p-3">{contract.whtPercentage || '-'}</td>
+                                <td className="p-3">{whtValue || '-'}</td>
+                                <td className="p-3">{totalInvoiceValue || '-'}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     ) : (
@@ -541,6 +597,40 @@ const InvoiceList = () => {
           </div>
         </div>
       )}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          table {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          thead {
+            display: none;
+          }
+          tbody, tr {
+            display: block;
+          }
+          td {
+            display: block;
+            text-align: left;
+            padding: 0.5rem;
+            position: relative;
+            padding-left: 50%;
+          }
+          td:before {
+            position: absolute;
+            left: 0.5rem;
+            width: 45%;
+            padding-right: 0.5rem;
+            white-space: nowrap;
+          }
+          tr {
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #e7e7e7;
+          }
+        }
+      `}</style>
     </div>
   );
 };

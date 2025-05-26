@@ -3,7 +3,7 @@ import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export type Invoice = {
+export interface Invoice {
   id: string;
   invoiceNumber: string;
   invoiceDate?: string;
@@ -23,7 +23,7 @@ export type Invoice = {
     dispatchQty?: string;
     invoiceQty?: string;
     invoiceRate?: string;
-    invoiceValue?: string | string;
+    invoiceValue?: string;
     gst?: string;
     gstPercentage?: string;
     gstValue?: string;
@@ -31,24 +31,31 @@ export type Invoice = {
     whtPercentage?: string;
     whtValue?: string;
     totalInvoiceValue?: string;
+    warpCount?: string;
+    warpYarnType?: string;
+    weftCount?: string;
+    weftYarnType?: string;
+    noOfEnds?: string;
+    noOfPicks?: string;
+    weaves?: string;
+    width?: string;
+    final?: string;
+    selvedge?: string;
   }[];
-};
+}
 
-// Status styles function
 export const getStatusStyles = (status: string) => {
   switch (status) {
-    case 'Pending':
+    case 'Prepared':
       return 'bg-[#eab308]/10 text-[#eab308] border-[#eab308]';
     case 'Approved':
       return 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]';
     case 'Canceled':
       return 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]';
-    case 'Closed Dispatch':
+    case 'Closed':
       return 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]';
-    case 'Closed Payment':
+    case 'UnApproved':
       return 'bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]';
-    case 'Complete Closed':
-      return 'bg-[#ec4899]/10 text-[#ec4899] border-[#ec4899]';
     default:
       return 'bg-gray-100 text-gray-800 border-gray-300';
   }
@@ -98,45 +105,49 @@ export const columns = (
     header: ({ column }) => (
       <Button
         variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        onClick={() => column.toggleSorting(column.getIsSorted?.() === 'asc')}
       >
         Invoice Date
-        <ArrowUpDown className="ml-2 h-4 w-4" />
+        <ArrowUpDown className="ml-2 h-4 w-4"/>
       </Button>
     ),
   },
   {
     accessorKey: 'dueDate',
     header: 'Due Date',
+    cell: ({ row }) => <div>{row.original.dueDate || '-'}</div>,
   },
   {
     accessorKey: 'seller',
     header: 'Seller',
+    cell: ({ row }) => <div>{row.original.seller || '-'}</div>,
   },
   {
     accessorKey: 'buyer',
     header: 'Buyer',
+    cell: ({ row }) => <div>{row.original.buyer || '-'}</div>,
   },
   {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => (
-      <span
-        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
-          row.original.status || 'Pending'
-        )}`}
-      >
-        {row.original.status || 'Pending'}
-      </span>
-    ),
-  },
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => (
+        <span
+          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
+            row.original.status || 'Pending'
+          )}`}
+        >
+          {row.original.status || 'Pending'}
+        </span>
+      ),
+    },
   {
     accessorKey: 'invoiceremarks',
     header: 'Remarks',
+    cell: ({ row }) => <div>{row.original.invoiceremarks || '-'}</div>,
   },
   {
-    accessorKey: 'name',
-    header: '',
+        accessorKey: 'name',
+        header: '',
   },
   {
     header: 'Actions',

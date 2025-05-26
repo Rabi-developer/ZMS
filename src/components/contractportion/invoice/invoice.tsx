@@ -614,302 +614,362 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   const { totalInvoiceValue, totalGSTValue, totalInvoiceValueWithGST } = calculateTotals();
 
   return (
-    <div className="container mx-auto bg-white shadow-lg rounded dark:bg-[#030630]">
-      <div className="w-full bg-[#06b6d4] h-[7vh] rounded dark:bg-[#387fbf]">
-        <h1 className="text-base text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2">
+    <div className="container mx-auto bg-white shadow-lg rounded dark:bg-[#030630] p-4 md:p-6">
+      <div className="w-full bg-[#06b6d4] h-16 md:h-[7vh] rounded dark:bg-[#387fbf] flex items-center">
+        <h1 className="text-lg md:text-[23px] font-mono ml-4 md:ml-10 text-white flex items-center gap-2">
           <MdReceipt />
           {isEdit ? 'UPDATE INVOICE' : 'ADD INVOICE'}
         </h1>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="p-2 w-full">
-          <div className="p-4">
-            <div className="grid grid-cols-3 gap-4">
+        <div className="p-2 md:p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CustomInput
+              type="text"
+              variant="floating"
+              borderThickness="2"
+              label="Invoice #"
+              id="InvoiceNumber"
+              {...register('InvoiceNumber')}
+              error={errors.InvoiceNumber?.message}
+              className="w-full"
+            />
+            <CustomSingleDatePicker
+              label="Invoice Date"
+              selectedDate={watch('InvoiceDate') || ''}
+              onChange={(date: string) => setValue('InvoiceDate', date, { shouldValidate: true })}
+              error={errors.InvoiceDate?.message}
+              register={register}
+              name="InvoiceDate"
+              variant="floating"
+              borderThickness="2"
+            />
+            <CustomSingleDatePicker
+              label="Due Date"
+              selectedDate={watch('DueDate') || ''}
+              onChange={(date: string) => setValue('DueDate', date, { shouldValidate: true })}
+              error={errors.DueDate?.message}
+              register={register}
+              name="DueDate"
+              variant="floating"
+              borderThickness="2"
+            />
+            <CustomSingleDatePicker
+              label="Invoice Received Date"
+              selectedDate={watch('InvoiceReceivedDate') || ''}
+              onChange={(date: string | undefined) => setValue('InvoiceReceivedDate', date, { shouldValidate: true })}
+              error={errors.InvoiceReceivedDate?.message}
+              register={register}
+              name="InvoiceReceivedDate"
+              variant="floating"
+              borderThickness="2"
+            />
+            <CustomSingleDatePicker
+              label="Invoice Delivered By Date"
+              selectedDate={watch('InvoiceDeliveredByDate') || ''}
+              onChange={(date: string | undefined) => setValue('InvoiceDeliveredByDate', date, { shouldValidate: true })}
+              error={errors.InvoiceDeliveredByDate?.message}
+              register={register}
+              name="InvoiceDeliveredByDate"
+              variant="floating"
+              borderThickness="2"
+            />
+            <CustomInputDropdown
+              label="Seller"
+              options={sellers}
+              selectedOption={watch('Seller') || ''}
+              onChange={(value) => setValue('Seller', value, { shouldValidate: true })}
+              error={errors.Seller?.message}
+              register={register}
+            />
+            <CustomInputDropdown
+              label="Buyer"
+              options={buyers}
+              selectedOption={watch('Buyer') || ''}
+              onChange={(value) => setValue('Buyer', value, { shouldValidate: true })}
+              error={errors.Buyer?.message}
+              register={register}
+            />
+            <div className="mt-4 col-span-1 md:col-span-3">
+              <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Remarks</h2>
+              <textarea
+                className="w-full p-2 border-[#06b6d4] border rounded text-sm md:text-base"
+                rows={4}
+                {...register('Remarks')}
+                placeholder="Enter any remarks"
+              />
+              {errors.Remarks && <p className="text-red-500 text-sm">{errors.Remarks.message}</p>}
+            </div>
+          </div>
+
+          {filteredContracts.length > 0 && filteredContracts.some((c) => c.isSelected) && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               <CustomInput
                 type="text"
                 variant="floating"
                 borderThickness="2"
-                label="Invoice #"
-                id="InvoiceNumber"
-                {...register('InvoiceNumber')}
-                error={errors.InvoiceNumber?.message}
+                label="Seller Payment Term"
+                id="SellerPaymentTerm"
+                value={filteredContracts.find((c) => c.isSelected)?.paymentTermsSeller || ''}
+                disabled
+                className="w-full"
               />
-               <CustomSingleDatePicker
-                label="Invoice Date"
-                selectedDate={watch('InvoiceDate') || ''}
-                onChange={(date: string) => setValue('InvoiceDate', date, { shouldValidate: true })}
-                error={errors.InvoiceDate?.message}
-                register={register}
-                name="InvoiceDate"
+              <CustomInput
+                type="text"
                 variant="floating"
                 borderThickness="2"
+                label="Buyer Payment Term"
+                id="BuyerPaymentTerm"
+                value={filteredContracts.find((c) => c.isSelected)?.paymentTermsBuyer || ''}
+                disabled
+                className="w-full"
               />
-              <CustomSingleDatePicker
-                label="Due Date"
-                selectedDate={watch('DueDate') || ''}
-                onChange={(date: string) => setValue('DueDate', date, { shouldValidate: true })}
-                error={errors.DueDate?.message}
-                register={register}
-                name="DueDate"
-                variant="floating"
-                borderThickness="2"
-              />
-              <CustomSingleDatePicker
-                label="Invoice Received Date"
-                selectedDate={watch('InvoiceReceivedDate') || ''}
-                onChange={(date: string | undefined) => setValue('InvoiceReceivedDate', date, { shouldValidate: true })}
-                error={errors.InvoiceReceivedDate?.message}
-                register={register}
-                name="InvoiceReceivedDate"
-                variant="floating"
-                borderThickness="2"
-              />
-              <CustomSingleDatePicker
-                label="Invoice Delivered By Date"
-                selectedDate={watch('InvoiceDeliveredByDate') || ''}
-                onChange={(date: string | undefined) => setValue('InvoiceDeliveredByDate', date, { shouldValidate: true })}
-                error={errors.InvoiceDeliveredByDate?.message}
-                register={register}
-                name="InvoiceDeliveredByDate"
-                variant="floating"
-                borderThickness="2"
-              />
-              <CustomInputDropdown
-                label="Seller"
-                options={sellers}
-                selectedOption={watch('Seller') || ''}
-                onChange={(value) => setValue('Seller', value, { shouldValidate: true })}
-                error={errors.Seller?.message}
-                register={register}
-              />
-              <CustomInputDropdown
-                label="Buyer"
-                options={buyers}
-                selectedOption={watch('Buyer') || ''}
-                onChange={(value) => setValue('Buyer', value, { shouldValidate: true })}
-                error={errors.Buyer?.message}
-                register={register}
-              />
-              <div className="mt-4">
-                <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Remarks</h2>
-                <textarea
-                  className="w-full p-2 border-[#06b6d4] border rounded text-base"
-                  rows={4}
-                  {...register('Remarks')}
-                  placeholder="Enter any remarks"
-                />
-                {errors.Remarks && <p className="text-red-500">{errors.Remarks.message}</p>}
-              </div>
             </div>
+          )}
+        </div>
 
-            {filteredContracts.length > 0 && filteredContracts.some((c) => c.isSelected) && (
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <CustomInput
-                  type="text"
-                  variant="floating"
-                  borderThickness="2"
-                  label="Seller Payment Term"
-                  id="SellerPaymentTerm"
-                  value={filteredContracts.find((c) => c.isSelected)?.paymentTermsSeller || ''}
-                  disabled
-                />
-                <CustomInput
-                  type="text"
-                  variant="floating"
-                  borderThickness="2"
-                  label="Buyer Payment Term"
-                  id="BuyerPaymentTerm"
-                  value={filteredContracts.find((c) => c.isSelected)?.paymentTermsBuyer || ''}
-                  disabled
-                />
-              </div>
-            )}
+        <div className="p-2 md:p-4">
+          <div className="flex flex-col md:flex-row justify-between items-center mb-2">
+            <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
           </div>
+          <div className="mt-2 overflow-x-auto">
+            {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes || fetchingGstTypes) ? (
+              <p className="text-gray-500 text-sm md:text-base">Loading contracts, sellers, buyers, dispatch notes, or GST types...</p>
+            ) : selectedSeller && selectedBuyer ? (
+              [...filteredContracts, ...additionalContracts].length > 0 ? (
+                <table className="w-full text-left border-collapse text-sm md:text-base">
+                  <thead>
+                    <tr className="bg-[#06b6d4] text-white">
+                      <th className="p-2 md:p-3 font-medium">Select</th>
+                      <th className="p-2 md:p-3 font-medium">Contract #</th>
+                      <th className="p-2 md:p-3 font-medium">Fabric Details</th>
+                      <th className="p-2 md:p-3 font-medium">Dispatch Qty</th>
+                      <th className="p-2 md:p-3 font-medium">Invoice Qty</th>
+                      <th className="p-2 md:p-3 font-medium">Invoice Rate</th>
+                      <th className="p-2 md:p-3 font-medium">Invoice Value</th>
+                      <th className="p-2 md:p-3 font-medium">GST</th>
+                      <th className="p-2 md:p-3 font-medium">%</th>
+                      <th className="p-2 md:p-3 font-medium">GST Value</th>
+                      <th className="p-2 md:p-3 font-medium">Invoice Value with GST</th>
+                      <th className="p-2 md:p-3 font-medium">WHT%</th>
+                      <th className="p-2 md:p-3 font-medium">WHT Value</th>
+                      <th className="p-2 md:p-3 font-medium">Total Invoice Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...filteredContracts, ...additionalContracts].map((contract, index) => {
+                      const dispatchQty = parseFloat(contract.dispatchQty || '0') || 0;
+                      const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
+                      const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
+                      const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
+                      const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
 
-          <div className="p-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
-            </div>
-            <div className="border rounded p-4 mt-2">
-              {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes || fetchingGstTypes) ? (
-                <p className="text-gray-500">Loading contracts, sellers, buyers, dispatch notes, or GST types...</p>
-              ) : selectedSeller && selectedBuyer ? (
-                [...filteredContracts, ...additionalContracts].length > 0 ? (
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#06b6d4] text-white">
-                        <th className="p-3 font-medium">Select</th>
-                        <th className="p-3 font-medium">Contract #</th>
-                        <th className="p-3 font-medium">Fabric Details</th>
-                        <th className="p-3 font-medium">Dispatch Qty</th>
-                        <th className="p-3 font-medium">Invoice Qty</th>
-                        <th className="p-3 font-medium">Invoice Rate</th>
-                        <th className="p-3 font-medium">Invoice Value</th>
-                        <th className="p-3 font-medium">GST</th>
-                        <th className="p-3 font-medium">%</th>
-                        <th className="p-3 font-medium">GST Value</th>
-                        <th className="p-3 font-medium">Invoice Value with GST</th>
-                        <th className="p-3 font-medium">WHT%</th>
-                        <th className="p-3 font-medium">WHT Value</th>
-                        <th className="p-3 font-medium">Total Invoice Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...filteredContracts, ...additionalContracts].map((contract, index) => {
-                        const dispatchQty = parseFloat(contract.dispatchQty || '0') || 0;
-                        const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
-                        const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
-                        const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
-                        const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
+                      const invoiceValue = invoiceQty * invoiceRate;
+                      const gstValue = invoiceValue * (gst / 100);
+                      const invoiceValueWithGST = invoiceValue + gstValue;
+                      const whtValue = invoiceValueWithGST * (whtPercentage / 100);
+                      const totalInvoiceValue = invoiceValueWithGST - whtValue;
 
-                        const invoiceValue = invoiceQty * invoiceRate;
-                        const gstValue = invoiceValue * (gst / 100);
-                        const invoiceValueWithGST = invoiceValue + gstValue;
-                        const whtValue = invoiceValueWithGST * (whtPercentage / 100);
-                        const totalInvoiceValue = invoiceValueWithGST - whtValue;
+                      const isAdditional = additionalContracts.some((c) => c.id === contract.id);
 
-                        const isAdditional = additionalContracts.some((c) => c.id === contract.id);
-
-                        return (
-                          <tr
-                            key={contract.id}
-                            className={`border-b hover:bg-gray-100 cursor-pointer ${
-                              contract.isSelected ? 'bg-blue-100' : ''
-                            }`}
-                            onClick={() => handleContractSelect(contract.id, !contract.isSelected)}
-                          >
-                            <td className="p-3">
+                      return (
+                        <tr
+                          key={contract.id}
+                          className={`border-b hover:bg-gray-100 cursor-pointer ${
+                            contract.isSelected ? 'bg-blue-100' : ''
+                          } block md:table-row`}
+                          onClick={() => handleContractSelect(contract.id, !contract.isSelected)}
+                        >
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['Select:'] before:font-bold before:md:hidden">
+                            <input
+                              type="checkbox"
+                              checked={contract.isSelected || false}
+                              onChange={(e) => handleContractSelect(contract.id, e.target.checked)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['Contract_#:'] before:font-bold before:md:hidden">
+                            {isAdditional ? (
                               <input
-                                type="checkbox"
-                                checked={contract.isSelected || false}
-                                onChange={(e) => handleContractSelect(contract.id, e.target.checked)}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </td>
-                            <td className="p-3">
-                              {isAdditional ? (
-                                <input
-                                  type="text"
-                                  value={contract.contractNumber || ''}
-                                  onChange={(e) =>
-                                    handleContractInputChange(
-                                      contract.id,
-                                      'contractNumber' as any,
-                                      e.target.value,
-                                      true
-                                    )
-                                  }
-                                  className="w-full p-2 border border-gray-300 rounded"
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              ) : (
-                                contract.contractNumber || '-'
-                              )}
-                            </td>
-                            <td className="p-3">{getFabricDetails(contract)}</td>
-                            <td className="p-3">{contract.dispatchQty || '-'}</td>
-                            <td className="p-3">{contract.dispatchQty || '-'}</td>
-
-                            <td className="p-3">
-                              <input
-                                type="number"
-                                value={contract.invoiceRate || contract.rate || ''}
+                                type="text"
+                                value={contract.contractNumber || ''}
                                 onChange={(e) =>
                                   handleContractInputChange(
                                     contract.id,
-                                    'invoiceRate',
+                                    'contractNumber' as any,
                                     e.target.value,
-                                    isAdditional
+                                    true
                                   )
                                 }
                                 className="w-full p-2 border border-gray-300 rounded"
                                 onClick={(e) => e.stopPropagation()}
                               />
-                            </td>
-                            <td className="p-3">{invoiceValue.toFixed(2)}</td>
-                            <td className="p-3">
-                              <CustomInputDropdown
-                                label=""
-                                options={gstTypes}
-                                selectedOption={contract.gstType || ''}
-                                onChange={(value) =>
-                                  handleContractInputChange(contract.id, 'gstType', value, isAdditional)
-                                }
-                               register={register}                           
-                              />
-                            </td>
-                            <td className="p-3">{contract.gstPercentage || '-'}</td>
-                            <td className="p-3">{gstValue.toFixed(2)}</td>
-                            <td className="p-3">{invoiceValueWithGST.toFixed(2)}</td>
-                            <td className="p-3">
-                              <input
-                                type="number"
-                                value={contract.whtPercentage || ''}
-                                onChange={(e) =>
-                                  handleContractInputChange(
-                                    contract.id,
-                                    'whtPercentage',
-                                    e.target.value,
-                                    isAdditional
-                                  )
-                                }
-                                className="w-full p-2 border border-gray-300 rounded"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </td>
-                            <td className="p-3">{whtValue.toFixed(2)}</td>
-                            <td className="p-3">{totalInvoiceValue.toFixed(2)}</td>
-                          </tr>
-                        );
-                      })}
-                      <tr className="bg-gray-100 font-bold">
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3">{totalInvoiceValue.toFixed(2)}</td>
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3">{totalGSTValue.toFixed(2)}</td>
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3"></td>
-                        <td className="p-3">{totalInvoiceValueWithGST.toFixed(2)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="text-gray-500">
-                    No contracts found for the selected Seller and Buyer with associated Dispatch Notes.
-                  </p>
-                )
+                            ) : (
+                              contract.contractNumber || '-'
+                            )}
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['Fabric_Details:'] before:font-bold before:md:hidden">
+                            {getFabricDetails(contract)}
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['Dispatch_Qty:'] before:font-bold before:md:hidden">
+                            {contract.dispatchQty || '-'}
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Qty:'] before:font-bold before:md:hidden">
+                            {contract.dispatchQty || '-'}
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Rate:'] before:font-bold before:md:hidden">
+                            <input
+                              type="number"
+                              value={contract.invoiceRate || contract.rate || ''}
+                              onChange={(e) =>
+                                handleContractInputChange(
+                                  contract.id,
+                                  'invoiceRate',
+                                  e.target.value,
+                                  isAdditional
+                                )
+                              }
+                              className="w-full p-2 border border-gray-300 rounded"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Value:'] before:font-bold before:md:hidden">
+                            {invoiceValue.toFixed(2)}
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['GST:'] before:font-bold before:md:hidden">
+                            <CustomInputDropdown
+                              label=""
+                              options={gstTypes}
+                              selectedOption={contract.gstType || ''}
+                              onChange={(value) =>
+                                handleContractInputChange(contract.id, 'gstType', value, isAdditional)
+                              }
+                              register={register}
+                            />
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['%:'] before:font-bold before:md:hidden">
+                            {contract.gstPercentage || '-'}
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['GST_Value:'] before:font-bold before:md:hidden">
+                            {gstValue.toFixed(2)}
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Value_with_GST:'] before:font-bold before:md:hidden">
+                            {invoiceValueWithGST.toFixed(2)}
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['WHT%:'] before:font-bold before:md:hidden">
+                            <input
+                              type="number"
+                              value={contract.whtPercentage || ''}
+                              onChange={(e) =>
+                                handleContractInputChange(
+                                  contract.id,
+                                  'whtPercentage',
+                                  e.target.value,
+                                  isAdditional
+                                )
+                              }
+                              className="w-full p-2 border border-gray-300 rounded"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['WHT_Value:'] before:font-bold before:md:hidden">
+                            {whtValue.toFixed(2)}
+                          </td>
+                          <td className="p-2 md:p-3 block md:table-cell before:content-['Total_Invoice_Value:'] before:font-bold before:md:hidden">
+                            {totalInvoiceValue.toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="bg-gray-100 font-bold block md:table-row">
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Value:'] before:font-bold before:md:hidden">
+                        {totalInvoiceValue.toFixed(2)}
+                      </td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell before:content-['GST_Value:'] before:font-bold before:md:hidden">
+                        {totalGSTValue.toFixed(2)}
+                      </td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell"></td>
+                      <td className="p-2 md:p-3 block md:table-cell before:content-['Total_Invoice_Value:'] before:font-bold before:md:hidden">
+                        {totalInvoiceValueWithGST.toFixed(2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               ) : (
-                <p className="text-gray-500">Please select both Seller and Buyer to view contracts.</p>
-              )}
-            </div>
+                <p className="text-gray-500 text-sm md:text-base">
+                  No contracts found for the selected Seller and Buyer with associated Dispatch Notes.
+                </p>
+              )
+            ) : (
+              <p className="text-gray-500 text-sm md:text-base">Please select both Seller and Buyer to view contracts.</p>
+            )}
           </div>
         </div>
 
-        <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">
+        <div className="w-full h-16 md:h-[8vh] flex flex-col md:flex-row justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7] p-2 md:p-4">
           <Button
             type="submit"
-            className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+            className="w-full md:w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px]"
           >
             Save
           </Button>
-          <Link href="/invoice">
+          <Link href="/invoice" className="w-full md:w-auto">
             <Button
               type="button"
-              className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+              className="w-full md:w-[160px] gap-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px]"
             >
               Cancel
             </Button>
           </Link>
         </div>
       </form>
+
+      {/* Custom CSS for Responsive Table */}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          table {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          thead {
+            display: none;
+          }
+          tbody, tr {
+            display: block;
+          }
+          td {
+            display: block;
+            text-align: left;
+            padding: 0.5rem;
+            position: relative;
+            padding-left: 50%;
+          }
+          td:before {
+            position: absolute;
+            left: 0.5rem;
+            width: 45%;
+            padding-right: 0.5rem;
+            white-space: nowrap;
+          }
+          tr {
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #e7e7e7;
+          }
+        }
+      `}</style>
     </div>
   );
 };
