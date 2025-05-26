@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
 import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
+import CustomSingleDatePicker from '@/components/ui/CustomDateRangePicker';
 import { MdReceipt } from 'react-icons/md';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
 import { getAllDispatchNotes } from '@/apis/dispatchnote';
+import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
 import { Contract } from '@/components/contract/columns';
 import { createInvoice, updateInvoice } from '@/apis/invoice';
 
@@ -26,6 +28,7 @@ const InvoiceSchema = z.object({
   InvoiceDeliveredByDate: z.string().optional(),
   Seller: z.string().min(1, 'Seller is required'),
   Buyer: z.string().min(1, 'Buyer is required'),
+  Remarks: z.string().optional(),
 });
 
 type FormData = z.infer<typeof InvoiceSchema>;
@@ -39,6 +42,7 @@ interface ExtendedContract extends Contract {
   whtPercentage?: string;
   isSelected?: boolean;
   dispatchNoteId?: string;
+  gstType?: string;
 }
 
 interface DispatchNoteData {
@@ -70,6 +74,7 @@ interface DispatchNoteData {
 }
 
 interface InvoiceData {
+  invoiceremarks?: any;
   id?: string;
   invoiceNumber?: string;
   invoiceDate?: string;
@@ -111,12 +116,12 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   const [contracts, setContracts] = useState<ExtendedContract[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<ExtendedContract[]>([]);
   const [dispatchNotes, setDispatchNotes] = useState<DispatchNoteData[]>([]);
+  const [gstTypes, setGstTypes] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingSellers, setFetchingSellers] = useState(false);
   const [fetchingBuyers, setFetchingBuyers] = useState(false);
   const [fetchingDispatchNotes, setFetchingDispatchNotes] = useState(false);
-
-  // State to manage additional contract rows
+  const [fetchingGstTypes, setFetchingGstTypes] = useState(false);
   const [additionalContracts, setAdditionalContracts] = useState<ExtendedContract[]>([]);
 
   const {
@@ -136,11 +141,36 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       InvoiceDeliveredByDate: '',
       Seller: '',
       Buyer: '',
+      Remarks: '',
     },
   });
 
   const selectedSeller = watch('Seller');
   const selectedBuyer = watch('Buyer');
+
+  // Fetch GST Types
+  const fetchGstTypes = async () => {
+    try {
+      setFetchingGstTypes(true);
+      const response = await getAllGeneralSaleTextTypes();
+      if (response && response.data) {
+        setGstTypes(
+          response.data.map((item: any) => ({
+            id: item.id,
+            name: item.gstType,
+          }))
+        );
+      } else {
+        setGstTypes([]);
+        toast('No GST types found', { type: 'warning' });
+      }
+    } catch (error) {
+      setGstTypes([]);
+      toast('Error fetching GST types', { type: 'error' });
+    } finally {
+      setFetchingGstTypes(false);
+    }
+  };
 
   // Fetch Sellers
   const fetchSellers = async () => {
@@ -222,6 +252,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           wht: '',
           whtPercentage: '',
           isSelected: false,
+          gstType: contract.gst ? gstTypes.find((gt) => gt.name === contract.gst)?.id : '',
         }));
 
         if (isEdit && initialData?.relatedContracts) {
@@ -236,6 +267,11 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
               invoiceQty: relatedContract?.invoiceQty || '',
               invoiceRate: relatedContract?.rate || contract.rate || '',
               gstPercentage: relatedContract?.gstPercentage || contract.gst || '',
+              gstType: relatedContract?.gstPercentage
+                ? gstTypes.find((gt) => gt.name === relatedContract.gstPercentage)?.id
+                : contract.gst
+                ? gstTypes.find((gt) => gt.name === contract.gst)?.id
+                : '',
               wht: relatedContract?.wht || '',
               whtPercentage: relatedContract?.whtPercentage || '',
             };
@@ -268,6 +304,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       setValue('DueDate', initialData.dueDate?.split('T')[0] || '');
       setValue('InvoiceReceivedDate', initialData.invoiceReceivedDate?.split('T')[0] || '');
       setValue('InvoiceDeliveredByDate', initialData.invoiceDeliveredByDate?.split('T')[0] || '');
+      setValue('Remarks', initialData.invoiceremarks || '');
       setValue(
         'Seller',
         sellers.find((s) => s.name === initialData.seller)?.id || initialData.seller || ''
@@ -335,6 +372,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     fetchBuyers();
     fetchContracts();
     fetchDispatchNotes();
+    fetchGstTypes();
   }, []);
 
   // Handle contract row selection
@@ -358,21 +396,37 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   // Handle input changes for table fields
   const handleContractInputChange = (
     contractId: string,
-    field: 'invoiceQty' | 'invoiceRate' | 'gstPercentage' | 'wht' | 'whtPercentage' | 'contractNumber',
+    field: 'invoiceQty' | 'invoiceRate' | 'gstPercentage' | 'wht' | 'whtPercentage' | 'contractNumber' | 'gstType',
     value: string,
     isAdditional: boolean = false
   ) => {
     if (isAdditional) {
       setAdditionalContracts((prev) =>
-        prev.map((contract) =>
-          contract.id === contractId ? { ...contract, [field]: value } : contract
-        )
+        prev.map((contract) => {
+          if (contract.id === contractId) {
+            const updatedContract = { ...contract, [field]: value };
+            if (field === 'gstType') {
+              const selectedGst = gstTypes.find((gt) => gt.id === value);
+              updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
+            }
+            return updatedContract;
+          }
+          return contract;
+        })
       );
     } else {
       setContracts((prev) =>
-        prev.map((contract) =>
-          contract.id === contractId ? { ...contract, [field]: value } : contract
-        )
+        prev.map((contract) => {
+          if (contract.id === contractId) {
+            const updatedContract = { ...contract, [field]: value };
+            if (field === 'gstType') {
+              const selectedGst = gstTypes.find((gt) => gt.id === value);
+              updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
+            }
+            return updatedContract;
+          }
+          return contract;
+        })
       );
     }
   };
@@ -380,33 +434,34 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   // Add new contract row
   const addNewContractRow = () => {
     const newContract: ExtendedContract = {
-        id: `new-${Date.now()}-${Math.random()}`,
-        dispatchQty: '',
-        invoiceQty: '',
-        invoiceRate: '',
-        gstPercentage: '',
-        wht: '',
-        whtPercentage: '',
-        isSelected: true,
-        contractNumber: '',
-        date: '',
-        contractType: 'Sale',
-        companyId: '',
-        branchId: '',
-        contractOwner: '',
-        seller: sellers.find((s) => s.id === selectedSeller)?.name || '',
-        buyer: buyers.find((b) => b.id === selectedBuyer)?.name || '',
-        deliveryDate: '',
-        fabricType: '',
-        descriptionId: '',
-        stuff: '',
-        quantity: '',
-        unitOfMeasure: '',
-        rate: '',
-        totalAmount: '',
-        gst: '',
-        weftYarnType: '',
-        fabricValue: ''
+      id: `new-${Date.now()}-${Math.random()}`,
+      dispatchQty: '',
+      invoiceQty: '',
+      invoiceRate: '',
+      gstPercentage: '',
+      wht: '',
+      whtPercentage: '',
+      isSelected: true,
+      contractNumber: '',
+      date: '',
+      contractType: 'Sale',
+      companyId: '',
+      branchId: '',
+      contractOwner: '',
+      seller: sellers.find((s) => s.id === selectedSeller)?.name || '',
+      buyer: buyers.find((b) => b.id === selectedBuyer)?.name || '',
+      deliveryDate: '',
+      fabricType: '',
+      descriptionId: '',
+      stuff: '',
+      quantity: '',
+      unitOfMeasure: '',
+      rate: '',
+      totalAmount: '',
+      gst: '',
+      weftYarnType: '',
+      fabricValue: '',
+      gstType: '',
     };
     setAdditionalContracts((prev) => [...prev, newContract]);
   };
@@ -435,11 +490,12 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
 
     [...filteredContracts, ...additionalContracts].forEach((contract) => {
       const dispatchQty = parseFloat(contract.dispatchQty || '0') || 0;
+      const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
       const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
-      const gst = parseFloat(contract.gst || contract.gst || '0') || 0;
+      const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
       const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
 
-      const invoiceValue = dispatchQty * invoiceRate;
+      const invoiceValue = invoiceQty * invoiceRate;
       const gstValue = invoiceValue * (gst / 100);
       const invoiceValueWithGST = invoiceValue + gstValue;
       const whtValue = invoiceValueWithGST * (whtPercentage / 100);
@@ -466,7 +522,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
               contract.whtPercentage)
         )
         .map((contract) => {
-          const invoiceQty = parseFloat(contract.invoiceQty || '0') || 0;
+          const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
           const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
           const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
           const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
@@ -489,7 +545,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
               quantity: contract.quantity || '',
               totalAmount: contract.totalAmount || '',
               dispatchQty: contract.dispatchQty || '',
-              invoiceQty: contract.invoiceQty || '',
+              invoiceQty: contract.invoiceQty || contract.dispatchQty || '',
               invoiceRate: contract.invoiceRate || contract.rate || '',
               gst: contract.gst || '',
               gstPercentage: contract.gstPercentage || contract.gst || '',
@@ -505,7 +561,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
             quantity: contract.quantity || '',
             totalAmount: contract.totalAmount || '',
             dispatchQty: contract.dispatchQty || '',
-            invoiceQty: contract.invoiceQty || '',
+            invoiceQty: contract.invoiceQty || contract.dispatchQty || '',
             invoiceRate: contract.invoiceRate || contract.rate || '',
             gst: contract.gst || '',
             gstPercentage: contract.gstPercentage || contract.gst || '',
@@ -530,6 +586,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
         invoiceDeliveredByDate: data.InvoiceDeliveredByDate,
         seller: sellers.find((s) => s.id === data.Seller)?.name || data.Seller,
         buyer: buyers.find((b) => b.id === data.Buyer)?.name || data.Buyer,
+        invoiceremarks: data.Remarks,
         creationDate: isEdit
           ? initialData?.creationDate || new Date().toISOString()
           : new Date().toISOString(),
@@ -578,41 +635,45 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                 {...register('InvoiceNumber')}
                 error={errors.InvoiceNumber?.message}
               />
-              <CustomInput
-                type="date"
-                variant="floating"
-                borderThickness="2"
+               <CustomSingleDatePicker
                 label="Invoice Date"
-                id="InvoiceDate"
-                {...register('InvoiceDate')}
+                selectedDate={watch('InvoiceDate') || ''}
+                onChange={(date: string) => setValue('InvoiceDate', date, { shouldValidate: true })}
                 error={errors.InvoiceDate?.message}
-              />
-              <CustomInput
-                type="date"
+                register={register}
+                name="InvoiceDate"
                 variant="floating"
                 borderThickness="2"
+              />
+              <CustomSingleDatePicker
                 label="Due Date"
-                id="DueDate"
-                {...register('DueDate')}
+                selectedDate={watch('DueDate') || ''}
+                onChange={(date: string) => setValue('DueDate', date, { shouldValidate: true })}
                 error={errors.DueDate?.message}
-              />
-              <CustomInput
-                type="date"
+                register={register}
+                name="DueDate"
                 variant="floating"
                 borderThickness="2"
+              />
+              <CustomSingleDatePicker
                 label="Invoice Received Date"
-                id="InvoiceReceivedDate"
-                {...register('InvoiceReceivedDate')}
+                selectedDate={watch('InvoiceReceivedDate') || ''}
+                onChange={(date: string | undefined) => setValue('InvoiceReceivedDate', date, { shouldValidate: true })}
                 error={errors.InvoiceReceivedDate?.message}
-              />
-              <CustomInput
-                type="date"
+                register={register}
+                name="InvoiceReceivedDate"
                 variant="floating"
                 borderThickness="2"
+              />
+              <CustomSingleDatePicker
                 label="Invoice Delivered By Date"
-                id="InvoiceDeliveredByDate"
-                {...register('InvoiceDeliveredByDate')}
+                selectedDate={watch('InvoiceDeliveredByDate') || ''}
+                onChange={(date: string | undefined) => setValue('InvoiceDeliveredByDate', date, { shouldValidate: true })}
                 error={errors.InvoiceDeliveredByDate?.message}
+                register={register}
+                name="InvoiceDeliveredByDate"
+                variant="floating"
+                borderThickness="2"
               />
               <CustomInputDropdown
                 label="Seller"
@@ -630,6 +691,16 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                 error={errors.Buyer?.message}
                 register={register}
               />
+              <div className="mt-4">
+                <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Remarks</h2>
+                <textarea
+                  className="w-full p-2 border-[#06b6d4] border rounded text-base"
+                  rows={4}
+                  {...register('Remarks')}
+                  placeholder="Enter any remarks"
+                />
+                {errors.Remarks && <p className="text-red-500">{errors.Remarks.message}</p>}
+              </div>
             </div>
 
             {filteredContracts.length > 0 && filteredContracts.some((c) => c.isSelected) && (
@@ -659,11 +730,10 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           <div className="p-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
-              
             </div>
             <div className="border rounded p-4 mt-2">
-              {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes) ? (
-                <p className="text-gray-500">Loading contracts, sellers, buyers, or dispatch notes...</p>
+              {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes || fetchingGstTypes) ? (
+                <p className="text-gray-500">Loading contracts, sellers, buyers, dispatch notes, or GST types...</p>
               ) : selectedSeller && selectedBuyer ? (
                 [...filteredContracts, ...additionalContracts].length > 0 ? (
                   <table className="w-full text-left border-collapse">
@@ -677,10 +747,9 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                         <th className="p-3 font-medium">Invoice Rate</th>
                         <th className="p-3 font-medium">Invoice Value</th>
                         <th className="p-3 font-medium">GST</th>
-                        <th className="p-3 font-medium">GST%</th>
+                        <th className="p-3 font-medium">%</th>
                         <th className="p-3 font-medium">GST Value</th>
-                        <th className="p-3 font-medium">Invoice Value</th>
-                        <th className="p-3 font-medium">WHT</th>
+                        <th className="p-3 font-medium">Invoice Value with GST</th>
                         <th className="p-3 font-medium">WHT%</th>
                         <th className="p-3 font-medium">WHT Value</th>
                         <th className="p-3 font-medium">Total Invoice Value</th>
@@ -689,11 +758,12 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                     <tbody>
                       {[...filteredContracts, ...additionalContracts].map((contract, index) => {
                         const dispatchQty = parseFloat(contract.dispatchQty || '0') || 0;
+                        const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
                         const invoiceRate = parseFloat(contract.invoiceRate || contract.rate || '0') || 0;
-                        const gst = parseFloat(contract.gst || contract.gst || '0') || 0;
+                        const gst = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
                         const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
 
-                        const invoiceValue = dispatchQty * invoiceRate;
+                        const invoiceValue = invoiceQty * invoiceRate;
                         const gstValue = invoiceValue * (gst / 100);
                         const invoiceValueWithGST = invoiceValue + gstValue;
                         const whtValue = invoiceValueWithGST * (whtPercentage / 100);
@@ -739,17 +809,39 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                             </td>
                             <td className="p-3">{getFabricDetails(contract)}</td>
                             <td className="p-3">{contract.dispatchQty || '-'}</td>
-                             <td className="p-3">{contract.dispatchQty || '-'}</td>
+                            <td className="p-3">{contract.dispatchQty || '-'}</td>
 
                             <td className="p-3">
-                              {contract.invoiceRate || contract.rate || '-'}
+                              <input
+                                type="number"
+                                value={contract.invoiceRate || contract.rate || ''}
+                                onChange={(e) =>
+                                  handleContractInputChange(
+                                    contract.id,
+                                    'invoiceRate',
+                                    e.target.value,
+                                    isAdditional
+                                  )
+                                }
+                                className="w-full p-2 border border-gray-300 rounded"
+                                onClick={(e) => e.stopPropagation()}
+                              />
                             </td>
                             <td className="p-3">{invoiceValue.toFixed(2)}</td>
-                            <td className="p-3">{contract.gst || '-'}</td>
-                            <td className="p-3">{contract.gst || '-'}</td>
+                            <td className="p-3">
+                              <CustomInputDropdown
+                                label=""
+                                options={gstTypes}
+                                selectedOption={contract.gstType || ''}
+                                onChange={(value) =>
+                                  handleContractInputChange(contract.id, 'gstType', value, isAdditional)
+                                }
+                               register={register}                           
+                              />
+                            </td>
+                            <td className="p-3">{contract.gstPercentage || '-'}</td>
                             <td className="p-3">{gstValue.toFixed(2)}</td>
                             <td className="p-3">{invoiceValueWithGST.toFixed(2)}</td>
-                            <td className="p-3">{whtValue.toFixed(2)}</td>
                             <td className="p-3">
                               <input
                                 type="number"
@@ -782,7 +874,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                         <td className="p-3"></td>
                         <td className="p-3"></td>
                         <td className="p-3">{totalGSTValue.toFixed(2)}</td>
-                        <td className="p-3"></td>
                         <td className="p-3"></td>
                         <td className="p-3"></td>
                         <td className="p-3"></td>

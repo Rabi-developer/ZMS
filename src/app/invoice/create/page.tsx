@@ -1,12 +1,12 @@
 "use client";
-import InvoiceList from '@/components/contractportion/invoice/InvoiceList';
+import InvoiceForm from '@/components/contractportion/invoice/invoice';
 import MainLayout from '@/components/MainLayout/MainLayout'
 
 const Invoice = () => {
 
     return (
         <MainLayout>
-            <InvoiceList/>
+            <InvoiceForm/>
         </MainLayout>
     )
 }

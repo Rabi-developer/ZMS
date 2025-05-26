@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UseFormRegister } from 'react-hook-form';
-import { DateRangePicker, RangeKeyDict, Range } from 'react-date-range';
+import { Calendar } from 'react-date-range';
 import { format, parseISO } from 'date-fns';
 import 'react-date-range/dist/styles.css';
 import 'react-date-range/dist/theme/default.css';
 
-interface CustomDateRangePickerProps {
+interface CustomSingleDatePickerProps {
   label: string;
-  selectedRange: { startDate: string; endDate: string };
-  onChange: (range: { startDate: string; endDate: string }) => void;
+  selectedDate: string;
+  onChange: (date: string) => void;
   error?: string;
   borderColor?: string;
   focusBorderColor?: string;
@@ -16,19 +16,21 @@ interface CustomDateRangePickerProps {
   borderThickness?: string;
   variant?: 'default' | 'floating';
   register?: UseFormRegister<any>;
+  name: string;
 }
 
-const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
+const CustomSingleDatePicker: React.FC<CustomSingleDatePickerProps> = ({
   label,
-  selectedRange,
+  selectedDate,
   onChange,
   error,
-  borderColor = '#0899b2',
+  borderColor = '#06b6d4',
   focusBorderColor = '#0899b2',
-  hoverBorderColor = '#0899b2',
+  hoverBorderColor = '#06b6d4',
   borderThickness = '2',
   variant = 'default',
   register,
+  name,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -44,35 +46,23 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Format the selected range for display
-  const displayText = selectedRange.startDate && selectedRange.endDate
-    ? `${format(parseISO(selectedRange.startDate), 'MMM dd, yyyy')} - ${format(parseISO(selectedRange.endDate), 'MMM dd, yyyy')}`
-    : '';
+  // Format the selected date for display
+  const displayText = selectedDate ? format(parseISO(selectedDate), 'MMM dd, yyyy') : '';
 
-  // Handle date range selection
-  const handleSelect = (ranges: RangeKeyDict) => {
-    const { startDate, endDate } = ranges.selection;
-    if (startDate && endDate) {
-      onChange({
-        startDate: format(startDate, 'yyyy-MM-dd'),
-        endDate: format(endDate, 'yyyy-MM-dd'),
-      });
-      setIsOpen(false);
-    }
+  // Handle date selection
+  const handleSelect = (date: Date) => {
+    onChange(format(date, 'yyyy-MM-dd'));
+    setIsOpen(false);
   };
 
-  // Convert selectedRange to Date objects for DateRangePicker
-  const dateRange: Range = {
-    startDate: selectedRange.startDate ? parseISO(selectedRange.startDate) : new Date(),
-    endDate: selectedRange.endDate ? parseISO(selectedRange.endDate) : new Date(),
-    key: 'selection',
-  };
+  // Convert selectedDate to Date object for Calendar
+  const date = selectedDate ? parseISO(selectedDate) : new Date();
 
   return (
     <div className="w-full" ref={dropdownRef}>
       <div className="relative w-full mb-4">
         <label
-          htmlFor="dateRange"
+          htmlFor={name}
           className={`block text-lg font-medium text-gray-700 mb-2 transition-all duration-300 ${
             variant === 'floating' && isOpen ? 'transform -translate-y-6 scale-75' : ''
           }`}
@@ -83,11 +73,11 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
         <div className="relative">
           <input
             type="text"
-            placeholder="Select date range"
+            placeholder={`Select ${label}`}
             value={displayText}
             readOnly
             onClick={() => setIsOpen(!isOpen)}
-            className={`w-full px-4 py-3 rounded-t-lg text-[#6d6d6d] placeholder-gray-400 shadow-md focus:outline-none focus:ring-2
+            className={`w-full px-4 py-3 rounded-t-lg text-[#6d6d6d] border-[#06b6d4] placeholder-gray-400 shadow-md focus:outline-none focus:ring-2
               focus:ring-${focusBorderColor} border-${borderThickness} border-${borderColor}
               hover:border-${hoverBorderColor} transition-all duration-300 bg-white
               ${error ? 'border-red-500 focus:ring-red-500' : ''} ${isOpen ? '' : 'rounded-b-lg'}`}
@@ -97,32 +87,22 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
             <div
               className={`absolute w-full bg-white rounded-b-lg shadow-xl z-10 border-${borderThickness} border-${borderColor}`}
             >
-              <DateRangePicker
+              <Calendar
+                date={date}
                 onChange={handleSelect}
-                ranges={[dateRange]}
-                moveRangeOnFirstSelection={false}
-                months={2}
-                direction="horizontal"
                 className="w-full"
               />
             </div>
           )}
         </div>
 
-        {/* Hidden inputs for react-hook-form integration */}
+        {/* Hidden input for react-hook-form integration */}
         {register && (
-          <>
-            <input
-              type="hidden"
-              {...register(`${label}.startDate`)}
-              value={selectedRange.startDate}
-            />
-            <input
-              type="hidden"
-              {...register(`${label}.endDate`)}
-              value={selectedRange.endDate}
-            />
-          </>
+          <input
+            type="hidden"
+            {...register(name)}
+            value={selectedDate}
+          />
         )}
 
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
@@ -131,4 +111,4 @@ const CustomDateRangePicker: React.FC<CustomDateRangePickerProps> = ({
   );
 };
 
-export default CustomDateRangePicker;
+export default CustomSingleDatePicker;

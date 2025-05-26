@@ -77,5 +77,18 @@ const deleteInvoice  = async (id: string) => {
     throw error;
   }   
 };
-
-export { createInvoice , getAllInvoice , getAllInvoicePositions , getSingleInvoice , updateInvoice , deleteInvoice  };
+const updateInvoiceStatus = async (InvoiceStatus: { id: string; status: string }) => {
+  try {
+    const response = await apiFetch('Invoice/status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ Id: InvoiceStatus.id, Status: InvoiceStatus.status }),
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+export { createInvoice , getAllInvoice , getAllInvoicePositions , getSingleInvoice , updateInvoice , deleteInvoice, updateInvoiceStatus  };
