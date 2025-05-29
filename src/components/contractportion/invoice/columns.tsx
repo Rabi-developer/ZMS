@@ -17,6 +17,7 @@ export interface Invoice {
   updatedBy?: string;
   updationDate?: string;
   relatedContracts?: {
+    fabricValue: string;
     id?: string;
     contractNumber?: string;
     fabricDetails?: string;

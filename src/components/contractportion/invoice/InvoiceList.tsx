@@ -37,6 +37,33 @@ const InvoiceList = () => {
     { id: 5, name: 'UnApproved', color: '#8b5cf6' },
   ];
 
+  const getFabricDetails = () => {
+    if (selectedInvoiceIds.length === 0) {
+      return 'No invoice selected';
+    }
+
+    const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceIds[0]);
+    if (!selectedInvoice || !selectedInvoice.relatedContracts?.length) {
+      return 'N/A';
+    }
+
+    // Get the first related contract for fabric details
+    const contract = selectedInvoice.relatedContracts[0];
+    const fabricDetails = [
+      `${contract.warpCount || ''}${contract.warpYarnType || ''}`,
+      `${contract.weftCount || ''}${contract.weftYarnType || ''}`,
+      `${contract.noOfEnds || ''}${contract.noOfPicks ? ` * ${contract.noOfPicks}` : ''}`,
+      contract.weaves || '',
+      contract.width || '',
+      contract.final || '',
+      contract.selvedge || '',
+    ]
+      .filter((item) => item.trim() !== '')
+      .join(' / ');
+
+    return fabricDetails || 'N/A';
+  };
+
   const fetchInvoices = async () => {
     try {
       setLoading(true);
@@ -216,7 +243,7 @@ const InvoiceList = () => {
           'Status': '',
           'Remarks': '',
           'Contract Number': contract.contractNumber || '-',
-          'Fabric Details': contract.fabricDetails || '-',
+          'Fabric Details': contract.fabricDetails || getFabricDetails(contract),
           'Dispatch Quantity': contract.dispatchQty || '-',
           'Invoice Quantity': contract.invoiceQty || '-',
           'Invoice Rate': contract.invoiceRate || '-',
@@ -263,25 +290,6 @@ const InvoiceList = () => {
     worksheet['!cols'] = wscols;
 
     XLSX.writeFile(workbook, 'Invoices.xlsx');
-  };
-
-  const getFabricDetails = (contract: Invoice['relatedContracts'][0]) => {
-    return (
-      [
-        contract.warpCount || '',
-        contract.warpYarnType || '',
-        contract.weftCount || '',
-        contract.weftYarnType || '',
-        contract.noOfEnds || '',
-        contract.noOfPicks ? `* ${contract.noOfPicks}` : '',
-        contract.weaves || '',
-        contract.width || '',
-        contract.final || '',
-        contract.selvedge || '',
-      ]
-        .filter((item) => item.trim() !== '')
-        .join(' / ') || '-'
-    );
   };
 
   return (
@@ -341,7 +349,18 @@ const InvoiceList = () => {
         pageSize={pageSize}
         setPageSize={setPageSize}
       />
-
+      <div className="mt-4">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Fabric Details
+        </label>
+        <input
+          type="text"
+          value={getFabricDetails()}
+          readOnly
+          className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-800 focus:outline-none"
+          placeholder="Select an invoice to view fabric details"
+        />
+      </div>
       <div className="mt-4 space-y-2 border-t-2 border-b-2 py-3">
         <div className="flex flex-wrap gap-3">
           {statusOptionsConfig.map((option) => {
@@ -417,7 +436,7 @@ const InvoiceList = () => {
                         return (
                           <tr key={contract.id} className="border-b hover:bg-gray-100">
                             <td className="p-3">{contract.contractNumber || '-'}</td>
-                            <td className="p-3">{contract.fabricDetails || getFabricDetails(contract)}</td>
+                            <td className="p-3">{contract.fabricDetails || getFabricDetails()}</td>
                             <td className="p-3">{contract.dispatchQty || '-'}</td>
                             <td className="p-3">{contract.invoiceQty || '-'}</td>
                             <td className="p-3">{contract.invoiceRate || '-'}</td>
@@ -568,7 +587,7 @@ const InvoiceList = () => {
                             return (
                               <tr key={contract.id} className="border-b hover:bg-gray-100">
                                 <td className="p-3">{contract.contractNumber || '-'}</td>
-                                <td className="p-3">{contract.fabricDetails || getFabricDetails(contract)}</td>
+                                <td className="p-3">{contract.fabricDetails || getFabricDetails()}</td>
                                 <td className="p-3">{contract.dispatchQty || '-'}</td>
                                 <td className="p-3">{contract.invoiceQty || '-'}</td>
                                 <td className="p-3">{contract.invoiceRate || '-'}</td>
@@ -636,3 +655,7 @@ const InvoiceList = () => {
 };
 
 export default InvoiceList;
+
+function irono(arg0: number) {
+  throw new Error('Function not implemented.');
+}
