@@ -781,13 +781,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
         <div className="p-2 md:p-4">
           <div className="flex flex-col md:flex-row justify-between items-center mb-2">
             <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
-            <Button
-              type="button"
-              onClick={addNewContractRow}
-              className="mt-2 md:mt-0 bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 text-sm"
-            >
-              Add Contract
-            </Button>
           </div>
           <div className="mt-2 overflow-x-auto">
             {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes || fetchingGstTypes) ? (
@@ -871,6 +864,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                             <input
                               type="number"
                               value={contract.invoiceQty || contract.dispatchQty || '0'}
+                              disabled
                               onChange={(e) =>
                                 handleContractInputChange(
                                   contract.id,
@@ -887,12 +881,14 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                             <input
                               type="number"
                               value={contract.invoiceRate || contract.rate || ''}
+                              disabled
                               onChange={(e) =>
                                 handleContractInputChange(
                                   contract.id,
                                   'invoiceRate',
                                   e.target.value,
                                   isAdditional
+
                                 )
                               }
                               className="w-full p-2 border border-gray-300 rounded"

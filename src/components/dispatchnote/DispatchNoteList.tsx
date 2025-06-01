@@ -108,8 +108,6 @@ const DispatchNoteList = () => {
                     <thead>
                       <tr className="bg-[#06b6d4] text-white">
                         <th className="p-3 font-medium">Contract #</th>
-                        <th className="p-3 font-medium">Seller</th>
-                        <th className="p-3 font-medium">Buyer</th>
                         <th className="p-3 font-medium">Date</th>
                         <th className="p-3 font-medium">Quantity</th>
                         <th className="p-3 font-medium">Total Amount</th>
@@ -121,8 +119,6 @@ const DispatchNoteList = () => {
                       {dispatchNote.relatedContracts.map((contract) => (
                         <tr key={contract.id} className="border-b hover:bg-gray-100">
                           <td className="p-3">{contract.contractNumber || '-'}</td>
-                          <td className="p-3">{contract.seller || '-'}</td>
-                          <td className="p-3">{contract.buyer || '-'}</td>
                           <td className="p-3">{contract.date || '-'}</td>
                           <td className="p-3">{contract.quantity || '-'}</td>
                           <td className="p-3">{contract.totalAmount || '-'}</td>
@@ -164,6 +160,14 @@ const DispatchNoteList = () => {
             <div className="p-6 bg-gray-50">
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="group">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                      ID
+                    </span>
+                    <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                      {selectedDispatchNote.listid || '-'}
+                    </div>
+                  </div>
                   <div className="group">
                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
                       Date

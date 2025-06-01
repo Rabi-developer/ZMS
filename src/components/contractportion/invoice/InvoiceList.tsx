@@ -349,18 +349,6 @@ const InvoiceList = () => {
         pageSize={pageSize}
         setPageSize={setPageSize}
       />
-      <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Fabric Details
-        </label>
-        <input
-          type="text"
-          value={getFabricDetails()}
-          readOnly
-          className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-800 focus:outline-none"
-          placeholder="Select an invoice to view fabric details"
-        />
-      </div>
       <div className="mt-4 space-y-2 border-t-2 border-b-2 py-3">
         <div className="flex flex-wrap gap-3">
           {statusOptionsConfig.map((option) => {

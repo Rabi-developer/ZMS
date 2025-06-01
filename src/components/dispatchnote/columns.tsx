@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 export type DispatchNote = {
   id: string;
+  listid: string;
   date: string;
   bilty: string;
   seller: string;
@@ -56,6 +57,18 @@ export const columns = (
         }}
         className="h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
       />
+    ),
+  },
+  {
+    accessorKey: 'listid',
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        ID
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
     ),
   },
   {
