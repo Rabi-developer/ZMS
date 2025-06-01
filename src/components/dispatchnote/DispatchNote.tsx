@@ -436,7 +436,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 <>
                   <CustomInput
                     {...field}
-                    label="ID"
+                    label="Dispatch#"
                     type="text"
                     disabled
                     placeholder=""
@@ -460,7 +460,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 type="date"
                 variant="floating"
                 borderThickness="2"
-                label="Date"
+                label="Dispatch Date"
                 id="Date"
                 {...register('Date')}
                 error={errors.Date?.message}
@@ -547,7 +547,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                         <th className="p-3 font-medium">Select</th>
                         <th className="p-3 font-medium">Contract #</th>
                         <th className="p-3 font-medium">Fabric Details</th>
-                        <th className="p-3 font-medium">Date</th>
+                        <th className="p-3 font-medium">Contract Date</th>
                         <th className="p-3 font-medium">Quantity</th>
                         <th className="p-3 font-medium">Total Amount</th>
                         <th className="p-3 font-medium">Base</th>

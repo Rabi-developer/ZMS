@@ -253,6 +253,12 @@ export const sideBarItems = [
   icon: RiPresentationLine,
   color: '#33a4d8',
 },
+{
+  text: "Inspection Note",
+  href: "/inspectionnote",
+  icon: TbAdjustmentsCheck,
+  color: '#33a4d8',
+},
 
 
 

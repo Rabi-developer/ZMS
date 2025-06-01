@@ -1,42 +1,49 @@
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
+import { ArrowUpDown, Eye, Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export type DispatchNote = {
+export interface InspectionNote {
   id: string;
-  listid: string;
-  date: string;
-  bilty: string;
-  seller: string;
-  buyer: string;
-  vehicleType?: string;
-  vehicle?: string;
-  contractNumber: string;
+  irnNumber: string;
+  irnDate?: string;
+  seller?: string;
+  buyer?: string;
+  invoiceNumber?: string;
   remarks?: string;
-  driverName: string;
+  status?: string;
   createdBy?: string;
   creationDate?: string;
   updatedBy?: string;
   updationDate?: string;
   relatedContracts?: {
-    id: string;
-    contractNumber: string;
-    seller: string;
-    buyer: string;
-    date: string;
-    quantity: string;
-    totalAmount: string;
-    base: string;
-    dispatchQty: string;
+    id?: string;
+    contractNumber?: string;
+    quantity?: string;
+    dispatchQty?: string;
+    bGrade?: string;
+    sl?: string;
+    aGrade?: string;
+    inspectedBy?: string;
   }[];
+}
+
+export const getStatusStyles = (status: string) => {
+  switch (status) {
+    case 'Approved':
+      return 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]';
+    case 'InspectionApproved':
+      return 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-300';
+  }
 };
 
 export const columns = (
   handleDeleteOpen: (id: string) => void,
   handleViewOpen: (id: string) => void,
   handleCheckboxChange: (id: string, checked: boolean) => void
-): ColumnDef<DispatchNote>[] => [
+): ColumnDef<InspectionNote>[] => [
   {
     id: 'select',
     header: ({ table }) => (
@@ -60,60 +67,61 @@ export const columns = (
     ),
   },
   {
-    accessorKey: 'listid',
+    accessorKey: 'irnNumber',
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        ID
+        IRN Number
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
   },
   {
-    accessorKey: 'date',
+    accessorKey: 'irnDate',
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-       Dispatch Date
+        IRN Date
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-  },
-  {
-    accessorKey: 'bilty',
-    header: 'Bilty Number',
   },
   {
     accessorKey: 'seller',
     header: 'Seller',
+    cell: ({ row }) => <div>{row.original.seller || '-'}</div>,
   },
   {
     accessorKey: 'buyer',
     header: 'Buyer',
+    cell: ({ row }) => <div>{row.original.buyer || '-'}</div>,
   },
   {
-    accessorKey: 'vehicleType',
-    header: 'Vehicle Type',
+    accessorKey: 'invoiceNumber',
+    header: 'Invoice Number',
+    cell: ({ row }) => <div>{row.original.invoiceNumber || '-'}</div>,
   },
   {
-    accessorKey: 'vehicle',
-    header: 'Vehicle',
-  },
-  {
-    accessorKey: 'contractNumber',
-    header: 'Contract Number',
-  },
-  {
-    accessorKey: 'driverName',
-    header: 'Driver Name',
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <span
+        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
+          row.original.status || 'Pending'
+        )}`}
+      >
+        {row.original.status || 'Pending'}
+      </span>
+    ),
   },
   {
     accessorKey: 'remarks',
     header: 'Remarks',
+    cell: ({ row }) => <div>{row.original.remarks || '-'}</div>,
   },
   {
     accessorKey: 'name',
@@ -123,17 +131,18 @@ export const columns = (
     header: 'Actions',
     id: 'actions',
     cell: ({ row }) => {
-      const dispatchNoteId = row.original.id;
+      const inspectionNoteId = row.original.id;
+      const invoiceNumber = row.original.invoiceNumber;
       return (
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleViewOpen(dispatchNoteId)}
+            onClick={() => handleViewOpen(inspectionNoteId)}
           >
             <Eye className="h-4 w-4" />
           </Button>
-          <Link href={`/dispatchnote/edit/${dispatchNoteId}`}>
+          <Link href={`/inspectionnote/edit/${inspectionNoteId}`}>
             <Button variant="outline" size="sm">
               <Edit className="h-4 w-4" />
             </Button>
@@ -141,10 +150,15 @@ export const columns = (
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDeleteOpen(dispatchNoteId)}
+            onClick={() => handleDeleteOpen(inspectionNoteId)}
           >
             <Trash className="h-4 w-4" />
           </Button>
+          <Link href={`/inspectionnote/create?invoiceNumber=${encodeURIComponent(invoiceNumber || '')}`}>
+            <Button variant="outline" size="sm">
+              Inspect
+            </Button>
+          </Link>
         </div>
       );
     },

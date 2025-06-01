@@ -108,7 +108,7 @@ const DispatchNoteList = () => {
                     <thead>
                       <tr className="bg-[#06b6d4] text-white">
                         <th className="p-3 font-medium">Contract #</th>
-                        <th className="p-3 font-medium">Date</th>
+                        <th className="p-3 font-medium">Contract Date</th>
                         <th className="p-3 font-medium">Quantity</th>
                         <th className="p-3 font-medium">Total Amount</th>
                         <th className="p-3 font-medium">Base</th>
