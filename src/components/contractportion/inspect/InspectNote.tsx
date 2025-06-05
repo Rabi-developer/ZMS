@@ -233,9 +233,8 @@ useEffect(() => {
   }
 
   // Find dispatch notes related to the selected invoice
-  const relatedDispatchNotes = dispatchNotes.filter((dn) =>
-    selectedInvoiceData.relatedContracts?.some((rc) => rc.dispatchNoteId === dn.id)
-  );
+  const relatedDispatchNotes = dispatchNotes;
+  
 
   // Map dispatch note contracts to ExtendedContract format
   const dispatchNoteContracts = relatedDispatchNotes.flatMap((dn) =>
