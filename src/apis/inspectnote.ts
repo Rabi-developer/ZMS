@@ -15,7 +15,7 @@ const createInspectionNote = async (InspectionNote: any) => {
   }
 };
 
-const getAllInspectionNote = async (pageIndex: any = 1, pageSize: any = 10) => {
+const getAllInspectionNote = async (pageIndex: any = 1, pageSize: any = 10, p0: { invoiceNumber: string; }) => {
   try {
     const response = await apiFetch(`InspectionNote?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
       method: 'GET',

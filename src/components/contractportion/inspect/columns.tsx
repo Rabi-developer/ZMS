@@ -1,49 +1,58 @@
+'use client';
 import { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown, Eye, Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export interface InspectionNote {
+export interface Invoice {
   id: string;
-  irnNumber: string;
-  irnDate?: string;
-  seller?: string;
-  buyer?: string;
-  invoiceNumber?: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string;
+  seller: string;
+  buyer: string;
+  status: string;
   remarks?: string;
-  status?: string;
-  createdBy?: string;
-  creationDate?: string;
-  updatedBy?: string;
-  updationDate?: string;
+  inspectionNotes?: { 
+    id: string;
+    irnNumber: string;
+    irnDate: string;
+  }[];
   relatedContracts?: {
     id?: string;
     contractNumber?: string;
     quantity?: string;
     dispatchQty?: string;
-    bGrade?: string;
-    sl?: string;
-    aGrade?: string;
-    inspectedBy?: string;
+    invoiceQty?: string;
+    invoiceRate?: string;
+    gst?: string;
+    gstPercentage?: string;
+    gstValue?: string;
+    invoiceValueWithGst?: string;
+    whtPercentage?: string;
+    whtValue?: string;
+    totalInvoiceValue?: string;
   }[];
 }
 
 export const getStatusStyles = (status: string) => {
   switch (status) {
     case 'Approved':
+    case 'Inspected':
       return 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]';
-    case 'InspectionApproved':
-      return 'bg-[#10b981]/10 text-[#10b981] border-[#10b981]';
+    case 'UnApproved':
+      return 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]';
+    case 'Canceled':
+      return 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]';
+    case 'Closed':
+      return 'bg-[#6b7280]/10 text-[#6b7280] border-[#6b7280]';
     default:
       return 'bg-gray-100 text-gray-800 border-gray-300';
   }
 };
 
 export const columns = (
-  handleDeleteOpen: (id: string) => void,
-  handleViewOpen: (id: string) => void,
-  handleCheckboxChange: (id: string, checked: boolean) => void
-): ColumnDef<InspectionNote>[] => [
+handleDeleteOpen: (id: string) => void, handleViewOpen: (id: string) => void, handleCheckboxChange: (invoiceId: string, checked: boolean) => void): ColumnDef<Invoice>[] => [
   {
     id: 'select',
     header: ({ table }) => (
@@ -58,37 +67,39 @@ export const columns = (
       <input
         type="checkbox"
         checked={row.getIsSelected()}
-        onChange={(e) => {
-          row.getToggleSelectedHandler()(e);
-          handleCheckboxChange(row.original.id, e.target.checked);
-        }}
+        onChange={row.getToggleSelectedHandler()}
         className="h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
       />
     ),
   },
   {
-    accessorKey: 'irnNumber',
+    accessorKey: 'invoiceNumber',
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        IRN Number
+        Invoice Number
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
   },
   {
-    accessorKey: 'irnDate',
+    accessorKey: 'invoiceDate',
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        IRN Date
+        Invoice Date
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+  },
+  {
+    accessorKey: 'dueDate',
+    header: 'Due Date',
+    cell: ({ row }) => <div>{row.original.dueDate || '-'}</div>,
   },
   {
     accessorKey: 'seller',
@@ -101,9 +112,36 @@ export const columns = (
     cell: ({ row }) => <div>{row.original.buyer || '-'}</div>,
   },
   {
-    accessorKey: 'invoiceNumber',
-    header: 'Invoice Number',
-    cell: ({ row }) => <div>{row.original.invoiceNumber || '-'}</div>,
+    accessorKey: 'irnNumber',
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        IRN Number
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const latestInspection = row.original.inspectionNotes?.[0];
+      return <div>{latestInspection?.irnNumber || '-'}</div>;
+    },
+  },
+  {
+    accessorKey: 'irnDate',
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        IRN Date
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const latestInspection = row.original.inspectionNotes?.[0]; // Display the first (latest) inspection note
+      return <div>{latestInspection?.irnDate || '-'}</div>;
+    },
   },
   {
     accessorKey: 'status',
@@ -131,18 +169,18 @@ export const columns = (
     header: 'Actions',
     id: 'actions',
     cell: ({ row }) => {
-      const inspectionNoteId = row.original.id;
+      const invoiceId = row.original.id;
       const invoiceNumber = row.original.invoiceNumber;
       return (
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleViewOpen(inspectionNoteId)}
+            onClick={() => handleViewOpen(invoiceId)}
           >
             <Eye className="h-4 w-4" />
           </Button>
-          <Link href={`/inspectionnote/edit/${inspectionNoteId}`}>
+          <Link href={`/invoice/edit/${invoiceId}`}>
             <Button variant="outline" size="sm">
               <Edit className="h-4 w-4" />
             </Button>
@@ -150,7 +188,7 @@ export const columns = (
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDeleteOpen(inspectionNoteId)}
+            onClick={() => handleDeleteOpen(invoiceId)}
           >
             <Trash className="h-4 w-4" />
           </Button>

@@ -218,36 +218,46 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
       setFilteredContracts(initialContracts);
     }
   }, [isEdit, initialData, sellers, buyers, setValue]);
+useEffect(() => {
+  if (!selectedInvoice) {
+    setFilteredContracts([]);
+    return;
+  }
 
-  useEffect(() => {
-    if (!selectedInvoice) {
-      setFilteredContracts([]);
-      return;
-    }
+  const selectedInvoiceData = invoices.find(
+    (inv) => inv.id === selectedInvoice || inv.invoiceNumber === selectedInvoice
+  );
+  if (!selectedInvoiceData) {
+    setFilteredContracts([]);
+    return;
+  }
 
-    const selectedInvoiceData = invoices.find((inv) => inv.id === selectedInvoice || inv.invoiceNumber === selectedInvoice);
-    if (!selectedInvoiceData) return;
+  // Find dispatch notes related to the selected invoice
+  const relatedDispatchNotes = dispatchNotes.filter((dn) =>
+    selectedInvoiceData.relatedContracts?.some((rc) => rc.dispatchNoteId === dn.id)
+  );
 
-    const relatedDispatchNotes = dispatchNotes.filter((dn) =>
-      selectedInvoiceData.relatedContracts?.some((rc) => rc.dispatchNoteId === dn.id)
-    );
+  // Map dispatch note contracts to ExtendedContract format
+  const dispatchNoteContracts = relatedDispatchNotes.flatMap((dn) =>
+    (dn.relatedContracts || []).map((rc: { id: any; contractNumber: string | undefined; quantity: any; dispatchQty: any; }) => ({
+      id: rc.id || `new-${Date.now()}-${Math.random()}`,
+      contractNumber: rc.contractNumber || '',
+      quantity: rc.quantity || '',
+      dispatchQty: rc.dispatchQty || '',
+      bGrade: '',
+      sl: '',
+      aGrade: '',
+      inspectedBy: '',
+      isSelected: isEdit
+        ? initialData?.relatedContracts?.some(
+            (irc) => irc.contractNumber === rc.contractNumber
+          ) || false
+        : true,
+    }))
+  );
 
-    const dispatchNoteContracts = relatedDispatchNotes.flatMap((dn) =>
-      dn.relatedContracts?.map((rc: { id: any; contractNumber: string | undefined; quantity: any; dispatchQty: any; }) => ({
-        id: rc.id || `new-${Date.now()}-${Math.random()}`,
-        contractNumber: rc.contractNumber || '',
-        quantity: rc.quantity || '',
-        dispatchQty: rc.dispatchQty || '',
-        bGrade: '',
-        sl: '',
-        aGrade: '',
-        inspectedBy: '',
-        isSelected: isEdit ? initialData?.relatedContracts?.some((irc) => irc.contractNumber === rc.contractNumber) : false,
-      })) || []
-    );
-
-    setFilteredContracts(dispatchNoteContracts);
-  }, [selectedInvoice, invoices, dispatchNotes, isEdit, initialData]);
+  setFilteredContracts(dispatchNoteContracts);
+}, [selectedInvoice, invoices, dispatchNotes, isEdit, initialData]);
 
   // Handle contract row selection
   const handleContractSelect = (contractId: string, checked: boolean) => {
@@ -370,6 +380,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
               }}
               error={errors.InvoiceNumber?.message}
               register={register}
+             
             />
             <CustomInputDropdown
               label="Seller"
