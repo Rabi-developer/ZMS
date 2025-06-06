@@ -2,15 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { ColumnDef } from '@tanstack/react-table';
 import { FaFileExcel, FaCheck } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllInvoice, deleteInvoice, updateInvoiceStatus } from '@/apis/invoice';
-import { deleteInspectionNote, getAllInspectionNote } from '@/apis/inspectnote';
+import { getAllInvoice, deleteInvoice } from '@/apis/invoice';
+import { deleteInspectionNote, getAllInspectionNote, updateInspectionNoteStatus } from '@/apis/inspectnote';
 import { columns, getStatusStyles, Invoice } from './columns';
 import { Edit, Trash } from 'lucide-react';
 
@@ -59,15 +58,23 @@ const InspectionNoteList = () => {
     { id: 1, name: 'Approved Inspection', color: '#3b82f6' },
   ];
 
+  // Fetch invoices and attach inspection notes
   const fetchInvoices = async () => {
     try {
       setLoading(true);
       const response = await getAllInvoice(pageIndex + 1, pageSize);
-      const invoicesWithInspectionNotes = response?.data?.map((invoice: Invoice) => ({
-        ...invoice,
-        inspectionNotes: inspectionNotes[invoice.id] || [],
-      })) || [];
-      console.log('Fetched invoices:', invoicesWithInspectionNotes); // Debug log
+      const invoices = response?.data || [];
+      // Fetch all inspection notes in one go
+      const allInspectionNotesRes = await getAllInspectionNote(1, 1000, { invoiceNumber: '' });
+      const allInspectionNotes = allInspectionNotesRes?.data || [];
+      // Attach inspection notes to the correct invoice by matching invoiceNumber
+      const invoicesWithInspectionNotes = invoices.map((invoice: Invoice) => {
+        const notes = allInspectionNotes.filter((note: InspectionNote) => note.invoiceNumber === invoice.invoiceNumber);
+        return {
+          ...invoice,
+          inspectionNotes: notes,
+        };
+      });
       setInvoices(invoicesWithInspectionNotes);
     } catch (error) {
       toast('Failed to fetch invoices', { type: 'error' });
@@ -89,36 +96,26 @@ const InspectionNoteList = () => {
         )
       );
     } catch (error) {
-    //  toast(`Failed to fetch inspection notes for invoice ${invoiceNumber}`, { type: 'error' });
+      // toast(`Failed to fetch inspection notes for invoice ${invoiceNumber}`, { type: 'error' });
     }
   };
 
   useEffect(() => {
     fetchInvoices();
+    fetchInspectionNotes('', ''); // Initial fetch for inspection notes
   }, [pageIndex, pageSize]);
 
+  // Only show invoices with status 'Approved'
   useEffect(() => {
-    let filtered = invoices;
-
-    if (selectedStatusFilter !== 'All') {
-      filtered = filtered.filter((invoice) => invoice.status === selectedStatusFilter);
-    } else {
-      filtered = filtered.filter((invoice) =>
-        ['Approved', 'Approved Inspection'].includes(invoice.status || '')
-      );
-    }
-
+    const filtered = invoices.filter((invoice) => invoice.status === 'Approved');
     setFilteredInvoices(filtered);
-    filtered.forEach((invoice) => {
-      fetchInspectionNotes(invoice.id, invoice.invoiceNumber);
-    });
-  }, [invoices, selectedStatusFilter]);
+  }, [invoices]);
 
   useEffect(() => {
     if (searchParams.get('refresh') === 'true') {
       fetchInvoices();
       const filtered = invoices.filter((invoice) =>
-        ['Approved', 'Approved Inspection'].includes(invoice.status || '')
+        ['Approved Inspection', 'Approved Inspection'].includes(invoice.status || '')
       );
       filtered.forEach((invoice) => {
         fetchInspectionNotes(invoice.id, invoice.invoiceNumber);
@@ -164,10 +161,12 @@ const InspectionNoteList = () => {
 
   const handleCheckboxChange = (invoiceId: string, checked: boolean) => {
     setSelectedInvoiceIds((prev) => {
-      const newSelectedIds = checked
-        ? [...prev, invoiceId]
-        : prev.filter((id) => id !== invoiceId);
-
+      let newSelectedIds: string[];
+      if (checked) {
+        newSelectedIds = prev.includes(invoiceId) ? prev : [...prev, invoiceId];
+      } else {
+        newSelectedIds = prev.filter((id) => id !== invoiceId);
+      }
       if (newSelectedIds.length === 0) {
         setSelectedBulkStatus(null);
       } else {
@@ -176,33 +175,35 @@ const InspectionNoteList = () => {
         const allSameStatus = statuses.every((status) => status === statuses[0]);
         setSelectedBulkStatus(allSameStatus ? statuses[0] : null);
       }
-
-      console.log('Selected invoice IDs:', newSelectedIds, 'Bulk status:', selectedBulkStatus); // Debug log
       return newSelectedIds;
     });
   };
 
+  // Bulk status update using inspection note IDs
   const handleBulkStatusUpdate = async (newStatus: string) => {
-    if (selectedInvoiceIds.length === 0) {
-      toast('Please select at least one invoice', { type: 'warning' });
+    // Collect all inspection note IDs from selected invoices
+    const selectedInspectionNoteIds = invoices
+      .filter((invoice) => selectedInvoiceIds.includes(invoice.id))
+      .flatMap((invoice) => invoice.inspectionNotes?.map((note) => note.id) || []);
+
+    if (selectedInspectionNoteIds.length === 0) {
+      toast('Please select at least one invoice with inspection notes', { type: 'warning' });
       return;
     }
     try {
       setUpdating(true);
-      console.log('Updating invoices:', selectedInvoiceIds, 'to status:', newStatus); // Debug log
-      const updatePromises = selectedInvoiceIds.map((id) =>
-        updateInvoiceStatus({ id, status: newStatus })
+      const updatePromises = selectedInspectionNoteIds.map((id) =>
+        updateInspectionNoteStatus({ id, status: newStatus })
       );
-      const responses = await Promise.all(updatePromises);
-      console.log('Update responses:', responses); // Debug log
+      await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
       setSelectedInvoiceIds([]);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0); // Reset to first page
-      toast('Invoice Status Updated Successfully', { type: 'success' });
+      toast('Inspection Note Status Updated Successfully', { type: 'success' });
       await fetchInvoices();
     } catch (error: any) {
-      toast(`Failed to update invoice status: ${error.message || 'Unknown error'}`, { type: 'error' });
+      toast(`Failed to update inspection note status: ${error.message || 'Unknown error'}`, { type: 'error' });
     } finally {
       setUpdating(false);
     }
@@ -314,7 +315,7 @@ const InspectionNoteList = () => {
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Invoices');
-    XLSX.writeFile(workbook, 'ApprovedInvoices.xlsx');
+    XLSX.writeFile(workbook, 'Approved InspectionInvoices.xlsx');
   };
 
   return (
@@ -416,7 +417,7 @@ const InspectionNoteList = () => {
             </div>
             <div className="mt-4">
               <h3 className="text-lg font-semibold">Related Contracts</h3>
-              <table className="w-full text-left border-collapse border-collapse text-sm md:text-base ">
+              <table className="w-full text-left border-collapse text-sm md:text-base ">
                 <thead>
                   <tr className="bg-[#06b6d4] text-white">
                     <th className="p-3">Contract #</th>

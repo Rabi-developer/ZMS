@@ -67,7 +67,10 @@ handleDeleteOpen: (id: string) => void, handleViewOpen: (id: string) => void, ha
       <input
         type="checkbox"
         checked={row.getIsSelected()}
-        onChange={row.getToggleSelectedHandler()}
+        onChange={e => {
+          row.getToggleSelectedHandler()(e);
+          handleCheckboxChange(row.original.id, e.target.checked);
+        }}
         className="h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
       />
     ),
@@ -160,6 +163,23 @@ handleDeleteOpen: (id: string) => void, handleViewOpen: (id: string) => void, ha
     accessorKey: 'remarks',
     header: 'Remarks',
     cell: ({ row }) => <div>{row.original.remarks || '-'}</div>,
+  },
+  {
+    accessorKey: 'inspectStatus',
+    header: 'Inspect Status',
+    cell: ({ row }) => {
+      // Try to get status from inspectionNotes[0], fallback to '-'
+      const latestInspection = row.original.inspectionNotes?.[0] as { status?: string } | undefined;
+      return (
+        <span
+          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
+            latestInspection?.status || 'Pending'
+          )}`}
+        >
+          {latestInspection?.status || 'Pending'}
+        </span>
+      );
+    },
   },
   {
     accessorKey: 'name',
