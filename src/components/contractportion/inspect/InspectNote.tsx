@@ -145,7 +145,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
       const approvedInvoices = response?.data?.filter((invoice: Invoice) => invoice.status === 'Approved') || [];
       setInvoices(approvedInvoices);
     } catch (error) {
-      toast('Failed to fetch invoices', { type: 'error' });
+     // toast('Failed to fetch invoices', { type: 'error' });
     }
   };
 

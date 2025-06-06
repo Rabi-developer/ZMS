@@ -89,7 +89,7 @@ const InspectionNoteList = () => {
         )
       );
     } catch (error) {
-      toast(`Failed to fetch inspection notes for invoice ${invoiceNumber}`, { type: 'error' });
+    //  toast(`Failed to fetch inspection notes for invoice ${invoiceNumber}`, { type: 'error' });
     }
   };
 
@@ -388,7 +388,7 @@ const InspectionNoteList = () => {
         />
       )}
       {openView && selectedInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
           <div className="bg-white w-full max-w-4xl rounded-2xl p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-[#06b6d4]">Invoice Details</h2>
@@ -416,7 +416,7 @@ const InspectionNoteList = () => {
             </div>
             <div className="mt-4">
               <h3 className="text-lg font-semibold">Related Contracts</h3>
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse border-collapse text-sm md:text-base ">
                 <thead>
                   <tr className="bg-[#06b6d4] text-white">
                     <th className="p-3">Contract #</th>
