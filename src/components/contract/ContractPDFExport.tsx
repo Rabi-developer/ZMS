@@ -265,12 +265,12 @@ const ContractPDFExport = {
         [
           contract.selvedgeWidth || '-',
           contract.selvedgeWeave || '-',
-          '-', // Removed contract.selvedgeThickness as it does not exist on Contract type
-          '-', // indThread property does not exist on Contract type
+          contract.selvedgeThickness || '-',
+          contract.indThread || '-',
           contract.refer || '-',
         ],
-        ['', '', '', '', ''],
-        ['', '', '', '', ''],
+         ['', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', ''],
       ],
       styles: { fontSize: 10, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.3 },
       headStyles: { fillColor: [6, 182, 212], textColor: [255, 255, 255], fontSize: 10, cellPadding: 2, lineWidth: 0.3 },
