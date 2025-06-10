@@ -19,7 +19,7 @@ export type Seller = {
   STN: string;
   MTN: string;
   PayableCode: string;
-  accountNo: string; // comma separated string
+  accountNo: string; 
   PaymentStatus?: string;
   OrderDate?: string;
   DeliveryDate?: string;

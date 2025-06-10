@@ -2043,7 +2043,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     />
                     {errors.Notes && <p className="text-red-500">{errors.Notes.message}</p>}
                   </div>
-                </div>
+                </div>    
               </div>
 
               {/* Sample Details Popup */}

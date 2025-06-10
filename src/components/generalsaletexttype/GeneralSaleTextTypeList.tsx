@@ -58,7 +58,7 @@ const GeneralSaleTextTypeList = () => {
         columns={columns(handleDeleteOpen)}
         data={gstTypes}
         loading={loading}
-        link={"/general-sale-text-type/create"}
+        link={"/generalsaletexttype/create"}
         setPageIndex={setPageIndex}
         pageIndex={pageIndex}
         pageSize={pageSize}

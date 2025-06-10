@@ -30,6 +30,8 @@ const forms = [
   { name: 'Packing', listRoute: '/packing', createRoute: '/packing/create', description: 'Manage packing details', icon: FaBoxesPacking },
   { name: 'Fabric Types', listRoute: '/fabrictypes', createRoute: '/fabrictypes/create', description: 'Define fabric types', icon: FaBuffer },
   { name: 'End Use', listRoute: '/enduse', createRoute: '/enduse/create', description: 'Specify end-use categories', icon: FaArrowTrendDown },
+  { name: 'Selvege Thickness', listRoute: '/selvegethickness', createRoute: '/selvegethickness/create', description: 'Specify selvegethickness categories', icon: GiSoundWaves },
+
 ];
 
 const cardVariants = {
