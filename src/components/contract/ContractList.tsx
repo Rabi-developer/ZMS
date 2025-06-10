@@ -177,8 +177,8 @@ const ContractList = () => {
             zmsSignature,
             sellerSignature: undefined,
             buyerSignature: undefined,
-            selleraddress: contract.dispatchAddress,
-            buyeraddress: undefined,
+            sellerAddress: contract.dispatchAddress,
+            buyerAddress: undefined,
           });
           if (!pdfBlob) {
             throw new Error('Failed to generate PDF Blob');
@@ -218,8 +218,8 @@ const ContractList = () => {
             zmsSignature,
             sellerSignature: undefined,
             buyerSignature: undefined,
-            selleraddress: contract.dispatchAddress,
-            buyeraddress: undefined,
+            sellerAddress: contract.dispatchAddress,
+            buyerAddress: undefined,
           });
           if (!pdfBlob) {
             throw new Error(`Failed to generate PDF for contract ${contract.contractNumber}`);
@@ -270,8 +270,8 @@ const ContractList = () => {
             zmsSignature,
             sellerSignature: undefined,
             buyerSignature: undefined,
-            selleraddress: contract.dispatchAddress,
-            buyeraddress: undefined,
+            sellerAddress: contract.dispatchAddress,
+            buyerAddress: undefined,
           });
           if (!pdfBlob) {
             throw new Error(`Failed to generate PDF for contract ${contract.contractNumber}`);

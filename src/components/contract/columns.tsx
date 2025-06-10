@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export type Contract = {
+  indThread: string;
+  selvedgeThickness: string;
   dispatchQty: string;
   id: string;
   contractNumber: string;
@@ -39,7 +41,7 @@ export type Contract = {
   final?: string;
   selvedge?: string;
   selvegeWeaves?: string;
-  selvedgeWidth?: string;
+  selvegeWidth?: string;
   quantity: string;
   unitOfMeasure: string;
   tolerance?: string;
@@ -236,7 +238,7 @@ export const columns = (
     header: 'Selvedge Weave',
   },
   {
-    accessorKey: 'selvedgeWidth',
+    accessorKey: 'selvegeWidth',
     header: 'Selvedge Width',
   },
   {

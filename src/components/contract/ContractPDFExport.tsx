@@ -332,13 +332,13 @@ const ContractPDFExport = {
       head: [['Sel.Length', 'Selvege Weaves', 'Selvege Thickness', 'Ind.Thread', 'Delivery']],
       body: [
         [
-          contract.selvedgeWidth || '-',
+          contract.selvegeWidth || '-',
           contract.selvegeWeaves || '-',
-          '-' /* selvedgeThickness removed as it does not exist */,
-          '-' /* indThread removed as it does not exist */,
+          contract.selvedgeThickness || '-',
+          contract.indThread || '-',
           contract.refer || '-',
         ],
-         ['', '', '', '', '', '', ''],
+        ['', '', '', '', '', '', ''],
         ['', '', '', '', '', '', ''],
       ],
       styles: { fontSize: 10, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.3 },
