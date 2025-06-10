@@ -54,6 +54,7 @@ import { FaBuffer } from "react-icons/fa";
 import { FaHouseSignal } from "react-icons/fa6";
 import { LiaFileContractSolid } from "react-icons/lia";
 import { RiContractLine } from "react-icons/ri";
+import { MdOutlinePayments } from "react-icons/md";
 
 
 
@@ -257,6 +258,12 @@ export const sideBarItems = [
   text: "Inspection Note",
   href: "/inspectionnote",
   icon: TbAdjustmentsCheck,
+  color: '#33a4d8',
+},
+{
+  text: "Payment",
+  href: "/payment",
+  icon: MdOutlinePayments,
   color: '#33a4d8',
 },
 

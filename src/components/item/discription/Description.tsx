@@ -15,7 +15,7 @@ import { BiSolidErrorAlt } from 'react-icons/bi';
 const descriptionSchema = z.object({
   listid: z.string().optional(),
   descriptions: z.string().min(1, 'Description is required'),
-  subDescription: z.string().min(1, 'At least one sub-description is required'),
+  subDescription: z.string().optional(),
 });
 
 type DescriptionFormData = z.infer<typeof descriptionSchema>;

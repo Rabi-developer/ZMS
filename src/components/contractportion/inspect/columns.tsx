@@ -42,7 +42,7 @@ export const getStatusStyles = (status: string) => {
       return 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]';
     case 'UnApproved':
       return 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]';
-    case 'Canceled':
+    case 'Approved Inspection':
       return 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]';
     case 'Closed':
       return 'bg-[#6b7280]/10 text-[#6b7280] border-[#6b7280]';
