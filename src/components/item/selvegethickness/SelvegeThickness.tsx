@@ -98,7 +98,7 @@ const SelvegeThickness = ({ isEdit = false }: { isEdit?: boolean }) => {
         await createSelvegeThickness(data);
         toast.success('Selvege Thickness created successfully!');
       }
-      router.push('/selvegeThickness');
+      router.push('/selvegethickness');
     } catch (error) {
       toast.error('An error occurred while saving the Selvege Thickness');
     }
@@ -226,7 +226,7 @@ const SelvegeThickness = ({ isEdit = false }: { isEdit?: boolean }) => {
           >
             {isEdit ? 'Update Selvege Thickness' : 'Create Selvege Thickness'}
           </Button>
-          <Link href="/selvegeThickness">
+          <Link href="/selvegethickness">
             <Button
               type="button"
               className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
