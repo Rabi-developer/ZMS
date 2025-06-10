@@ -143,13 +143,6 @@ const ContractPDFExport = {
       doc.setTextColor(255, 255, 255);
       doc.text('[ZMS Logo]', 10, 18);
     }
-
-    // Document ID
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(9);
-    doc.setTextColor(255, 255, 255);
-    doc.text(`Document ID: ${contract.contractNumber || '-'}`, 200, 12, { align: 'right' });
-
     // PURCHASE CONTRACT Heading
     let yPos = 38;
     doc.setFont('helvetica', 'bold');
