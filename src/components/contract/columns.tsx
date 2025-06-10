@@ -22,7 +22,7 @@ export type Contract = {
   refer?: string;
   referdate?: string;
   fabricType  : string;
-  descriptionId: string;
+  description: string;
   descriptionName?: string;
   stuff: string;
   blendRatio?: string;
@@ -172,7 +172,7 @@ export const columns = (
     header: 'Fabric Type',
   },
   {
-    accessorKey: 'descriptionName',
+    accessorKey: 'description',
     header: 'Description',
   },
   {

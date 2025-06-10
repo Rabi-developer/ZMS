@@ -269,7 +269,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
                 type='number'
                 variant="floating"
                 borderThickness='2'
-                label='MTN'
+                label='NTN'
                 id="MTN"
                 {...register("MTN")}
                 error={errors.MTN?.message}

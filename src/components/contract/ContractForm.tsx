@@ -79,7 +79,7 @@ const ContractSchema = z.object({
   Refer: z.string().optional(),
   Referdate: z.string().optional(),
   FabricType: z.string().min(1, 'Fabric Type is required'),
-  DescriptionId: z.string().min(1, 'Description is required'),
+  Description: z.string().min(1, 'Description is required'),
   Stuff: z.string().min(1, 'Stuff is required'),
   BlendRatio: z.string().optional(),
   BlendType: z.string().optional(),
@@ -151,7 +151,7 @@ type ContractApiResponse = {
   refer: string;
   referdate: string;
   fabricType: string;
-  descriptionId: string;
+  description: string;
   stuff: string;
   blendRatio: string;
   blendType: string;
@@ -886,7 +886,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               Refer: initialData.refer || '',
               Referdate: initialData.referdate || '',
               FabricType: initialData.fabricType || '',
-              DescriptionId: initialData.descriptionId || '',
+              Description: initialData.description || '',
               Stuff: initialData.stuff || '',
               BlendRatio: initialData.blendRatio || '',
               BlendType: initialData.blendType || '',
@@ -1110,7 +1110,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         refer: data.Refer || '',
         referdate: data.Referdate || '',
         fabricType: data.FabricType,
-        descriptionId: data.DescriptionId,
+        description: data.Description,
         stuff: data.Stuff,
         blendRatio: data.BlendRatio || '',
         blendType: data.BlendType || '',
@@ -1228,7 +1228,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         Refer: initialData.refer || '',
         Referdate: initialData.referdate || '',
         FabricType: initialData.fabricType || '',
-        DescriptionId: initialData.descriptionId || '',
+        Description: initialData.description || '',
         Stuff: initialData.stuff || '',
         BlendRatio: initialData.blendRatio || '',
         BlendType: initialData.blendType || '',
@@ -1439,9 +1439,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       <CustomInputDropdown
                         label="Description"
                         options={descriptions}
-                        selectedOption={watch('DescriptionId') || ''}
-                        onChange={(value) => setValue('DescriptionId', value, { shouldValidate: true })}
-                        error={errors.DescriptionId?.message}
+                        selectedOption={watch('Description') || ''}
+                        onChange={(value) => setValue('Description', value, { shouldValidate: true })}
+                        error={errors.Description?.message}
                         register={register}
                       />
                       <CustomInputDropdown

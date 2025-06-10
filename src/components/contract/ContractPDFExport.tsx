@@ -128,13 +128,13 @@ const ContractPDFExport = {
     doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 10, yPos);
     doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 10, yPos + 6);
 
-    yPos += 17; // Adjusted for box height (15) + minimal gap (2)
+    yPos += 17;
 
-    // Fields (Description, Blend Ratio, Construction)
     const fields = [
-      { label: 'Description:', value: contract.descriptionName || '-' },
-      { label: 'Blend Ratio:', value: contract.blendRatio || '-' },
-      { label: 'Construction:', value: contract.descriptionId || '-' },
+      { label: 'Description:', value: contract.description || '-' },
+      { label: 'Blend Ratio:',value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'},${contract.weftYarnType || '-'}`},
+      { label: 'Construction:', value: `${contract.warpCount || '-'}${contract.warpYarnType || '-'}  ${contract.weftCount|| '-'} ${contract.weftYarnType || '-'} ${contract.noOfEnds|| '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.selvedge || '-'}` },
+      
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -153,7 +153,7 @@ const ContractPDFExport = {
 
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...labelStyle.color); // Cyan text for field labels
+      doc.setTextColor(...labelStyle.color); 
       doc.text(field.label, leftColX, yPos);
 
       doc.setFont(valueStyle.font, valueStyle.style);
