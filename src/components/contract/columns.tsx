@@ -38,7 +38,7 @@ export type Contract = {
   width?: string;
   final?: string;
   selvedge?: string;
-  selvedgeWeave?: string;
+  selvegeWeaves?: string;
   selvedgeWidth?: string;
   quantity: string;
   unitOfMeasure: string;
@@ -232,7 +232,7 @@ export const columns = (
     header: 'Selvege',
   },
   {
-    accessorKey: 'selvedgeWeave',
+    accessorKey: 'selvegeWeaves',
     header: 'Selvedge Weave',
   },
   {

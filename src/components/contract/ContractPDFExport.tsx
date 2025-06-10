@@ -126,13 +126,13 @@ const ContractPDFExport = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(255, 255, 255);
-    doc.text('Z.M. Sourcing', 105, 12, { align: 'center' });
+    doc.text('ZM SOURCING', 105, 12, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(255, 255, 255);
     doc.text('Suit No. 108, SP Chamber, Main Estate Avenue,', 105, 18, { align: 'center' });
     doc.text('SITE Karachi', 105, 22, { align: 'center' });
-    doc.text('Phone: +92 21 32550917-18 Email: info@zmt.com.pk', 105, 26, { align: 'center' });
+    doc.text('Phone: +92 21 32550917-18', 105, 26, { align: 'center' });
 
     // Logo
     try {
@@ -143,13 +143,22 @@ const ContractPDFExport = {
       doc.setTextColor(255, 255, 255);
       doc.text('[ZMS Logo]', 10, 18);
     }
-    // PURCHASE CONTRACT Heading
-    let yPos = 38;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(6, 182, 212);
-    doc.text('Purchase Contract', 105, yPos, { align: 'center' });
-    yPos += 10;
+   // PURCHASE CONTRACT Heading
+let yPos = 38;
+doc.setFont('helvetica', 'bold');
+doc.setFontSize(14);
+doc.setTextColor(6, 182, 212);
+doc.text('Purchase Contract', 105, yPos, { align: 'center' });
+yPos += 6; // Reduced spacing to fit subheading
+
+// Subheading: ZMS/ContractNo/ContractDate
+doc.setFont('helvetica', 'normal');
+doc.setFontSize(10);
+doc.setTextColor(33, 33, 33);
+const contractSubheading = `ZMS/${contract.contractNumber || '-'}/${contract.date || '-'}`;
+doc.text(contractSubheading, 105, yPos, { align: 'center' });
+yPos += 10; // Adjust spacing for subsequent content
+
 
     // Seller and Buyer Information
     const leftColX = 10;
@@ -257,7 +266,7 @@ const ContractPDFExport = {
       body: [
         [
           contract.selvedgeWidth || '-',
-          contract.selvedgeWeave || '-',
+          contract.selvegeWeaves || '-',
           contract.selvedgeThickness || '-',
           contract.indThread || '-',
           contract.refer || '-',
