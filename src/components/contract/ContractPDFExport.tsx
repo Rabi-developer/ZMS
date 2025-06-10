@@ -2,16 +2,24 @@
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getAllDescriptions } from '@/apis/description';
+import { getAllWrapYarnTypes } from '@/apis/wrapyarntype';
+import { getAllWeftYarnType } from '@/apis/weftyarntype';
+import { getAllWeaves } from '@/apis/weaves';
+import { getAllPickInsertions } from '@/apis/pickinsertion';
+import { getAllSelveges } from '@/apis/selvege';
 import { Contract } from './columns';
 
 // Load ZMS logo (assumes logo is in public/ZMS-logo.png)
 const ZMS_LOGO = '/ZMS-logo.png';
+
 // Style constants
 const styles = {
   label: { size: 9, color: [6, 182, 212] as [number, number, number] }, // Cyan label color
   value: { size: 9, color: [33, 33, 33] as [number, number, number] }, // Dark gray value color
-  margins: { left: 15, right: 15 }
+  margins: { left: 15, right: 15 },
 };
+
 interface ExportToPDFProps {
   contract: Contract | null;
   sellerSignature?: string;
@@ -22,10 +30,65 @@ interface ExportToPDFProps {
 }
 
 const ContractPDFExport = {
-  exportToPDF: ({ contract, sellerSignature, buyerSignature, zmsSignature, selleraddress, buyeraddress }: ExportToPDFProps) => {
+  exportToPDF: async ({ contract, sellerSignature, buyerSignature, zmsSignature, selleraddress, buyeraddress }: ExportToPDFProps) => {
     if (!contract) {
       toast('Contract not found', { type: 'error' });
       return;
+    }
+
+    // Fetch subDescriptions for all relevant fields
+    let descriptionSub = '-';
+    let warpYarnTypeSub = '-';
+    let weftYarnTypeSub = '-';
+    let weavesSub = '-';
+    let pickInsertionSub = '-';
+    let selvedgeSub = '-';
+
+    try {
+      // Fetch Description subDescription
+      const descriptionData = await getAllDescriptions();
+      const descriptionMatch = descriptionData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.description
+      );
+      descriptionSub = descriptionMatch ? descriptionMatch.subDescription : '-';
+
+      // Fetch WarpYarnType subDescription
+      const warpYarnData = await getAllWrapYarnTypes();
+      const warpYarnMatch = warpYarnData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.warpYarnType
+      );
+      warpYarnTypeSub = warpYarnMatch ? warpYarnMatch.subDescription : '-';
+
+      // Fetch WeftYarnType subDescription
+      const weftYarnData = await getAllWeftYarnType();
+      const weftYarnMatch = weftYarnData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.weftYarnType
+      );
+      weftYarnTypeSub = weftYarnMatch ? weftYarnMatch.subDescription : '-';
+
+      // Fetch Weaves subDescription
+      const weavesData = await getAllWeaves();
+      const weavesMatch = weavesData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.weaves
+      );
+      weavesSub = weavesMatch ? weavesMatch.subDescription : '-';
+
+      // Fetch PickInsertion subDescription
+      const pickInsertionData = await getAllPickInsertions();
+      const pickInsertionMatch = pickInsertionData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.pickInsertion
+      );
+      pickInsertionSub = pickInsertionMatch ? pickInsertionMatch.subDescription : '-';
+
+      // Fetch Selvedge subDescription
+      const selvedgeData = await getAllSelveges();
+      const selvedgeMatch = selvedgeData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.selvedge
+      );
+      selvedgeSub = selvedgeMatch ? selvedgeMatch.subDescription : '-';
+    } catch (error) {
+      console.error('Error fetching subDescriptions:', error);
+      toast('Failed to fetch subDescriptions', { type: 'warning' });
     }
 
     const doc = new jsPDF();
@@ -72,7 +135,7 @@ const ContractPDFExport = {
 
     // Seller and Buyer Information (Seller on left, Buyer on right with gap)
     const leftColX = 15;
-    const rightColX = 115; // Adjusted to position Buyer near the right with a gap
+    const rightColX = 115; // Adjusted to position Buyer near the right with gap
     const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [6, 182, 212] as [number, number, number] }; // Cyan label color
     const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [33, 33, 33] as [number, number, number] }; // Dark gray value color
 
@@ -131,10 +194,15 @@ const ContractPDFExport = {
     yPos += 17;
 
     const fields = [
-      { label: 'Description:', value: contract.description || '-' },
-      { label: 'Blend Ratio:',value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'},${contract.weftYarnType || '-'}`},
-      { label: 'Construction:', value: `${contract.warpCount || '-'}${contract.warpYarnType || '-'}  ${contract.weftCount|| '-'} ${contract.weftYarnType || '-'} ${contract.noOfEnds|| '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.selvedge || '-'}` },
-      
+      { label: 'Description:', value: `${contract.description || '-'} (${descriptionSub})` },
+      {
+        label: 'Blend Ratio:',
+        value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}, ${contract.weftYarnType || '-'}`,
+      },
+      {
+        label: 'Construction:',
+        value: `${contract.warpCount || '-'} ${contract.warpYarnType || '-'} (${warpYarnTypeSub}) ${contract.weftCount || '-'} ${contract.weftYarnType || '-'} (${weftYarnTypeSub}) ${contract.noOfEnds || '-'} ${contract.weaves || '-'} (${weavesSub}) ${contract.pickInsertion || '-'} (${pickInsertionSub}) ${contract.selvedge || '-'} (${selvedgeSub})`,
+      },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -153,7 +221,7 @@ const ContractPDFExport = {
 
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...labelStyle.color); 
+      doc.setTextColor(...labelStyle.color); // Cyan text for labels
       doc.text(field.label, leftColX, yPos);
 
       doc.setFont(valueStyle.font, valueStyle.style);
@@ -172,8 +240,8 @@ const ContractPDFExport = {
         [
           contract.width ? `${contract.width}"` : '-',
           `${contract.quantity} ${contract.unitOfMeasure}`,
-          contract.rate,
-          contract.totalAmount,
+          contract.rate || '-',
+          contract.totalAmount || '-',
           contract.refer || '-',
           contract.warpCount || '-',
           contract.weftCount || '-',
@@ -182,13 +250,13 @@ const ContractPDFExport = {
         ['', '', '', '', '', '', ''],
         ['', '', '', '', '', '', ''],
         ['', '', 'GST:', contract.gstValue || '-', '', '', ''],
-        ['', '', 'Total Amount:', contract.totalAmount.toString(), '', '', '']
+        ['', '', 'Total Amount:', contract.totalAmount || '-', '', '', ''],
       ],
       styles: { fontSize: 9, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.3 },
       headStyles: { fillColor: [6, 182, 212], textColor: [255, 255, 255], lineWidth: 0.3, lineColor: [200, 200, 200] },
       columnStyles: {
         2: { halign: 'right' },
-        3: { halign: 'right' }
+        3: { halign: 'right' },
       },
       margin: { left: 15, right: 15 },
       theme: 'grid',
@@ -196,7 +264,7 @@ const ContractPDFExport = {
         if (data.row.index >= 4) {
           data.cell.styles.fontStyle = 'bold';
         }
-      }
+      },
     });
 
     yPos = (doc as any).lastAutoTable.finalY + 15;
