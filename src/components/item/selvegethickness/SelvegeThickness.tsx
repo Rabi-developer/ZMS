@@ -45,7 +45,7 @@ const SelvegeThickness = ({ isEdit = false }: { isEdit?: boolean }) => {
     if (isEdit) {
       const fetchSelvegeThickness = async () => {
         const listid = window.location.pathname.split('/selvegeThickness').pop();
-        if (listid) {
+        if (listid) {  
           try {
             const response = await getAllSelvegeThicknesss();
             const foundSelvegeThickness = response.data.find((item: any) => item.listid === listid);
