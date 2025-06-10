@@ -151,13 +151,24 @@ doc.setTextColor(6, 182, 212);
 doc.text('Purchase Contract', 105, yPos, { align: 'center' });
 yPos += 6; // Reduced spacing to fit subheading
 
-// Subheading: ZMS/ContractNo/ContractDate
+// Subheading: ZMS/ContractNo/Month/Year
 doc.setFont('helvetica', 'normal');
 doc.setFontSize(10);
 doc.setTextColor(33, 33, 33);
-const contractSubheading = `ZMS/${contract.contractNumber || '-'}/${contract.date || '-'}`;
+let monthYear = '-';
+if (contract.date) {
+  try {
+    const dateObj = new Date(contract.date);
+    if (!isNaN(dateObj.getTime())) {
+      monthYear = `${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
+    }
+  } catch (error) {
+    console.error('Error parsing contract date:', error);
+  }
+}
+const contractSubheading = `ZMS/${contract.contractNumber || '-'}/${monthYear}`;
 doc.text(contractSubheading, 105, yPos, { align: 'center' });
-yPos += 10; // Adjust spacing for subsequent content
+yPos += 10;
 
 
     // Seller and Buyer Information
