@@ -221,14 +221,14 @@ yPos += 10; // Adjust spacing for subsequent content
     yPos += 19;
 
     const fields = [
-      { label: 'Description:', value: `${contract.description || '-'} (${descriptionSub})` },
+      { label: 'Description:', value: `${contract.description || '-'} ${descriptionSub}` },
       {
         label: 'Blend Ratio:',
         value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}, ${contract.weftYarnType || '-'}`,
       },
       {
         label: 'Construction:',
-        value: `${contract.warpCount || '-'} ${contract.warpYarnType || '-'} (${warpYarnTypeSub}) ${contract.weftCount || '-'} ${contract.weftYarnType || '-'} (${weftYarnTypeSub}) ${contract.noOfEnds || '-'} ${contract.weaves || '-'} (${weavesSub}) ${contract.pickInsertion || '-'} (${pickInsertionSub}) ${contract.selvedge || '-'} (${selvedgeSub})`,
+        value: `${contract.warpCount || '-'}  ${warpYarnTypeSub} ${contract.weftCount || '-'}${weftYarnTypeSub} ${contract.noOfEnds || '-'} ${contract.weaves || '-'}  ${contract.pickInsertion || '-'}  ${contract.selvedge || '-'} `,
       },
     ];
 
