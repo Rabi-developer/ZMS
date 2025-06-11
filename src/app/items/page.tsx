@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import Link from 'next/link';
-import MainLayout from '@/components/MainLayout/MainLayout';
 import { FiList, FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GiStabbedNote, GiInauguration, GiYarn, GiSoundWaves, GiCardPickup, GiRolledCloth, GiWaves } from 'react-icons/gi';
@@ -12,7 +11,10 @@ import { RiExpandWidthFill } from 'react-icons/ri';
 import { FaArrowTrendDown } from "react-icons/fa6";
 import { FaCartFlatbedSuitcase } from "react-icons/fa6";
 import { FaBoxesPacking } from "react-icons/fa6";
-import { FcBullish } from "react-icons/fc";
+import { TbNeedleThread } from "react-icons/tb";
+import { FaThermometerEmpty } from "react-icons/fa";
+import { DiBingSmall } from "react-icons/di";
+
 
 const forms = [
   { name: 'Description', listRoute: '/description', createRoute: '/description/create', description: 'Manage item descriptions', icon: GiStabbedNote },
@@ -30,7 +32,9 @@ const forms = [
   { name: 'Packing', listRoute: '/packing', createRoute: '/packing/create', description: 'Manage packing details', icon: FaBoxesPacking },
   { name: 'Fabric Types', listRoute: '/fabrictypes', createRoute: '/fabrictypes/create', description: 'Define fabric types', icon: FaBuffer },
   { name: 'End Use', listRoute: '/enduse', createRoute: '/enduse/create', description: 'Specify end-use categories', icon: FaArrowTrendDown },
-  { name: 'Selvege Thickness', listRoute: '/selvegethickness', createRoute: '/selvegethickness/create', description: 'Specify selvegethickness categories', icon: GiSoundWaves },
+  { name: 'Selvege Thickness', listRoute: '/selvegethickness', createRoute: '/selvegethickness/create', description: 'Specify selvegethickness categories', icon: FaThermometerEmpty  },
+  { name: 'Induction Thread', listRoute: '/inductionthread', createRoute: '/inductionthread/create', description: 'Specify Induction Thread categories', icon: TbNeedleThread  },
+  { name: 'GSM', listRoute: '/gsm', createRoute: '/gsm/create', description: 'Specify gsm categories', icon: DiBingSmall},
 
 ];
 

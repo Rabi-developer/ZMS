@@ -197,8 +197,8 @@ const ContractPDFExport = {
     // Seller and Buyer Information
     const leftColX = 10;
     const rightColX = 110;
-    const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 7, color: [6, 182, 212] as [number, number, number] };
-    const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 7, color: [33, 33, 33] as [number, number, number] };
+    const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [6, 182, 212] as [number, number, number] };
+    const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [33, 33, 33] as [number, number, number] };
 
     // Seller Info
     const sellerBoxY = yPos - 5;
@@ -267,14 +267,14 @@ const ContractPDFExport = {
     yPos += 19;
 
     const fields = [
-      { label: 'Description:', value: `${contract.description || '-'} ${descriptionSub}` },
+      { label: 'Description:', value: `${contract.description || '-'} ${contract.stuff}` },
       {
         label: 'Blend Ratio:',
-        value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}, ${contract.weftYarnType || '-'}`,
+        value: `${contract.blendRatio || '-'}, `,
       },
       {
         label: 'Construction:',
-        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} ${contract.weftCount || '-'}${weftYarnTypeSub} ${contract.noOfEnds || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.selvedge || '-'} `,
+        value: `${contract.warpCount ||  contract.warpYarnType || '-'} ×  ${contract.weftYarnType || '-'} ${warpYarnTypeSub} / ${contract.endUse || '-'} ${contract.noOfEnds || '-'}  × ${contract.packing || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.selvegeWidth || '-'} ${contract.final || '-'} ${contract.selvedge || '-'} `,
       },
     ];
 
