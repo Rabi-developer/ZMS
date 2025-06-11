@@ -1,4 +1,3 @@
-
 import apiFetch from "@/components/utils/fetchInstance";
 
 // Create Buyer
@@ -46,7 +45,7 @@ const getSingleBuyer = async (id: string) => {
 // Update Buyer
 const updateBuyer = async (id: string, Buyer: any) => {
   try {
-    const response = await apiFetch(`Buyer/${id}`, {
+    const response = await apiFetch(`Buyer`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

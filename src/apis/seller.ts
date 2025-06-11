@@ -46,7 +46,7 @@ const getSingleSeller = async (id: string) => {
 // Update Seller
 const updateSeller = async (id: string, Seller: any) => {
   try {
-    const response = await apiFetch(`Seller/${id}`, {
+    const response = await apiFetch(`Seller`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

@@ -8,11 +8,11 @@ import { getAllWeftYarnType } from '@/apis/weftyarntype';
 import { getAllWeaves } from '@/apis/weaves';
 import { getAllPickInsertions } from '@/apis/pickinsertion';
 import { getAllBlendRatios } from '@/apis/blendratio';
-
 import { getAllSelveges } from '@/apis/selvege';
 import { Contract } from './columns';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
+
 // Load ZMS logo (assumes logo is in public/ZMS-logo.png)
 const ZMS_LOGO = '/ZMS-logo.png';
 let GetSellerAddress = '';
@@ -67,9 +67,8 @@ const ContractPDFExport = {
     let selvedgeSub = '-';
 
     try {
-
       // Fetch Seller and Buyer Addresses
-       const sellerData = await getAllSellers();
+      const sellerData = await getAllSellers();
       const buyerData = await getAllBuyer();
       const sellerMatch = sellerData.data.find(
         (item: { sellerName: string; address: string }) => item.sellerName === contract.seller
@@ -77,9 +76,9 @@ const ContractPDFExport = {
       const buyerMatch = buyerData.data.find(
         (item: { buyerName: string; address: string }) => item.buyerName === contract.buyer
       );
-     GetSellerAddress = sellerMatch ? sellerMatch.address : '';
-     GetBuyerAddress = buyerMatch ? buyerMatch.address : '';
-      
+      GetSellerAddress = sellerMatch ? sellerMatch.address : '';
+      GetBuyerAddress = buyerMatch ? buyerMatch.address : '';
+
       // Fetch Description subDescription
       const descriptionData = await getAllDescriptions();
       const descriptionMatch = descriptionData.data.find(
@@ -160,40 +159,9 @@ const ContractPDFExport = {
       doc.setTextColor(255, 255, 255);
       doc.text('[ZMS Logo]', 10, 18);
     }
-    // PURCHASE CONTRACT Heading
-    let yPos = 38;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(6, 182, 212);
-    doc.text('Purchase Contract', 105, yPos, { align: 'center' });
-    yPos += 6; // Reduced spacing to fit subheading
 
     // Subheading: ZMS/ContractNo/Month/Year
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(255, 255, 255);
-    doc.text('Suit No. 108, SP Chamber, Main Estate Avenue,', 105, 18, { align: 'center' });
-    doc.text('SITE Karachi', 105, 22, { align: 'center' });
-    doc.text('Phone: +92 21 32550917-18', 105, 26, { align: 'center' });
-
-    // Logo
-    try {
-      doc.addImage(ZMS_LOGO, 'PNG', 10, 6, 24, 18);
-    } catch (error) {
-      console.error('Failed to load logo:', error);
-      doc.setFontSize(10);
-      doc.setTextColor(255, 255, 255);
-      doc.text('[ZMS Logo]', 10, 18);
-    }
-    // PURCHASE CONTRACT Heading
-    yPos = 38;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
-    doc.setTextColor(6, 182, 212);
-    doc.text('Purchase Contract', 105, yPos, { align: 'center' });
-    yPos += 6; // Reduced spacing to fit subheading
-
-    // Subheading: ZMS/ContractNo/Month/Year
+    let yPos = 32; // Start after header
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     doc.setTextColor(33, 33, 33);
@@ -210,8 +178,21 @@ const ContractPDFExport = {
     }
     const contractSubheading = `ZMS/${contract.contractNumber || '-'}/${monthYear}`;
     doc.text(contractSubheading, 105, yPos, { align: 'center' });
-    yPos += 10;
+    yPos += 6;
 
+    // PURCHASE CONTRACT Heading
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(6, 182, 212);
+    doc.text('Purchase Contract', 105, yPos, { align: 'center' });
+    yPos += 6;
+
+    // Contract Date
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(33, 33, 33);
+    doc.text(`Date: ${contract.date || '-'}`, 105, yPos, { align: 'center' });
+    yPos += 10;
 
     // Seller and Buyer Information
     const leftColX = 10;
@@ -220,9 +201,8 @@ const ContractPDFExport = {
     const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 10, color: [33, 33, 33] as [number, number, number] };
 
     // Seller Info
-    // Draw rectangle for Seller box
-    const sellerBoxY = yPos -5;
-    const sellerBoxHeight = 14; // Enough for name + address
+    const sellerBoxY = yPos - 5;
+    const sellerBoxHeight = 14;
     doc.setLineWidth(0.4);
     doc.setDrawColor(33, 33, 33);
     doc.rect(leftColX - 2, sellerBoxY, 90, sellerBoxHeight, 'S');
@@ -253,8 +233,7 @@ const ContractPDFExport = {
     doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 6, yPos + 6);
 
     // Buyer Info
-    // Draw rectangle for Buyer box
-    const buyerBoxY = yPos-5;
+    const buyerBoxY = yPos - 5;
     const buyerBoxHeight = 14;
     doc.setLineWidth(0.4);
     doc.setDrawColor(33, 33, 33);

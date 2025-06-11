@@ -152,7 +152,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
       if (id) {
         const updateData = { ...data, id };
         response = await updateBuyer(id, updateData);
-        if (response.statusMessage === "Created successfully") {
+        if (response.statusMessage === "Updated successfully") {
           toast("Updated Successfully", { type: "success" });
           reset();
           router.push("/buyer");
@@ -161,7 +161,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
         }
       } else {
         response = await createBuyer(data);
-        if (response.statusMessage === "Created successfully") {
+        if (response.statusMessage === "Updated successfully") {
           toast("Created Successfully", { type: "success" });
           reset();
           router.push("/buyer");

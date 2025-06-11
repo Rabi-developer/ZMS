@@ -46,7 +46,7 @@ const getSingleAssets = async (id: string) => {
 // Update Assets
 const updateAssets = async (id: string, Assets: any) => {
   try {
-    const response = await apiFetch(`Assets/${id}`, {
+    const response = await apiFetch(`Assets`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

@@ -131,7 +131,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
       if (id) {
         const updateData = { ...data, id };
         response = await updateSeller(id, updateData);
-        if (response.statusMessage === "Created successfully") {
+        if (response.statusMessage === "Updated successfully") {
           toast("Updated Successfully", { type: "success" });
           reset();
           router.push("/saller");

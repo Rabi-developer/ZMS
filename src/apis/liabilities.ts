@@ -46,7 +46,7 @@ const getSingleLiabilities = async (id: string) => {
 // Update Liabilities
 const updateLiabilities = async (id: string, Liabilities: any) => {
   try {
-    const response = await apiFetch(`Liabilities/${id}`, {
+    const response = await apiFetch(`Liabilities`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
