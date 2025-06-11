@@ -36,7 +36,7 @@ import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
 import { getAllSelvegeThicknesss, } from '@/apis/selvegethickness';
-import { getAllInductionThreads,  } from '@/apis/Inductionthread'; 
+import { getAllInductionThreads,  } from '@/apis/inductionthread'; 
 import { getAllGSMs, deleteGSM } from '@/apis/gsm'; 
 
 // Update schema to match state types
@@ -137,6 +137,7 @@ const ContractSchema = z.object({
   SellerDeliveryBreakups: z.array(DeliveryBreakupSchema).optional(),
   SampleDetails: z.array(SampleDetailSchema).optional(),
   Notes: z.string().optional(),
+  SelvegeThickness: z.string().optional(),
 });
 
 type FormData = z.infer<typeof ContractSchema>;
@@ -205,6 +206,7 @@ type ContractApiResponse = {
   approvedDate: string;
   endUse: string;
   notes?: string;
+  selvegeThickness?: string;
   buyerDeliveryBreakups: Array<{
     id?: string;
     qty: string;
@@ -269,7 +271,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [selvedges, setSelvedges] = useState<{ id: string; name: string }[]>([]);
   const [selvedgeWeaves, setSelvedgeWeaves] = useState<{ id: string; name: string }[]>([]);
   const [selvedgeWidths, setSelvedgeWidths] = useState<{ id: string; name: string }[]>([]);
-    const [selvageThreads, setSelvageThreads] = useState<{ id: string; name: string }[]>([]); 
+  const [selvageThreads, setSelvageThreads] = useState<{ id: string; name: string }[]>([]); 
   const [inductionThreads, setInductionThreads] = useState<{ id: string; name: string }[]>([]); 
   const [gsms, setGsms] = useState<{ id: string; name: string }[]>([]); 
   const [stuffs, setStuffs] = useState<{ id: string; name: string }[]>([]);
@@ -280,6 +282,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [paymentTerms, setPaymentTerms] = useState<{ id: string; name: string }[]>([]);
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<{ id: string; name: string }[]>([]);
   const [gstTypes, setGstTypes] = useState<{ id: string; name: string }[]>([]);
+  const [selvegeThicknesses, setSelvegeThicknesses] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [buyerDeliveryBreakups, setBuyerDeliveryBreakups] = useState<Array<{
@@ -830,6 +833,23 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
+  const fetchSelvegeThicknesses = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllSelvegeThicknesss();
+      setSelvegeThicknesses(
+        response.data.map((item: any) => ({
+          id: item.listid,
+          name: item.descriptions,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching selvege thicknesses:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const companyId = watch('CompanyId');
   const branchId = watch('BranchId');
   const selectedBlendRatio = watch('BlendRatio');
@@ -930,7 +950,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           fetchCommissionTypes(),
           fetchPaymentTerms(),
           fetchUnitsOfMeasure(),
-          fetchGstTypes()
+          fetchGstTypes(),
+          fetchSelvegeThicknesses(),
         ]);
 
         if (initialData) {
@@ -1253,7 +1274,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
             yarnBags: info.YarnBags,
             labs: info.Labs
           }))
-        }))
+        })),
+        selvegeThickness: data.SelvegeThickness || '',
       };
 
       // Remove any undefined or null values from the payload
@@ -1348,6 +1370,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         ApprovedDate: initialData.approvedDate || '',
         EndUse: initialData.endUse || '',
         Notes: initialData.notes || '',
+        SelvegeThickness: initialData.selvegeThickness || '',
         BuyerDeliveryBreakups: initialData.buyerDeliveryBreakups?.map(breakup => ({
           Id: breakup.id,
           Qty: breakup.qty,
@@ -1702,7 +1725,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         error={errors.EndUse?.message}
                         register={register}
                       />
-                      
+                      <CustomInputDropdown
+                        label="Selvege Thickness"
+                        options={selvegeThicknesses}
+                        selectedOption={watch('SelvegeThickness') || ''}
+                        onChange={(value) => setValue('SelvegeThickness', value, { shouldValidate: true })}
+                        error={errors.SelvegeThickness?.message}
+                        register={register}
+                      />
                     </div>
                   </div>
 
@@ -2011,6 +2041,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     <div className="flex justify-between items-center mb-4">
                       <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Seller Delivery Breakups</h2>
                       <Button
+
                         type="button"
                         onClick={addSellerDeliveryBreakup}
                         className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2"
