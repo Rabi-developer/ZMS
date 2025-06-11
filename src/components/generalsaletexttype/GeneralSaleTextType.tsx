@@ -61,7 +61,7 @@ const GeneralSaleTextType = ({ id, initialData }: any) => {
       }
       console.log(response);
       reset();
-      router.push("/general-sale-text-type");
+      router.push("/generalsaletexttype");
     } catch (error) {
       console.error("Error submitting form:", error);
     }

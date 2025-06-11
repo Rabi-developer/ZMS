@@ -13,9 +13,9 @@ import Link from 'next/link';
 import { BiSolidErrorAlt } from 'react-icons/bi';
 
 const inductionThreadSchema = z.object({
-  threadId: z.string().optional(),
-  title: z.string().min(1, 'Title is required'),
-  details: z.string().optional(),
+  listid: z.string().optional(),
+  descriptions: z.string().min(1, 'Description is required'),
+  subDescription: z.string().optional(),
   useDeletedId: z.boolean().optional(),
 });
 
@@ -31,75 +31,75 @@ const InductionThreadForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   } = useForm<InductionThreadFormData>({
     resolver: zodResolver(inductionThreadSchema),
     defaultValues: {
-      threadId: '',
-      title: '',
-      details: '',
+      listid: '',
+      descriptions: '',
+      subDescription: '',
       useDeletedId: false,
     },
   });
 
   const [idFocused, setIdFocused] = useState(false);
-  const [detailsList, setDetailsList] = useState<string[]>(['']);
+  const [subDescriptions, setSubDescriptions] = useState<string[]>(['']);
 
   React.useEffect(() => {
     if (isEdit) {
-      const fetchThread = async () => {
-        const threadId = window.location.pathname.split('/').pop();
-        if (threadId) {
+      const fetchInductionThread = async () => {
+        const listid = window.location.pathname.split('/').pop();
+        if (listid) {
           try {
             const response = await getAllInductionThreads();
-            const foundThread = response.data.find((item: any) => item.threadId === threadId);
-            if (foundThread) {
-              setValue('threadId', foundThread.threadId || '');
-              setValue('title', foundThread.title || '');
-              const detailsArray = foundThread.details?.split('|')?.filter((s: string) => s) || [''];
-              setDetailsList(detailsArray);
-              setValue('details', foundThread.details || '');
+            const foundInductionThread = response.data.find((item: any) => item.listid === listid);
+            if (foundInductionThread) {
+              setValue('listid', foundInductionThread.listid || '');
+              setValue('descriptions', foundInductionThread.descriptions || '');
+              const subDescArray = foundInductionThread.subDescription?.split('|')?.filter((s: string) => s) || [''];
+              setSubDescriptions(subDescArray);
+              setValue('subDescription', foundInductionThread.subDescription || '');
             } else {
-              toast.error('Induction thread not found');
-              router.push('/induction-thread');
+              toast.error('InductionThread not found');
+              router.push('/inductionthread');
             }
           } catch (error) {
-            console.error('Error fetching induction thread:', error);
-            toast.error('Failed to load induction thread');
+            console.error('Error fetching inductionThread:', error);
+            toast.error('Failed to load inductionThread');
           }
         }
       };
-      fetchThread();
+      fetchInductionThread();
     }
   }, [isEdit, setValue, router]);
 
-  const handleAddDetail = () => {
-    setDetailsList([...detailsList, '']);
+  const handleAddSubDescription = () => {
+    setSubDescriptions([...subDescriptions, '']);
   };
 
-  const handleDeleteDetail = (index: number) => {
-    if (detailsList.length > 1) {
-      const newDetailsList = detailsList.filter((_, i) => i !== index);
-      setDetailsList(newDetailsList);
-      setValue('details', newDetailsList.join('|'));
+  const handleDeleteSubDescription = (index: number) => {
+    if (subDescriptions.length > 1) {
+      const newSubDescriptions = subDescriptions.filter((_, i) => i !== index);
+      setSubDescriptions(newSubDescriptions);
+      setValue('subDescription', newSubDescriptions.join('|'));
     }
   };
 
-  const handleDetailChange = (index: number, value: string) => {
-    const newDetailsList = [...detailsList];
-    newDetailsList[index] = value;
-    setDetailsList(newDetailsList);
-    setValue('details', newDetailsList.join('|'));
+  const handleSubDescriptionChange = (index: number, value: string) => {
+    const newSubDescriptions = [...subDescriptions];
+    newSubDescriptions[index] = value;
+    setSubDescriptions(newSubDescriptions);
+    setValue('subDescription', newSubDescriptions.join('|'));
   };
 
   const onSubmit = async (data: InductionThreadFormData) => {
     try {
       if (isEdit) {
-        await updateInductionThread(data.threadId!, data);
-        toast.success('Induction thread updated successfully!');
+        await updateInductionThread(data.listid!, data);
+        toast.success('InductionThread updated successfully!');
       } else {
         await createInductionThread(data);
-        toast.success('Induction thread created successfully!');
+        toast.success('InductionThread created successfully!');
       }
-      router.push('/induction-thread');
+      router.push('/inductionthread');
     } catch (error) {
-      toast.error('An error occurred while saving the induction thread');
+      toast.error('An error occurred while saving the inductionThread');
     }
   };
 
@@ -119,7 +119,7 @@ const InductionThreadForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             onMouseLeave={() => setIdFocused(false)}
           >
             <Controller
-              name="threadId"
+              name="listid"
               control={control}
               render={({ field }) => (
                 <>
@@ -147,15 +147,15 @@ const InductionThreadForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           </div>
 
           <Controller
-            name="title"
+            name="descriptions"
             control={control}
             render={({ field }) => (
               <CustomInput
                 {...field}
-                label="Title"
+                label="Description"
                 type="text"
-                error={errors.title?.message}
-                placeholder="Enter title"
+                error={errors.descriptions?.message}
+                placeholder="Enter description"
                 value={field.value || ''}
                 onChange={field.onChange}
               />
@@ -163,8 +163,8 @@ const InductionThreadForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           />
 
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Details</label>
-            {detailsList.map((detail, index) => (
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sub-Descriptions</label>
+            {subDescriptions.map((subDesc, index) => (
               <div
                 key={index}
                 className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
@@ -172,15 +172,15 @@ const InductionThreadForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 <CustomInput
                   label=""
                   type="text"
-                  placeholder="Enter detail"
-                  value={detail}
-                  onChange={(e) => handleDetailChange(index, e.target.value)}
-                  error={index === 0 ? errors.details?.message : undefined}
+                  placeholder="Enter sub-description"
+                  value={subDesc}
+                  onChange={(e) => handleSubDescriptionChange(index, e.target.value)}
+                  error={index === 0 ? errors.subDescription?.message : undefined}
                 />
-                {detailsList.length > 1 && (
+                {subDescriptions.length > 1 && (
                   <Button
                     type="button"
-                    onClick={() => handleDeleteDetail(index)}
+                    onClick={() => handleDeleteSubDescription(index)}
                     className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
                   >
                     <MdDelete className="text-lg" />
@@ -190,11 +190,11 @@ const InductionThreadForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             ))}
             <Button
               type="button"
-              onClick={handleAddDetail}
+              onClick={handleAddSubDescription}
               className="mt-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200"
             >
               <MdAdd className="text-lg" />
-              Add Detail
+              Add Sub-Description
             </Button>
           </div>
 
@@ -221,9 +221,9 @@ const InductionThreadForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             type="submit"
             className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
           >
-            {isEdit ? 'Update Thread' : 'Create Thread'}
+            {isEdit ? 'Update InductionThread' : 'Create InductionThread'}
           </Button>
-          <Link href="/induction-thread">
+          <Link href="/inductionthread">
             <Button
               type="button"
               className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"

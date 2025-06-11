@@ -39,9 +39,12 @@ export type Contract = {
   pickInsertion?: string;
   width?: string;
   final?: string;
-  selvedge?: string;
+  selvege?: string;
   selvegeWeaves?: string;
   selvegeWidth?: string;
+  selvegeThickness?: string;
+  inductionThread?: string;
+  gsm: string;
   quantity: string;
   unitOfMeasure: string;
   tolerance?: string;
@@ -68,6 +71,7 @@ export type Contract = {
   updationDate?: string;
   approvedBy?: string;
   approvedDate?: string;
+
   endUse?: string;
   status?: 'Pending' | 'Approved' | 'Canceled' | 'Closed Dispatch' | 'Closed Payment' | 'Complete Closed';
   buyerDeliveryBreakups?: { qty: string; deliveryDate: string }[];

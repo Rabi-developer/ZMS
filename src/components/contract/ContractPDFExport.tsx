@@ -124,7 +124,7 @@ const ContractPDFExport = {
       // Fetch Selvedge subDescription
       const selvedgeData = await getAllSelveges();
       const selvedgeMatch = selvedgeData.data.find(
-        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.selvedge
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.selvege
       );
       selvedgeSub = selvedgeMatch ? selvedgeMatch.subDescription : '-';
     } catch (error) {
@@ -176,7 +176,7 @@ const ContractPDFExport = {
         console.error('Error parsing contract date:', error);
       }
     }
-    const contractSubheading = `ZMS/${contract.contractNumber || '-'}/${monthYear}`;
+    const contractSubheading = `${contract.contractNumber || '-'}`;
     doc.text(contractSubheading, 10, yPos, { align: 'left' });
 
     // PURCHASE CONTRACT Heading (Centered, anchor point)
@@ -274,7 +274,7 @@ const ContractPDFExport = {
       },
       {
         label: 'Construction:',
-        value: `${contract.warpCount ||  contract.warpYarnType || '-'} ×  ${contract.weftYarnType || '-'} ${warpYarnTypeSub} / ${contract.endUse || '-'} ${contract.noOfEnds || '-'}  × ${contract.packing || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.selvegeWidth || '-'} ${contract.final || '-'} ${contract.selvedge || '-'} `,
+        value: `${contract.warpCount ||  contract.warpYarnType || '-'} ×  ${contract.weftYarnType || '-'} ${warpYarnTypeSub} / ${contract.endUse || '-'} ${contract.noOfEnds || '-'}  × ${contract.packing || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.selvegeWidth || '-'} ${contract.final || '-'} ${contract.selvege || '-'} `,
       },
     ];
 
@@ -308,17 +308,15 @@ const ContractPDFExport = {
     // Financial Table
     autoTable(doc, {
       startY: yPos,
-      head: [['Sel.Length', 'Selvege Weaves', 'Selvege Thickness', 'Ind.Thread', 'Delivery']],
+      head: [['Sel.Length', 'Selvege Weaves', 'Selvege Thickness', 'Ind.Thread', 'GSM']],
       body: [
         [
           contract.selvegeWidth || '-',
           contract.selvegeWeaves || '-',
-          contract.selvedgeThickness || '-',
-          contract.indThread || '-',
-          contract.refer || '-',
+          contract.selvegeThickness || '1/2',
+          contract.inductionThread || '-',
+          contract.gsm || '-',
         ],
-        ['', '', '', '', '', '', ''],
-        ['', '', '', '', '', '', ''],
       ],
       styles: { fontSize: 10, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.3 },
       headStyles: { fillColor: [6, 182, 212], textColor: [255, 255, 255], fontSize: 10, cellPadding: 2, lineWidth: 0.3 },

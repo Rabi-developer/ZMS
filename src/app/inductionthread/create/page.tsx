@@ -1,12 +1,12 @@
 "use client";
-import InductionthreadList from '@/components/item/inductionthread/InductionthreadList';
+import InductionThreadForm from '@/components/item/inductionthread/Inductionthread';
 import MainLayout from '@/components/MainLayout/MainLayout'
 
 const Inductionthread = () => {
 
     return (
         <MainLayout>
-            <Inductionthread/>
+           <InductionThreadForm/>
         </MainLayout>
     )
 }

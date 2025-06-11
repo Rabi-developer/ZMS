@@ -1,13 +1,13 @@
 'use client';
 import React from 'react';
-import { getAllGSMs, deleteGSM } from '@/apis/gsm';
+import { getAllGSMs, deleteGSM } from '@/apis/gsm'; 
 import { columns, GSMType } from '@/components/item/gsm/columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
 
 const GSMList = () => {
-  const [GSM, setGSM] = React.useState<GSMType[]>([]);
+  const [gsm, setGSM] = React.useState<GSMType[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [openDelete, setOpenDelete] = React.useState(false);
   const [openView, setOpenView] = React.useState(false);
@@ -47,7 +47,7 @@ const GSMList = () => {
     }
   };
 
-  const handleDeleteOpen = (id: string) => {
+  const handleDeleteOpen = (id: string) => { 
     setDeleteId(id);
     setOpenDelete(true);
   };
@@ -57,8 +57,8 @@ const GSMList = () => {
     setDeleteId(null);
   };
 
-  const handleViewOpen = (listid: string) => {
-    const item = GSM.find(item => item.listid === listid);
+  const handleViewOpen = (ListId: string) => { 
+    const item = gsm.find(item => item.listid === ListId);
     setSelectedGSM(item || null);
     setOpenView(true);
   };
@@ -72,7 +72,7 @@ const GSMList = () => {
     <div className="container bg-white rounded-md">
       <DataTable
         columns={columns(handleDeleteOpen, handleViewOpen)}
-        data={GSM}
+        data={gsm}
         loading={loading}
         link={'/gsm/create'}
         setPageIndex={setPageIndex}
@@ -110,7 +110,7 @@ const GSMList = () => {
                         ID
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedGSM.listid}
+                        {selectedGSM.listid} 
                       </div>
                     </div>
                     <div className="group">

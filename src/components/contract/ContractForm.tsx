@@ -35,6 +35,9 @@ import { getAllCommissionTypes } from '@/apis/commissiontype';
 import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
+import { getAllSelvegeThicknesss, } from '@/apis/selvegethickness';
+import { getAllInductionThreads,  } from '@/apis/Inductionthread'; 
+import { getAllGSMs, deleteGSM } from '@/apis/gsm'; 
 
 // Update schema to match state types
 const DeliveryBreakupSchema = z.object({
@@ -96,6 +99,9 @@ const ContractSchema = z.object({
   Selvedge: z.string().optional(),
   SelvedgeWeave: z.string().optional(),
   SelvedgeWidth: z.string().optional(),
+  SelvageThread: z.string().optional(),
+  InductionThread: z.string().optional(), 
+  GSM: z.string().optional(), 
   Quantity: z.string().min(1, 'Quantity is required'),
   UnitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
   Tolerance: z.string().optional(),
@@ -168,6 +174,9 @@ type ContractApiResponse = {
   selvege: string;
   selvegeWeaves: string;
   selvegeWidth: string;
+   selvageThread: string; 
+  inductionThread: string; 
+  gsm: string; 
   quantity: string;
   unitOfMeasure: string;
   tolerance: string;
@@ -260,6 +269,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [selvedges, setSelvedges] = useState<{ id: string; name: string }[]>([]);
   const [selvedgeWeaves, setSelvedgeWeaves] = useState<{ id: string; name: string }[]>([]);
   const [selvedgeWidths, setSelvedgeWidths] = useState<{ id: string; name: string }[]>([]);
+    const [selvageThreads, setSelvageThreads] = useState<{ id: string; name: string }[]>([]); 
+  const [inductionThreads, setInductionThreads] = useState<{ id: string; name: string }[]>([]); 
+  const [gsms, setGsms] = useState<{ id: string; name: string }[]>([]); 
   const [stuffs, setStuffs] = useState<{ id: string; name: string }[]>([]);
   const [sellers, setSellers] = useState<{ id: string; name: string }[]>([]);
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
@@ -631,6 +643,57 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
+   const fetchSelvageThreads = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllSelvegeThicknesss();
+      setSelvageThreads(
+        response.data.map((item: any) => ({
+          id: item.listid,
+          name: item.descriptions,
+        })),
+      );
+    } catch (error) {
+      console.error('Error fetching selvage threads:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchInductionThreads = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllInductionThreads();
+      setInductionThreads(
+        response.data.map((item: any) => ({
+          id: item.listid,
+          name: item.descriptions,
+        })),
+      );
+    } catch (error) {
+      console.error('Error fetching induction threads:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchGsms = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllGSMs();
+      setGsms(
+        response.data.map((item: any) => ({
+          id: item.listid,
+          name: item.descriptions,
+        })),
+      );
+    } catch (error) {
+      console.error('Error fetching GSMs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchStuffs = async () => {
     try {
       setLoading(true);
@@ -857,6 +920,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           fetchSelvedges(),
           fetchSelvedgeWeaves(),
           fetchSelvedgeWidths(),
+          fetchSelvageThreads(), 
+          fetchInductionThreads(), 
+          fetchGsms(), 
           fetchStuffs(),
           fetchSellers(),
           fetchBuyers(),
@@ -903,6 +969,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               Selvedge: initialData.selvege || '',
               SelvedgeWeave: initialData.selvegeWeaves || '',
               SelvedgeWidth: initialData.selvegeWidth || '',
+               SelvageThread: initialData.selvageThread || '', 
+              InductionThread: initialData.inductionThread || '', 
+              GSM: initialData.gsm || '', 
               Quantity: initialData.quantity || '',
               UnitOfMeasure: initialData.unitOfMeasure || '',
               Tolerance: initialData.tolerance || '',
@@ -1127,6 +1196,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         selvege: data.Selvedge || '',
         selvegeWeaves: data.SelvedgeWeave || '',
         selvegeWidth: data.SelvedgeWidth || '',
+         selvageThread: data.SelvageThread || '', 
+        inductionThread: data.InductionThread || '', 
+        gsm: data.GSM || '', 
         quantity: data.Quantity,
         unitOfMeasure: data.UnitOfMeasure,
         tolerance: data.Tolerance || '',
@@ -1245,6 +1317,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         Selvedge: initialData.selvege || '',
         SelvedgeWeave: initialData.selvegeWeaves || '',
         SelvedgeWidth: initialData.selvegeWidth || '',
+        SelvageThread: initialData.selvageThread || '',
+        InductionThread: initialData.inductionThread || '',
+        GSM: initialData.gsm || '',
         Quantity: initialData.quantity || '',
         UnitOfMeasure: initialData.unitOfMeasure || '',
         Tolerance: initialData.tolerance || '',
@@ -1492,6 +1567,18 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         {...register('WeftCount')}
                         error={errors.WeftCount?.message}
                       />
+                      {weftYarnTypes.length === 0 && loading ? (
+                        <div>Loading Weft Yarn Types...</div>
+                      ) : (
+                        <CustomInputDropdown
+                          label="Weft Yarn Type"
+                          options={weftYarnTypes}
+                          selectedOption={watch('WeftYarnType') || ''}
+                          onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
+                          error={errors.WeftYarnType?.message}
+                          register={register}
+                        />
+                      )}
                       <CustomInput
                         type="number"
                         variant="floating"
@@ -1571,6 +1658,42 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         error={errors.SelvedgeWidth?.message}
                         register={register}
                       />
+                      {selvageThreads.length === 0 && loading ? (
+                        <div>Loading Selvage Threads...</div>
+                      ) : (
+                        <CustomInputDropdown
+                          label="Selvage Thread"
+                          options={selvageThreads}
+                          selectedOption={watch('SelvageThread') || ''}
+                          onChange={(value) => setValue('SelvageThread', value, { shouldValidate: true })}
+                          error={errors.SelvageThread?.message}
+                          register={register}
+                        />
+                      )}
+                      {inductionThreads.length === 0 && loading ? (
+                        <div>Loading Induction Threads...</div>
+                      ) : (
+                        <CustomInputDropdown
+                          label="Induction Thread"
+                          options={inductionThreads}
+                          selectedOption={watch('InductionThread') || ''}
+                          onChange={(value) => setValue('InductionThread', value, { shouldValidate: true })}
+                          error={errors.InductionThread?.message}
+                          register={register}
+                        />
+                      )}
+                      {gsms.length === 0 && loading ? (
+                        <div>Loading GSMs...</div>
+                      ) : (
+                        <CustomInputDropdown
+                          label="GSM"
+                          options={gsms}
+                          selectedOption={watch('GSM') || ''}
+                          onChange={(value) => setValue('GSM', value, { shouldValidate: true })}
+                          error={errors.GSM?.message}
+                          register={register}
+                        />
+                      )}
                       <CustomInputDropdown
                         label="End Use"
                         options={endUses}
@@ -1579,18 +1702,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         error={errors.EndUse?.message}
                         register={register}
                       />
-                      {weftYarnTypes.length === 0 && loading ? (
-                        <div>Loading Weft Yarn Types...</div>
-                      ) : (
-                        <CustomInputDropdown
-                          label="Weft Yarn Type"
-                          options={weftYarnTypes}
-                          selectedOption={watch('WeftYarnType') || ''}
-                          onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
-                          error={errors.WeftYarnType?.message}
-                          register={register}
-                        />
-                      )}
+                      
                     </div>
                   </div>
 

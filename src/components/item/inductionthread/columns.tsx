@@ -5,18 +5,18 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export type InductionThreadType = {
-  id: string;
-  threadId: string;
-  title: string;
-  details: string;
+  id: string;       
+  listid: string;   
+  descriptions: string;
+  subDescription: string;
 };
 
 export const columns = (
-  handleDeleteOpen: (id: string) => void,
-  handleViewOpen: (threadId: string) => void
+  handleDeleteOpen: (id: string) => void, 
+  handleViewOpen: (listid: string) => void
 ): ColumnDef<InductionThreadType>[] => [
   {
-    accessorKey: 'threadId',
+    accessorKey: 'listid',
     header: ({ column }: any) => {
       return (
         <Button
@@ -30,26 +30,26 @@ export const columns = (
     },
   },
   {
-    accessorKey: 'title',
-    header: 'Title',
+    accessorKey: 'descriptions',
+    header: 'Description',
   },
   {
-    accessorKey: 'details',
-    header: 'Details',
+    accessorKey: 'subDescription',
+    header: 'Sub-Description',
   },
   {
-    accessorKey: 'name',
+    accessorKey:'name',
     header: '',
   },
   {
     header: 'Actions',
     id: 'actions',
     cell: ({ row }) => {
-      const threadId = row.original.id;
-      const listThreadId = row.original.threadId;
+      const inductionThreadId = row.original.id;      
+      const listId = row.original.listid;         
       return (
         <div className='flex gap-2'>
-          <Link href={`/induction-thread/edit/${threadId}`}>
+          <Link href={`/inductionThread/edit/${inductionThreadId}`}>
             <Button variant='outline' size='sm'>
               <Edit className='h-4 w-4' />
             </Button>
@@ -57,14 +57,14 @@ export const columns = (
           <Button
             variant='outline'
             size='sm'
-            onClick={() => handleViewOpen(listThreadId)}
+            onClick={() => handleViewOpen(listId)}
           >
             <Eye className='h-4 w-4' />
           </Button>
           <Button
             variant='outline'
             size='sm'
-            onClick={() => handleDeleteOpen(threadId)}
+            onClick={() => handleDeleteOpen(inductionThreadId)}
           >
             <Trash className='h-4 w-4' />
           </Button>

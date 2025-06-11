@@ -5,14 +5,14 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export type GSMType = {
-  id: string;
-  listid: string;
+  id: string;       
+  listid: string;   
   descriptions: string;
   subDescription: string;
 };
 
 export const columns = (
-  handleDeleteOpen: (id: string) => void,
+  handleDeleteOpen: (id: string) => void, 
   handleViewOpen: (listid: string) => void
 ): ColumnDef<GSMType>[] => [
   {
@@ -38,18 +38,18 @@ export const columns = (
     header: 'Sub-Description',
   },
   {
-    accessorKey: 'name',
+    accessorKey:'name',
     header: '',
   },
   {
     header: 'Actions',
     id: 'actions',
     cell: ({ row }) => {
-      const listid = row.original.id;
-      const gsmListId = row.original.listid;
+      const descriptionId = row.original.id;      
+      const listId = row.original.listid;         
       return (
         <div className='flex gap-2'>
-          <Link href={`/gsm/edit/${listid}`}>
+          <Link href={`/gsm/edit/${descriptionId}`}>
             <Button variant='outline' size='sm'>
               <Edit className='h-4 w-4' />
             </Button>
@@ -57,14 +57,14 @@ export const columns = (
           <Button
             variant='outline'
             size='sm'
-            onClick={() => handleViewOpen(gsmListId)}
+            onClick={() => handleViewOpen(listId)}
           >
             <Eye className='h-4 w-4' />
           </Button>
           <Button
             variant='outline'
             size='sm'
-            onClick={() => handleDeleteOpen(listid)}
+            onClick={() => handleDeleteOpen(descriptionId)}
           >
             <Trash className='h-4 w-4' />
           </Button>

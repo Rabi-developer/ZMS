@@ -1,14 +1,14 @@
 "use client";
-import InductionthreadList from '@/components/item/inductionthread/InductionthreadList';
+import GSMForm from '@/components/item/gsm/Gsm';
 import MainLayout from '@/components/MainLayout/MainLayout'
 
-const Inductionthread = () => {
+const Gsm = () => {
 
     return (
         <MainLayout>
-            <Inductionthread/>
+          <GSMForm/>
         </MainLayout>
     )
 }
 
-export default Inductionthread
+export default Gsm

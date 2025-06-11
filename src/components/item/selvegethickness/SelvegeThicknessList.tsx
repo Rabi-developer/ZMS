@@ -74,7 +74,7 @@ const SelvegeThicknessList = () => {
         columns={columns(handleDeleteOpen, handleViewOpen)}
         data={selvegeThicknesses}
         loading={loading}
-        link={'/selvegeThickness/create'}
+        link={'/selvegethickness/create'}
         setPageIndex={setPageIndex}
         pageIndex={pageIndex}
         pageSize={pageSize}

@@ -12,24 +12,24 @@ import { MdAddBusiness, MdAdd, MdDelete } from 'react-icons/md';
 import Link from 'next/link';
 import { BiSolidErrorAlt } from 'react-icons/bi';
 
-const GSMSchema = z.object({
+const gsmSchema = z.object({
   listid: z.string().optional(),
   descriptions: z.string().min(1, 'Description is required'),
   subDescription: z.string().optional(),
   useDeletedId: z.boolean().optional(),
 });
 
-type GSMData = z.infer<typeof GSMSchema>;
+type GSMFormData = z.infer<typeof gsmSchema>;
 
-const GSM = ({ isEdit = false }: { isEdit?: boolean }) => {
+const GSMForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
   const {
     control,
     handleSubmit,
     formState: { errors },
     setValue,
-  } = useForm<GSMData>({
-    resolver: zodResolver(GSMSchema),
+  } = useForm<GSMFormData>({
+    resolver: zodResolver(gsmSchema),
     defaultValues: {
       listid: '',
       descriptions: '',
@@ -44,7 +44,7 @@ const GSM = ({ isEdit = false }: { isEdit?: boolean }) => {
   React.useEffect(() => {
     if (isEdit) {
       const fetchGSM = async () => {
-        const listid = window.location.pathname.split('/gsm').pop();
+        const listid = window.location.pathname.split('/').pop();
         if (listid) {
           try {
             const response = await getAllGSMs();
@@ -52,8 +52,7 @@ const GSM = ({ isEdit = false }: { isEdit?: boolean }) => {
             if (foundGSM) {
               setValue('listid', foundGSM.listid || '');
               setValue('descriptions', foundGSM.descriptions || '');
-              const subDescArray =
-                foundGSM.subDescription?.split('|')?.filter((s: string) => s) || [''];
+              const subDescArray = foundGSM.subDescription?.split('|')?.filter((s: string) => s) || [''];
               setSubDescriptions(subDescArray);
               setValue('subDescription', foundGSM.subDescription || '');
             } else {
@@ -89,7 +88,7 @@ const GSM = ({ isEdit = false }: { isEdit?: boolean }) => {
     setValue('subDescription', newSubDescriptions.join('|'));
   };
 
-  const onSubmit = async (data: GSMData) => {
+  const onSubmit = async (data: GSMFormData) => {
     try {
       if (isEdit) {
         await updateGSM(data.listid!, data);
@@ -164,9 +163,7 @@ const GSM = ({ isEdit = false }: { isEdit?: boolean }) => {
           />
 
           <div className="col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Sub-Descriptions
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Sub-Descriptions</label>
             {subDescriptions.map((subDesc, index) => (
               <div
                 key={index}
@@ -240,4 +237,4 @@ const GSM = ({ isEdit = false }: { isEdit?: boolean }) => {
   );
 };
 
-export default GSM;
+export default GSMForm;

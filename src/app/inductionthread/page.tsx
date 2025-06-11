@@ -1,12 +1,12 @@
 "use client";
-import InductionthreadList from '@/components/item/inductionthread/InductionthreadList';
+import InductionThreadList from '@/components/item/inductionthread/InductionthreadList';
 import MainLayout from '@/components/MainLayout/MainLayout'
 
 const Organization = () => {
 
     return (
         <MainLayout>
-            <InductionthreadList/>
+           <InductionThreadList/>
         </MainLayout>
     )
 }
