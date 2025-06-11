@@ -160,10 +160,10 @@ const ContractPDFExport = {
       doc.text('[ZMS Logo]', 10, 18);
     }
 
-    // Subheading: ZMS/ContractNo/Month/Year
-    let yPos = 32; // Start after header
+    // Subheading: ZMS/ContractNo/Month/Year (Left-aligned, below Purchase Contract)
+    let yPos = 42;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(10); // Original size of contract date
     doc.setTextColor(33, 33, 33);
     let monthYear = '-';
     if (contract.date) {
@@ -177,28 +177,28 @@ const ContractPDFExport = {
       }
     }
     const contractSubheading = `ZMS/${contract.contractNumber || '-'}/${monthYear}`;
-    doc.text(contractSubheading, 105, yPos, { align: 'center' });
-    yPos += 6;
+    doc.text(contractSubheading, 10, yPos, { align: 'left' });
 
-    // PURCHASE CONTRACT Heading
+    // PURCHASE CONTRACT Heading (Centered, anchor point)
+    yPos = 38;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(6, 182, 212);
     doc.text('Purchase Contract', 105, yPos, { align: 'center' });
-    yPos += 6;
 
-    // Contract Date
+    // Contract Date (Right-aligned, slightly above Purchase Contract)
+    yPos = 42;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(10); // Original size of subheading
     doc.setTextColor(33, 33, 33);
-    doc.text(`Date: ${contract.date || '-'}`, 105, yPos, { align: 'center' });
-    yPos += 10;
+    doc.text(`Date: ${contract.date || '-'}`, 200, yPos, { align: 'right' });
+    yPos += 10; // Space before next section
 
     // Seller and Buyer Information
     const leftColX = 10;
     const rightColX = 110;
-    const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 10, color: [6, 182, 212] as [number, number, number] };
-    const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 10, color: [33, 33, 33] as [number, number, number] };
+    const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 7, color: [6, 182, 212] as [number, number, number] };
+    const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 7, color: [33, 33, 33] as [number, number, number] };
 
     // Seller Info
     const sellerBoxY = yPos - 5;
@@ -215,7 +215,7 @@ const ContractPDFExport = {
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
     let sellerName = contract.seller || '-';
-    let sellerAddressText = GetSellerAddress || 'M/S Ahmed Fine Textile Mills Ltd.59/3';
+    let sellerAddressText = GetSellerAddress || '';
     const maxSellerWidth = 80;
     if (doc.getTextWidth(sellerName) > maxSellerWidth) {
       while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
@@ -247,7 +247,7 @@ const ContractPDFExport = {
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
     let buyerName = contract.buyer || '-';
-    let buyerAddressText = GetBuyerAddress || 'M/S Union Fabrics (Pvt) Ltd';
+    let buyerAddressText = GetBuyerAddress || '';
     const maxBuyerWidth = 75;
     if (doc.getTextWidth(buyerName) > maxBuyerWidth) {
       while (doc.getTextWidth(buyerName + '...') > maxBuyerWidth && buyerName.length > 0) {
@@ -274,7 +274,7 @@ const ContractPDFExport = {
       },
       {
         label: 'Construction:',
-        value: `${contract.warpCount || '-'}  ${warpYarnTypeSub} ${contract.weftCount || '-'}${weftYarnTypeSub} ${contract.noOfEnds || '-'} ${contract.weaves || '-'}  ${contract.pickInsertion || '-'}  ${contract.selvedge || '-'} `,
+        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} ${contract.weftCount || '-'}${weftYarnTypeSub} ${contract.noOfEnds || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.selvedge || '-'} `,
       },
     ];
 
@@ -610,7 +610,6 @@ const ContractPDFExport = {
     doc.text('Confidential - ZMS Textiles Ltd.', 105, yPos + 8, { align: 'center' });
 
     doc.save(`ZMS Sourcing Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`);
-    return doc.output('blob');
   },
 };
 
