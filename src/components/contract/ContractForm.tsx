@@ -1662,7 +1662,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         <div>Loading Selvage Threads...</div>
                       ) : (
                         <CustomInputDropdown
-                          label="Selvage Thread"
+                          label="Selvage Thickness"
                           options={selvageThreads}
                           selectedOption={watch('SelvageThread') || ''}
                           onChange={(value) => setValue('SelvageThread', value, { shouldValidate: true })}

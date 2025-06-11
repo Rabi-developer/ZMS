@@ -179,22 +179,19 @@ const ContractPDFExport = {
     const contractSubheading = `${contract.contractNumber || '-'}`;
     doc.text(contractSubheading, 10, yPos, { align: 'left' });
 
-    // PURCHASE CONTRACT Heading (Centered, anchor point)
-    yPos = 38;
+    yPos = 40;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(6, 182, 212);
     doc.text('Purchase Contract', 105, yPos, { align: 'center' });
 
-    // Contract Date (Right-aligned, slightly above Purchase Contract)
     yPos = 42;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10); // Original size of subheading
+    doc.setFontSize(10); 
     doc.setTextColor(33, 33, 33);
     doc.text(`Date: ${contract.date || '-'}`, 200, yPos, { align: 'right' });
-    yPos += 10; // Space before next section
+    yPos += 15; 
 
-    // Seller and Buyer Information
     const leftColX = 10;
     const rightColX = 110;
     const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [6, 182, 212] as [number, number, number] };
@@ -264,8 +261,8 @@ const ContractPDFExport = {
     doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 6, yPos);
     doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 6, yPos + 6);
 
-    yPos += 19;
-
+    yPos += 25;
+        
     const fields = [
       { label: 'Description:', value: `${contract.description || '-'} ${contract.stuff}` },
       {
@@ -274,7 +271,7 @@ const ContractPDFExport = {
       },
       {
         label: 'Construction:',
-        value: `${contract.warpCount ||  contract.warpYarnType || '-'} ×  ${contract.weftYarnType || '-'} ${warpYarnTypeSub} / ${contract.endUse || '-'} ${contract.noOfEnds || '-'}  × ${contract.packing || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.selvegeWidth || '-'} ${contract.final || '-'} ${contract.selvege || '-'} `,
+        value: `${contract.warpCount ||'-'} ${contract.warpYarnType  || '-'} ${warpYarnTypeSub} ×   ${contract.weftCount  || '-'}  ${contract.weftYarnType || '-'} ${weftYarnTypeSub}  / ${contract.noOfEnds || '-'}  ${contract.noOfPicks || '-'}     ${contract.weaves || '-'}  ${contract.pickInsertion || '-'}  ${contract.final || '-'} ${contract.selvege || '-'} `,
       },
     ];
 
@@ -302,7 +299,7 @@ const ContractPDFExport = {
       doc.setTextColor(...valueStyle.color);
       doc.text(value, leftColX + maxLabelWidth + 6, yPos);
 
-      yPos += 6;
+      yPos += 10;
     });
 
     // Financial Table
@@ -329,6 +326,7 @@ const ContractPDFExport = {
       },
       margin: { left: 10, right: 10 },
       theme: 'grid',
+     
     });
 
     yPos = (doc as any).lastAutoTable.finalY + 10;
@@ -356,7 +354,8 @@ const ContractPDFExport = {
       { label: 'Commission:', value: contract.commissionPercentage || '-' },
       { label: 'Commission Value:', value: contract.commissionValue || '-' },
       { label: 'Delivery Destination:', value: contract.deliveryDate || '-' },
-      { label: 'Remarks:', value: `Seller: ${contract.sellerRemark || ''} | Buyer: ${contract.buyerRemark || ''}` },
+      { label: ' Seller Remarks:', value: `${contract.sellerRemark || ''}`},
+      { label: ' Buyer Remarks:', value: `${contract.buyerRemark || ''}`},  
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -484,7 +483,7 @@ const ContractPDFExport = {
     doc.setLineWidth(0.3);
     doc.setDrawColor(200, 200, 200);
     doc.line(10, yPos, 200, yPos);
-    yPos += 14;
+    yPos += 1;
 
     // Terms and Conditions Table
     autoTable(doc, {
@@ -517,7 +516,7 @@ const ContractPDFExport = {
       },
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 10;
+    yPos = (doc as any).lastAutoTable.finalY + 9;
 
     // Signatures
     const signatureY = yPos;
