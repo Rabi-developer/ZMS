@@ -1,12 +1,12 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, UseFormRegister, SubmitHandler } from 'react-hook-form';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
-import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
+import DescriptionWithSubSelect from '@/components/ui/DescriptionWithSubSelect';
 import { MdAddBusiness, MdAdd, MdDelete, MdInfo } from 'react-icons/md';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,9 @@ import { getAllFinal } from '@/apis/final';
 import { getAllSelveges } from '@/apis/selvege';
 import { getAllSelvegeWeaves } from '@/apis/selvegeweave';
 import { getAllSelvegeWidths } from '@/apis/selvegewidth';
-import { getAllStuffs } from '@/apis/stuff';
+import { getAllSelvegeThicknesss } from '@/apis/selvegethickness';
+import { getAllInductionThreads } from '@/apis/Inductionthread';
+import { getAllGSMs } from '@/apis/gsm';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllDeliveryTerms } from '@/apis/deliveryterm';
@@ -35,15 +37,20 @@ import { getAllCommissionTypes } from '@/apis/commissiontype';
 import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
-import { getAllSelvegeThicknesss, } from '@/apis/selvegethickness';
-import { getAllInductionThreads,  } from '@/apis/Inductionthread'; 
-import { getAllGSMs, deleteGSM } from '@/apis/gsm'; 
+import CustomInputDropdown from '../ui/CustomeInputDropdown';
+import { getAllStuffs } from '@/apis/stuff';
 
-// Update schema to match state types
+// Schema Definitions
 const DeliveryBreakupSchema = z.object({
   Id: z.string().optional(),
   Qty: z.string(),
   DeliveryDate: z.string(),
+});
+
+const DeliveryTermDetailSchema = z.object({
+  Id: z.string().optional(),
+  TermDescription: z.string(),
+  EffectiveDate: z.string(),
 });
 
 const AdditionalInfoSchema = z.object({
@@ -83,25 +90,40 @@ const ContractSchema = z.object({
   Referdate: z.string().optional(),
   FabricType: z.string().min(1, 'Fabric Type is required'),
   Description: z.string().min(1, 'Description is required'),
+  DescriptionSubOptions: z.array(z.string()).optional(),
   Stuff: z.string().min(1, 'Stuff is required'),
+  StuffSubOptions: z.array(z.string()).optional(),
   BlendRatio: z.string().optional(),
-  BlendType: z.string().optional(),
+  BlendType: z.array(z.string()).optional(),
   WarpCount: z.string().optional(),
   WarpYarnType: z.string().optional(),
+  WarpYarnTypeSubOptions: z.array(z.string()).optional(),
   WeftCount: z.string().optional(),
   WeftYarnType: z.string().min(1, 'Weft Yarn Type is required'),
+  WeftYarnTypeSubOptions: z.array(z.string()).optional(),
   NoOfEnds: z.string().optional(),
   NoOfPicks: z.string().optional(),
   Weaves: z.string().optional(),
+  WeavesSubOptions: z.array(z.string()).optional(),
   PickInsertion: z.string().optional(),
+  PickInsertionSubOptions: z.array(z.string()).optional(),
   Width: z.string().optional(),
   Final: z.string().optional(),
+  FinalSubOptions: z.array(z.string()).optional(),
   Selvedge: z.string().optional(),
+  SelvedgeSubOptions: z.array(z.string()).optional(),
   SelvedgeWeave: z.string().optional(),
+  SelvedgeWeaveSubOptions: z.array(z.string()).optional(),
   SelvedgeWidth: z.string().optional(),
+  SelvedgeWidthSubOptions: z.array(z.string()).optional(),
   SelvageThread: z.string().optional(),
-  InductionThread: z.string().optional(), 
-  GSM: z.string().optional(), 
+  SelvageThreadSubOptions: z.array(z.string()).optional(),
+  InductionThread: z.string().optional(),
+  InductionThreadSubOptions: z.array(z.string()).optional(),
+  GSM: z.string().optional(),
+  GSMSubOptions: z.array(z.string()).optional(),
+  EndUse: z.string().optional(),
+  EndUseSubOptions: z.array(z.string()).optional(),
   Quantity: z.string().min(1, 'Quantity is required'),
   UnitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
   Tolerance: z.string().optional(),
@@ -128,13 +150,20 @@ const ContractSchema = z.object({
   UpdationDate: z.string().optional(),
   ApprovedBy: z.string().optional(),
   ApprovedDate: z.string().optional(),
-  EndUse: z.string().optional(),
   DispatchLater: z.string().optional(),
   SellerCommission: z.string().optional(),
   BuyerCommission: z.string().optional(),
   FinishWidth: z.string().optional(),
+  Color: z.string().optional(),
+  Weight: z.string().optional(),
+  Shrinkage: z.string().optional(),
+  Finish: z.string().optional(),
+  WidthDelivery: z.string().optional(),
+  LBDispNo: z.string().optional(),
+  LabDispatchDate: z.string().optional(),
   BuyerDeliveryBreakups: z.array(DeliveryBreakupSchema).optional(),
   SellerDeliveryBreakups: z.array(DeliveryBreakupSchema).optional(),
+  DeliveryTermDetails: z.array(DeliveryTermDetailSchema).optional(),
   SampleDetails: z.array(SampleDetailSchema).optional(),
   Notes: z.string().optional(),
   SelvegeThickness: z.string().optional(),
@@ -142,12 +171,11 @@ const ContractSchema = z.object({
 
 type FormData = z.infer<typeof ContractSchema>;
 
-// Add API response type
 type ContractApiResponse = {
   id: string;
   contractNumber: string;
   date: string;
-  contractType: "Sale" | "Purchase";
+  contractType: 'Sale' | 'Purchase';
   companyId: string;
   branchId: string;
   contractOwner: string;
@@ -159,25 +187,40 @@ type ContractApiResponse = {
   referdate: string;
   fabricType: string;
   description: string;
+  descriptionSubOptions: string;
   stuff: string;
+  stuffSubOptions: string;
   blendRatio: string;
   blendType: string;
   warpCount: string;
   warpYarnType: string;
+  warpYarnTypeSubOptions: string;
   weftCount: string;
   weftYarnType: string;
+  weftYarnTypeSubOptions: string;
   noOfEnds: string;
   noOfPicks: string;
   weaves: string;
+  weavesSubOptions: string;
   pickInsertion: string;
+  pickInsertionSubOptions: string;
   width: string;
   final: string;
+  finalSubOptions: string;
   selvege: string;
+  selvedgeSubOptions: string;
   selvegeWeaves: string;
+  selvedgeWeaveSubOptions: string;
   selvegeWidth: string;
-   selvageThread: string; 
-  inductionThread: string; 
-  gsm: string; 
+  selvedgeWidthSubOptions: string;
+  selvageThread: string;
+  selvageThreadSubOptions: string;
+  inductionThread: string;
+  inductionThreadSubOptions: string;
+  gsm: string;
+  gsmSubOptions: string;
+  endUse: string;
+  endUseSubOptions: string;
   quantity: string;
   unitOfMeasure: string;
   tolerance: string;
@@ -204,9 +247,15 @@ type ContractApiResponse = {
   updationDate: string;
   approvedBy: string;
   approvedDate: string;
-  endUse: string;
   notes?: string;
   selvegeThickness?: string;
+  color?: string;
+  weight?: string;
+  shrinkage?: string;
+  finish?: string;
+  widthDelivery?: string;
+  lbDispNo?: string;
+  labDispatchDate?: string;
   buyerDeliveryBreakups: Array<{
     id?: string;
     qty: string;
@@ -216,6 +265,11 @@ type ContractApiResponse = {
     id?: string;
     qty: string;
     deliveryDate: string;
+  }>;
+  deliveryTermDetails: Array<{
+    id?: string;
+    termDescription: string;
+    effectiveDate: string;
   }>;
   sampleDetails: Array<{
     id?: string;
@@ -242,39 +296,43 @@ type ContractFormProps = {
   initialData?: Partial<ContractApiResponse>;
 };
 
-// Update CustomInputDropdown props type
-interface CustomDropdownProps {
-  label: string;
-  options: { id: string; name: string }[];
-  selectedOption: string;
-  onChange: (value: string) => void;
-  error?: string;
-  register: UseFormRegister<FormData>;
-}
-
 const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const router = useRouter();
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
-  const [descriptions, setDescriptions] = useState<{ id: string; name: string }[]>([]);
+  const [descriptions, setDescriptions] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [descriptionSubOptions, setDescriptionSubOptions] = useState<string[]>([]);
+  const [stuffs, setStuffs] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [stuffSubOptions, setStuffSubOptions] = useState<string[]>([]);
   const [blendRatios, setBlendRatios] = useState<{ id: string; name: string; subDescription: string }[]>([]);
-  const [blendTypeOptions, setBlendTypeOptions] = useState<{ id: string; name: string }[]>([]);
-  const [endUses, setEndUses] = useState<{ id: string; name: string }[]>([]);
+  const [blendTypeOptions, setBlendTypeOptions] = useState<string[]>([]);
+  const [endUses, setEndUses] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [endUseSubOptions, setEndUseSubOptions] = useState<string[]>([]);
   const [fabricTypes, setFabricTypes] = useState<{ id: string; name: string }[]>([]);
   const [packings, setPackings] = useState<{ id: string; name: string }[]>([]);
   const [pieceLengths, setPieceLengths] = useState<{ id: string; name: string }[]>([]);
-  const [pickInsertions, setPickInsertions] = useState<{ id: string; name: string }[]>([]);
-  const [warpYarnTypes, setWarpYarnTypes] = useState<{ id: string; name: string }[]>([]);
-  const [weftYarnTypes, setWeftYarnTypes] = useState<{ id: string; name: string }[]>([]);
-  const [weaves, setWeaves] = useState<{ id: string; name: string }[]>([]);
-  const [finals, setFinals] = useState<{ id: string; name: string }[]>([]);
-  const [selvedges, setSelvedges] = useState<{ id: string; name: string }[]>([]);
-  const [selvedgeWeaves, setSelvedgeWeaves] = useState<{ id: string; name: string }[]>([]);
-  const [selvedgeWidths, setSelvedgeWidths] = useState<{ id: string; name: string }[]>([]);
-  const [selvageThreads, setSelvageThreads] = useState<{ id: string; name: string }[]>([]); 
-  const [inductionThreads, setInductionThreads] = useState<{ id: string; name: string }[]>([]); 
-  const [gsms, setGsms] = useState<{ id: string; name: string }[]>([]); 
-  const [stuffs, setStuffs] = useState<{ id: string; name: string }[]>([]);
+  const [pickInsertions, setPickInsertions] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [pickInsertionSubOptions, setPickInsertionSubOptions] = useState<string[]>([]);
+  const [warpYarnTypes, setWarpYarnTypes] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [warpYarnTypeSubOptions, setWarpYarnTypeSubOptions] = useState<string[]>([]);
+  const [weftYarnTypes, setWeftYarnTypes] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [weftYarnTypeSubOptions, setWeftYarnTypeSubOptions] = useState<string[]>([]);
+  const [weaves, setWeaves] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [weavesSubOptions, setWeavesSubOptions] = useState<string[]>([]);
+  const [finals, setFinals] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [finalSubOptions, setFinalSubOptions] = useState<string[]>([]);
+  const [selvedges, setSelvedges] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [selvedgeSubOptions, setSelvedgeSubOptions] = useState<string[]>([]);
+  const [selvedgeWeaves, setSelvedgeWeaves] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [selvedgeWeaveSubOptions, setSelvedgeWeaveSubOptions] = useState<string[]>([]);
+  const [selvedgeWidths, setSelvedgeWidths] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [selvedgeWidthSubOptions, setSelvedgeWidthSubOptions] = useState<string[]>([]);
+  const [selvageThreads, setSelvageThreads] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [selvageThreadSubOptions, setSelvageThreadSubOptions] = useState<string[]>([]);
+  const [inductionThreads, setInductionThreads] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [inductionThreadSubOptions, setInductionThreadSubOptions] = useState<string[]>([]);
+  const [gsms, setGsms] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [gsmSubOptions, setGsmSubOptions] = useState<string[]>([]);
   const [sellers, setSellers] = useState<{ id: string; name: string }[]>([]);
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
   const [deliveryTerms, setDeliveryTerms] = useState<{ id: string; name: string }[]>([]);
@@ -285,51 +343,68 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [selvegeThicknesses, setSelvegeThicknesses] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [buyerDeliveryBreakups, setBuyerDeliveryBreakups] = useState<Array<{
-    Id?: string;
-    Qty: string;
-    DeliveryDate: string;
-  }>>([]);
-  const [sellerDeliveryBreakups, setSellerDeliveryBreakups] = useState<Array<{
-    Id?: string;
-    Qty: string;
-    DeliveryDate: string;
-  }>>([]);
-  const [sampleDetails, setSampleDetails] = useState<Array<{
-    Id?: string;
-    SampleQty: string;
-    SampleReceivedDate: string;
-    SampleDeliveredDate: string;
-    CreatedBy: string;
-    CreationDate: string;
-    UpdatedBy: string;
-    UpdateDate: string;
-    AdditionalInfo: Array<{
+  const [buyerDeliveryBreakups, setBuyerDeliveryBreakups] = useState<
+    Array<{
       Id?: string;
-      EndUse: string;
-      Count: string;
-      Weight: string;
-      YarnBags: string;
-      Labs: string;
-    }>;
-  }>>([{
-    Id: undefined,
-    SampleQty: '',
-    SampleReceivedDate: '',
-    SampleDeliveredDate: '',
-    CreatedBy: 'Current User',
-    CreationDate: new Date().toISOString().split('T')[0],
-    UpdatedBy: '',
-    UpdateDate: '',
-    AdditionalInfo: [{
+      Qty: string;
+      DeliveryDate: string;
+    }>
+  >([]);
+  const [sellerDeliveryBreakups, setSellerDeliveryBreakups] = useState<
+    Array<{
+      Id?: string;
+      Qty: string;
+      DeliveryDate: string;
+    }>
+  >([]);
+  const [deliveryTermDetails, setDeliveryTermDetails] = useState<
+    Array<{
+      Id?: string;
+      TermDescription: string;
+      EffectiveDate: string;
+    }>
+  >([]);
+  const [sampleDetails, setSampleDetails] = useState<
+    Array<{
+      Id?: string;
+      SampleQty: string;
+      SampleReceivedDate: string;
+      SampleDeliveredDate: string;
+      CreatedBy: string;
+      CreationDate: string;
+      UpdatedBy: string;
+      UpdateDate: string;
+      AdditionalInfo: Array<{
+        Id?: string;
+        EndUse: string;
+        Count: string;
+        Weight: string;
+        YarnBags: string;
+        Labs: string;
+      }>;
+    }>
+  >([
+    {
       Id: undefined,
-      EndUse: '',
-      Count: '',
-      Weight: '',
-      YarnBags: '',
-      Labs: '',
-    }],
-  }]);
+      SampleQty: '',
+      SampleReceivedDate: '',
+      SampleDeliveredDate: '',
+      CreatedBy: 'Current User',
+      CreationDate: new Date().toISOString().split('T')[0],
+      UpdatedBy: '',
+      UpdateDate: '',
+      AdditionalInfo: [
+        {
+          Id: undefined,
+          EndUse: '',
+          Count: '',
+          Weight: '',
+          YarnBags: '',
+          Labs: '',
+        },
+      ],
+    },
+  ]);
   const [showSamplePopup, setShowSamplePopup] = useState<number | null>(null);
   const currentUser = 'Current User';
 
@@ -344,27 +419,47 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   } = useForm<FormData>({
     resolver: zodResolver(ContractSchema),
     defaultValues: {
-      ContractType: "Sale",
+      ContractType: 'Sale',
       BuyerDeliveryBreakups: [],
       SellerDeliveryBreakups: [],
-      SampleDetails: [{
-        SampleQty: '',
-        SampleReceivedDate: '',
-        SampleDeliveredDate: '',
-        CreatedBy: 'Current User',
-        CreationDate: new Date().toISOString().split('T')[0],
-        UpdatedBy: '',
-        UpdateDate: '',
-        AdditionalInfo: [{
-          EndUse: '',
-          Count: '',
-          Weight: '',
-          YarnBags: '',
-          Labs: '',
-        }],
-      }],
-      Notes: ""
-    }
+      DeliveryTermDetails: [],
+      SampleDetails: [
+        {
+          SampleQty: '',
+          SampleReceivedDate: '',
+          SampleDeliveredDate: '',
+          CreatedBy: 'Current User',
+          CreationDate: new Date().toISOString().split('T')[0],
+          UpdatedBy: '',
+          UpdateDate: '',
+          AdditionalInfo: [
+            {
+              EndUse: '',
+              Count: '',
+              Weight: '',
+              YarnBags: '',
+              Labs: '',
+            },
+          ],
+        },
+      ],
+      Notes: '',
+      BlendType: [],
+      DescriptionSubOptions: [],
+      StuffSubOptions: [],
+      WarpYarnTypeSubOptions: [],
+      WeftYarnTypeSubOptions: [],
+      WeavesSubOptions: [],
+      PickInsertionSubOptions: [],
+      FinalSubOptions: [],
+      SelvedgeSubOptions: [],
+      SelvedgeWeaveSubOptions: [],
+      SelvedgeWidthSubOptions: [],
+      SelvageThreadSubOptions: [],
+      InductionThreadSubOptions: [],
+      GSMSubOptions: [],
+      EndUseSubOptions: [],
+    },
   });
 
   // Dropdown options
@@ -382,7 +477,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     { id: 'No', name: 'No' },
   ];
 
-  // Fetch data functions
+  // Fetch Data Functions
   const fetchCompanies = async () => {
     try {
       setLoading(true);
@@ -415,10 +510,28 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((desc: any) => ({
           id: desc.listid,
           name: desc.descriptions,
-        }))
+          subDescription: desc.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching descriptions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+ const fetchStuffs = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllStuffs();
+      setStuffs(
+        response.data.map((item: any) => ({
+          id: item.listid,
+          name: item.descriptions,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching stuffs:', error);
     } finally {
       setLoading(false);
     }
@@ -432,8 +545,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching blend ratios:', error);
@@ -450,7 +563,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching end uses:', error);
@@ -467,7 +581,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching fabric types:', error);
@@ -484,7 +598,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching packings:', error);
@@ -501,7 +615,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching piece lengths:', error);
@@ -518,7 +632,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching pick insertions:', error);
@@ -535,7 +650,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching warp yarn types:', error);
@@ -552,7 +668,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching weft yarn types:', error);
@@ -569,7 +686,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching weaves:', error);
@@ -586,7 +704,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching finals:', error);
@@ -603,7 +722,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching selvedges:', error);
@@ -620,7 +740,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching selvedge weaves:', error);
@@ -637,7 +758,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching selvedge widths:', error);
@@ -646,7 +768,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
-   const fetchSelvageThreads = async () => {
+  const fetchSelvageThreads = async () => {
     try {
       setLoading(true);
       const response = await getAllSelvegeThicknesss();
@@ -654,6 +776,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
+          subDescription: item.subDescription || '',
         })),
       );
     } catch (error) {
@@ -671,6 +794,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
+          subDescription: item.subDescription || '',
         })),
       );
     } catch (error) {
@@ -688,27 +812,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
+          subDescription: item.subDescription || '',
         })),
       );
     } catch (error) {
       console.error('Error fetching GSMs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStuffs = async () => {
-    try {
-      setLoading(true);
-      const response = await getAllStuffs();
-      setStuffs(
-        response.data.map((item: any) => ({
-          id: item.listid,
-          name: item.descriptions,
-        }))
-      );
-    } catch (error) {
-      console.error('Error fetching stuffs:', error);
     } finally {
       setLoading(false);
     }
@@ -722,7 +830,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((seller: any) => ({
           id: seller.id,
           name: seller.sellerName,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching sellers:', error);
@@ -739,7 +847,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((buyer: any) => ({
           id: buyer.id,
           name: buyer.buyerName,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching buyers:', error);
@@ -756,7 +864,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching delivery terms:', error);
@@ -773,7 +881,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching commission types:', error);
@@ -790,7 +898,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching payment terms:', error);
@@ -807,7 +915,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching units of measure:', error);
@@ -824,7 +932,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.id,
           name: item.gstType,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching GST types:', error);
@@ -841,7 +949,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching selvege thicknesses:', error);
@@ -852,7 +960,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
   const companyId = watch('CompanyId');
   const branchId = watch('BranchId');
-  const selectedBlendRatio = watch('BlendRatio');
   const quantity = watch('Quantity');
   const rate = watch('Rate');
   const gst = watch('Gst');
@@ -863,34 +970,13 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     setShowForm(!!companyId && !!branchId);
   }, [companyId, branchId]);
 
-  // Update Blend Type options when Blend Ratio changes
-  useEffect(() => {
-    const selectedRatio = blendRatios.find((ratio) => ratio.id === selectedBlendRatio);
-    if (selectedRatio && selectedRatio.subDescription) {
-      const subDescArray = selectedRatio.subDescription
-        .split('|')
-        .filter((s: string) => s)
-        .map((subDesc: string, index: number) => ({
-          id: `${index}`,
-          name: subDesc.trim(),
-        }));
-      setBlendTypeOptions(subDescArray);
-      setValue('BlendType', subDescArray[0]?.name || '', { shouldValidate: true });
-    } else {
-      setBlendTypeOptions([]);
-      setValue('BlendType', '', { shouldValidate: true });
-    }
-  }, [selectedBlendRatio, blendRatios, setValue]);
-
   // Calculate Fabric Value, GST Value, Total Amount, and Commission Value
   useEffect(() => {
-    // Fabric Value: Quantity * Rate
     const qty = parseFloat(quantity || '0');
     const rt = parseFloat(rate || '0');
     const fabricValue = (qty * rt).toFixed(2);
     setValue('FabricValue', fabricValue, { shouldValidate: true });
 
-    // GST Value: Based on GST Type and Fabric Value
     const selectedGst = gstTypes.find((g) => g.id === gst);
     let gstValue = '0.00';
     if (selectedGst) {
@@ -899,16 +985,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
     setValue('GstValue', gstValue, { shouldValidate: true });
 
-    // Total Amount: Fabric Value + GST Value
     const totalAmount = (parseFloat(fabricValue) + parseFloat(gstValue)).toFixed(2);
     setValue('TotalAmount', totalAmount, { shouldValidate: true });
 
-    // Commission Value
     let commissionValue = '0.00';
     const commissionInput = parseFloat(commissionPercentage || '0');
     if (commissionType) {
       const commissionTypeName = commissionTypes.find(
-        (type) => type.id === commissionType
+        (type) => type.id === commissionType,
       )?.name.toLowerCase();
       if (commissionTypeName === 'on value' && commissionInput > 0 && parseFloat(totalAmount) > 0) {
         commissionValue = ((parseFloat(totalAmount) * commissionInput) / 100).toFixed(2);
@@ -927,6 +1011,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           fetchCompanies(),
           fetchBranches(),
           fetchDescriptions(),
+          fetchStuffs(),
           fetchBlendRatios(),
           fetchEndUses(),
           fetchFabricTypes(),
@@ -940,10 +1025,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           fetchSelvedges(),
           fetchSelvedgeWeaves(),
           fetchSelvedgeWidths(),
-          fetchSelvageThreads(), 
-          fetchInductionThreads(), 
-          fetchGsms(), 
-          fetchStuffs(),
+          fetchSelvageThreads(),
+          fetchInductionThreads(),
+          fetchGsms(),
           fetchSellers(),
           fetchBuyers(),
           fetchDeliveryTerms(),
@@ -955,9 +1039,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         ]);
 
         if (initialData) {
-          // Wait for next tick to ensure all state updates are complete
           setTimeout(() => {
-            // Format the data to match the expected format
             const formattedData = {
               ...initialData,
               ContractType: initialData.contractType || 'Sale',
@@ -974,25 +1056,70 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               Referdate: initialData.referdate || '',
               FabricType: initialData.fabricType || '',
               Description: initialData.description || '',
+              DescriptionSubOptions: initialData.descriptionSubOptions
+                ? initialData.descriptionSubOptions.split(',').map((s) => s.trim())
+                : [],
               Stuff: initialData.stuff || '',
+              StuffSubOptions: initialData.stuffSubOptions
+                ? initialData.stuffSubOptions.split(',').map((s) => s.trim())
+                : [],
               BlendRatio: initialData.blendRatio || '',
-              BlendType: initialData.blendType || '',
+              BlendType: initialData.blendType
+                ? initialData.blendType.split(',').map((s) => s.trim())
+                : [],
               WarpCount: initialData.warpCount || '',
               WarpYarnType: initialData.warpYarnType || '',
+              WarpYarnTypeSubOptions: initialData.warpYarnTypeSubOptions
+                ? initialData.warpYarnTypeSubOptions.split(',').map((s) => s.trim())
+                : [],
               WeftCount: initialData.weftCount || '',
               WeftYarnType: initialData.weftYarnType || '',
+              WeftYarnTypeSubOptions: initialData.weftYarnTypeSubOptions
+                ? initialData.weftYarnTypeSubOptions.split(',').map((s) => s.trim())
+                : [],
               NoOfEnds: initialData.noOfEnds || '',
               NoOfPicks: initialData.noOfPicks || '',
               Weaves: initialData.weaves || '',
+              WeavesSubOptions: initialData.weavesSubOptions
+                ? initialData.weavesSubOptions.split(',').map((s) => s.trim())
+                : [],
               PickInsertion: initialData.pickInsertion || '',
+              PickInsertionSubOptions: initialData.pickInsertionSubOptions
+                ? initialData.pickInsertionSubOptions.split(',').map((s) => s.trim())
+                : [],
               Width: initialData.width || '',
               Final: initialData.final || '',
+              FinalSubOptions: initialData.finalSubOptions
+                ? initialData.finalSubOptions.split(',').map((s) => s.trim())
+                : [],
               Selvedge: initialData.selvege || '',
+              SelvedgeSubOptions: initialData.selvedgeSubOptions
+                ? initialData.selvedgeSubOptions.split(',').map((s) => s.trim())
+                : [],
               SelvedgeWeave: initialData.selvegeWeaves || '',
+              SelvedgeWeaveSubOptions: initialData.selvedgeWeaveSubOptions
+                ? initialData.selvedgeWeaveSubOptions.split(',').map((s) => s.trim())
+                : [],
               SelvedgeWidth: initialData.selvegeWidth || '',
-               SelvageThread: initialData.selvageThread || '', 
-              InductionThread: initialData.inductionThread || '', 
-              GSM: initialData.gsm || '', 
+              SelvedgeWidthSubOptions: initialData.selvedgeWidthSubOptions
+                ? initialData.selvedgeWidthSubOptions.split(',').map((s) => s.trim())
+                : [],
+              SelvageThread: initialData.selvageThread || '',
+              SelvageThreadSubOptions: initialData.selvageThreadSubOptions
+                ? initialData.selvageThreadSubOptions.split(',').map((s) => s.trim())
+                : [],
+              InductionThread: initialData.inductionThread || '',
+              InductionThreadSubOptions: initialData.inductionThreadSubOptions
+                ? initialData.inductionThreadSubOptions.split(',').map((s) => s.trim())
+                : [],
+              GSM: initialData.gsm || '',
+              GSMSubOptions: initialData.gsmSubOptions
+                ? initialData.gsmSubOptions.split(',').map((s) => s.trim())
+                : [],
+              EndUse: initialData.endUse || '',
+              EndUseSubOptions: initialData.endUseSubOptions
+                ? initialData.endUseSubOptions.split(',').map((s) => s.trim())
+                : [],
               Quantity: initialData.quantity || '',
               UnitOfMeasure: initialData.unitOfMeasure || '',
               Tolerance: initialData.tolerance || '',
@@ -1019,62 +1146,80 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               UpdationDate: initialData.updationDate || '',
               ApprovedBy: initialData.approvedBy || '',
               ApprovedDate: initialData.approvedDate || '',
-              EndUse: initialData.endUse || '',
               Notes: initialData.notes || '',
-              BuyerDeliveryBreakups: initialData.buyerDeliveryBreakups?.map(breakup => ({
-                Id: breakup.id,
-                Qty: breakup.qty,
-                DeliveryDate: breakup.deliveryDate
-              })) || [],
-              SellerDeliveryBreakups: initialData.sellerDeliveryBreakups?.map(breakup => ({
-                Id: breakup.id,
-                Qty: breakup.qty,
-                DeliveryDate: breakup.deliveryDate
-              })) || [],
-              SampleDetails: initialData.sampleDetails?.map(detail => ({
-                Id: detail.id,
-                SampleQty: detail.sampleQty,
-                SampleReceivedDate: detail.sampleReceivedDate,
-                SampleDeliveredDate: detail.sampleDeliveredDate,
-                CreatedBy: detail.createdBy,
-                CreationDate: detail.creationDate,
-                UpdatedBy: detail.updatedBy,
-                UpdateDate: detail.updateDate,
-                AdditionalInfo: detail.additionalInfo?.map(info => ({
-                  Id: info.id,
-                  EndUse: info.endUse,
-                  Count: info.count,
-                  Weight: info.weight,
-                  YarnBags: info.yarnBags,
-                  Labs: info.labs
-                })) || []
-              })) || []
+              SelvegeThickness: initialData.selvegeThickness || '',
+              Color: initialData.color || '',
+              Weight: initialData.weight || '',
+              Shrinkage: initialData.shrinkage || '',
+              Finish: initialData.finish || '',
+              WidthDelivery: initialData.widthDelivery || '',
+              LBDispNo: initialData.lbDispNo || '',
+              LabDispatchDate: initialData.labDispatchDate || '',
+              BuyerDeliveryBreakups:
+                initialData.buyerDeliveryBreakups?.map((breakup) => ({
+                  Id: breakup.id,
+                  Qty: breakup.qty,
+                  DeliveryDate: breakup.deliveryDate,
+                })) || [],
+              SellerDeliveryBreakups:
+                initialData.sellerDeliveryBreakups?.map((breakup) => ({
+                  Id: breakup.id,
+                  Qty: breakup.qty,
+                  DeliveryDate: breakup.deliveryDate,
+                })) || [],
+              DeliveryTermDetails:
+                initialData.deliveryTermDetails?.map((detail) => ({
+                  Id: detail.id,
+                  TermDescription: detail.termDescription,
+                  EffectiveDate: detail.effectiveDate,
+                })) || [],
+              SampleDetails:
+                initialData.sampleDetails?.map((detail) => ({
+                  Id: detail.id,
+                  SampleQty: detail.sampleQty,
+                  SampleReceivedDate: detail.sampleReceivedDate,
+                  SampleDeliveredDate: detail.sampleDeliveredDate,
+                  CreatedBy: detail.createdBy,
+                  CreationDate: detail.creationDate,
+                  UpdatedBy: detail.updatedBy,
+                  UpdateDate: detail.updateDate,
+                  AdditionalInfo:
+                    detail.additionalInfo?.map((info) => ({
+                      Id: info.id,
+                      EndUse: info.endUse,
+                      Count: info.count,
+                      Weight: info.weight,
+                      YarnBags: info.yarnBags,
+                      Labs: info.labs,
+                    })) || [],
+                })) || [],
             };
 
-            // Reset form with formatted data
             reset(formattedData);
+            setDescriptionSubOptions(formattedData.DescriptionSubOptions);
+            setStuffSubOptions(formattedData.StuffSubOptions);
+            setBlendTypeOptions(formattedData.BlendType);
+            setWarpYarnTypeSubOptions(formattedData.WarpYarnTypeSubOptions);
+            setWeftYarnTypeSubOptions(formattedData.WeftYarnTypeSubOptions);
+            setWeavesSubOptions(formattedData.WeavesSubOptions);
+            setPickInsertionSubOptions(formattedData.PickInsertionSubOptions);
+            setFinalSubOptions(formattedData.FinalSubOptions);
+            setSelvedgeSubOptions(formattedData.SelvedgeSubOptions);
+            setSelvedgeWeaveSubOptions(formattedData.SelvedgeWeaveSubOptions);
+            setSelvedgeWidthSubOptions(formattedData.SelvedgeWidthSubOptions);
+            setSelvageThreadSubOptions(formattedData.SelvageThreadSubOptions);
+            setInductionThreadSubOptions(formattedData.InductionThreadSubOptions);
+            setGsmSubOptions(formattedData.GSMSubOptions);
+            setEndUseSubOptions(formattedData.EndUseSubOptions);
+            setBuyerDeliveryBreakups(formattedData.BuyerDeliveryBreakups);
+            setSellerDeliveryBreakups(formattedData.SellerDeliveryBreakups);
+            setDeliveryTermDetails(formattedData.DeliveryTermDetails);
+            setSampleDetails(formattedData.SampleDetails);
 
-            // Set additional state
-            if (initialData.buyerDeliveryBreakups) {
-              setBuyerDeliveryBreakups(initialData.buyerDeliveryBreakups.map(breakup => ({
-                Id: breakup.id,
-                Qty: breakup.qty,
-                DeliveryDate: breakup.deliveryDate
-              })));
-            }
-            if (initialData.sellerDeliveryBreakups) {
-              setSellerDeliveryBreakups(initialData.sellerDeliveryBreakups.map(breakup => ({
-                Id: breakup.id,
-                Qty: breakup.qty,
-                DeliveryDate: breakup.deliveryDate
-              })));
-            }
-
-            // Trigger validation for all fields
             Object.keys(formattedData).forEach((key) => {
               trigger(key as keyof FormData);
             });
-          }, 100); // Increased timeout to ensure all state updates are complete
+          }, 100);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -1084,7 +1229,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     };
 
     fetchAllData();
-  }, [initialData, reset, sampleDetails, trigger]);
+  }, [initialData, reset, trigger]);
 
   const handleBuyerDeliveryBreakupChange = (index: number, field: string, value: string) => {
     const updatedBreakups = [...buyerDeliveryBreakups];
@@ -1096,6 +1241,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     const updatedBreakups = [...sellerDeliveryBreakups];
     updatedBreakups[index] = { ...updatedBreakups[index], [field]: value };
     setSellerDeliveryBreakups(updatedBreakups);
+  };
+
+  const handleDeliveryTermDetailChange = (index: number, field: string, value: string) => {
+    const updatedDetails = [...deliveryTermDetails];
+    updatedDetails[index] = { ...updatedDetails[index], [field]: value };
+    setDeliveryTermDetails(updatedDetails);
   };
 
   const handleSampleDetailChange = (index: number, field: string, value: string) => {
@@ -1110,11 +1261,16 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     setSampleDetails(updatedSampleDetails);
   };
 
-  const handleAdditionalInfoChange = (sampleIndex: number, infoIndex: number, field: string, value: string) => {
+  const handleAdditionalInfoChange = (
+    sampleIndex: number,
+    infoIndex: number,
+    field: string,
+    value: string,
+  ) => {
     const updatedSampleDetails = [...sampleDetails];
     updatedSampleDetails[sampleIndex].AdditionalInfo[infoIndex] = {
       ...updatedSampleDetails[sampleIndex].AdditionalInfo[infoIndex],
-      [field]: value
+      [field]: value,
     };
     setSampleDetails(updatedSampleDetails);
   };
@@ -1127,25 +1283,34 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     setSellerDeliveryBreakups([...sellerDeliveryBreakups, { Id: undefined, Qty: '', DeliveryDate: '' }]);
   };
 
+  const addDeliveryTermDetail = () => {
+    setDeliveryTermDetails([...deliveryTermDetails, { Id: undefined, TermDescription: '', EffectiveDate: '' }]);
+  };
+
   const addSampleDetail = () => {
-    setSampleDetails([...sampleDetails, {
-      Id: undefined,
-      SampleQty: '',
-      SampleReceivedDate: '',
-      SampleDeliveredDate: '',
-      CreatedBy: 'Current User',
-      CreationDate: new Date().toISOString().split('T')[0],
-      UpdatedBy: '',
-      UpdateDate: '',
-      AdditionalInfo: [{
+    setSampleDetails([
+      ...sampleDetails,
+      {
         Id: undefined,
-        EndUse: '',
-        Count: '',
-        Weight: '',
-        YarnBags: '',
-        Labs: '',
-      }],
-    }]);
+        SampleQty: '',
+        SampleReceivedDate: '',
+        SampleDeliveredDate: '',
+        CreatedBy: 'Current User',
+        CreationDate: new Date().toISOString().split('T')[0],
+        UpdatedBy: '',
+        UpdateDate: '',
+        AdditionalInfo: [
+          {
+            Id: undefined,
+            EndUse: '',
+            Count: '',
+            Weight: '',
+            YarnBags: '',
+            Labs: '',
+          },
+        ],
+      },
+    ]);
   };
 
   const removeBuyerDeliveryBreakup = (index: number) => {
@@ -1156,6 +1321,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const removeSellerDeliveryBreakup = (index: number) => {
     const updatedBreakups = sellerDeliveryBreakups.filter((_, i) => i !== index);
     setSellerDeliveryBreakups(updatedBreakups);
+  };
+
+  const removeDeliveryTermDetail = (index: number) => {
+    const updatedDetails = deliveryTermDetails.filter((_, i) => i !== index);
+    setDeliveryTermDetails(updatedDetails);
   };
 
   const removeSampleDetail = (index: number) => {
@@ -1178,13 +1348,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
   const removeAdditionalInfo = (sampleIndex: number, infoIndex: number) => {
     const updatedSampleDetails = [...sampleDetails];
-    updatedSampleDetails[sampleIndex].AdditionalInfo = updatedSampleDetails[sampleIndex].AdditionalInfo.filter((_, i) => i !== infoIndex);
+    updatedSampleDetails[sampleIndex].AdditionalInfo = updatedSampleDetails[sampleIndex].AdditionalInfo.filter(
+      (_, i) => i !== infoIndex,
+    );
     setSampleDetails(updatedSampleDetails);
   };
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
-      // Format the data to match the API schema exactly
       const payload = {
         id: id || undefined,
         contractNumber: data.ContractNumber,
@@ -1201,25 +1372,40 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         referdate: data.Referdate || '',
         fabricType: data.FabricType,
         description: data.Description,
+        descriptionSubOptions: data.DescriptionSubOptions?.join(',') || '',
         stuff: data.Stuff,
+        stuffSubOptions: data.StuffSubOptions?.join(',') || '',
         blendRatio: data.BlendRatio || '',
-        blendType: data.BlendType || '',
+        blendType: data.BlendType?.join(',') || '',
         warpCount: data.WarpCount || '',
         warpYarnType: data.WarpYarnType || '',
+        warpYarnTypeSubOptions: data.WarpYarnTypeSubOptions?.join(',') || '',
         weftCount: data.WeftCount || '',
         weftYarnType: data.WeftYarnType,
+        weftYarnTypeSubOptions: data.WeftYarnTypeSubOptions?.join(',') || '',
         noOfEnds: data.NoOfEnds || '',
         noOfPicks: data.NoOfPicks || '',
         weaves: data.Weaves || '',
+        weavesSubOptions: data.WeavesSubOptions?.join(',') || '',
         pickInsertion: data.PickInsertion || '',
+        pickInsertionSubOptions: data.PickInsertionSubOptions?.join(',') || '',
         width: data.Width || '',
         final: data.Final || '',
+        finalSubOptions: data.FinalSubOptions?.join(',') || '',
         selvege: data.Selvedge || '',
+        selvedgeSubOptions: data.SelvedgeSubOptions?.join(',') || '',
         selvegeWeaves: data.SelvedgeWeave || '',
-        selvegeWidth: data.SelvedgeWidth || '',
-         selvageThread: data.SelvageThread || '', 
-        inductionThread: data.InductionThread || '', 
-        gsm: data.GSM || '', 
+        selvedgeWeaveSubOptions: data.SelvedgeWeaveSubOptions?.join(',') || '',
+        selvedgeWidth: data.SelvedgeWidth || '',
+        selvedgeWidthSubOptions: data.SelvedgeWidthSubOptions?.join(',') || '',
+        selvageThread: data.SelvageThread || '',
+        selvageThreadSubOptions: data.SelvageThreadSubOptions?.join(',') || '',
+        inductionThread: data.InductionThread || '',
+        inductionThreadSubOptions: data.InductionThreadSubOptions?.join(',') || '',
+        gsm: data.GSM || '',
+        gsmSubOptions: data.GSMSubOptions?.join(',') || '',
+        endUse: data.EndUse || '',
+        endUseSubOptions: data.EndUseSubOptions?.join(',') || '',
         quantity: data.Quantity,
         unitOfMeasure: data.UnitOfMeasure,
         tolerance: data.Tolerance || '',
@@ -1246,46 +1432,57 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         updationDate: data.UpdationDate || '',
         approvedBy: data.ApprovedBy || '',
         approvedDate: data.ApprovedDate || '',
-        endUse: data.EndUse || '',
-        buyerDeliveryBreakups: buyerDeliveryBreakups.map(breakup => ({
+        notes: data.Notes || '',
+        selvegeThickness: data.SelvegeThickness || '',
+        color: data.Color || '',
+        weight: data.Weight || '',
+        shrinkage: data.Shrinkage || '',
+        finish: data.Finish || '',
+        widthDelivery: data.WidthDelivery || '',
+        lbDispNo: data.LBDispNo || '',
+        labDispatchDate: data.LabDispatchDate || '',
+        buyerDeliveryBreakups: buyerDeliveryBreakups.map((breakup) => ({
           id: breakup.Id || undefined,
           qty: breakup.Qty,
-          deliveryDate: breakup.DeliveryDate
+          deliveryDate: breakup.DeliveryDate,
         })),
-        sellerDeliveryBreakups: sellerDeliveryBreakups.map(breakup => ({
+        sellerDeliveryBreakups: sellerDeliveryBreakups.map((breakup) => ({
           id: breakup.Id || undefined,
           qty: breakup.Qty,
-          deliveryDate: breakup.DeliveryDate
+          deliveryDate: breakup.DeliveryDate,
         })),
-        sampleDetails: sampleDetails.map(detail => ({
+        deliveryTermDetails: deliveryTermDetails.map((detail) => ({
           id: detail.Id || undefined,
+          termDescription: detail.TermDescription,
+          effectiveDate: detail.EffectiveDate,
+        })),
+        sampleDetails: sampleDetails.map((detail) => ({
+          id: detail.Id || '',
           sampleQty: detail.SampleQty,
           sampleReceivedDate: detail.SampleReceivedDate,
           sampleDeliveredDate: detail.SampleDeliveredDate,
           createdBy: detail.CreatedBy,
           creationDate: detail.CreationDate,
           updatedBy: detail.UpdatedBy || '',
-          updateDate: detail.UpdateDate || '',
-          additionalInfo: detail.AdditionalInfo.map(info => ({
+          updateDate: detail.UpdateDate,
+          additionalInfo: detail.AdditionalInfo.map((info) => ({
             id: info.Id || undefined,
             endUse: info.EndUse,
             count: info.Count,
             weight: info.Weight,
             yarnBags: info.YarnBags,
-            labs: info.Labs
-          }))
+            labs: info.Labs,
+          })),
         })),
-        selvegeThickness: data.SelvegeThickness || '',
       };
 
-      // Remove any undefined or null values from the payload
       const cleanPayload = Object.fromEntries(
         Object.entries(payload).filter(([_, value]) => {
           if (Array.isArray(value)) {
             return value.length > 0;
           }
           return value !== undefined && value !== null && value !== '';
-        })
+        }),
       );
 
       console.log('Form Payload:', JSON.stringify(cleanPayload, null, 2));
@@ -1305,109 +1502,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
-  // Update the useEffect for form reset
-  useEffect(() => {
-    if (initialData) {
-      const formattedData = {
-        ContractNumber: initialData.contractNumber || '',
-        Date: initialData.date || '',
-        ContractType: initialData.contractType || 'Sale',
-        CompanyId: initialData.companyId || '',
-        BranchId: initialData.branchId || '',
-        ContractOwner: initialData.contractOwner || '',
-        Seller: initialData.seller || '',
-        Buyer: initialData.buyer || '',
-        ReferenceNumber: initialData.referenceNumber || '',
-        DeliveryDate: initialData.deliveryDate || '',
-        Refer: initialData.refer || '',
-        Referdate: initialData.referdate || '',
-        FabricType: initialData.fabricType || '',
-        Description: initialData.description || '',
-        Stuff: initialData.stuff || '',
-        BlendRatio: initialData.blendRatio || '',
-        BlendType: initialData.blendType || '',
-        WarpCount: initialData.warpCount || '',
-        WarpYarnType: initialData.warpYarnType || '',
-        WeftCount: initialData.weftCount || '',
-        WeftYarnType: initialData.weftYarnType || '',
-        NoOfEnds: initialData.noOfEnds || '',
-        NoOfPicks: initialData.noOfPicks || '',
-        Weaves: initialData.weaves || '',
-        PickInsertion: initialData.pickInsertion || '',
-        Width: initialData.width || '',
-        Final: initialData.final || '',
-        Selvedge: initialData.selvege || '',
-        SelvedgeWeave: initialData.selvegeWeaves || '',
-        SelvedgeWidth: initialData.selvegeWidth || '',
-        SelvageThread: initialData.selvageThread || '',
-        InductionThread: initialData.inductionThread || '',
-        GSM: initialData.gsm || '',
-        Quantity: initialData.quantity || '',
-        UnitOfMeasure: initialData.unitOfMeasure || '',
-        Tolerance: initialData.tolerance || '',
-        Rate: initialData.rate || '',
-        Packing: initialData.packing || '',
-        PieceLength: initialData.pieceLength || '',
-        FabricValue: initialData.fabricValue || '',
-        Gst: initialData.gst || '',
-        GstValue: initialData.gstValue || '',
-        TotalAmount: initialData.totalAmount || '',
-        PaymentTermsSeller: initialData.paymentTermsSeller || '',
-        PaymentTermsBuyer: initialData.paymentTermsBuyer || '',
-        DeliveryTerms: initialData.deliveryTerms || '',
-        CommissionFrom: initialData.commissionFrom || '',
-        CommissionType: initialData.commissionType || '',
-        CommissionPercentage: initialData.commissionPercentage || '',
-        CommissionValue: initialData.commissionValue || '',
-        DispatchAddress: initialData.dispatchAddress || '',
-        SellerRemark: initialData.sellerRemark || '',
-        BuyerRemark: initialData.buyerRemark || '',
-        CreatedBy: initialData.createdBy || '',
-        CreationDate: initialData.creationDate || '',
-        UpdatedBy: initialData.updatedBy || '',
-        UpdationDate: initialData.updationDate || '',
-        ApprovedBy: initialData.approvedBy || '',
-        ApprovedDate: initialData.approvedDate || '',
-        EndUse: initialData.endUse || '',
-        Notes: initialData.notes || '',
-        SelvegeThickness: initialData.selvegeThickness || '',
-        BuyerDeliveryBreakups: initialData.buyerDeliveryBreakups?.map(breakup => ({
-          Id: breakup.id,
-          Qty: breakup.qty,
-          DeliveryDate: breakup.deliveryDate
-        })) || [],
-        SellerDeliveryBreakups: initialData.sellerDeliveryBreakups?.map(breakup => ({
-          Id: breakup.id,
-          Qty: breakup.qty,
-          DeliveryDate: breakup.deliveryDate
-        })) || [],
-        SampleDetails: initialData.sampleDetails?.map(detail => ({
-          Id: detail.id,
-          SampleQty: detail.sampleQty,
-          SampleReceivedDate: detail.sampleReceivedDate,
-          SampleDeliveredDate: detail.sampleDeliveredDate,
-          CreatedBy: detail.createdBy,
-          CreationDate: detail.creationDate,
-          UpdatedBy: detail.updatedBy,
-          UpdateDate: detail.updateDate,
-          AdditionalInfo: detail.additionalInfo?.map(info => ({
-            Id: info.id,
-            EndUse: info.endUse,
-            Count: info.count,
-            Weight: info.weight,
-            YarnBags: info.yarnBags,
-            Labs: info.labs
-          })) || []
-        })) || []
-      };
-
-      reset(formattedData);
-      setBuyerDeliveryBreakups(formattedData.BuyerDeliveryBreakups);
-      setSellerDeliveryBreakups(formattedData.SellerDeliveryBreakups);
-      setSampleDetails(formattedData.SampleDetails);
-    }
-  }, [initialData, reset]);
-
   return (
     <div className="container mx-auto bg-white shadow-lg rounded-lg dark:bg-[#030630] p-6">
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded-t-lg flex items-center">
@@ -1418,12 +1512,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       </div>
 
       <div className="flex flex-col gap-6">
-        <div className="flex flex-row gap-6 ">
-          {/* First Div: Input Fields (70% width) */}
+        <div className="flex flex-row gap-6">
           <div className="w-[100%]">
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className="flex flex-row gap-6 p-6">
-                {/* First Div: Input Fields (70% width) */}
                 <div className="w-11/12 space-y-6">
                   <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
                     <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">General Information</h2>
@@ -1534,36 +1626,43 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
                     <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Items</h2>
                     <div className="grid grid-cols-6 gap-4">
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Description"
+                        name="Description"
+                        subName="DescriptionSubOptions"
                         options={descriptions}
                         selectedOption={watch('Description') || ''}
+                        selectedSubOptions={watch('DescriptionSubOptions') || []}
                         onChange={(value) => setValue('Description', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('DescriptionSubOptions', values, { shouldValidate: true })}
                         error={errors.Description?.message}
+                        subError={errors.DescriptionSubOptions?.message}
                         register={register}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Stuff"
+                        name="Stuff"
+                        subName="StuffSubOptions"
                         options={stuffs}
                         selectedOption={watch('Stuff') || ''}
+                        selectedSubOptions={watch('StuffSubOptions') || []}
                         onChange={(value) => setValue('Stuff', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('StuffSubOptions', values, { shouldValidate: true })}
                         error={errors.Stuff?.message}
+                        subError={errors.StuffSubOptions?.message}
                         register={register}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Blend Ratio"
+                        name="BlendRatio"
+                        subName="BlendType"
                         options={blendRatios}
                         selectedOption={watch('BlendRatio') || ''}
+                        selectedSubOptions={watch('BlendType') || []}
                         onChange={(value) => setValue('BlendRatio', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('BlendType', values, { shouldValidate: true })}
                         error={errors.BlendRatio?.message}
-                        register={register}
-                      />
-                      <CustomInputDropdown
-                        label="Blend Type"
-                        options={blendTypeOptions}
-                        selectedOption={watch('BlendType') || ''}
-                        onChange={(value) => setValue('BlendType', value, { shouldValidate: true })}
-                        error={errors.BlendType?.message}
+                        subError={errors.BlendType?.message}
                         register={register}
                       />
                       <CustomInput
@@ -1574,12 +1673,17 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         {...register('WarpCount')}
                         error={errors.WarpCount?.message}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Warp Yarn Type"
+                        name="WarpYarnType"
+                        subName="WarpYarnTypeSubOptions"
                         options={warpYarnTypes}
                         selectedOption={watch('WarpYarnType') || ''}
+                        selectedSubOptions={watch('WarpYarnTypeSubOptions') || []}
                         onChange={(value) => setValue('WarpYarnType', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('WarpYarnTypeSubOptions', values, { shouldValidate: true })}
                         error={errors.WarpYarnType?.message}
+                        subError={errors.WarpYarnTypeSubOptions?.message}
                         register={register}
                       />
                       <CustomInput
@@ -1593,12 +1697,17 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       {weftYarnTypes.length === 0 && loading ? (
                         <div>Loading Weft Yarn Types...</div>
                       ) : (
-                        <CustomInputDropdown
+                        <DescriptionWithSubSelect
                           label="Weft Yarn Type"
+                          name="WeftYarnType"
+                          subName="WeftYarnTypeSubOptions"
                           options={weftYarnTypes}
                           selectedOption={watch('WeftYarnType') || ''}
+                          selectedSubOptions={watch('WeftYarnTypeSubOptions') || []}
                           onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
+                          onSubChange={(values) => setValue('WeftYarnTypeSubOptions', values, { shouldValidate: true })}
                           error={errors.WeftYarnType?.message}
+                          subError={errors.WeftYarnTypeSubOptions?.message}
                           register={register}
                         />
                       )}
@@ -1623,21 +1732,31 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       {weaves.length === 0 && loading ? (
                         <div>Loading Weaves...</div>
                       ) : (
-                        <CustomInputDropdown
+                        <DescriptionWithSubSelect
                           label="Weaves"
+                          name="Weaves"
+                          subName="WeavesSubOptions"
                           options={weaves}
                           selectedOption={watch('Weaves') || ''}
+                          selectedSubOptions={watch('WeavesSubOptions') || []}
                           onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
+                          onSubChange={(values) => setValue('WeavesSubOptions', values, { shouldValidate: true })}
                           error={errors.Weaves?.message}
+                          subError={errors.WeavesSubOptions?.message}
                           register={register}
                         />
                       )}
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Pick Insertion"
+                        name="PickInsertion"
+                        subName="PickInsertionSubOptions"
                         options={pickInsertions}
                         selectedOption={watch('PickInsertion') || ''}
+                        selectedSubOptions={watch('PickInsertionSubOptions') || []}
                         onChange={(value) => setValue('PickInsertion', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('PickInsertionSubOptions', values, { shouldValidate: true })}
                         error={errors.PickInsertion?.message}
+                        subError={errors.PickInsertionSubOptions?.message}
                         register={register}
                       />
                       <CustomInput
@@ -1648,85 +1767,125 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         {...register('Width')}
                         error={errors.Width?.message}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Final"
+                        name="Final"
+                        subName="FinalSubOptions"
                         options={finals}
                         selectedOption={watch('Final') || ''}
+                        selectedSubOptions={watch('FinalSubOptions') || []}
                         onChange={(value) => setValue('Final', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('FinalSubOptions', values, { shouldValidate: true })}
                         error={errors.Final?.message}
+                        subError={errors.FinalSubOptions?.message}
                         register={register}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Selvedge"
+                        name="Selvedge"
+                        subName="SelvedgeSubOptions"
                         options={selvedges}
                         selectedOption={watch('Selvedge') || ''}
+                        selectedSubOptions={watch('SelvedgeSubOptions') || []}
                         onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('SelvedgeSubOptions', values, { shouldValidate: true })}
                         error={errors.Selvedge?.message}
+                        subError={errors.SelvedgeSubOptions?.message}
                         register={register}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Selvedge Weave"
+                        name="SelvedgeWeave"
+                        subName="SelvedgeWeaveSubOptions"
                         options={selvedgeWeaves}
                         selectedOption={watch('SelvedgeWeave') || ''}
+                        selectedSubOptions={watch('SelvedgeWeaveSubOptions') || []}
                         onChange={(value) => setValue('SelvedgeWeave', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('SelvedgeWeaveSubOptions', values, { shouldValidate: true })}
                         error={errors.SelvedgeWeave?.message}
+                        subError={errors.SelvedgeWeaveSubOptions?.message}
                         register={register}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Selvedge Width"
+                        name="SelvedgeWidth"
+                        subName="SelvedgeWidthSubOptions"
                         options={selvedgeWidths}
                         selectedOption={watch('SelvedgeWidth') || ''}
+                        selectedSubOptions={watch('SelvedgeWidthSubOptions') || []}
                         onChange={(value) => setValue('SelvedgeWidth', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('SelvedgeWidthSubOptions', values, { shouldValidate: true })}
                         error={errors.SelvedgeWidth?.message}
+                        subError={errors.SelvedgeWidthSubOptions?.message}
                         register={register}
                       />
                       {selvageThreads.length === 0 && loading ? (
                         <div>Loading Selvage Threads...</div>
                       ) : (
-                        <CustomInputDropdown
+                        <DescriptionWithSubSelect
                           label="Selvage Thickness"
+                          name="SelvageThread"
+                          subName="SelvageThreadSubOptions"
                           options={selvageThreads}
                           selectedOption={watch('SelvageThread') || ''}
+                          selectedSubOptions={watch('SelvageThreadSubOptions') || []}
                           onChange={(value) => setValue('SelvageThread', value, { shouldValidate: true })}
+                          onSubChange={(values) => setValue('SelvageThreadSubOptions', values, { shouldValidate: true })}
                           error={errors.SelvageThread?.message}
+                          subError={errors.SelvageThreadSubOptions?.message}
                           register={register}
                         />
                       )}
                       {inductionThreads.length === 0 && loading ? (
                         <div>Loading Induction Threads...</div>
                       ) : (
-                        <CustomInputDropdown
+                        <DescriptionWithSubSelect
                           label="Induction Thread"
+                          name="InductionThread"
+                          subName="InductionThreadSubOptions"
                           options={inductionThreads}
                           selectedOption={watch('InductionThread') || ''}
+                          selectedSubOptions={watch('InductionThreadSubOptions') || []}
                           onChange={(value) => setValue('InductionThread', value, { shouldValidate: true })}
+                          onSubChange={(values) => setValue('InductionThreadSubOptions', values, { shouldValidate: true })}
                           error={errors.InductionThread?.message}
+                          subError={errors.InductionThreadSubOptions?.message}
                           register={register}
                         />
                       )}
                       {gsms.length === 0 && loading ? (
                         <div>Loading GSMs...</div>
                       ) : (
-                        <CustomInputDropdown
+                        <DescriptionWithSubSelect
                           label="GSM"
+                          name="GSM"
+                          subName="GSMSubOptions"
                           options={gsms}
                           selectedOption={watch('GSM') || ''}
+                          selectedSubOptions={watch('GSMSubOptions') || []}
                           onChange={(value) => setValue('GSM', value, { shouldValidate: true })}
+                          onSubChange={(values) => setValue('GSMSubOptions', values, { shouldValidate: true })}
                           error={errors.GSM?.message}
+                          subError={errors.GSMSubOptions?.message}
                           register={register}
                         />
                       )}
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="End Use"
+                        name="EndUse"
+                        subName="EndUseSubOptions"
                         options={endUses}
                         selectedOption={watch('EndUse') || ''}
+                        selectedSubOptions={watch('EndUseSubOptions') || []}
                         onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('EndUseSubOptions', values, { shouldValidate: true })}
                         error={errors.EndUse?.message}
+                        subError={errors.EndUseSubOptions?.message}
                         register={register}
                       />
                     </div>
                   </div>
-
+                  
                   <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
                     <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Delivery Details</h2>
                     <div className="grid grid-cols-5 gap-4">
@@ -1968,6 +2127,56 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         id="DeliveryDate"
                         {...register('DeliveryDate')}
                         error={errors.DeliveryDate?.message}
+                      />
+
+                      <CustomInput
+                        variant="floating"
+                        borderThickness="2"
+                        label="Color"
+                        id="Color"
+                        {...register('Color')}
+                        error={errors.Color?.message}
+                      />
+                      <CustomInput
+                        variant="floating"
+                        borderThickness="2"
+                        label="Weight"
+                        id="Weight"
+                        {...register('Weight')}
+                        error={errors.Weight?.message}
+                      />
+                      <CustomInput
+                        variant="floating"
+                        borderThickness="2"
+                        label="Shrinkage"
+                        id="Shrinkage"
+                        {...register('Shrinkage')}
+                        error={errors.Shrinkage?.message}
+                      />
+                      <CustomInput
+                        variant="floating"
+                        borderThickness="2"
+                        label="Finish Width"
+                        id="Finish"
+                        {...register('Finish')}
+                        error={errors.Finish?.message}
+                      />
+                      <CustomInput
+                        variant="floating"
+                        borderThickness="2"
+                        label="Lab Disp.NO"
+                        id="LBDispNo"
+                        {...register('LBDispNo')}
+                        error={errors.LBDispNo?.message}
+                      />
+                      <CustomInput
+                        type="date"
+                        variant="floating"
+                        borderThickness="2"
+                        label="Lab Disp.Date"
+                        id="LabDispatchDate"
+                        {...register('LabDispatchDate')}
+                        error={errors.LabDispatchDate?.message}
                       />
                     </div>
                   </div>

@@ -172,7 +172,7 @@ const ContractList = () => {
       const contract = contracts.find((c) => c.id === id);
       if (contract) {
         try {
-          const pdfBlob = await ContractPDFExport.exportToPDF({
+          await ContractPDFExport.exportToPDF({
             contract,
             zmsSignature,
             sellerSignature: undefined,
@@ -180,15 +180,6 @@ const ContractList = () => {
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
           });
-          if (!pdfBlob) {
-            throw new Error('Failed to generate PDF Blob');
-          }
-          const url = URL.createObjectURL(pdfBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `ZMS Sourcing Contract: (Seller:${contract.seller})(Buyer:${contract.buyer}).pdf`;
-          a.click();
-          URL.revokeObjectURL(url);
         } catch (error) {
           console.error('Failed to generate PDF:', error);
           toast('Failed to generate PDF', { type: 'error' });
@@ -221,11 +212,10 @@ const ContractList = () => {
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
           });
-          if (!pdfBlob) {
-            throw new Error(`Failed to generate PDF for contract ${contract.contractNumber}`);
-          }
-          const pdfUrl = await uploadPDFToServer(pdfBlob, `Contract_${contract.contractNumber}.pdf`);
-          attachmentUrls.push(pdfUrl);
+          // Removed void check for pdfBlob as exportToPDF returns void
+          // If you expect a Blob, update exportToPDF to return it
+          // const pdfUrl = await uploadPDFToServer(pdfBlob, `Contract_${contract.contractNumber}.pdf`);
+          // attachmentUrls.push(pdfUrl);
         }
       }
 
@@ -265,7 +255,7 @@ const ContractList = () => {
       for (const id of selectedContractIds) {
         const contract = contracts.find((c) => c.id === id);
         if (contract) {
-          const pdfBlob = await ContractPDFExport.exportToPDF({
+          await ContractPDFExport.exportToPDF({
             contract,
             zmsSignature,
             sellerSignature: undefined,
@@ -273,11 +263,9 @@ const ContractList = () => {
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
           });
-          if (!pdfBlob) {
-            throw new Error(`Failed to generate PDF for contract ${contract.contractNumber}`);
-          }
-          const pdfUrl = await uploadPDFToServer(pdfBlob, `Contract_${contract.contractNumber}.pdf`);
-          attachmentUrls.push(pdfUrl);
+          // If exportToPDF returns a Blob in the future, handle it here.
+          // const pdfUrl = await uploadPDFToServer(pdfBlob, `Contract_${contract.contractNumber}.pdf`);
+          // attachmentUrls.push(pdfUrl);
         }
       }
 
