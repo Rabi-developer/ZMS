@@ -386,7 +386,7 @@ const ContractList = () => {
       selectedContract.weaves || '',
       selectedContract.width || '',
       selectedContract.final || '',
-      selectedContract.selvedge || '',
+      selectedContract.selvege || '',
     ]
       .filter((item) => item.trim() !== '')
       .join(' / ');
@@ -726,12 +726,20 @@ const ContractList = () => {
                         {selectedContract.buyer}
                       </div>
                     </div>
+                     <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                       Rate
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.rate}
+                      </div>
+                    </div>
                     <div className="group">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
                         Quantity
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.quantity} {selectedContract.unitOfMeasure}
+                        {selectedContract.quantity}
                       </div>
                     </div>
                     <div className="group">
@@ -740,6 +748,30 @@ const ContractList = () => {
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
                         {selectedContract.totalAmount}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Commission
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.commissionPercentage}
+                      </div>
+                    </div>
+                     <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Commission Value
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.commissionValue}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Delivery
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.deliveryDate}
                       </div>
                     </div>
                     <div className="group">

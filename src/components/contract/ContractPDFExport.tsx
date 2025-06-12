@@ -1,631 +1,637 @@
-  'use client';
-  import { toast } from 'react-toastify';
-  import jsPDF from 'jspdf';
-  import autoTable from 'jspdf-autotable';
-  import { getAllDescriptions } from '@/apis/description';
-  import { getAllWrapYarnTypes } from '@/apis/wrapyarntype';
-  import { getAllWeftYarnType } from '@/apis/weftyarntype';
-  import { getAllWeaves } from '@/apis/weaves';
-  import { getAllPickInsertions } from '@/apis/pickinsertion';
-  import { getAllBlendRatios } from '@/apis/blendratio';
-  import { getAllSelveges } from '@/apis/selvege';
-  import { Contract } from './columns';
-  import { getAllSellers } from '@/apis/seller';
-  import { getAllBuyer } from '@/apis/buyer';
+'use client';
+import { toast } from 'react-toastify';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { getAllDescriptions } from '@/apis/description';
+import { getAllWrapYarnTypes } from '@/apis/wrapyarntype';
+import { getAllWeftYarnType } from '@/apis/weftyarntype';
+import { getAllWeaves } from '@/apis/weaves';
+import { getAllPickInsertions } from '@/apis/pickinsertion';
+import { getAllBlendRatios } from '@/apis/blendratio';
+import { getAllSelveges } from '@/apis/selvege';
+import { Contract } from './columns';
+import { getAllSellers } from '@/apis/seller';
+import { getAllBuyer } from '@/apis/buyer';
 
-  // Load ZMS logo (assumes logo is in public/ZMS-logo.png)
-  const ZMS_LOGO = '/ZMS-logo.png';
-  let GetSellerAddress = '';
-  let GetBuyerAddress = '';
+// Load ZMS logo
+const ZMS_LOGO = '/ZMS-logo.png';
+let GetSellerAddress = '';
+let GetBuyerAddress = '';
 
-  // Style constants
-  const styles = {
-    label: { size: 10, color: [6, 182, 212] as [number, number, number] },
-    value: { size: 10, color: [33, 33, 33] as [number, number, number] },
-    margins: { left: 10, right: 10 },
-  };
+// Determine dark mode
+const isDarkMode = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-  // Utility function to format numbers with commas
-  const formatCurrency = (value: string | number | undefined): string => {
-    if (!value) return '-';
-    const num = parseFloat(value.toString());
-    if (isNaN(num)) return value.toString();
-    return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
+// Style constants
+const styles = {
+  label: { size: 11, color: [0, 0, 0] as [number, number, number] }, // Increased font size for labels
+  value: { size: 10, color: [0, 0, 0] as [number, number, number] },
+  margins: { left: 12, right: 12 },
+};
 
-  interface ExportToPDFProps {
-    contract: Contract | null;
-    sellerSignature?: string;
-    buyerSignature?: string;
-    zmsSignature?: string;
-    sellerAddress?: string;
-    buyerAddress?: string;
-    buyerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
-    sellerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
-  }
+// Utility function to format numbers with commas
+const formatCurrency = (value: string | number | undefined): string => {
+  if (!value) return '-';
+  const num = parseFloat(value.toString());
+  if (isNaN(num)) return value.toString();
+  return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
 
-  const ContractPDFExport = {
-    exportToPDF: async ({
-      contract,
-      sellerSignature,
-      buyerSignature,
-      zmsSignature,
-      sellerAddress,
-      buyerAddress,
-      buyerDeliveryBreakups = [],
-      sellerDeliveryBreakups = [],
-    }: ExportToPDFProps) => {
-      if (!contract) {
-        toast('Contract not found', { type: 'error' });
-        return;
-      }
+interface ExportToPDFProps {
+  contract: Contract | null;
+  sellerSignature?: string;
+  buyerSignature?: string;
+  zmsSignature?: string;
+  sellerAddress?: string;
+  buyerAddress?: string;
+  buyerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
+  sellerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
+}
 
-      // Debug data
-      console.log('Buyer Delivery Breakups:', JSON.stringify(buyerDeliveryBreakups, null, 2));
-      console.log('Seller Delivery Breakups:', JSON.stringify(sellerDeliveryBreakups, null, 2));
-      console.log('Contract:', JSON.stringify(contract, null, 2));
+const ContractPDFExport = {
+  exportToPDF: async ({
+    contract,
+    sellerSignature,
+    buyerSignature,
+    zmsSignature,
+    sellerAddress,
+    buyerAddress,
+    buyerDeliveryBreakups = [],
+    sellerDeliveryBreakups = [],
+  }: ExportToPDFProps) => {
+    if (!contract) {
+      toast('Contract not found', { type: 'error' });
+      return;
+    }
 
-      // Fetch subDescriptions for all relevant fields
-      let descriptionSub = '-';
-      let blendRatioSub = '-';
-      let warpYarnTypeSub = '-';
-      let weftYarnTypeSub = '-';
-      let weavesSub = '-';
-      let pickInsertionSub = '-';
-      let selvedgeSub = '-';
+    // Fetch subDescriptions
+    let descriptionSub = '-';
+    let blendRatioSub = '-';
+    let warpYarnTypeSub = '-';
+    let weftYarnTypeSub = '-';
+    let weavesSub = '-';
+    let pickInsertionSub = '-';
+    let selvedgeSub = '-';
 
+    try {
+      const sellerData = await getAllSellers();
+      const buyerData = await getAllBuyer();
+      const sellerMatch = sellerData.data.find(
+        (item: { sellerName: string; address: string }) => item.sellerName === contract.seller
+      );
+      const buyerMatch = buyerData.data.find(
+        (item: { buyerName: string; address: string }) => item.buyerName === contract.buyer
+      );
+      GetSellerAddress = sellerMatch ? sellerMatch.address : '';
+      GetBuyerAddress = buyerMatch ? buyerMatch.address : '';
+
+      const descriptionData = await getAllDescriptions();
+      const descriptionMatch = descriptionData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.description
+      );
+      descriptionSub = descriptionMatch ? descriptionMatch.subDescription : '-';
+
+      const blendRatioData = await getAllBlendRatios();
+      const blendRatioMatch = blendRatioData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.blendRatio
+      );
+      blendRatioSub = blendRatioMatch ? blendRatioMatch.subDescription : '-';
+
+      const warpYarnData = await getAllWrapYarnTypes();
+      const warpYarnMatch = warpYarnData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.warpYarnType
+      );
+      warpYarnTypeSub = warpYarnMatch ? warpYarnMatch.subDescription : '-';
+
+      const weftYarnData = await getAllWeftYarnType();
+      const weftYarnMatch = weftYarnData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.weftYarnType
+      );
+      weftYarnTypeSub = weftYarnMatch ? weftYarnMatch.subDescription : '-';
+
+      const weavesData = await getAllWeaves();
+      const weavesMatch = weavesData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.weaves
+      );
+      weavesSub = weavesMatch ? weavesMatch.subDescription : '-';
+
+      const pickInsertionData = await getAllPickInsertions();
+      const pickInsertionMatch = pickInsertionData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.pickInsertion
+      );
+      pickInsertionSub = pickInsertionMatch ? pickInsertionMatch.subDescription : '-';
+
+      const selvedgeData = await getAllSelveges();
+      const selvedgeMatch = selvedgeData.data.find(
+        (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.selvege
+      );
+      selvedgeSub = selvedgeMatch ? selvedgeSub : '-';
+    } catch (error) {
+      console.error('Error fetching subDescriptions:', error);
+      toast('Failed to fetch subDescriptions', { type: 'warning' });
+    }
+
+    const doc = new jsPDF();
+
+    doc.setFillColor(6, 182, 212);
+    doc.rect(0, 0, 210, 32, 'F');
+
+    // Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(30);
+    doc.setTextColor(0, 0, 0);
+    doc.text('ZM SOURCING', 105, 10, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text('Suit No. 108, SP Chamber, Main Estate Avenue, SITE Karachi', 105, 16, { align: 'center' });
+    doc.text('Phone: +92 21 32550917-18', 105, 22, { align: 'center' });
+
+    // Logo
+    try {
+      doc.addImage(ZMS_LOGO, 'PNG', 12, 6, 22, 16);
+    } catch (error) {
+      console.error('Failed to load logo:', error);
+      doc.setFontSize(15);
+      doc.setTextColor(0, 0, 0);
+      doc.text('[ZMS Logo]', 12, 16);
+    }
+
+    // Subheading: ZMS/ContractNo/Month/Year
+    let yPos = 46;
+    doc.setFont('helvetica', 'bold'); // Ensure bold font
+    doc.setFontSize(9); // Increased font size for subheading
+    doc.setTextColor(0, 0, 0);
+    let monthYear = '-';
+    if (contract.date) {
       try {
-        // Fetch Seller and Buyer Addresses
-        const sellerData = await getAllSellers();
-        const buyerData = await getAllBuyer();
-        const sellerMatch = sellerData.data.find(
-          (item: { sellerName: string; address: string }) => item.sellerName === contract.seller
-        );
-        const buyerMatch = buyerData.data.find(
-          (item: { buyerName: string; address: string }) => item.buyerName === contract.buyer
-        );
-        GetSellerAddress = sellerMatch ? sellerMatch.address : '';
-        GetBuyerAddress = buyerMatch ? buyerMatch.address : '';
-
-        // Fetch Description subDescription
-        const descriptionData = await getAllDescriptions();
-        const descriptionMatch = descriptionData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.description
-        );
-        descriptionSub = descriptionMatch ? descriptionMatch.subDescription : '-';
-
-        // Fetch BlendRatio subDescription
-        const blendRatioData = await getAllBlendRatios();
-        const blendRatioMatch = blendRatioData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.blendRatio
-        );
-        blendRatioSub = blendRatioMatch ? blendRatioMatch.subDescription : '-';
-
-        // Fetch WarpYarnType subDescription
-        const warpYarnData = await getAllWrapYarnTypes();
-        const warpYarnMatch = warpYarnData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.warpYarnType
-        );
-        warpYarnTypeSub = warpYarnMatch ? warpYarnMatch.subDescription : '-';
-
-        // Fetch WeftYarnType subDescription
-        const weftYarnData = await getAllWeftYarnType();
-        const weftYarnMatch = weftYarnData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.weftYarnType
-        );
-        weftYarnTypeSub = weftYarnMatch ? weftYarnMatch.subDescription : '-';
-
-        // Fetch Weaves subDescription
-        const weavesData = await getAllWeaves();
-        const weavesMatch = weavesData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.weaves
-        );
-        weavesSub = weavesMatch ? weavesMatch.subDescription : '-';
-
-        // Fetch PickInsertion subDescription
-        const pickInsertionData = await getAllPickInsertions();
-        const pickInsertionMatch = pickInsertionData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.pickInsertion
-        );
-        pickInsertionSub = pickInsertionMatch ? pickInsertionMatch.subDescription : '-';
-
-        // Fetch Selvedge subDescription
-        const selvedgeData = await getAllSelveges();
-        const selvedgeMatch = selvedgeData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.selvege
-        );
-        selvedgeSub = selvedgeMatch ? selvedgeMatch.subDescription : '-';
-      } catch (error) {
-        console.error('Error fetching subDescriptions:', error);
-        toast('Failed to fetch subDescriptions', { type: 'warning' });
-      }
-
-      const doc = new jsPDF();
-
-      // Function to check for page overflow and add new page if needed
-      const checkPageOverflow = (currentY: number, additionalHeight: number): number => {
-        const pageHeight = 270; // A4 page height in mm (297mm - 10mm top margin - 17mm footer)
-        if (currentY + additionalHeight > pageHeight) {
-          doc.addPage();
-          return 10; // Reset to top of new page
+        const dateObj = new Date(contract.date);
+        if (!isNaN(dateObj.getTime())) {
+          monthYear = `${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
         }
-        return currentY;
-      };
-
-      // Header Background
-      doc.setFillColor(6, 182, 212);
-      doc.rect(0, 0, 210, 32, 'F');
-
-      // Header
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.setTextColor(255, 255, 255);
-      doc.text('ZM SOURCING', 105, 12, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(255, 255, 255);
-      doc.text('Suit No. 108, SP Chamber, Main Estate Avenue,', 105, 18, { align: 'center' });
-      doc.text('SITE Karachi', 105, 22, { align: 'center' });
-      doc.text('Phone: +92 21 32550917-18', 105, 26, { align: 'center' });
-
-      // Logo
-      try {
-        doc.addImage(ZMS_LOGO, 'PNG', 10, 6, 24, 18);
       } catch (error) {
-        console.error('Failed to load logo:', error);
-        doc.setFontSize(10);
-        doc.setTextColor(255, 255, 255);
-        doc.text('[ZMS Logo]', 10, 18);
+        console.error('Error parsing contract date:', error);
       }
+    }
+    const contractSubheading = `${contract.contractNumber || '-'}`;
+    doc.text(contractSubheading, 10, yPos, { align: 'left' });
 
-      // Subheading: ZMS/ContractNo/Month/Year (Left-aligned, below Purchase Contract)
-      let yPos = 42;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(33, 33, 33);
-      let monthYear = '-';
-      if (contract.date) {
-        try {
-          const dateObj = new Date(contract.date);
-          if (!isNaN(dateObj.getTime())) {
-            monthYear = `${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
-          }
-        } catch (error) {
-          console.error('Error parsing contract date:', error);
+    yPos = 40;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16); // Increased font size for main header
+    doc.setTextColor(0, 0, 0);
+    doc.text('Purchase Contract', 105, yPos, { align: 'center' });
+
+    yPos = 46;
+    doc.setFont('helvetica', 'bold'); // Ensure bold font for date
+    doc.setFontSize(9); // Increased font size for date subheading
+    doc.setTextColor(0, 0, 0);
+
+    // Format date
+    const formattedDate = contract.date
+      ? new Date(contract.date).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
+          .split('/')
+          .join('-')
+      : '-';
+
+    doc.text(`Date: ${formattedDate}`, 200, yPos, { align: 'right' });
+    yPos += 15;
+
+    const leftColX = 10;
+    const rightColX = 110;
+    const labelStyle = {
+      font: 'helvetica' as const,
+      style: 'bold' as const,
+      size: 9, // Increased font size for labels
+      color: [0, 0, 0] as [number, number, number],
+    };
+    const valueStyle = {
+      font: 'helvetica' as const,
+      style: 'normal' as const,
+      size: 9,
+      color: [0, 0, 0] as [number, number, number],
+    };
+
+    // Seller Info
+    const sellerBoxY = yPos - 5;
+    const sellerBoxHeight = 14;
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
+    doc.rect(leftColX - 2, sellerBoxY, 90, sellerBoxHeight, 'S');
+
+    doc.setFont(labelStyle.font, labelStyle.style);
+    doc.setFontSize(labelStyle.size);
+    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.text('Seller:', leftColX, yPos);
+    doc.setFont(valueStyle.font, valueStyle.style);
+    doc.setFontSize(valueStyle.size);
+    doc.setTextColor(...valueStyle.color);
+    let sellerName = contract.seller || '-';
+    let sellerAddressText = GetSellerAddress || '';
+    const maxSellerWidth = 75;
+    if (doc.getTextWidth(sellerName) > maxSellerWidth) {
+      while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
+        sellerName = sellerName.slice(0, -1);
+      }
+      sellerName += '...';
+    }
+    if (doc.getTextWidth(sellerAddressText) > maxSellerWidth) {
+      while (doc.getTextWidth(sellerAddressText + '...') > maxSellerWidth && sellerAddressText.length > 0) {
+        sellerAddressText = sellerAddressText.slice(0, -1);
+      }
+      sellerAddressText += '...';
+    }
+    doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 6, yPos);
+    doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 6, yPos + 6);
+
+    // Buyer Info
+    const buyerBoxY = yPos - 5;
+    const buyerBoxHeight = 14;
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
+    doc.rect(rightColX - 2, buyerBoxY, 90, buyerBoxHeight, 'S');
+
+    doc.setFont(labelStyle.font, labelStyle.style);
+    doc.setFontSize(labelStyle.size);
+    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.text('Buyer:', rightColX, yPos);
+    doc.setFont(valueStyle.font, valueStyle.style);
+    doc.setFontSize(valueStyle.size);
+    doc.setTextColor(...valueStyle.color);
+    let buyerName = contract.buyer || '-';
+    let buyerAddressText = GetBuyerAddress || '';
+    const maxBuyerWidth = 75;
+    if (doc.getTextWidth(buyerName) > maxBuyerWidth) {
+      while (doc.getTextWidth(buyerName + '...') > maxBuyerWidth && buyerName.length > 0) {
+        buyerName = buyerName.slice(0, -1);
+      }
+      buyerName += '...';
+    }
+    if (doc.getTextWidth(buyerAddressText) > maxBuyerWidth) {
+      while (doc.getTextWidth(buyerAddressText + '...') > maxBuyerWidth && buyerAddressText.length > 0) {
+        buyerAddressText = buyerAddressText.slice(0, -1);
+      }
+      buyerAddressText += '...';
+    }
+    doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 6, yPos);
+    doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 6, yPos + 6);
+
+    yPos += 25;
+
+    const fields = [
+      { label: 'Description:', value: `${contract.description || '-'}, ${contract.stuff}` },
+      {
+        label: 'Blend Ratio:',
+        value: `${contract.blendRatio || '-'},${contract.warpYarnType || '-'} ${contract.warpYarnType || '-'} `,
+      },
+      {
+        label: 'Construction:',
+        value: `${contract.warpCount || '-'}  ${warpYarnTypeSub} × ${contract.weftCount || '-'} x ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.width || '-'} ${contract.final || '-'} ${contract.selvege || '-'}`,
+      },
+    ];
+
+    doc.setFont(labelStyle.font, labelStyle.style);
+    doc.setFontSize(labelStyle.size);
+    const maxLabelWidth = Math.max(...fields.map((field) => doc.getTextWidth(field.label)));
+
+    fields.forEach((field) => {
+      const maxWidth = 190;
+      let value = field.value;
+      if (doc.getTextWidth(value) > maxWidth) {
+        while (doc.getTextWidth(value + '...') > maxWidth && value.length > 0) {
+          value = value.slice(0, -1);
         }
+        value += '...';
       }
-      const contractSubheading = `${contract.contractNumber || '-'}`;
-      doc.text(contractSubheading, 10, yPos, { align: 'left' });
-
-      yPos = 40;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(6, 182, 212);
-      doc.text('Purchase Contract', 105, yPos, { align: 'center' });
-
-      yPos = 42;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(33, 33, 33);
-      doc.text(`Date: ${contract.date || '-'}`, 200, yPos, { align: 'right' });
-      yPos += 15;
-
-      const leftColX = 10;
-      const rightColX = 110;
-      const labelStyle = { font: 'helvetica' as const, style: 'bold' as const, size: 9, color: [6, 182, 212] as [number, number, number] };
-      const valueStyle = { font: 'helvetica' as const, style: 'normal' as const, size: 9, color: [33, 33, 33] as [number, number, number] };
-
-      // Seller Info
-      const sellerBoxY = yPos - 5;
-      const sellerBoxHeight = 20; // Increased to accommodate wrapped text
-      doc.setLineWidth(0.4);
-      doc.setDrawColor(33, 33, 33);
-      doc.rect(leftColX - 2, sellerBoxY, 90, sellerBoxHeight, 'S');
 
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...labelStyle.color);
-      doc.text('Seller:', leftColX, yPos);
+      doc.setTextColor(...(labelStyle.color as [number, number, number]));
+      doc.text(field.label, leftColX, yPos);
+
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
-      let sellerName = contract.seller || '-';
-      let sellerAddressText = GetSellerAddress || '';
-      const maxSellerWidth = 80;
+      doc.text(value, leftColX + maxLabelWidth + 6, yPos);
 
-      // Wrap sellerName
-      const wrappedSellerName = doc.splitTextToSize(sellerName, maxSellerWidth);
-      wrappedSellerName.forEach((line: string, i: number) => {
-        doc.text(line, leftColX + doc.getTextWidth('Seller:') + 6, yPos + (i * 6));
-      });
+      yPos += 10;
+    });
 
-      // Wrap sellerAddressText
-      const wrappedSellerAddress = doc.splitTextToSize(sellerAddressText, maxSellerWidth);
-      wrappedSellerAddress.forEach((line: string, i: number) => {
-        doc.text(line, leftColX + doc.getTextWidth('Seller:') + 6, yPos + 6 + (i * 6));
-      });
-
-      // Buyer Info
-      const buyerBoxY = yPos - 5;
-      const buyerBoxHeight = 20; // Increased to accommodate wrapped text
-      doc.setLineWidth(0.4);
-      doc.setDrawColor(33, 33, 33);
-      doc.rect(rightColX - 2, buyerBoxY, 90, buyerBoxHeight, 'S');
-
-      doc.setFont(labelStyle.font, labelStyle.style);
-      doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...labelStyle.color);
-      doc.text('Buyer:', rightColX, yPos);
-      doc.setFont(valueStyle.font, valueStyle.style);
-      doc.setFontSize(valueStyle.size);
-      doc.setTextColor(...valueStyle.color);
-      let buyerName = contract.buyer || '-';
-      let buyerAddressText = GetBuyerAddress || '';
-      const maxBuyerWidth = 75;
-
-      // Wrap buyerName
-      const wrappedBuyerName = doc.splitTextToSize(buyerName, maxBuyerWidth);
-      wrappedBuyerName.forEach((line: string, i: number) => {
-        doc.text(line, rightColX + doc.getTextWidth('Buyer:') + 6, yPos + (i * 6));
-      });
-
-      // Wrap buyerAddressText
-      const wrappedBuyerAddress = doc.splitTextToSize(buyerAddressText, maxBuyerWidth);
-      wrappedBuyerAddress.forEach((line: string, i: number) => {
-        doc.text(line, rightColX + doc.getTextWidth('Buyer:') + 6, yPos + 6 + (i * 6));
-      });
-
-      yPos += Math.max(wrappedSellerName.length, wrappedSellerAddress.length, wrappedBuyerName.length, wrappedBuyerAddress.length) * 6 + 15;
-      yPos = checkPageOverflow(yPos, 0);
-
-      const fields = [
-        { label: 'Description:', value: `${contract.description || '-'} ${contract.stuff}` },
-        { label: 'Blend Ratio:', value: `${contract.blendRatio || '-'}, ` },
-        {
-          label: 'Construction:',
-          value: `${contract.warpCount || '-'} ${contract.warpYarnType || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${contract.weftYarnType || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.width || '-'} ${contract.final || '-'} ${contract.selvege || '-'}`,
-        },
-      ];
-
-      doc.setFont(labelStyle.font, labelStyle.style);
-      doc.setFontSize(labelStyle.size);
-      const maxLabelWidth = Math.max(...fields.map(field => doc.getTextWidth(field.label)));
-
-      fields.forEach((field) => {
-        const maxWidth = 190;
-        const wrappedText = doc.splitTextToSize(field.value, maxWidth);
-
-        yPos = checkPageOverflow(yPos, wrappedText.length * 6);
-
-        doc.setFont(labelStyle.font, labelStyle.style);
-        doc.setFontSize(labelStyle.size);
-        doc.setTextColor(...labelStyle.color);
-        doc.text(field.label, leftColX, yPos);
-
-        doc.setFont(valueStyle.font, valueStyle.style);
-        doc.setFontSize(valueStyle.size);
-        doc.setTextColor(...valueStyle.color);
-        wrappedText.forEach((line: string, i: number) => {
-          doc.text(line, leftColX + maxLabelWidth + 6, yPos + (i * 6));
-        });
-
-        yPos += wrappedText.length * 6;
-      });
-
-      yPos = checkPageOverflow(yPos, 10);
-
-      // Financial Table
-      autoTable(doc, {
-        startY: yPos,
-        head: [['Sel.Length', 'Selvege Weaves', 'Selvege Thickness', 'Ind.Thread', 'GSM']],
-        body: [
-          [
-            contract.selvegeWidth || '-',
-            contract.selvegeWeaves || '-',
-            contract.selvegeThickness || '',
-            contract.inductionThread || '-',
-            contract.gsm || '-',
-          ],
+    // Financial Table
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Sel.Length', 'Sel.Weaves', 'Sel.Thick', 'Ind.Thread', 'GSM']],
+      body: [
+        [
+          contract.selvegeWidth || '-',
+          contract.selvegeWeaves || '-',
+          contract.selvegeThickness || '',
+          contract.inductionThread || '-',
+          contract.gsm || '-',
         ],
-        styles: { fontSize: 10, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.3 },
-        headStyles: { fillColor: [6, 182, 212], textColor: [255, 255, 255], fontSize: 10, cellPadding: 2, lineWidth: 0.3 },
-        columnStyles: {
-          0: { cellWidth: 38 },
-          1: { cellWidth: 38 },
-          2: { cellWidth: 38 },
-          3: { cellWidth: 38 },
-          4: { cellWidth: 38 },
+      ],
+      styles: {
+        fontSize: 9,
+        cellPadding: 2,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.4,
+        textColor: [0, 0, 0], // Black text for table body
+        fontStyle: 'bold', // Bold text for table body
+      },
+      headStyles: {
+        fillColor: [6, 182, 212],
+        textColor: [0, 0, 0], // Black text for header
+        lineColor: [0, 0, 0],
+        fontSize: 10, // Increased font size for table header
+        cellPadding: 2,
+        lineWidth: 0.4,
+        fontStyle: 'bold', // Bold text for header
+      },
+      columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 34 }, 2: { cellWidth: 34 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 } },
+      margin: { left: 12, right: 12 },
+      theme: 'grid',
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 8;
+
+    // Two-Column Layout
+    const leftColumnX = 12;
+    const rightColumnX = 150;
+    const leftColumnWidth = 150;
+    const rightColumnWidth = 87;
+    let leftColumnYPos = yPos;
+    let rightColumnYPos = yPos;
+
+    // Left Column: Additional Fields
+    const additionalFields = [
+      { label: 'Quantity:', value: `Rs. ${formatCurrency(contract.quantity)} Mtr(+-${contract.tolerance || '-'})` },
+      {
+        label: 'Rate:',
+        value: `Rs. ${formatCurrency(contract.rate)}/Mtr + ${contract.gst || '-'} ${contract.deliveryTerms || '-'}`,
+      },
+      { label: 'Piece Length:', value: contract.pieceLength || '-' },
+      {
+        label: 'Delivery:',
+        value: contract.deliveryDate && !isNaN(new Date(contract.deliveryDate).getTime())
+          ? new Date(contract.deliveryDate)
+              .toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+              .split('/')
+              .join('-')
+          : '-',
+      },
+      { label: 'Payment:', value: `${contract.paymentTermsBuyer || '-'}` },
+      { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
+      { label: 'Fab.Value:', value: `Rs. ${formatCurrency(contract.fabricValue)}` },
+      { label: 'GST:', value: `${contract.gst || '-'}` },
+      { label: 'GST Val:', value: `Rs. ${formatCurrency(contract.gstValue)}` },
+      { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
+      { label: 'Comm.:', value: `${contract.commissionPercentage || '-'}%` },
+      { label: 'Comm.Val:', value: `Rs. ${formatCurrency(contract.commissionValue)}` },
+      { label: 'Dispatch:', value: `${contract.dispatchAddress || 'Adviced Later'}` },
+      { label: 'Remarks:', value: `${contract.buyerRemark || ''}` },
+    ];
+
+    doc.setFont(labelStyle.font, labelStyle.style);
+    doc.setFontSize(labelStyle.size);
+    const maxAdditionalLabelWidth = Math.max(...additionalFields.map((field) => doc.getTextWidth(field.label)));
+    additionalFields.forEach((field) => {
+      const wrappedText = doc.splitTextToSize(field.value, leftColumnWidth - maxAdditionalLabelWidth - 6);
+      doc.setFont(labelStyle.font, labelStyle.style);
+      doc.setFontSize(labelStyle.size);
+      doc.setTextColor(...(labelStyle.color as [number, number, number]));
+      doc.text(field.label, leftColumnX, leftColumnYPos);
+      doc.setFont(valueStyle.font, valueStyle.style);
+      doc.setFontSize(valueStyle.size);
+      doc.setTextColor(...valueStyle.color);
+      wrappedText.forEach((line: string, i: number) => {
+        doc.text(line, leftColumnX + maxAdditionalLabelWidth + 6, leftColumnYPos + i * 6);
+      });
+      leftColumnYPos += wrappedText.length * 6;
+    });
+
+    // Right Column: Delivery Breakups
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11); // Increased font size for subheading
+    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.text('Buyer Del. Breakups', rightColumnX, rightColumnYPos);
+    rightColumnYPos += 8;
+    if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
+      autoTable(doc, {
+        startY: rightColumnYPos,
+        head: [['Qty', 'Del. Date']],
+        body: buyerDeliveryBreakups.slice(0, 4).map((breakup) => [
+          breakup.Qty?.toString() || '-',
+          breakup.DeliveryDate?.toString() || '-',
+        ]),
+        styles: {
+          fontSize: 9,
+          cellPadding: 2,
+          lineColor: isDarkMode ? [0, 0, 0] : [200, 200, 200],
+          lineWidth: 0.2,
         },
-        margin: { left: 10, right: 10 },
+        headStyles: {
+          fillColor: isDarkMode ? [30, 30, 30] : [0, 0, 0],
+          textColor: [0, 0, 0],
+          fontSize: 10, // Increased font size for table header
+          cellPadding: 2,
+          lineWidth: 0.2,
+          fontStyle: 'bold', // Ensure bold header
+        },
+        columnStyles: { 0: { cellWidth: 33 }, 1: { cellWidth: 48 } },
+        margin: { left: rightColumnX, right: 5 },
         theme: 'grid',
       });
-
-      yPos = (doc as any).lastAutoTable.finalY + 10;
-      yPos = checkPageOverflow(yPos, 0);
-      console.log('yPos before two-column layout:', yPos);
-
-      // Two-Column Layout: Additional Fields (Left) and Delivery Breakups (Right)
-      const leftColumnX = 10;
-      const rightColumnX = 105;
-      const leftColumnWidth = 90;
-      const rightColumnWidth = 90;
-      let leftColumnYPos = yPos;
-      let rightColumnYPos = yPos;
-
-      // Left Column: Additional Fields
-      const additionalFields = [
-        { label: 'Quantity:', value: `Rs. ${formatCurrency(contract.quantity)} Meter(+-${contract.tolerance || '-'})` },
-        { label: 'Rate:', value: `Rs. ${formatCurrency(contract.rate)} / Meter + ${contract.gst || '-'} ${contract.deliveryTerms || '-'}` },
-        { label: 'Piece Length:', value: contract.pieceLength || '-' },
-        { label: 'Delivery:', value: contract.deliveryDate || '-' },
-        { label: 'Payment Term:', value: `${contract.paymentTermsBuyer|| '-'}` },
-        { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
-        { label: 'Fabric Value:', value: `Rs. ${formatCurrency(contract.fabricValue)}` },
-        { label: 'GST:', value: `${contract.gst || '-'}` },
-        { label: 'GST Value:', value: `Rs. ${formatCurrency(contract.gstValue)}` },
-        { label: 'Total Amount:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
-        { label: 'Commission:', value: `${contract.commissionPercentage || '-'}%` },
-        { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.commissionValue)}` },
-        { label: 'Dispatch Add:', value: `${contract.dispatchAddress || 'Adviced Later'}` },
-        { label: 'Remarks:', value: `Seller: ${contract.sellerRemark || ''} | Buyer: ${contract.buyerRemark || ''}` },
-      ];
-
-      doc.setFont(labelStyle.font, labelStyle.style);
-      doc.setFontSize(labelStyle.size);
-      const maxAdditionalLabelWidth = Math.max(...additionalFields.map(field => doc.getTextWidth(field.label)));
-
-      additionalFields.forEach((field, index) => {
-        const maxWidth = leftColumnWidth - maxAdditionalLabelWidth - 6;
-        const wrappedText = doc.splitTextToSize(field.value, maxWidth);
-
-        leftColumnYPos = checkPageOverflow(leftColumnYPos, wrappedText.length * 6);
-
-        doc.setFont(labelStyle.font, labelStyle.style);
-        doc.setFontSize(labelStyle.size);
-        doc.setTextColor(...labelStyle.color);
-        doc.text(field.label, leftColumnX, leftColumnYPos);
-
-        doc.setFont(valueStyle.font, valueStyle.style);
-        doc.setFontSize(valueStyle.size);
-        doc.setTextColor(...valueStyle.color);
-        wrappedText.forEach((line: string, i: number) => {
-          doc.text(line, leftColumnX + maxAdditionalLabelWidth + 6, leftColumnYPos + (i * 6));
-        });
-
-        leftColumnYPos += wrappedText.length * 6;
-        console.log(`Field ${index + 1} rendered at y=${leftColumnYPos}`);
-      });
-
-      // Right Column: Buyer Delivery Breakups Table
-      console.log('Rendering Buyer Delivery Breakups table...');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...labelStyle.color);
-      doc.text('Buyer Delivery Breakups', rightColumnX, rightColumnYPos);
-      rightColumnYPos += 6;
-
-      if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
-        autoTable(doc, {
-          startY: rightColumnYPos,
-          head: [['Qty', 'Del. Date']],
-          body: buyerDeliveryBreakups.slice(0, 5).map(breakup => [
-            breakup.Qty?.toString() || '-',
-            breakup.DeliveryDate?.toString() || '-',
-          ]),
-          styles: { fontSize: 10, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.3 },
-          headStyles: { fillColor: [6, 182, 212], textColor: [255, 255, 255], fontSize: 10, cellPadding: 2, lineWidth: 0.3 },
-          columnStyles: {
-            0: { cellWidth: 35 },
-            1: { cellWidth: 55 },
-          },
-          margin: { left: rightColumnX, right: 10 },
-          theme: 'grid',
-          didDrawCell: () => console.log('Buyer table cell rendered'),
-        });
-
-        rightColumnYPos = (doc as any).lastAutoTable.finalY + 6;
-        console.log('Buyer table rendered at y=', rightColumnYPos);
-        if (buyerDeliveryBreakups.length > 5) {
-          rightColumnYPos = checkPageOverflow(rightColumnYPos, 6);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(9);
-          doc.setTextColor(100, 100, 100);
-          doc.text('... (more rows)', rightColumnX, rightColumnYPos);
-          rightColumnYPos += 6;
-        }
-      } else {
-        console.log('No valid Buyer Delivery Breakups data');
-        rightColumnYPos = checkPageOverflow(rightColumnYPos, 8);
+      rightColumnYPos = (doc as any).lastAutoTable.finalY + 6;
+      if (buyerDeliveryBreakups.length > 4) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
-        doc.setTextColor(100, 100, 100);
-        doc.text('No Buyer Breakups', rightColumnX, rightColumnYPos);
-        rightColumnYPos += 8;
+        doc.setTextColor(0, 0, 0);
+        doc.text('... (more)', rightColumnX, rightColumnYPos);
+        rightColumnYPos += 6;
       }
-
-      // Right Column: Seller Delivery Breakups Table
-      console.log('Rendering Seller Delivery Breakups table...');
-      rightColumnYPos = checkPageOverflow(rightColumnYPos, 6);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...labelStyle.color);
-      doc.text('Seller Delivery Breakups', rightColumnX, rightColumnYPos);
-      rightColumnYPos += 6;
-
-      if (Array.isArray(sellerDeliveryBreakups) && sellerDeliveryBreakups.length > 0) {
-        autoTable(doc, {
-          startY: rightColumnYPos,
-          head: [['Qty', 'Del. Date']],
-          body: sellerDeliveryBreakups.slice(0, 5).map(breakup => [
-            breakup.Qty?.toString() || '-',
-            breakup.DeliveryDate?.toString() || '-',
-          ]),
-          styles: { fontSize: 10, cellPadding: 2, lineColor: [200, 200, 200], lineWidth: 0.3 },
-          headStyles: { fillColor: [6, 182, 212], textColor: [255, 255, 255], fontSize: 10, cellPadding: 2, lineWidth: 0.3 },
-          columnStyles: {
-            0: { cellWidth: 35 },
-            1: { cellWidth: 55 },
-          },
-          margin: { left: rightColumnX, right: 10 },
-          theme: 'grid',
-          didDrawCell: () => console.log('Seller table cell rendered'),
-        });
-
-        rightColumnYPos = (doc as any).lastAutoTable.finalY + 6;
-        console.log('Seller table rendered at y=', rightColumnYPos);
-        if (sellerDeliveryBreakups.length > 5) {
-          rightColumnYPos = checkPageOverflow(rightColumnYPos, 6);
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(9);
-          doc.setTextColor(100, 100, 100);
-          doc.text('... (more rows)', rightColumnX, rightColumnYPos);
-          rightColumnYPos += 6;
-        }
-      } else {
-        console.log('No valid Seller Delivery Breakups data');
-        rightColumnYPos = checkPageOverflow(rightColumnYPos, 8);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.setTextColor(100, 100, 100);
-        doc.text('No Seller Breakups', rightColumnX, rightColumnYPos);
-        rightColumnYPos += 8;
-      }
-
-      yPos = Math.max(leftColumnYPos, rightColumnYPos) + 10;
-      yPos = checkPageOverflow(yPos, 1);
-
-      // Separator Line
-      doc.setLineWidth(0.3);
-      doc.setDrawColor(200, 200, 200);
-      doc.line(10, yPos, 200, yPos);
-      yPos += 1;
-
-      // Terms and Conditions Table
-      yPos = checkPageOverflow(yPos, 20);
-      autoTable(doc, {
-        startY: yPos,
-        body: [
-          ['01', 'Please courier first 5mm fabric as production sample'],
-          ['02', 'Bales and rolls are clearly marked with article name, blend ratio & total meters packed'],
-        ],
-        theme: 'plain',
-        styles: {
-          font: 'helvetica',
-          fontSize: 10,
-          cellPadding: { top: 3, bottom: 3, left: 4, right: 10 },
-          textColor: [0, 0, 0],
-          lineWidth: 0,
-          halign: 'left',
-        },
-        columnStyles: {
-          0: { cellWidth: 20, fontStyle: 'bold' },
-          1: { cellWidth: 170 },
-        },
-        margin: { left: 10, right: 10 },
-        didDrawCell: (data) => {
-          if (data.section === 'body' && data.row.index === 0) {
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.setTextColor(...labelStyle.color);
-            doc.text('Terms and Conditions', 10, data.cell.y - 4);
-          }
-        },
-      });
-
-      yPos = (doc as any).lastAutoTable.finalY + 9;
-      yPos = checkPageOverflow(yPos, 24);
-
-      // Signatures
-      const signatureY = yPos;
-      const signatureWidth = 55;
-      const startX = 10;
-      const centerX = 105 - signatureWidth / 2;
-      const endX = 200 - signatureWidth;
-      const labelColor: [number, number, number] = [0, 0, 0];
-      const textColor: [number, number, number] = [0, 0, 0];
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...labelColor);
-      if (zmsSignature) {
-        doc.addImage(zmsSignature, 'PNG', startX, signatureY + 2, signatureWidth, 14);
-      }
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(12);
-      doc.setTextColor(...textColor);
-      const zmsText = 'Z.M. Sourcing';
-      const zmsTextWidth = doc.getTextWidth(zmsText);
-      doc.text(zmsText, startX, signatureY + 18);
-      doc.setLineWidth(0.4);
-      doc.setDrawColor(...textColor);
-      doc.line(startX, signatureY + 19, startX + zmsTextWidth, signatureY + 19);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...labelColor);
-      if (sellerSignature) {
-        doc.addImage(sellerSignature, 'PNG', centerX, signatureY + 2, signatureWidth, 14);
-      }
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(12);
-      doc.setTextColor(...textColor);
-      const sellerText = `${contract.seller || '-'}`;
-      const sellerTextWidth = doc.getTextWidth(sellerText);
-      doc.text(sellerText, centerX, signatureY + 18);
-      doc.setLineWidth(0.4);
-      doc.setDrawColor(...textColor);
-      doc.line(centerX, signatureY + 19, centerX + sellerTextWidth, signatureY + 19);
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...labelColor);
-      if (buyerSignature) {
-        doc.addImage(buyerSignature, 'PNG', endX, signatureY + 2, signatureWidth, 14);
-      }
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(12);
-      doc.setTextColor(...textColor);
-      const buyerText = `${contract.buyer || '-'}`;
-      const buyerTextWidth = doc.getTextWidth(buyerText);
-      doc.text(buyerText, endX, signatureY + 18);
-      doc.setLineWidth(0.4);
-      doc.setDrawColor(...textColor);
-      doc.line(endX, signatureY + 19, endX + buyerTextWidth, signatureY + 19);
-
-      yPos = signatureY + 24;
-      yPos = checkPageOverflow(yPos, 18);
-
-      // Footer Divider Line
-      doc.setLineWidth(0.3);
-      doc.setDrawColor(200, 200, 200);
-      doc.line(10, yPos, 200, yPos);
-
-      // Footer Background
-      doc.setFillColor(6, 182, 212);
-      doc.rect(0, yPos, 210, 18, 'F');
-
-      // Footer
+    } else {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.setTextColor(255, 255, 255);
-      doc.text('Page 1 of 1', 200, yPos + 5, { align: 'right' });
-      doc.text(
-        `Generated on ${new Date().toLocaleString('en-US', {
-          timeZone: 'Asia/Karachi',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        })}`,
-        10,
-        yPos + 5
-      );
-      doc.text('Confidential - ZMS Textiles Ltd.', 105, yPos + 5, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+      doc.text('No Buyer Breakups', rightColumnX, rightColumnYPos);
+      rightColumnYPos += 6;
+    }
 
-      doc.save(`ZMS Sourcing Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`);
-    },
-  };
+    rightColumnYPos += 4;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11); // Increased font size for subheading
+    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.text('Seller Del. Breakups', rightColumnX, rightColumnYPos);
+    rightColumnYPos += 6;
+    if (Array.isArray(sellerDeliveryBreakups) && sellerDeliveryBreakups.length > 0) {
+      autoTable(doc, {
+        startY: rightColumnYPos,
+        head: [['Qty', 'Del. Date']],
+        body: sellerDeliveryBreakups.slice(0, 4).map((breakup) => [
+          breakup.Qty?.toString() || '-',
+          breakup.DeliveryDate?.toString() || '-',
+        ]),
+        styles: {
+          fontSize: 9,
+          cellPadding: 2,
+          lineColor: isDarkMode ? [0, 0, 0] : [200, 200, 200],
+          lineWidth: 0.2,
+        },
+        headStyles: {
+          fillColor: isDarkMode ? [30, 30, 30] : [0, 0, 0],
+          textColor: [0, 0, 0],
+          fontSize: 10, // Increased font size for table header
+          cellPadding: 2,
+          lineWidth: 0.2,
+          fontStyle: 'bold', // Ensure bold header
+        },
+        columnStyles: { 0: { cellWidth: 33 }, 1: { cellWidth: 48 } },
+        margin: { left: rightColumnX, right: 5 },
+        theme: 'grid',
+      });
+      rightColumnYPos = (doc as any).lastAutoTable.finalY + 6;
+      if (sellerDeliveryBreakups.length > 4) {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        doc.text('... (more)', rightColumnX, rightColumnYPos);
+        rightColumnYPos += 6;
+      }
+    } else {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+      doc.text('No Seller Breakups', rightColumnX, rightColumnYPos);
+      rightColumnYPos += 6;
+    }
 
-  export default ContractPDFExport;
+    yPos = Math.max(leftColumnYPos, rightColumnYPos) + 8;
+
+   // Separator Line
+    doc.setLineWidth(0.4);
+    doc.setDrawColor(0, 0, 0); 
+    doc.line(10, yPos, 200, yPos);
+    yPos += 1;
+
+    // Terms and Conditions
+    autoTable(doc, {
+      startY: yPos,
+      body: [
+        ['01', 'Dispatch first 5Mt fabric as production sample'],
+        ['02', 'No Contamination guarantee in Pakistan Cotton'],
+      ],
+      theme: 'plain',
+      styles: {
+        font: 'helvetica',
+        fontSize: 9,
+        cellPadding: { top: 2, bottom: 2, left: 3, right: 8 },
+        textColor: [0, 0, 0],
+        lineWidth: 0,
+        halign: 'left',
+      },
+      columnStyles: { 0: { cellWidth: 15, fontStyle: 'bold' }, 1: { cellWidth: 165 } },
+      margin: { left: 12, right: 12 },
+      didDrawCell: (data) => {
+        if (data.section === 'body' && data.row.index === 0) {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11); // Increased font size for Terms and Conditions heading
+          doc.setTextColor(...(labelStyle.color as [number, number, number]));
+          doc.text('Terms and Conditions', 12, data.cell.y - 4);
+        }
+      },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 8;
+
+    // Signatures
+    const signatureY = yPos;
+    const signatureWidth = 40;
+    const startX = 12;
+    const sellerMargin = 10;
+    const centerX = startX + signatureWidth + sellerMargin;
+    const pageWidth = 210;
+    const margin = 12;
+    const availableWidth = pageWidth - margin - (centerX + signatureWidth);
+    const gap = availableWidth / 2;
+    const endX = centerX + signatureWidth + gap;
+
+    const labelColor: [number, number, number] = [0, 0, 0];
+    const textColor: [number, number, number] = [0, 0, 0];
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11); // Increased font size for signature labels
+    doc.setTextColor(...labelColor);
+    if (zmsSignature) {
+      doc.addImage(zmsSignature, 'PNG', startX, signatureY, signatureWidth, 14);
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(15);
+    doc.setTextColor(...textColor);
+    const zmsText = 'Z.M. SOURCING';
+    const zmsTextWidth = doc.getTextWidth(zmsText);
+    doc.text(zmsText, startX, signatureY + 16);
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(...textColor);
+    doc.line(startX, signatureY + 17, startX + zmsTextWidth, signatureY + 17);
+
+    if (sellerSignature) {
+      doc.addImage(sellerSignature, 'PNG', centerX, signatureY, signatureWidth, 14);
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(14);
+    doc.setTextColor(...textColor);
+    const sellerText = `${contract.seller || '-'}`;
+    const sellerTextWidth = doc.getTextWidth(sellerText);
+    doc.text(sellerText, centerX, signatureY + 16);
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(...textColor);
+    doc.line(centerX, signatureY + 17, centerX + sellerTextWidth, signatureY + 17);
+
+    if (buyerSignature) {
+      doc.addImage(buyerSignature, 'PNG', endX, signatureY, signatureWidth, 14);
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(14);
+    doc.setTextColor(...textColor);
+    const buyerText = `${contract.buyer || '-'}`;
+    const buyerTextWidth = doc.getTextWidth(buyerText);
+    doc.text(buyerText, endX, signatureY + 16);
+    doc.setLineWidth(0.3);
+    doc.setDrawColor(...textColor);
+    doc.line(endX, signatureY + 17, endX + buyerTextWidth, signatureY + 17);
+
+    yPos = signatureY + 26;
+
+    // Footer
+    doc.setLineWidth(0.2);
+    // Footer Background
+    doc.setFillColor(6, 182, 212);
+    doc.rect(0, yPos, 210, 18, 'F');
+    doc.rect(0, yPos, 210, 14, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Page 1 of 1', 198, yPos + 6, { align: 'right' });
+    doc.text(
+      `Generated on ${new Date().toLocaleString('en-US', {
+        timeZone: 'Asia/Karachi',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })}`,
+      12,
+      yPos + 6
+    );
+    doc.text('Confidential - ZMS Textiles Ltd.', 105, yPos + 6, { align: 'center' });
+
+    doc.save(`ZMS Sourcing Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`);
+  },
+};
+
+export default ContractPDFExport;

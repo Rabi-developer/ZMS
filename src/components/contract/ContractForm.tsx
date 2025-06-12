@@ -1641,7 +1641,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         register={register}
                       />
                       <CustomInput
-                        type="number"
                         variant="floating"
                         borderThickness="2"
                         label="Width"
@@ -1723,14 +1722,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         selectedOption={watch('EndUse') || ''}
                         onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
                         error={errors.EndUse?.message}
-                        register={register}
-                      />
-                      <CustomInputDropdown
-                        label="Selvege Thickness"
-                        options={selvegeThicknesses}
-                        selectedOption={watch('SelvegeThickness') || ''}
-                        onChange={(value) => setValue('SelvegeThickness', value, { shouldValidate: true })}
-                        error={errors.SelvegeThickness?.message}
                         register={register}
                       />
                     </div>
