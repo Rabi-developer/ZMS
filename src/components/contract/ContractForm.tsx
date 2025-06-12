@@ -29,7 +29,7 @@ import { getAllSelveges } from '@/apis/selvege';
 import { getAllSelvegeWeaves } from '@/apis/selvegeweave';
 import { getAllSelvegeWidths } from '@/apis/selvegewidth';
 import { getAllSelvegeThicknesss } from '@/apis/selvegethickness';
-import { getAllInductionThreads } from '@/apis/Inductionthread';
+import { getAllInductionThreads } from '@/apis/inductionthread';
 import { getAllGSMs } from '@/apis/gsm';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
@@ -231,6 +231,27 @@ type ContractApiResponse = {
   approvedDate: string;
   notes?: string;
   selvegeThickness?: string;
+  // Root level fields for delivery details
+  quantity?: string;
+  rate?: string;
+  fabricValue?: string;
+  gst?: string;
+  gstValue?: string;
+  commissionType?: string;
+  commissionPercentage?: string;
+  commissionValue?: string;
+  totalAmount?: string;
+  unitOfMeasure?: string;
+  tolerance?: string;
+  packing?: string;
+  pieceLength?: string;
+  paymentTermsSeller?: string;
+  paymentTermsBuyer?: string;
+  deliveryTerms?: string;
+  commissionFrom?: string;
+  sellerRemark?: string;
+  buyerRemark?: string;
+  deliveryDate?: string;
   buyerDeliveryBreakups: Array<{
     id?: string;
     qty: string;
@@ -1270,13 +1291,56 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         if (initialData) {
           setTimeout(() => {
             const formattedData = {
-              ...initialData,
               ContractType: initialData.contractType || 'Sale',
               CompanyId: initialData.companyId || '',
               BranchId: initialData.branchId || '',
               ContractNumber: initialData.contractNumber || '',
-              // ... (other fields)
-              DeliveryDetails: initialData.deliveryDetails?.map((detail) => ({
+              Date: initialData.date || '',
+              ContractOwner: initialData.contractOwner || '',
+              Seller: initialData.seller || '',
+              Buyer: initialData.buyer || '',
+              ReferenceNumber: initialData.referenceNumber || '',
+              Refer: initialData.refer || '',
+              Referdate: initialData.referdate || '',
+              FabricType: initialData.fabricType || '',
+              Description: initialData.description || '',
+              DescriptionSubOptions: initialData.descriptionSubOptions?.split(',') || [],
+              Stuff: initialData.stuff || '',
+              StuffSubOptions: initialData.stuffSubOptions?.split(',') || [],
+              BlendRatio: initialData.blendRatio || '',
+              BlendType: initialData.blendType?.split(',') || [],
+              WarpCount: initialData.warpCount || '',
+              WarpYarnType: initialData.warpYarnType || '',
+              WarpYarnTypeSubOptions: initialData.warpYarnTypeSubOptions?.split(',') || [],
+              WeftCount: initialData.weftCount || '',
+              WeftYarnType: initialData.weftYarnType || '',
+              WeftYarnTypeSubOptions: initialData.weftYarnTypeSubOptions?.split(',') || [],
+              NoOfEnds: initialData.noOfEnds || '',
+              NoOfPicks: initialData.noOfPicks || '',
+              Weaves: initialData.weaves || '',
+              WeavesSubOptions: initialData.weavesSubOptions?.split(',') || [],
+              PickInsertion: initialData.pickInsertion || '',
+              PickInsertionSubOptions: initialData.pickInsertionSubOptions?.split(',') || [],
+              Width: initialData.width || '',
+              Final: initialData.final || '',
+              FinalSubOptions: initialData.finalSubOptions?.split(',') || [],
+              Selvedge: initialData.selvege || '',
+              SelvedgeSubOptions: initialData.selvedgeSubOptions?.split(',') || [],
+              SelvedgeWeave: initialData.selvegeWeaves === null ? '' : initialData.selvegeWeaves || '',
+              SelvedgeWeaveSubOptions: initialData.selvedgeWeaveSubOptions?.split(',') || [],
+              SelvedgeWidth: initialData.selvedgeWidth === null ? '' : initialData.selvedgeWidth || '',
+              SelvedgeWidthSubOptions: initialData.selvedgeWidthSubOptions?.split(',') || [],
+              SelvageThread: initialData.selvageThread || '',
+              SelvageThreadSubOptions: initialData.selvageThreadSubOptions?.split(',') || [],
+              InductionThread: initialData.inductionThread || '',
+              InductionThreadSubOptions: initialData.inductionThreadSubOptions?.split(',') || [],
+              GSM: initialData.gsm || '',
+              GSMSubOptions: initialData.gsmSubOptions?.split(',') || [],
+              EndUse: initialData.endUse || '',
+              EndUseSubOptions: initialData.endUseSubOptions?.split(',') || [],
+              Notes: initialData.notes || '',
+              SelvegeThickness: initialData.selvegeThickness || '',
+              DeliveryDetails: initialData.deliveryDetails?.length ? initialData.deliveryDetails.map((detail) => ({
                 Id: detail.id,
                 Quantity: detail.quantity || '',
                 Rate: detail.rate || '',
@@ -1308,32 +1372,32 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 Finish: detail.finish || '',
                 LBDispNo: detail.lbDispNo || '',
                 LabDispatchDate: detail.labDispatchDate || '',
-              })) || [{
+              })) : [{
                 Id: undefined,
-                Quantity: '',
-                Rate: '',
-                FabricValue: '',
-                Gst: '',
-                GstValue: '',
-                CommissionType: '',
-                CommissionPercentage: '',
-                CommissionValue: '',
-                TotalAmount: '',
-                UnitOfMeasure: '',
-                Tolerance: '',
-                Packing: '',
-                PieceLength: '',
-                PaymentTermsSeller: '',
-                PaymentTermsBuyer: '',
-                FinishWidth: '',
-                DeliveryTerms: '',
-                CommissionFrom: '',
+                Quantity: initialData.quantity || '',
+                Rate: initialData.rate || '',
+                FabricValue: initialData.fabricValue || '',
+                Gst: initialData.gst || '',
+                GstValue: initialData.gstValue || '',
+                CommissionType: initialData.commissionType || '',
+                CommissionPercentage: initialData.commissionPercentage || '',
+                CommissionValue: initialData.commissionValue || '',
+                TotalAmount: initialData.totalAmount || '',
+                UnitOfMeasure: initialData.unitOfMeasure || '',
+                Tolerance: initialData.tolerance || '',
+                Packing: initialData.packing || '',
+                PieceLength: initialData.pieceLength || '',
+                PaymentTermsSeller: initialData.paymentTermsSeller || '',
+                PaymentTermsBuyer: initialData.paymentTermsBuyer || '',
+                FinishWidth: initialData.width || '',
+                DeliveryTerms: initialData.deliveryTerms || '',
+                CommissionFrom: initialData.commissionFrom || '',
                 SellerCommission: '',
                 BuyerCommission: '',
                 DispatchLater: '',
-                SellerRemark: '',
-                BuyerRemark: '',
-                DeliveryDate: '',
+                SellerRemark: initialData.sellerRemark || '',
+                BuyerRemark: initialData.buyerRemark || '',
+                DeliveryDate: initialData.deliveryDate || '',
                 Color: '',
                 Weight: '',
                 Shrinkage: '',
@@ -1382,7 +1446,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
             setSellerDeliveryBreakups(formattedData.SellerDeliveryBreakups);
             setDeliveryTermDetails(formattedData.DeliveryTermDetails);
             setSampleDetails(formattedData.SampleDetails);
-            // ... (set other sub-options)
+            setShowForm(true);
           }, 100);
         }
       } catch (error) {
