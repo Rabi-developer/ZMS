@@ -1125,7 +1125,10 @@ const fetchDescriptions = async () => {
             };
 
             // Reset form with formatted data
-            reset(formattedData);
+            reset({
+              ...formattedData,
+              DeliveryDetails: initialData.deliveryDetails || [],
+            });
 
             // Set additional state
             if (initialData.buyerDeliveryBreakups) {
@@ -1313,10 +1316,118 @@ const fetchDescriptions = async () => {
     setDeliveryDetails(deliveryDetails.filter((_, i) => i !== index));
   };
 
+  // Add per-row calculation for Delivery Details
+  useEffect(() => {
+    deliveryDetails.forEach((detail, index) => {
+      const qty = parseFloat(detail.Quantity || '0');
+      const rt = parseFloat(detail.Rate || '0');
+      const fabricValue = (qty * rt).toFixed(2);
+      if (fabricValue !== detail.FabricValue) {
+        handleDeliveryDetailChange(index, 'FabricValue', fabricValue);
+      }
+
+      const selectedGst = gstTypes.find((g) => g.id === detail.Gst);
+      let gstValue = '0.00';
+      if (selectedGst) {
+        const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
+        gstValue = ((parseFloat(fabricValue) * percentage) / 100).toFixed(2);
+      }
+      if (gstValue !== detail.GstValue) {
+        handleDeliveryDetailChange(index, 'GstValue', gstValue);
+      }
+
+      const totalAmount = (parseFloat(fabricValue) + parseFloat(gstValue)).toFixed(2);
+      if (totalAmount !== detail.TotalAmount) {
+        handleDeliveryDetailChange(index, 'TotalAmount', totalAmount);
+      }
+
+      let commissionValue = '0.00';
+      const commissionInput = parseFloat(detail.CommissionPercentage || '0');
+      if (detail.CommissionType) {
+        const commissionTypeName = commissionTypes.find((type) => type.id === detail.CommissionType)?.name.toLowerCase();
+        if (commissionTypeName === 'on value' && commissionInput > 0 && parseFloat(totalAmount) > 0) {
+          commissionValue = ((parseFloat(totalAmount) * commissionInput) / 100).toFixed(2);
+        } else if (commissionTypeName === 'on qty' && commissionInput > 0 && qty > 0) {
+          commissionValue = (qty * commissionInput).toFixed(2);
+        }
+      }
+      if (commissionValue !== detail.CommissionValue) {
+        handleDeliveryDetailChange(index, 'CommissionValue', commissionValue);
+      }
+    });
+  }, [deliveryDetails, gstTypes, commissionTypes]);
+
   const onSubmit: SubmitHandler<FormData> = async (data) => {
-    console.log('Form submitted!', data);
     try {
-      // Format the data to match the API schema exactly
+      // Map DeliveryDetails to deliveryDetails with correct keys
+      const deliveryDetailsPayload = (data.DeliveryDetails || []).map((detail, idx) => ({
+        id: (detail as any).Id || undefined,
+        quantity: detail.Quantity,
+        rate: detail.Rate,
+        fabricValue: detail.FabricValue,
+        gst: detail.Gst,
+        gstValue: detail.GstValue,
+        totalAmount: detail.TotalAmount,
+        commissionType: detail.CommissionType,
+        commissionPercentage: detail.CommissionPercentage,
+        commissionValue: detail.CommissionValue,
+        unitOfMeasure: detail.UnitOfMeasure,
+        tolerance: detail.Tolerance,
+        packing: detail.Packing,
+        pieceLength: detail.PieceLength,
+        paymentTermsSeller: detail.PaymentTermsSeller,
+        paymentTermsBuyer: detail.PaymentTermsBuyer,
+        finishWidth: detail.FinishWidth,
+        deliveryTerms: detail.DeliveryTerms,
+        commissionFrom: detail.CommissionFrom,
+        sellerCommission: detail.SellerCommission,
+        buyerCommission: detail.BuyerCommission,
+        dispatchLater: detail.DispatchLater,
+        sellerRemark: detail.SellerRemark,
+        buyerRemark: detail.BuyerRemark,
+        deliveryDate: detail.DeliveryDate,
+        color: detail.Color,
+        weight: detail.Weight,
+        shrinkage: detail.Shrinkage,
+        finish: detail.Finish,
+        labDispNo: detail.LabDispNo,
+        labDispDate: detail.LabDispDate,
+        contractId: id || undefined,
+      }));
+
+      // Map Buyer/Seller Delivery Breakups
+      const buyerDeliveryBreakupsPayload = buyerDeliveryBreakups.map(b => ({
+        id: b.Id,
+        qty: b.Qty,
+        deliveryDate: b.DeliveryDate,
+      }));
+      const sellerDeliveryBreakupsPayload = sellerDeliveryBreakups.map(b => ({
+        id: b.Id,
+        qty: b.Qty,
+        deliveryDate: b.DeliveryDate,
+      }));
+
+      // Map Sample Details
+      const sampleDetailsPayload = sampleDetails.map(s => ({
+        id: s.Id,
+        sampleQty: s.SampleQty,
+        sampleReceivedDate: s.SampleReceivedDate,
+        sampleDeliveredDate: s.SampleDeliveredDate,
+        createdBy: s.CreatedBy,
+        creationDate: s.CreationDate,
+        updatedBy: s.UpdatedBy,
+        updateDate: s.UpdateDate,
+        additionalInfo: (s.AdditionalInfo || []).map(a => ({
+          id: a.Id,
+          endUse: a.EndUse,
+          count: a.Count,
+          weight: a.Weight,
+          yarnBags: a.YarnBags,
+          labs: a.Labs,
+        })),
+      }));
+
+      // Build the payload
       const payload = {
         id: id || undefined,
         contractNumber: data.ContractNumber,
@@ -1348,7 +1459,7 @@ const fetchDescriptions = async () => {
         final: data.Final || '',
         selvege: data.Selvedge || '',
         selvegeWeaves: data.SelvedgeWeave || '',
-        selvedgeWidth: data.SelvedgeWidth || '',
+        selvegeWidth: data.SelvedgeWidth || '',
         selvageThread: data.SelvageThread || '',
         inductionThread: data.InductionThread || '',
         gsm: data.GSM || '',
@@ -1381,10 +1492,10 @@ const fetchDescriptions = async () => {
         endUse: data.EndUse || '',
         notes: data.Notes || '',
         selvegeThickness: data.SelvegeThickness || '',
-        deliveryDetails: data.DeliveryDetails,
-        buyerDeliveryBreakups: buyerDeliveryBreakups,
-        sellerDeliveryBreakups: sellerDeliveryBreakups,
-        sampleDetails: sampleDetails,
+        deliveryDetails: deliveryDetailsPayload,
+        buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
+        sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
+        sampleDetails: sampleDetailsPayload,
       };
 
       // Remove any undefined or null values from the payload, but keep arrays even if empty
@@ -1397,7 +1508,6 @@ const fetchDescriptions = async () => {
         })
       );
 
-      console.log('Form Payload:', JSON.stringify(cleanPayload, null, 2));
       let response;
       if (id) {
         response = await updateContract(id, cleanPayload);
@@ -1511,11 +1621,14 @@ const fetchDescriptions = async () => {
         })) || [],
       };
 
-      reset(formattedData);
+      reset({
+        ...formattedData,
+        DeliveryDetails: initialData.deliveryDetails || [],
+      });
       setBuyerDeliveryBreakups(formattedData.BuyerDeliveryBreakups);
       setSellerDeliveryBreakups(formattedData.SellerDeliveryBreakups);
       setSampleDetails(formattedData.SampleDetails);
-      setDeliveryDetails(formattedData.deliveryDetails);
+      setDeliveryDetails(initialData.deliveryDetails || []);
     }
   }, [initialData, reset]);
 
@@ -1654,11 +1767,7 @@ const fetchDescriptions = async () => {
                         subName="DescriptionSubOptions"
                         options={descriptions}
                         selectedOption={watch('Description') || ''}
-                        selectedSubOptions={
-                          Array.isArray(watch('DescriptionSubOptions'))
-                            ? watch('DescriptionSubOptions')?.slice().filter((v): v is string => typeof v === 'string')
-                            : []
-                        }
+                        selectedSubOptions={Array.isArray(watch('DescriptionSubOptions')) ? (watch('DescriptionSubOptions') ?? []).slice().filter((v): v is string => typeof v === 'string') : []}
                         onChange={(value) => setValue('Description', value, { shouldValidate: true })}
                         onSubChange={(values) => setValue('DescriptionSubOptions', values, { shouldValidate: true })}
                         error={errors.Description?.message}
@@ -1774,11 +1883,7 @@ const fetchDescriptions = async () => {
                             subName="WeavesSubOptions"
                             options={weaves}
                             selectedOption={watch('Weaves') || ''}
-                            selectedSubOptions={
-                              Array.isArray(watch('WeavesSubOptions'))
-                                ? watch('WeavesSubOptions')?.slice().filter((v): v is string => typeof v === 'string')
-                                : []
-                            }
+                            selectedSubOptions={Array.isArray(watch('WeavesSubOptions')) ? (watch('WeavesSubOptions') ?? []).slice().filter((v): v is string => typeof v === 'string') : []}
                             onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
                             onSubChange={(values) => setValue('WeavesSubOptions', values, { shouldValidate: true })}
                             error={errors.Weaves?.message}
@@ -1793,11 +1898,7 @@ const fetchDescriptions = async () => {
                           subName="WeavesSubOptions"
                           options={weaves}
                           selectedOption={watch('Weaves') || ''}
-                          selectedSubOptions={
-                            Array.isArray(watch('WeavesSubOptions'))
-                              ? watch('WeavesSubOptions')!.slice().filter((v): v is string => typeof v === 'string')
-                              : []
-                          }
+                          selectedSubOptions={Array.isArray(watch('WeavesSubOptions')) ? (watch('WeavesSubOptions') ?? []).slice().filter((v): v is string => typeof v === 'string') : []}
                           onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
                           onSubChange={(values) => setValue('WeavesSubOptions', values, { shouldValidate: true })}
                           error={errors.Weaves?.message}
@@ -1860,7 +1961,7 @@ const fetchDescriptions = async () => {
                         selectedOption={watch('SelvedgeWeave') || ''}
                         selectedSubOptions={
                           Array.isArray(watch('SelvedgeWeaveSubOptions'))
-                            ? watch('SelvedgeWeaveSubOptions')?.slice().filter((v): v is string => typeof v === 'string')
+                            ? watch('SelvedgeWeaveSubOptions')!.slice().filter((v): v is string => typeof v === 'string')
                             : []
                         }
                         onChange={(value) => setValue('SelvedgeWeave', value, { shouldValidate: true })}
@@ -1916,34 +2017,21 @@ const fetchDescriptions = async () => {
                           register={register}
                         />
                       )}
-                      {gsms.length === 0 && loading ? (
-                        <div>Loading GSMs...</div>
-                      ) : (
-                        <DescriptionWithSubSelect
-                          label="GSM"
-                          name="GSM"
-                          subName="GSMSubOptions"
-                          options={gsms}
-                          selectedOption={watch('GSM') || ''}
-                          selectedSubOptions={[]} // GSMSubOptions is not in schema, so pass empty array
-                          onChange={(value) => setValue('GSM', value, { shouldValidate: true })}
-                          onSubChange={() => {}}
-                          error={errors.GSM?.message}
-                          subError={undefined}
-                          register={register}
-                        />
-                      )}
+                      <CustomInput
+                        variant="floating"
+                        borderThickness="2"
+                        label="GSM"
+                        id="GSM"
+                        {...register('GSM')}
+                        error={errors.GSM?.message}
+                      />
                       <DescriptionWithSubSelect
                         label="End Use"
                         name="EndUse"
                         subName="EndUseSubOptions"
                         options={endUses}
                         selectedOption={watch('EndUse') || ''}
-                        selectedSubOptions={
-                          Array.isArray(watch('EndUseSubOptions'))
-                            ? watch('EndUseSubOptions')?.slice().filter((v): v is string => typeof v === 'string')
-                            : []
-                        }
+                        selectedSubOptions={Array.isArray(watch('EndUseSubOptions')) ? (watch('EndUseSubOptions') ?? []).slice().filter((v): v is string => typeof v === 'string') : []}
                         onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
                         onSubChange={(values) => setValue('EndUseSubOptions', values, { shouldValidate: true })}
                         error={errors.EndUse?.message}
@@ -1964,6 +2052,7 @@ const fetchDescriptions = async () => {
                             label="Quantity"
                             value={detail.Quantity}
                             onChange={e => handleDeliveryDetailChange(idx, 'Quantity', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.Quantity?.message}
                           />
                           <CustomInput
                             variant="floating"
@@ -1971,19 +2060,23 @@ const fetchDescriptions = async () => {
                             label="Rate"
                             value={detail.Rate}
                             onChange={e => handleDeliveryDetailChange(idx, 'Rate', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.Rate?.message}
                           />
                           <CustomInput
                             variant="floating"
                             borderThickness="2"
                             label="Fabric Value"
                             value={detail.FabricValue}
-                            onChange={e => handleDeliveryDetailChange(idx, 'FabricValue', e.target.value)}
+                            disabled
+                            className="auto-calculated-field"
+                            error={errors.DeliveryDetails?.[idx]?.FabricValue?.message}
                           />
                           <CustomInputDropdown
                             label="GST Type"
                             options={gstTypes}
                             selectedOption={detail.Gst || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'Gst', value)}
+                            error={errors.DeliveryDetails?.[idx]?.Gst?.message}
                             register={register}
                           />
                           <CustomInput
@@ -1991,20 +2084,25 @@ const fetchDescriptions = async () => {
                             borderThickness="2"
                             label="GST Value"
                             value={detail.GstValue}
-                            onChange={e => handleDeliveryDetailChange(idx, 'GstValue', e.target.value)}
+                            disabled
+                            className="auto-calculated-field"
+                            error={errors.DeliveryDetails?.[idx]?.GstValue?.message}
                           />
                           <CustomInput
                             variant="floating"
                             borderThickness="2"
                             label="Total Amount"
                             value={detail.TotalAmount}
-                            onChange={e => handleDeliveryDetailChange(idx, 'TotalAmount', e.target.value)}
+                            disabled
+                            className="auto-calculated-field"
+                            error={errors.DeliveryDetails?.[idx]?.TotalAmount?.message}
                           />
                           <CustomInputDropdown
                             label="Commission Type"
                             options={commissionTypes}
                             selectedOption={detail.CommissionType || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'CommissionType', value)}
+                            error={errors.DeliveryDetails?.[idx]?.CommissionType?.message}
                             register={register}
                           />
                           <CustomInput
@@ -2013,19 +2111,23 @@ const fetchDescriptions = async () => {
                             label="Commission (%)"
                             value={detail.CommissionPercentage}
                             onChange={e => handleDeliveryDetailChange(idx, 'CommissionPercentage', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.CommissionPercentage?.message}
                           />
                           <CustomInput
                             variant="floating"
                             borderThickness="2"
                             label="Commission Value"
                             value={detail.CommissionValue}
-                            onChange={e => handleDeliveryDetailChange(idx, 'CommissionValue', e.target.value)}
+                            disabled
+                            className="auto-calculated-field"
+                            error={errors.DeliveryDetails?.[idx]?.CommissionValue?.message}
                           />
                           <CustomInputDropdown
                             label="Unit of Measure"
                             options={unitsOfMeasure}
                             selectedOption={detail.UnitOfMeasure || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'UnitOfMeasure', value)}
+                            error={errors.DeliveryDetails?.[idx]?.UnitOfMeasure?.message}
                             register={register}
                           />
                           <CustomInput
@@ -2034,12 +2136,14 @@ const fetchDescriptions = async () => {
                             label="Tolerance (%)"
                             value={detail.Tolerance}
                             onChange={e => handleDeliveryDetailChange(idx, 'Tolerance', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.Tolerance?.message}
                           />
                           <CustomInputDropdown
                             label="Packing"
                             options={packings}
                             selectedOption={detail.Packing || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'Packing', value)}
+                            error={errors.DeliveryDetails?.[idx]?.Packing?.message}
                             register={register}
                           />
                           <CustomInputDropdown
@@ -2047,6 +2151,7 @@ const fetchDescriptions = async () => {
                             options={pieceLengths}
                             selectedOption={detail.PieceLength || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'PieceLength', value)}
+                            error={errors.DeliveryDetails?.[idx]?.PieceLength?.message}
                             register={register}
                           />
                           <CustomInputDropdown
@@ -2054,6 +2159,7 @@ const fetchDescriptions = async () => {
                             options={paymentTerms}
                             selectedOption={detail.PaymentTermsSeller || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'PaymentTermsSeller', value)}
+                            error={errors.DeliveryDetails?.[idx]?.PaymentTermsSeller?.message}
                             register={register}
                           />
                           <CustomInputDropdown
@@ -2061,6 +2167,7 @@ const fetchDescriptions = async () => {
                             options={paymentTerms}
                             selectedOption={detail.PaymentTermsBuyer || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'PaymentTermsBuyer', value)}
+                            error={errors.DeliveryDetails?.[idx]?.PaymentTermsBuyer?.message}
                             register={register}
                           />
                           <CustomInput
@@ -2069,12 +2176,14 @@ const fetchDescriptions = async () => {
                             label="Finish Width"
                             value={detail.FinishWidth}
                             onChange={e => handleDeliveryDetailChange(idx, 'FinishWidth', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.FinishWidth?.message}
                           />
                           <CustomInputDropdown
                             label="Delivery Terms"
                             options={deliveryTerms}
                             selectedOption={detail.DeliveryTerms || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'DeliveryTerms', value)}
+                            error={errors.DeliveryDetails?.[idx]?.DeliveryTerms?.message}
                             register={register}
                           />
                           <CustomInputDropdown
@@ -2082,6 +2191,7 @@ const fetchDescriptions = async () => {
                             options={commissionFromOptions}
                             selectedOption={detail.CommissionFrom || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'CommissionFrom', value)}
+                            error={errors.DeliveryDetails?.[idx]?.CommissionFrom?.message}
                             register={register}
                           />
                           {detail.CommissionFrom === 'Both' && (
@@ -2091,6 +2201,7 @@ const fetchDescriptions = async () => {
                               label="Seller Commission"
                               value={detail.SellerCommission}
                               onChange={e => handleDeliveryDetailChange(idx, 'SellerCommission', e.target.value)}
+                              error={errors.DeliveryDetails?.[idx]?.SellerCommission?.message}
                             />
                           )}
                           {detail.CommissionFrom === 'Both' && (
@@ -2100,6 +2211,7 @@ const fetchDescriptions = async () => {
                               label="Buyer Commission"
                               value={detail.BuyerCommission}
                               onChange={e => handleDeliveryDetailChange(idx, 'BuyerCommission', e.target.value)}
+                              error={errors.DeliveryDetails?.[idx]?.BuyerCommission?.message}
                             />
                           )}
                           <CustomInputDropdown
@@ -2107,6 +2219,7 @@ const fetchDescriptions = async () => {
                             options={dispatchLaterOptions}
                             selectedOption={detail.DispatchLater || ''}
                             onChange={value => handleDeliveryDetailChange(idx, 'DispatchLater', value)}
+                            error={errors.DeliveryDetails?.[idx]?.DispatchLater?.message}
                             register={register}
                           />
                           <CustomInput
@@ -2115,6 +2228,7 @@ const fetchDescriptions = async () => {
                             label="Seller Remark"
                             value={detail.SellerRemark}
                             onChange={e => handleDeliveryDetailChange(idx, 'SellerRemark', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.SellerRemark?.message}
                           />
                           <CustomInput
                             variant="floating"
@@ -2122,6 +2236,7 @@ const fetchDescriptions = async () => {
                             label="Buyer Remark"
                             value={detail.BuyerRemark}
                             onChange={e => handleDeliveryDetailChange(idx, 'BuyerRemark', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.BuyerRemark?.message}
                           />
                           <CustomInput
                             type="date"
@@ -2130,14 +2245,15 @@ const fetchDescriptions = async () => {
                             label="Delivery Date"
                             value={detail.DeliveryDate}
                             onChange={e => handleDeliveryDetailChange(idx, 'DeliveryDate', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.DeliveryDate?.message}
                           />
-                          {/* New fields */}
                           <CustomInput
                             variant="floating"
                             borderThickness="2"
                             label="Color"
                             value={detail.Color}
                             onChange={e => handleDeliveryDetailChange(idx, 'Color', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.Color?.message}
                           />
                           <CustomInput
                             variant="floating"
@@ -2145,6 +2261,7 @@ const fetchDescriptions = async () => {
                             label="Weight"
                             value={detail.Weight}
                             onChange={e => handleDeliveryDetailChange(idx, 'Weight', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.Weight?.message}
                           />
                           <CustomInput
                             variant="floating"
@@ -2152,6 +2269,7 @@ const fetchDescriptions = async () => {
                             label="Shrinkage"
                             value={detail.Shrinkage}
                             onChange={e => handleDeliveryDetailChange(idx, 'Shrinkage', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.Shrinkage?.message}
                           />
                           <CustomInput
                             variant="floating"
@@ -2159,6 +2277,7 @@ const fetchDescriptions = async () => {
                             label="Finish"
                             value={detail.Finish}
                             onChange={e => handleDeliveryDetailChange(idx, 'Finish', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.Finish?.message}
                           />
                           <CustomInput
                             variant="floating"
@@ -2166,6 +2285,7 @@ const fetchDescriptions = async () => {
                             label="Lab Disp No"
                             value={detail.LabDispNo}
                             onChange={e => handleDeliveryDetailChange(idx, 'LabDispNo', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.LabDispNo?.message}
                           />
                           <CustomInput
                             type="date"
@@ -2174,6 +2294,7 @@ const fetchDescriptions = async () => {
                             label="Lab Disp Date"
                             value={detail.LabDispDate}
                             onChange={e => handleDeliveryDetailChange(idx, 'LabDispDate', e.target.value)}
+                            error={errors.DeliveryDetails?.[idx]?.LabDispDate?.message}
                           />
                         </div>
                         <div className="flex justify-end mt-2">
