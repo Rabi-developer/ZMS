@@ -1,16 +1,15 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, SubmitHandler } from 'react-hook-form';
+import { useForm, UseFormRegister, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
-import Link from 'next/link';
 import CustomInput from '@/components/ui/CustomInput';
-import DescriptionWithSubSelect from '@/components/ui/DescriptionWithSubSelect';
+import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
 import { MdAddBusiness, MdAdd, MdDelete, MdInfo } from 'react-icons/md';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import CustomInputDropdown from '../ui/CustomeInputDropdown';
 import { getAllOrganization } from '@/apis/organization';
 import { getAllBranch } from '@/apis/branchs';
 import { getAllDescriptions } from '@/apis/description';
@@ -28,9 +27,7 @@ import { getAllFinal } from '@/apis/final';
 import { getAllSelveges } from '@/apis/selvege';
 import { getAllSelvegeWeaves } from '@/apis/selvegeweave';
 import { getAllSelvegeWidths } from '@/apis/selvegewidth';
-import { getAllSelvegeThicknesss } from '@/apis/selvegethickness';
-import { getAllInductionThreads } from '@/apis/inductionthread';
-import { getAllGSMs } from '@/apis/gsm';
+import { getAllStuffs } from '@/apis/stuff';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllDeliveryTerms } from '@/apis/deliveryterm';
@@ -38,19 +35,15 @@ import { getAllCommissionTypes } from '@/apis/commissiontype';
 import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
-import { getAllStuffs } from '@/apis/stuff';
+import { getAllSelvegeThicknesss, } from '@/apis/selvegethickness';
+import { getAllInductionThreads,  } from '@/apis/Inductionthread'; 
+import { getAllGSMs, deleteGSM } from '@/apis/gsm'; 
 
-// Schema Definitions
+// Update schema to match state types
 const DeliveryBreakupSchema = z.object({
   Id: z.string().optional(),
   Qty: z.string(),
   DeliveryDate: z.string(),
-});
-
-const DeliveryTermDetailSchema = z.object({
-  Id: z.string().optional(),
-  TermDescription: z.string().min(1, 'Term Description is required'),
-  EffectiveDate: z.string().min(1, 'Effective Date is required'),
 });
 
 const AdditionalInfoSchema = z.object({
@@ -74,40 +67,6 @@ const SampleDetailSchema = z.object({
   AdditionalInfo: z.array(AdditionalInfoSchema),
 });
 
-const DeliveryDetailSchema = z.object({
-  Id: z.string().optional(),
-  Quantity: z.string().min(1, 'Quantity is required'),
-  Rate: z.string().min(1, 'Rate is required'),
-  FabricValue: z.string().min(1, 'Fabric Value is required'),
-  Gst: z.string().min(1, 'GST Type is required'),
-  GstValue: z.string().optional(),
-  CommissionType: z.string().optional(),
-  CommissionPercentage: z.string().optional(),
-  CommissionValue: z.string().optional(),
-  TotalAmount: z.string().min(1, 'Total Amount is required'),
-  UnitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
-  Tolerance: z.string().optional(),
-  Packing: z.string().optional(),
-  PieceLength: z.string().optional(),
-  PaymentTermsSeller: z.string().optional(),
-  PaymentTermsBuyer: z.string().optional(),
-  FinishWidth: z.string().optional(),
-  DeliveryTerms: z.string().optional(),
-  CommissionFrom: z.string().optional(),
-  SellerCommission: z.string().optional(),
-  BuyerCommission: z.string().optional(),
-  DispatchLater: z.string().optional(),
-  SellerRemark: z.string().optional(),
-  BuyerRemark: z.string().optional(),
-  DeliveryDate: z.string().min(1, 'Delivery Date is required'),
-  Color: z.string().optional(),
-  Weight: z.string().optional(),
-  Shrinkage: z.string().optional(),
-  Finish: z.string().optional(),
-  LBDispNo: z.string().optional(),
-  LabDispatchDate: z.string().optional(),
-});
-
 const ContractSchema = z.object({
   Id: z.string().optional(),
   ContractNumber: z.string().min(1, 'Contract Number is required'),
@@ -119,139 +78,135 @@ const ContractSchema = z.object({
   Seller: z.string().min(1, 'Seller is required'),
   Buyer: z.string().min(1, 'Buyer is required'),
   ReferenceNumber: z.string().optional(),
+  DeliveryDate: z.string().min(1, 'Delivery Date is required'),
   Refer: z.string().optional(),
   Referdate: z.string().optional(),
   FabricType: z.string().min(1, 'Fabric Type is required'),
   Description: z.string().min(1, 'Description is required'),
-  DescriptionSubOptions: z.array(z.string()).optional(),
   Stuff: z.string().min(1, 'Stuff is required'),
-  StuffSubOptions: z.array(z.string()).optional(),
   BlendRatio: z.string().optional(),
-  BlendType: z.array(z.string()).optional(),
+  BlendType: z.string().optional(),
   WarpCount: z.string().optional(),
   WarpYarnType: z.string().optional(),
-  WarpYarnTypeSubOptions: z.array(z.string()).optional(),
   WeftCount: z.string().optional(),
   WeftYarnType: z.string().min(1, 'Weft Yarn Type is required'),
-  WeftYarnTypeSubOptions: z.array(z.string()).optional(),
   NoOfEnds: z.string().optional(),
   NoOfPicks: z.string().optional(),
   Weaves: z.string().optional(),
-  WeavesSubOptions: z.array(z.string()).optional(),
   PickInsertion: z.string().optional(),
-  PickInsertionSubOptions: z.array(z.string()).optional(),
   Width: z.string().optional(),
   Final: z.string().optional(),
-  FinalSubOptions: z.array(z.string()).optional(),
   Selvedge: z.string().optional(),
-  SelvedgeSubOptions: z.array(z.string()).optional(),
   SelvedgeWeave: z.string().optional(),
-  SelvedgeWeaveSubOptions: z.array(z.string()).optional(),
   SelvedgeWidth: z.string().optional(),
-  SelvedgeWidthSubOptions: z.array(z.string()).optional(),
   SelvageThread: z.string().optional(),
-  SelvageThreadSubOptions: z.array(z.string()).optional(),
-  InductionThread: z.string().optional(),
-  InductionThreadSubOptions: z.array(z.string()).optional(),
-  GSM: z.string().optional(),
-  GSMSubOptions: z.array(z.string()).optional(),
-  EndUse: z.string().optional(),
-  EndUseSubOptions: z.array(z.string()).optional(),
+  InductionThread: z.string().optional(), 
+  GSM: z.string().optional(), 
+  Quantity: z.string().min(1, 'Quantity is required'),
+  UnitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
+  Tolerance: z.string().optional(),
+  Rate: z.string().min(1, 'Rate is required'),
+  Packing: z.string().optional(),
+  PieceLength: z.string().optional(),
+  FabricValue: z.string().min(1, 'Fabric Value is required'),
+  Gst: z.string().min(1, 'GST Type is required'),
+  GstValue: z.string().optional(),
+  TotalAmount: z.string().min(1, 'Total Amount is required'),
+  PaymentTermsSeller: z.string().optional(),
+  PaymentTermsBuyer: z.string().optional(),
+  DeliveryTerms: z.string().optional(),
+  CommissionFrom: z.string().optional(),
+  CommissionType: z.string().optional(),
+  CommissionPercentage: z.string().optional(),
+  CommissionValue: z.string().optional(),
+  DispatchAddress: z.string().optional(),
+  SellerRemark: z.string().optional(),
+  BuyerRemark: z.string().optional(),
   CreatedBy: z.string().optional(),
   CreationDate: z.string().optional(),
   UpdatedBy: z.string().optional(),
   UpdationDate: z.string().optional(),
   ApprovedBy: z.string().optional(),
   ApprovedDate: z.string().optional(),
-  Notes: z.string().optional(),
-  SelvegeThickness: z.string().optional(),
+  EndUse: z.string().optional(),
+  DispatchLater: z.string().optional(),
+  SellerCommission: z.string().optional(),
+  BuyerCommission: z.string().optional(),
+  FinishWidth: z.string().optional(),
   BuyerDeliveryBreakups: z.array(DeliveryBreakupSchema).optional(),
   SellerDeliveryBreakups: z.array(DeliveryBreakupSchema).optional(),
-  DeliveryTermDetails: z.array(DeliveryTermDetailSchema).optional(),
   SampleDetails: z.array(SampleDetailSchema).optional(),
-  DeliveryDetails: z.array(DeliveryDetailSchema).min(1, 'At least one Delivery Detail is required'),
+  Notes: z.string().optional(),
+  SelvegeThickness: z.string().optional(),
 });
 
 type FormData = z.infer<typeof ContractSchema>;
 
+// Add API response type
 type ContractApiResponse = {
   id: string;
   contractNumber: string;
   date: string;
-  contractType: 'Sale' | 'Purchase';
+  contractType: "Sale" | "Purchase";
   companyId: string;
   branchId: string;
   contractOwner: string;
   seller: string;
   buyer: string;
   referenceNumber: string;
+  deliveryDate: string;
   refer: string;
   referdate: string;
   fabricType: string;
   description: string;
-  descriptionSubOptions: string;
   stuff: string;
-  stuffSubOptions: string;
   blendRatio: string;
   blendType: string;
   warpCount: string;
   warpYarnType: string;
-  warpYarnTypeSubOptions: string;
   weftCount: string;
   weftYarnType: string;
-  weftYarnTypeSubOptions: string;
   noOfEnds: string;
   noOfPicks: string;
   weaves: string;
-  weavesSubOptions: string;
   pickInsertion: string;
-  pickInsertionSubOptions: string;
   width: string;
   final: string;
-  finalSubOptions: string;
   selvege: string;
-  selvedgeSubOptions: string;
   selvegeWeaves: string;
-  selvedgeWeaveSubOptions: string;
-  selvedgeWidth: string;
-  selvedgeWidthSubOptions: string;
-  selvageThread: string;
-  selvageThreadSubOptions: string;
-  inductionThread: string;
-  inductionThreadSubOptions: string;
-  gsm: string;
-  gsmSubOptions: string;
-  endUse: string;
-  endUseSubOptions: string;
+  selvegeWidth: string;
+   selvageThread: string; 
+  inductionThread: string; 
+  gsm: string; 
+  quantity: string;
+  unitOfMeasure: string;
+  tolerance: string;
+  rate: string;
+  packing: string;
+  pieceLength: string;
+  fabricValue: string;
+  gst: string;
+  gstValue: string;
+  totalAmount: string;
+  paymentTermsSeller: string;
+  paymentTermsBuyer: string;
+  deliveryTerms: string;
+  commissionFrom: string;
+  commissionType: string;
+  commissionPercentage: string;
+  commissionValue: string;
+  dispatchAddress: string;
+  sellerRemark: string;
+  buyerRemark: string;
   createdBy: string;
   creationDate: string;
   updatedBy: string;
   updationDate: string;
   approvedBy: string;
   approvedDate: string;
+  endUse: string;
   notes?: string;
   selvegeThickness?: string;
-  // Root level fields for delivery details
-  quantity?: string;
-  rate?: string;
-  fabricValue?: string;
-  gst?: string;
-  gstValue?: string;
-  commissionType?: string;
-  commissionPercentage?: string;
-  commissionValue?: string;
-  totalAmount?: string;
-  unitOfMeasure?: string;
-  tolerance?: string;
-  packing?: string;
-  pieceLength?: string;
-  paymentTermsSeller?: string;
-  paymentTermsBuyer?: string;
-  deliveryTerms?: string;
-  commissionFrom?: string;
-  sellerRemark?: string;
-  buyerRemark?: string;
-  deliveryDate?: string;
   buyerDeliveryBreakups: Array<{
     id?: string;
     qty: string;
@@ -261,11 +216,6 @@ type ContractApiResponse = {
     id?: string;
     qty: string;
     deliveryDate: string;
-  }>;
-  deliveryTermDetails: Array<{
-    id?: string;
-    termDescription: string;
-    effectiveDate: string;
   }>;
   sampleDetails: Array<{
     id?: string;
@@ -285,39 +235,6 @@ type ContractApiResponse = {
       labs: string;
     }>;
   }>;
-  deliveryDetails: Array<{
-    id?: string;
-    quantity: string;
-    rate: string;
-    fabricValue: string;
-    gst: string;
-    gstValue: string;
-    commissionType: string;
-    commissionPercentage: string;
-    commissionValue: string;
-    totalAmount: string;
-    unitOfMeasure: string;
-    tolerance: string;
-    packing: string;
-    pieceLength: string;
-    paymentTermsSeller: string;
-    paymentTermsBuyer: string;
-    finishWidth: string;
-    deliveryTerms: string;
-    commissionFrom: string;
-    sellerCommission: string;
-    buyerCommission: string;
-    dispatchLater: string;
-    sellerRemark: string;
-    buyerRemark: string;
-    deliveryDate: string;
-    color: string;
-    weight: string;
-    shrinkage: string;
-    finish: string;
-    lbDispNo: string;
-    labDispatchDate: string;
-  }>;
 };
 
 type ContractFormProps = {
@@ -325,56 +242,59 @@ type ContractFormProps = {
   initialData?: Partial<ContractApiResponse>;
 };
 
+// Update CustomInputDropdown props type
+interface CustomDropdownProps {
+  label: string;
+  options: { id: string; name: string }[];
+  selectedOption: string;
+  onChange: (value: string) => void;
+  error?: string;
+  register: UseFormRegister<FormData>;
+}
+
 const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const router = useRouter();
-  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
-  const [branches, setBranches] = useState<Array<{ id: string; name: string }>>([]);
-  const [descriptions, setDescriptions] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [descriptionSubOptions, setDescriptionSubOptions] = useState<string[]>([]);
-  const [stuffs, setStuffs] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [stuffSubOptions, setStuffSubOptions] = useState<string[]>([]);
-  const [blendRatios, setBlendRatios] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [blendTypeOptions, setBlendTypeOptions] = useState<string[]>([]);
-  const [endUses, setEndUses] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [endUseSubOptions, setEndUseSubOptions] = useState<string[]>([]);
-  const [fabricTypes, setFabricTypes] = useState<Array<{ id: string; name: string }>>([]);
-  const [packings, setPackings] = useState<Array<{ id: string; name: string }>>([]);
-  const [pieceLengths, setPieceLengths] = useState<Array<{ id: string; name: string }>>([]);
-  const [pickInsertions, setPickInsertions] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [pickInsertionSubOptions, setPickInsertionSubOptions] = useState<string[]>([]);
-  const [warpYarnTypes, setWarpYarnTypes] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [warpYarnTypeSubOptions, setWarpYarnTypeSubOptions] = useState<string[]>([]);
-  const [weftYarnTypes, setWeftYarnTypes] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [weftYarnTypeSubOptions, setWeftYarnTypeSubOptions] = useState<string[]>([]);
-  const [weaves, setWeaves] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [weavesSubOptions, setWeavesSubOptions] = useState<string[]>([]);
-  const [finals, setFinals] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [finalSubOptions, setFinalSubOptions] = useState<string[]>([]);
-  const [selvedges, setSelvedges] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [selvedgeSubOptions, setSelvedgeSubOptions] = useState<string[]>([]);
-  const [selvedgeWeaves, setSelvedgeWeaves] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [selvedgeWeaveSubOptions, setSelvedgeWeaveSubOptions] = useState<string[]>([]);
-  const [selvedgeWidths, setSelvedgeWidths] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [selvedgeWidthSubOptions, setSelvedgeWidthSubOptions] = useState<string[]>([]);
-  const [selvageThreads, setSelvageThreads] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [selvageThreadSubOptions, setSelvageThreadSubOptions] = useState<string[]>([]);
-  const [inductionThreads, setInductionThreads] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [inductionThreadSubOptions, setInductionThreadSubOptions] = useState<string[]>([]);
-  const [gsms, setGsms] = useState<Array<{ id: string; name: string; subDescription: string }>>([]);
-  const [gsmSubOptions, setGsmSubOptions] = useState<string[]>([]);
-  const [sellers, setSellers] = useState<Array<{ id: string; name: string }>>([]);
-  const [buyers, setBuyers] = useState<Array<{ id: string; name: string }>>([]);
-  const [deliveryTerms, setDeliveryTerms] = useState<Array<{ id: string; name: string }>>([]);
-  const [commissionTypes, setCommissionTypes] = useState<Array<{ id: string; name: string }>>([]);
-  const [paymentTerms, setPaymentTerms] = useState<Array<{ id: string; name: string }>>([]);
-  const [unitsOfMeasure, setUnitsOfMeasure] = useState<Array<{ id: string; name: string }>>([]);
-  const [gstTypes, setGstTypes] = useState<Array<{ id: string; name: string }>>([]);
-  const [selvegeThicknesses, setSelvegeThicknesses] = useState<Array<{ id: string; name: string }>>([]);
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [descriptions, setDescriptions] = useState<{ id: string; name: string }[]>([]);
+  const [blendRatios, setBlendRatios] = useState<{ id: string; name: string; subDescription: string }[]>([]);
+  const [blendTypeOptions, setBlendTypeOptions] = useState<{ id: string; name: string }[]>([]);
+  const [endUses, setEndUses] = useState<{ id: string; name: string }[]>([]);
+  const [fabricTypes, setFabricTypes] = useState<{ id: string; name: string }[]>([]);
+  const [packings, setPackings] = useState<{ id: string; name: string }[]>([]);
+  const [pieceLengths, setPieceLengths] = useState<{ id: string; name: string }[]>([]);
+  const [pickInsertions, setPickInsertions] = useState<{ id: string; name: string }[]>([]);
+  const [warpYarnTypes, setWarpYarnTypes] = useState<{ id: string; name: string }[]>([]);
+  const [weftYarnTypes, setWeftYarnTypes] = useState<{ id: string; name: string }[]>([]);
+  const [weaves, setWeaves] = useState<{ id: string; name: string }[]>([]);
+  const [finals, setFinals] = useState<{ id: string; name: string }[]>([]);
+  const [selvedges, setSelvedges] = useState<{ id: string; name: string }[]>([]);
+  const [selvedgeWeaves, setSelvedgeWeaves] = useState<{ id: string; name: string }[]>([]);
+  const [selvedgeWidths, setSelvedgeWidths] = useState<{ id: string; name: string }[]>([]);
+  const [selvageThreads, setSelvageThreads] = useState<{ id: string; name: string }[]>([]); 
+  const [inductionThreads, setInductionThreads] = useState<{ id: string; name: string }[]>([]); 
+  const [gsms, setGsms] = useState<{ id: string; name: string }[]>([]); 
+  const [stuffs, setStuffs] = useState<{ id: string; name: string }[]>([]);
+  const [sellers, setSellers] = useState<{ id: string; name: string }[]>([]);
+  const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
+  const [deliveryTerms, setDeliveryTerms] = useState<{ id: string; name: string }[]>([]);
+  const [commissionTypes, setCommissionTypes] = useState<{ id: string; name: string }[]>([]);
+  const [paymentTerms, setPaymentTerms] = useState<{ id: string; name: string }[]>([]);
+  const [unitsOfMeasure, setUnitsOfMeasure] = useState<{ id: string; name: string }[]>([]);
+  const [gstTypes, setGstTypes] = useState<{ id: string; name: string }[]>([]);
+  const [selvegeThicknesses, setSelvegeThicknesses] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [buyerDeliveryBreakups, setBuyerDeliveryBreakups] = useState<Array<{ Id?: string; Qty: string; DeliveryDate: string }>>([]);
-  const [sellerDeliveryBreakups, setSellerDeliveryBreakups] = useState<Array<{ Id?: string; Qty: string; DeliveryDate: string }>>([]);
-  const [deliveryTermDetails, setDeliveryTermDetails] = useState<Array<{ Id?: string; TermDescription: string; EffectiveDate: string }>>([]);
+  const [buyerDeliveryBreakups, setBuyerDeliveryBreakups] = useState<Array<{
+    Id?: string;
+    Qty: string;
+    DeliveryDate: string;
+  }>>([]);
+  const [sellerDeliveryBreakups, setSellerDeliveryBreakups] = useState<Array<{
+    Id?: string;
+    Qty: string;
+    DeliveryDate: string;
+  }>>([]);
   const [sampleDetails, setSampleDetails] = useState<Array<{
     Id?: string;
     SampleQty: string;
@@ -392,92 +312,23 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       YarnBags: string;
       Labs: string;
     }>;
-  }>>([
-    {
-      Id: undefined,
-      SampleQty: '',
-      SampleReceivedDate: '',
-      SampleDeliveredDate: '',
-      CreatedBy: 'Current User',
-      CreationDate: new Date().toISOString().split('T')[0],
-      UpdatedBy: '',
-      UpdateDate: '',
-      AdditionalInfo: [
-        {
-          Id: undefined,
-          EndUse: '',
-          Count: '',
-          Weight: '',
-          YarnBags: '',
-          Labs: '',
-        },
-      ],
-    },
-  ]);
-  const [deliveryDetails, setDeliveryDetails] = useState<Array<{
-    Id?: string;
-    Quantity: string;
-    Rate: string;
-    FabricValue: string;
-    Gst: string;
-    GstValue: string;
-    CommissionType: string;
-    CommissionPercentage: string;
-    CommissionValue: string;
-    TotalAmount: string;
-    UnitOfMeasure: string;
-    Tolerance: string;
-    Packing: string;
-    PieceLength: string;
-    PaymentTermsSeller: string;
-    PaymentTermsBuyer: string;
-    FinishWidth: string;
-    DeliveryTerms: string;
-    CommissionFrom: string;
-    SellerCommission: string;
-    BuyerCommission: string;
-    DispatchLater: string;
-    SellerRemark: string;
-    BuyerRemark: string;
-    DeliveryDate: string;
-    Color: string;
-    Weight: string;
-    Shrinkage: string;
-    Finish: string;
-    LBDispNo: string;
-    LabDispatchDate: string;
   }>>([{
     Id: undefined,
-    Quantity: '',
-    Rate: '',
-    FabricValue: '',
-    Gst: '',
-    GstValue: '',
-    CommissionType: '',
-    CommissionPercentage: '',
-    CommissionValue: '',
-    TotalAmount: '',
-    UnitOfMeasure: '',
-    Tolerance: '',
-    Packing: '',
-    PieceLength: '',
-    PaymentTermsSeller: '',
-    PaymentTermsBuyer: '',
-    FinishWidth: '',
-    DeliveryTerms: '',
-    CommissionFrom: '',
-    SellerCommission: '',
-    BuyerCommission: '',
-    DispatchLater: '',
-    SellerRemark: '',
-    BuyerRemark: '',
-    DeliveryDate: '',
-    Color: '',
-    Weight: '',
-    Shrinkage: '',
-    Finish: '',
-    LBDispNo: '',
-    LabDispatchDate: '',
+    SampleQty: '',
+    SampleReceivedDate: '',
+    SampleDeliveredDate: '',
+    CreatedBy: 'Current User',
+    CreationDate: new Date().toISOString().split('T')[0],
+    UpdatedBy: '',
+    UpdateDate: '',
+    AdditionalInfo: [{
+      Id: undefined,
+      EndUse: '',
+      Count: '',
+      Weight: '',
+      YarnBags: '',
+      Labs: '',
+    }],
   }]);
   const [showSamplePopup, setShowSamplePopup] = useState<number | null>(null);
   const currentUser = 'Current User';
@@ -493,79 +344,27 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   } = useForm<FormData>({
     resolver: zodResolver(ContractSchema),
     defaultValues: {
-      ContractType: 'Sale',
+      ContractType: "Sale",
       BuyerDeliveryBreakups: [],
       SellerDeliveryBreakups: [],
-      DeliveryTermDetails: [],
-      SampleDetails: [
-        {
-          SampleQty: '',
-          SampleReceivedDate: '',
-          SampleDeliveredDate: '',
-          CreatedBy: 'Current User',
-          CreationDate: new Date().toISOString().split('T')[0],
-          UpdatedBy: '',
-          UpdateDate: '',
-          AdditionalInfo: [
-            {
-              EndUse: '',
-              Count: '',
-              Weight: '',
-              YarnBags: '',
-              Labs: '',
-            },
-          ],
-        },
-      ],
-      DeliveryDetails: [{
-        Quantity: '',
-        Rate: '',
-        FabricValue: '',
-        Gst: '',
-        GstValue: '',
-        CommissionType: '',
-        CommissionPercentage: '',
-        CommissionValue: '',
-        TotalAmount: '',
-        UnitOfMeasure: '',
-        Tolerance: '',
-        Packing: '',
-        PieceLength: '',
-        PaymentTermsSeller: '',
-        PaymentTermsBuyer: '',
-        FinishWidth: '',
-        DeliveryTerms: '',
-        CommissionFrom: '',
-        SellerCommission: '',
-        BuyerCommission: '',
-        DispatchLater: '',
-        SellerRemark: '',
-        BuyerRemark: '',
-        DeliveryDate: '',
-        Color: '',
-        Weight: '',
-        Shrinkage: '',
-        Finish: '',
-        LBDispNo: '',
-        LabDispatchDate: '',
+      SampleDetails: [{
+        SampleQty: '',
+        SampleReceivedDate: '',
+        SampleDeliveredDate: '',
+        CreatedBy: 'Current User',
+        CreationDate: new Date().toISOString().split('T')[0],
+        UpdatedBy: '',
+        UpdateDate: '',
+        AdditionalInfo: [{
+          EndUse: '',
+          Count: '',
+          Weight: '',
+          YarnBags: '',
+          Labs: '',
+        }],
       }],
-      Notes: '',
-      BlendType: [],
-      DescriptionSubOptions: [],
-      StuffSubOptions: [],
-      WarpYarnTypeSubOptions: [],
-      WeftYarnTypeSubOptions: [],
-      WeavesSubOptions: [],
-      PickInsertionSubOptions: [],
-      FinalSubOptions: [],
-      SelvedgeSubOptions: [],
-      SelvedgeWeaveSubOptions: [],
-      SelvedgeWidthSubOptions: [],
-      SelvageThreadSubOptions: [],
-      InductionThreadSubOptions: [],
-      GSMSubOptions: [],
-      EndUseSubOptions: [],
-    },
+      Notes: ""
+    }
   });
 
   // Dropdown options
@@ -583,7 +382,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     { id: 'No', name: 'No' },
   ];
 
-  // Fetch Data Functions
+  // Fetch data functions
   const fetchCompanies = async () => {
     try {
       setLoading(true);
@@ -616,28 +415,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((desc: any) => ({
           id: desc.listid,
           name: desc.descriptions,
-          subDescription: desc.subDescription || '',
-        })),
-      );
-    } catch (error) {
-      console.error('Error fetching descriptions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
- const fetchStuffs = async () => {
-    try {
-      setLoading(true);
-      const response = await getAllStuffs();
-      setStuffs(
-        response.data.map((item: any) => ({
-          id: item.listid,
-          name: item.descriptions,
         }))
       );
     } catch (error) {
-      console.error('Error fetching stuffs:', error);
+      console.error('Error fetching descriptions:', error);
     } finally {
       setLoading(false);
     }
@@ -651,8 +432,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+          subDescription: item.subDescription,
+        }))
       );
     } catch (error) {
       console.error('Error fetching blend ratios:', error);
@@ -669,8 +450,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching end uses:', error);
@@ -687,7 +467,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching fabric types:', error);
@@ -704,7 +484,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching packings:', error);
@@ -721,7 +501,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching piece lengths:', error);
@@ -738,8 +518,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching pick insertions:', error);
@@ -756,8 +535,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching warp yarn types:', error);
@@ -774,8 +552,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching weft yarn types:', error);
@@ -792,8 +569,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching weaves:', error);
@@ -810,8 +586,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching finals:', error);
@@ -828,8 +603,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching selvedges:', error);
@@ -846,8 +620,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching selvedge weaves:', error);
@@ -864,8 +637,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching selvedge widths:', error);
@@ -874,7 +646,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
-  const fetchSelvageThreads = async () => {
+   const fetchSelvageThreads = async () => {
     try {
       setLoading(true);
       const response = await getAllSelvegeThicknesss();
@@ -882,7 +654,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
         })),
       );
     } catch (error) {
@@ -900,7 +671,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
         })),
       );
     } catch (error) {
@@ -918,11 +688,27 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription || '',
         })),
       );
     } catch (error) {
       console.error('Error fetching GSMs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStuffs = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllStuffs();
+      setStuffs(
+        response.data.map((item: any) => ({
+          id: item.listid,
+          name: item.descriptions,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching stuffs:', error);
     } finally {
       setLoading(false);
     }
@@ -936,7 +722,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((seller: any) => ({
           id: seller.id,
           name: seller.sellerName,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching sellers:', error);
@@ -953,7 +739,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((buyer: any) => ({
           id: buyer.id,
           name: buyer.buyerName,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching buyers:', error);
@@ -970,7 +756,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching delivery terms:', error);
@@ -987,7 +773,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching commission types:', error);
@@ -1004,7 +790,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching payment terms:', error);
@@ -1021,7 +807,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching units of measure:', error);
@@ -1038,7 +824,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.id,
           name: item.gstType,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching GST types:', error);
@@ -1055,7 +841,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        })),
+        }))
       );
     } catch (error) {
       console.error('Error fetching selvege thicknesses:', error);
@@ -1064,194 +850,74 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
-  // State Management for Delivery Details
-  const handleDeliveryDetailChange = (index: number, field: string, value: string) => {
-    const updatedDetails = [...deliveryDetails];
-    updatedDetails[index] = { ...updatedDetails[index], [field]: value };
-    setDeliveryDetails(updatedDetails);
-    setValue(`DeliveryDetails.${index}.${field}` as any, value, { shouldValidate: true });
-  };
+  const companyId = watch('CompanyId');
+  const branchId = watch('BranchId');
+  const selectedBlendRatio = watch('BlendRatio');
+  const quantity = watch('Quantity');
+  const rate = watch('Rate');
+  const gst = watch('Gst');
+  const commissionType = watch('CommissionType');
+  const commissionPercentage = watch('CommissionPercentage');
 
-  const addDeliveryDetail = () => {
-    const newDetail = {
-      Id: undefined,
-      Quantity: '',
-      Rate: '',
-      FabricValue: '',
-      Gst: '',
-      GstValue: '',
-      CommissionType: '',
-      CommissionPercentage: '',
-      CommissionValue: '',
-      TotalAmount: '',
-      UnitOfMeasure: '',
-      Tolerance: '',
-      Packing: '',
-      PieceLength: '',
-      PaymentTermsSeller: '',
-      PaymentTermsBuyer: '',
-      FinishWidth: '',
-      DeliveryTerms: '',
-      CommissionFrom: '',
-      SellerCommission: '',
-      BuyerCommission: '',
-      DispatchLater: '',
-      SellerRemark: '',
-      BuyerRemark: '',
-      DeliveryDate: '',
-      Color: '',
-      Weight: '',
-      Shrinkage: '',
-      Finish: '',
-      LBDispNo: '',
-      LabDispatchDate: '',
-    };
-    setDeliveryDetails([...deliveryDetails, newDetail]);
-    setValue('DeliveryDetails', [...deliveryDetails, newDetail], { shouldValidate: true });
-  };
-
-  const removeDeliveryDetail = (index: number) => {
-    if (deliveryDetails.length <= 1) {
-      toast('At least one Delivery Detail is required', { type: 'warning' });
-      return;
-    }
-    const updatedDetails = deliveryDetails.filter((_, i) => i !== index);
-    setDeliveryDetails(updatedDetails);
-    setValue('DeliveryDetails', updatedDetails, { shouldValidate: true });
-  };
-
-  // Other Event Handlers (simplified for brevity)
-  const handleBuyerDeliveryBreakupChange = (index: number, field: string, value: string) => {
-    const updatedBreakups = [...buyerDeliveryBreakups];
-    updatedBreakups[index] = { ...updatedBreakups[index], [field]: value };
-    setBuyerDeliveryBreakups(updatedBreakups);
-  };
-
-  const handleSellerDeliveryBreakupChange = (index: number, field: string, value: string) => {
-    const updatedBreakups = [...sellerDeliveryBreakups];
-    updatedBreakups[index] = { ...updatedBreakups[index], [field]: value };
-    setSellerDeliveryBreakups(updatedBreakups);
-  };
-
-  const handleDeliveryTermDetailChange = (index: number, field: string, value: string) => {
-    const updatedDetails = [...deliveryTermDetails];
-    updatedDetails[index] = { ...updatedDetails[index], [field]: value };
-    setDeliveryTermDetails(updatedDetails);
-  };
-
-  const handleSampleDetailChange = (index: number, field: string, value: string) => {
-    const updatedSampleDetails = [...sampleDetails];
-    updatedSampleDetails[index] = { ...updatedSampleDetails[index], [field]: value };
-    setSampleDetails(updatedSampleDetails);
-  };
-
-  const handleAdditionalInfoChange = (sampleIndex: number, infoIndex: number, field: string, value: string) => {
-    const updatedSampleDetails = [...sampleDetails];
-    updatedSampleDetails[sampleIndex].AdditionalInfo[infoIndex] = {
-      ...updatedSampleDetails[sampleIndex].AdditionalInfo[infoIndex],
-      [field]: value,
-    };
-    setSampleDetails(updatedSampleDetails);
-  };
-
-  const addBuyerDeliveryBreakup = () => {
-    setBuyerDeliveryBreakups([...buyerDeliveryBreakups, { Id: undefined, Qty: '', DeliveryDate: '' }]);
-  };
-
-  const addSellerDeliveryBreakup = () => {
-    setSellerDeliveryBreakups([...sellerDeliveryBreakups, { Id: undefined, Qty: '', DeliveryDate: '' }]);
-  };
-
-  const addDeliveryTermDetail = () => {
-    setDeliveryTermDetails([...deliveryTermDetails, { Id: undefined, TermDescription: '', EffectiveDate: '' }]);
-  };
-
-  const addSampleDetail = () => {
-    setSampleDetails([
-      ...sampleDetails,
-      {
-        Id: undefined,
-        SampleQty: '',
-        SampleReceivedDate: '',
-        SampleDeliveredDate: '',
-        CreatedBy: 'Current User',
-        CreationDate: new Date().toISOString().split('T')[0],
-        UpdatedBy: '',
-        UpdateDate: '',
-        AdditionalInfo: [
-          {
-            Id: undefined,
-            EndUse: '',
-            Count: '',
-            Weight: '',
-            YarnBags: '',
-            Labs: '',
-          },
-        ],
-      },
-    ]);
-  };
-
-  const removeBuyerDeliveryBreakup = (index: number) => {
-    const updatedBreakups = buyerDeliveryBreakups.filter((_, i) => i !== index);
-    setBuyerDeliveryBreakups(updatedBreakups);
-  };
-
-  const removeSellerDeliveryBreakup = (index: number) => {
-    const updatedBreakups = sellerDeliveryBreakups.filter((_, i) => i !== index);
-    setSellerDeliveryBreakups(updatedBreakups);
-  };
-
-  const removeDeliveryTermDetail = (index: number) => {
-    const updatedDetails = deliveryTermDetails.filter((_, i) => i !== index);
-    setDeliveryTermDetails(updatedDetails);
-  };
-
-  const removeSampleDetail = (index: number) => {
-    const updatedSampleDetails = sampleDetails.filter((_, i) => i !== index);
-    setSampleDetails(updatedSampleDetails);
-  };
-
-  // Calculate Fabric Value, GST Value, Total Amount, and Commission Value for each Delivery Detail
   useEffect(() => {
-    deliveryDetails.forEach((detail, index) => {
-      const qty = parseFloat(detail.Quantity || '0');
-      const rt = parseFloat(detail.Rate || '0');
-      const fabricValue = (qty * rt).toFixed(2);
-      if (fabricValue !== detail.FabricValue) {
-        handleDeliveryDetailChange(index, 'FabricValue', fabricValue);
-      }
+    setShowForm(!!companyId && !!branchId);
+  }, [companyId, branchId]);
 
-      const selectedGst = gstTypes.find((g) => g.id === detail.Gst);
-      let gstValue = '0.00';
-      if (selectedGst) {
-        const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
-        gstValue = ((parseFloat(fabricValue) * percentage) / 100).toFixed(2);
-      }
-      if (gstValue !== detail.GstValue) {
-        handleDeliveryDetailChange(index, 'GstValue', gstValue);
-      }
+  // Update Blend Type options when Blend Ratio changes
+  useEffect(() => {
+    const selectedRatio = blendRatios.find((ratio) => ratio.id === selectedBlendRatio);
+    if (selectedRatio && selectedRatio.subDescription) {
+      const subDescArray = selectedRatio.subDescription
+        .split('|')
+        .filter((s: string) => s)
+        .map((subDesc: string, index: number) => ({
+          id: `${index}`,
+          name: subDesc.trim(),
+        }));
+      setBlendTypeOptions(subDescArray);
+      setValue('BlendType', subDescArray[0]?.name || '', { shouldValidate: true });
+    } else {
+      setBlendTypeOptions([]);
+      setValue('BlendType', '', { shouldValidate: true });
+    }
+  }, [selectedBlendRatio, blendRatios, setValue]);
 
-      const totalAmount = (parseFloat(fabricValue) + parseFloat(gstValue)).toFixed(2);
-      if (totalAmount !== detail.TotalAmount) {
-        handleDeliveryDetailChange(index, 'TotalAmount', totalAmount);
-      }
+  // Calculate Fabric Value, GST Value, Total Amount, and Commission Value
+  useEffect(() => {
+    // Fabric Value: Quantity * Rate
+    const qty = parseFloat(quantity || '0');
+    const rt = parseFloat(rate || '0');
+    const fabricValue = (qty * rt).toFixed(2);
+    setValue('FabricValue', fabricValue, { shouldValidate: true });
 
-      let commissionValue = '0.00';
-      const commissionInput = parseFloat(detail.CommissionPercentage || '0');
-      if (detail.CommissionType) {
-        const commissionTypeName = commissionTypes.find((type) => type.id === detail.CommissionType)?.name.toLowerCase();
-        if (commissionTypeName === 'on value' && commissionInput > 0 && parseFloat(totalAmount) > 0) {
-          commissionValue = ((parseFloat(totalAmount) * commissionInput) / 100).toFixed(2);
-        } else if (commissionTypeName === 'on qty' && commissionInput > 0 && qty > 0) {
-          commissionValue = (qty * commissionInput).toFixed(2);
-        }
+    // GST Value: Based on GST Type and Fabric Value
+    const selectedGst = gstTypes.find((g) => g.id === gst);
+    let gstValue = '0.00';
+    if (selectedGst) {
+      const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
+      gstValue = ((parseFloat(fabricValue) * percentage) / 100).toFixed(2);
+    }
+    setValue('GstValue', gstValue, { shouldValidate: true });
+
+    // Total Amount: Fabric Value + GST Value
+    const totalAmount = (parseFloat(fabricValue) + parseFloat(gstValue)).toFixed(2);
+    setValue('TotalAmount', totalAmount, { shouldValidate: true });
+
+    // Commission Value
+    let commissionValue = '0.00';
+    const commissionInput = parseFloat(commissionPercentage || '0');
+    if (commissionType) {
+      const commissionTypeName = commissionTypes.find(
+        (type) => type.id === commissionType
+      )?.name.toLowerCase();
+      if (commissionTypeName === 'on value' && commissionInput > 0 && parseFloat(totalAmount) > 0) {
+        commissionValue = ((parseFloat(totalAmount) * commissionInput) / 100).toFixed(2);
+      } else if (commissionTypeName === 'on qty' && commissionInput > 0 && qty > 0) {
+        commissionValue = (qty * commissionInput).toFixed(2);
       }
-      if (commissionValue !== detail.CommissionValue) {
-        handleDeliveryDetailChange(index, 'CommissionValue', commissionValue);
-      }
-    });
-  }, [deliveryDetails, gstTypes, commissionTypes]);
+    }
+    setValue('CommissionValue', commissionValue, { shouldValidate: true });
+  }, [quantity, rate, gst, commissionType, commissionPercentage, gstTypes, commissionTypes, setValue]);
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -1261,7 +927,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           fetchCompanies(),
           fetchBranches(),
           fetchDescriptions(),
-          fetchStuffs(),
           fetchBlendRatios(),
           fetchEndUses(),
           fetchFabricTypes(),
@@ -1275,9 +940,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           fetchSelvedges(),
           fetchSelvedgeWeaves(),
           fetchSelvedgeWidths(),
-          fetchSelvageThreads(),
-          fetchInductionThreads(),
-          fetchGsms(),
+          fetchSelvageThreads(), 
+          fetchInductionThreads(), 
+          fetchGsms(), 
+          fetchStuffs(),
           fetchSellers(),
           fetchBuyers(),
           fetchDeliveryTerms(),
@@ -1289,8 +955,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         ]);
 
         if (initialData) {
+          // Wait for next tick to ensure all state updates are complete
           setTimeout(() => {
+            // Format the data to match the expected format
             const formattedData = {
+              ...initialData,
               ContractType: initialData.contractType || 'Sale',
               CompanyId: initialData.companyId || '',
               BranchId: initialData.branchId || '',
@@ -1300,127 +969,69 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               Seller: initialData.seller || '',
               Buyer: initialData.buyer || '',
               ReferenceNumber: initialData.referenceNumber || '',
+              DeliveryDate: initialData.deliveryDate || '',
               Refer: initialData.refer || '',
               Referdate: initialData.referdate || '',
               FabricType: initialData.fabricType || '',
               Description: initialData.description || '',
-              DescriptionSubOptions: initialData.descriptionSubOptions?.split(',') || [],
               Stuff: initialData.stuff || '',
-              StuffSubOptions: initialData.stuffSubOptions?.split(',') || [],
               BlendRatio: initialData.blendRatio || '',
-              BlendType: initialData.blendType?.split(',') || [],
+              BlendType: initialData.blendType || '',
               WarpCount: initialData.warpCount || '',
               WarpYarnType: initialData.warpYarnType || '',
-              WarpYarnTypeSubOptions: initialData.warpYarnTypeSubOptions?.split(',') || [],
               WeftCount: initialData.weftCount || '',
               WeftYarnType: initialData.weftYarnType || '',
-              WeftYarnTypeSubOptions: initialData.weftYarnTypeSubOptions?.split(',') || [],
               NoOfEnds: initialData.noOfEnds || '',
               NoOfPicks: initialData.noOfPicks || '',
               Weaves: initialData.weaves || '',
-              WeavesSubOptions: initialData.weavesSubOptions?.split(',') || [],
               PickInsertion: initialData.pickInsertion || '',
-              PickInsertionSubOptions: initialData.pickInsertionSubOptions?.split(',') || [],
               Width: initialData.width || '',
               Final: initialData.final || '',
-              FinalSubOptions: initialData.finalSubOptions?.split(',') || [],
               Selvedge: initialData.selvege || '',
-              SelvedgeSubOptions: initialData.selvedgeSubOptions?.split(',') || [],
-              SelvedgeWeave: initialData.selvegeWeaves === null ? '' : initialData.selvegeWeaves || '',
-              SelvedgeWeaveSubOptions: initialData.selvedgeWeaveSubOptions?.split(',') || [],
-              SelvedgeWidth: initialData.selvedgeWidth === null ? '' : initialData.selvedgeWidth || '',
-              SelvedgeWidthSubOptions: initialData.selvedgeWidthSubOptions?.split(',') || [],
-              SelvageThread: initialData.selvageThread || '',
-              SelvageThreadSubOptions: initialData.selvageThreadSubOptions?.split(',') || [],
-              InductionThread: initialData.inductionThread || '',
-              InductionThreadSubOptions: initialData.inductionThreadSubOptions?.split(',') || [],
-              GSM: initialData.gsm || '',
-              GSMSubOptions: initialData.gsmSubOptions?.split(',') || [],
+              SelvedgeWeave: initialData.selvegeWeaves || '',
+              SelvedgeWidth: initialData.selvegeWidth || '',
+               SelvageThread: initialData.selvageThread || '', 
+              InductionThread: initialData.inductionThread || '', 
+              GSM: initialData.gsm || '', 
+              Quantity: initialData.quantity || '',
+              UnitOfMeasure: initialData.unitOfMeasure || '',
+              Tolerance: initialData.tolerance || '',
+              Rate: initialData.rate || '',
+              Packing: initialData.packing || '',
+              PieceLength: initialData.pieceLength || '',
+              FabricValue: initialData.fabricValue || '',
+              Gst: initialData.gst || '',
+              GstValue: initialData.gstValue || '',
+              TotalAmount: initialData.totalAmount || '',
+              PaymentTermsSeller: initialData.paymentTermsSeller || '',
+              PaymentTermsBuyer: initialData.paymentTermsBuyer || '',
+              DeliveryTerms: initialData.deliveryTerms || '',
+              CommissionFrom: initialData.commissionFrom || '',
+              CommissionType: initialData.commissionType || '',
+              CommissionPercentage: initialData.commissionPercentage || '',
+              CommissionValue: initialData.commissionValue || '',
+              DispatchAddress: initialData.dispatchAddress || '',
+              SellerRemark: initialData.sellerRemark || '',
+              BuyerRemark: initialData.buyerRemark || '',
+              CreatedBy: initialData.createdBy || '',
+              CreationDate: initialData.creationDate || '',
+              UpdatedBy: initialData.updatedBy || '',
+              UpdationDate: initialData.updationDate || '',
+              ApprovedBy: initialData.approvedBy || '',
+              ApprovedDate: initialData.approvedDate || '',
               EndUse: initialData.endUse || '',
-              EndUseSubOptions: initialData.endUseSubOptions?.split(',') || [],
               Notes: initialData.notes || '',
-              SelvegeThickness: initialData.selvegeThickness || '',
-              DeliveryDetails: initialData.deliveryDetails?.length ? initialData.deliveryDetails.map((detail) => ({
-                Id: detail.id,
-                Quantity: detail.quantity || '',
-                Rate: detail.rate || '',
-                FabricValue: detail.fabricValue || '',
-                Gst: detail.gst || '',
-                GstValue: detail.gstValue || '',
-                CommissionType: detail.commissionType || '',
-                CommissionPercentage: detail.commissionPercentage || '',
-                CommissionValue: detail.commissionValue || '',
-                TotalAmount: detail.totalAmount || '',
-                UnitOfMeasure: detail.unitOfMeasure || '',
-                Tolerance: detail.tolerance || '',
-                Packing: detail.packing || '',
-                PieceLength: detail.pieceLength || '',
-                PaymentTermsSeller: detail.paymentTermsSeller || '',
-                PaymentTermsBuyer: detail.paymentTermsBuyer || '',
-                FinishWidth: detail.finishWidth || '',
-                DeliveryTerms: detail.deliveryTerms || '',
-                CommissionFrom: detail.commissionFrom || '',
-                SellerCommission: detail.sellerCommission || '',
-                BuyerCommission: detail.buyerCommission || '',
-                DispatchLater: detail.dispatchLater || '',
-                SellerRemark: detail.sellerRemark || '',
-                BuyerRemark: detail.buyerRemark || '',
-                DeliveryDate: detail.deliveryDate || '',
-                Color: detail.color || '',
-                Weight: detail.weight || '',
-                Shrinkage: detail.shrinkage || '',
-                Finish: detail.finish || '',
-                LBDispNo: detail.lbDispNo || '',
-                LabDispatchDate: detail.labDispatchDate || '',
-              })) : [{
-                Id: undefined,
-                Quantity: initialData.quantity || '',
-                Rate: initialData.rate || '',
-                FabricValue: initialData.fabricValue || '',
-                Gst: initialData.gst || '',
-                GstValue: initialData.gstValue || '',
-                CommissionType: initialData.commissionType || '',
-                CommissionPercentage: initialData.commissionPercentage || '',
-                CommissionValue: initialData.commissionValue || '',
-                TotalAmount: initialData.totalAmount || '',
-                UnitOfMeasure: initialData.unitOfMeasure || '',
-                Tolerance: initialData.tolerance || '',
-                Packing: initialData.packing || '',
-                PieceLength: initialData.pieceLength || '',
-                PaymentTermsSeller: initialData.paymentTermsSeller || '',
-                PaymentTermsBuyer: initialData.paymentTermsBuyer || '',
-                FinishWidth: initialData.width || '',
-                DeliveryTerms: initialData.deliveryTerms || '',
-                CommissionFrom: initialData.commissionFrom || '',
-                SellerCommission: '',
-                BuyerCommission: '',
-                DispatchLater: '',
-                SellerRemark: initialData.sellerRemark || '',
-                BuyerRemark: initialData.buyerRemark || '',
-                DeliveryDate: initialData.deliveryDate || '',
-                Color: '',
-                Weight: '',
-                Shrinkage: '',
-                Finish: '',
-                LBDispNo: '',
-                LabDispatchDate: '',
-              }],
-              BuyerDeliveryBreakups: initialData.buyerDeliveryBreakups?.map((breakup) => ({
+              BuyerDeliveryBreakups: initialData.buyerDeliveryBreakups?.map(breakup => ({
                 Id: breakup.id,
                 Qty: breakup.qty,
-                DeliveryDate: breakup.deliveryDate,
+                DeliveryDate: breakup.deliveryDate
               })) || [],
-              SellerDeliveryBreakups: initialData.sellerDeliveryBreakups?.map((breakup) => ({
+              SellerDeliveryBreakups: initialData.sellerDeliveryBreakups?.map(breakup => ({
                 Id: breakup.id,
                 Qty: breakup.qty,
-                DeliveryDate: breakup.deliveryDate,
+                DeliveryDate: breakup.deliveryDate
               })) || [],
-              DeliveryTermDetails: initialData.deliveryTermDetails?.map((detail) => ({
-                Id: detail.id,
-                TermDescription: detail.termDescription,
-                EffectiveDate: detail.effectiveDate,
-              })) || [],
-              SampleDetails: initialData.sampleDetails?.map((detail) => ({
+              SampleDetails: initialData.sampleDetails?.map(detail => ({
                 Id: detail.id,
                 SampleQty: detail.sampleQty,
                 SampleReceivedDate: detail.sampleReceivedDate,
@@ -1429,25 +1040,41 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 CreationDate: detail.creationDate,
                 UpdatedBy: detail.updatedBy,
                 UpdateDate: detail.updateDate,
-                AdditionalInfo: detail.additionalInfo?.map((info) => ({
+                AdditionalInfo: detail.additionalInfo?.map(info => ({
                   Id: info.id,
                   EndUse: info.endUse,
                   Count: info.count,
                   Weight: info.weight,
                   YarnBags: info.yarnBags,
-                  Labs: info.labs,
-                })) || [],
-              })) || [],
+                  Labs: info.labs
+                })) || []
+              })) || []
             };
 
+            // Reset form with formatted data
             reset(formattedData);
-            setDeliveryDetails(formattedData.DeliveryDetails);
-            setBuyerDeliveryBreakups(formattedData.BuyerDeliveryBreakups);
-            setSellerDeliveryBreakups(formattedData.SellerDeliveryBreakups);
-            setDeliveryTermDetails(formattedData.DeliveryTermDetails);
-            setSampleDetails(formattedData.SampleDetails);
-            setShowForm(true);
-          }, 100);
+
+            // Set additional state
+            if (initialData.buyerDeliveryBreakups) {
+              setBuyerDeliveryBreakups(initialData.buyerDeliveryBreakups.map(breakup => ({
+                Id: breakup.id,
+                Qty: breakup.qty,
+                DeliveryDate: breakup.deliveryDate
+              })));
+            }
+            if (initialData.sellerDeliveryBreakups) {
+              setSellerDeliveryBreakups(initialData.sellerDeliveryBreakups.map(breakup => ({
+                Id: breakup.id,
+                Qty: breakup.qty,
+                DeliveryDate: breakup.deliveryDate
+              })));
+            }
+
+            // Trigger validation for all fields
+            Object.keys(formattedData).forEach((key) => {
+              trigger(key as keyof FormData);
+            });
+          }, 100); // Increased timeout to ensure all state updates are complete
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -1457,10 +1084,107 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     };
 
     fetchAllData();
-  }, [initialData, reset, trigger]);
+  }, [initialData, reset, sampleDetails, trigger]);
 
-  const onSubmit: SubmitHandler<FormData> = async (data) => {
+  const handleBuyerDeliveryBreakupChange = (index: number, field: string, value: string) => {
+    const updatedBreakups = [...buyerDeliveryBreakups];
+    updatedBreakups[index] = { ...updatedBreakups[index], [field]: value };
+    setBuyerDeliveryBreakups(updatedBreakups);
+  };
+
+  const handleSellerDeliveryBreakupChange = (index: number, field: string, value: string) => {
+    const updatedBreakups = [...sellerDeliveryBreakups];
+    updatedBreakups[index] = { ...updatedBreakups[index], [field]: value };
+    setSellerDeliveryBreakups(updatedBreakups);
+  };
+
+  const handleSampleDetailChange = (index: number, field: string, value: string) => {
+    const updatedSampleDetails = [...sampleDetails];
+    updatedSampleDetails[index] = { ...updatedSampleDetails[index], [field]: value };
+    if (field === 'CreatedBy' && value) {
+      updatedSampleDetails[index].CreationDate = new Date().toISOString().split('T')[0];
+    }
+    if (field === 'UpdatedBy' && value) {
+      updatedSampleDetails[index].UpdateDate = new Date().toISOString().split('T')[0];
+    }
+    setSampleDetails(updatedSampleDetails);
+  };
+
+  const handleAdditionalInfoChange = (sampleIndex: number, infoIndex: number, field: string, value: string) => {
+    const updatedSampleDetails = [...sampleDetails];
+    updatedSampleDetails[sampleIndex].AdditionalInfo[infoIndex] = {
+      ...updatedSampleDetails[sampleIndex].AdditionalInfo[infoIndex],
+      [field]: value
+    };
+    setSampleDetails(updatedSampleDetails);
+  };
+
+  const addBuyerDeliveryBreakup = () => {
+    setBuyerDeliveryBreakups([...buyerDeliveryBreakups, { Id: undefined, Qty: '', DeliveryDate: '' }]);
+  };
+
+  const addSellerDeliveryBreakup = () => {
+    setSellerDeliveryBreakups([...sellerDeliveryBreakups, { Id: undefined, Qty: '', DeliveryDate: '' }]);
+  };
+
+  const addSampleDetail = () => {
+    setSampleDetails([...sampleDetails, {
+      Id: undefined,
+      SampleQty: '',
+      SampleReceivedDate: '',
+      SampleDeliveredDate: '',
+      CreatedBy: 'Current User',
+      CreationDate: new Date().toISOString().split('T')[0],
+      UpdatedBy: '',
+      UpdateDate: '',
+      AdditionalInfo: [{
+        Id: undefined,
+        EndUse: '',
+        Count: '',
+        Weight: '',
+        YarnBags: '',
+        Labs: '',
+      }],
+    }]);
+  };
+
+  const removeBuyerDeliveryBreakup = (index: number) => {
+    const updatedBreakups = buyerDeliveryBreakups.filter((_, i) => i !== index);
+    setBuyerDeliveryBreakups(updatedBreakups);
+  };
+
+  const removeSellerDeliveryBreakup = (index: number) => {
+    const updatedBreakups = sellerDeliveryBreakups.filter((_, i) => i !== index);
+    setSellerDeliveryBreakups(updatedBreakups);
+  };
+
+  const removeSampleDetail = (index: number) => {
+    const updatedSampleDetails = sampleDetails.filter((_, i) => i !== index);
+    setSampleDetails(updatedSampleDetails);
+  };
+
+  const addAdditionalInfo = (sampleIndex: number) => {
+    const updatedSampleDetails = [...sampleDetails];
+    updatedSampleDetails[sampleIndex].AdditionalInfo.push({
+      Id: undefined,
+      EndUse: '',
+      Count: '',
+      Weight: '',
+      YarnBags: '',
+      Labs: '',
+    });
+    setSampleDetails(updatedSampleDetails);
+  };
+
+  const removeAdditionalInfo = (sampleIndex: number, infoIndex: number) => {
+    const updatedSampleDetails = [...sampleDetails];
+    updatedSampleDetails[sampleIndex].AdditionalInfo = updatedSampleDetails[sampleIndex].AdditionalInfo.filter((_, i) => i !== infoIndex);
+    setSampleDetails(updatedSampleDetails);
+  };
+
+  const onSubmit = async (data: FormData) => {
     try {
+      // Format the data to match the API schema exactly
       const payload = {
         id: id || undefined,
         contractNumber: data.ContractNumber,
@@ -1472,68 +1196,68 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         seller: data.Seller,
         buyer: data.Buyer,
         referenceNumber: data.ReferenceNumber || '',
+        deliveryDate: data.DeliveryDate,
         refer: data.Refer || '',
         referdate: data.Referdate || '',
         fabricType: data.FabricType,
         description: data.Description,
-        descriptionSubOptions: data.DescriptionSubOptions?.join(',') || '',
         stuff: data.Stuff,
-        stuffSubOptions: data.StuffSubOptions?.join(',') || '',
         blendRatio: data.BlendRatio || '',
-        blendType: data.BlendType?.join(',') || '',
+        blendType: data.BlendType || '',
         warpCount: data.WarpCount || '',
         warpYarnType: data.WarpYarnType || '',
-        warpYarnTypeSubOptions: data.WarpYarnTypeSubOptions?.join(',') || '',
         weftCount: data.WeftCount || '',
         weftYarnType: data.WeftYarnType,
-        weftYarnTypeSubOptions: data.WeftYarnTypeSubOptions?.join(',') || '',
         noOfEnds: data.NoOfEnds || '',
         noOfPicks: data.NoOfPicks || '',
         weaves: data.Weaves || '',
-        weavesSubOptions: data.WeavesSubOptions?.join(',') || '',
         pickInsertion: data.PickInsertion || '',
-        pickInsertionSubOptions: data.PickInsertionSubOptions?.join(',') || '',
         width: data.Width || '',
         final: data.Final || '',
-        finalSubOptions: data.FinalSubOptions?.join(',') || '',
         selvege: data.Selvedge || '',
-        selvedgeSubOptions: data.SelvedgeSubOptions?.join(',') || '',
         selvegeWeaves: data.SelvedgeWeave || '',
-        selvedgeWeaveSubOptions: data.SelvedgeWeaveSubOptions?.join(',') || '',
-        selvedgeWidth: data.SelvedgeWidth || '',
-        selvedgeWidthSubOptions: data.SelvedgeWidthSubOptions?.join(',') || '',
-        selvageThread: data.SelvageThread || '',
-        selvageThreadSubOptions: data.SelvageThreadSubOptions?.join(',') || '',
-        inductionThread: data.InductionThread || '',
-        inductionThreadSubOptions: data.InductionThreadSubOptions?.join(',') || '',
-        gsm: data.GSM || '',
-        gsmSubOptions: data.GSMSubOptions?.join(',') || '',
-        endUse: data.EndUse || '',
-        endUseSubOptions: data.EndUseSubOptions?.join(',') || '',
+        selvegeWidth: data.SelvedgeWidth || '',
+         selvageThread: data.SelvageThread || '', 
+        inductionThread: data.InductionThread || '', 
+        gsm: data.GSM || '', 
+        quantity: data.Quantity,
+        unitOfMeasure: data.UnitOfMeasure,
+        tolerance: data.Tolerance || '',
+        rate: data.Rate,
+        packing: data.Packing || '',
+        pieceLength: data.PieceLength || '',
+        fabricValue: data.FabricValue,
+        gst: data.Gst,
+        gstValue: data.GstValue || '',
+        totalAmount: data.TotalAmount,
+        paymentTermsSeller: data.PaymentTermsSeller || '',
+        paymentTermsBuyer: data.PaymentTermsBuyer || '',
+        deliveryTerms: data.DeliveryTerms || '',
+        commissionFrom: data.CommissionFrom || '',
+        commissionType: data.CommissionType || '',
+        commissionPercentage: data.CommissionPercentage || '',
+        commissionValue: data.CommissionValue || '',
+        dispatchAddress: data.DispatchAddress || '',
+        sellerRemark: data.SellerRemark || '',
+        buyerRemark: data.BuyerRemark || '',
         createdBy: data.CreatedBy || '',
         creationDate: data.CreationDate || '',
         updatedBy: data.UpdatedBy || '',
         updationDate: data.UpdationDate || '',
         approvedBy: data.ApprovedBy || '',
         approvedDate: data.ApprovedDate || '',
-        notes: data.Notes || '',
-        selvegeThickness: data.SelvegeThickness || '',
-        buyerDeliveryBreakups: buyerDeliveryBreakups.map((breakup) => ({
+        endUse: data.EndUse || '',
+        buyerDeliveryBreakups: buyerDeliveryBreakups.map(breakup => ({
           id: breakup.Id || undefined,
           qty: breakup.Qty,
-          deliveryDate: breakup.DeliveryDate,
+          deliveryDate: breakup.DeliveryDate
         })),
-        sellerDeliveryBreakups: sellerDeliveryBreakups.map((breakup) => ({
+        sellerDeliveryBreakups: sellerDeliveryBreakups.map(breakup => ({
           id: breakup.Id || undefined,
           qty: breakup.Qty,
-          deliveryDate: breakup.DeliveryDate,
+          deliveryDate: breakup.DeliveryDate
         })),
-        deliveryTermDetails: deliveryTermDetails.map((detail) => ({
-          id: detail.Id || undefined,
-          termDescription: detail.TermDescription,
-          effectiveDate: detail.EffectiveDate,
-        })),
-        sampleDetails: sampleDetails.map((detail) => ({
+        sampleDetails: sampleDetails.map(detail => ({
           id: detail.Id || undefined,
           sampleQty: detail.SampleQty,
           sampleReceivedDate: detail.SampleReceivedDate,
@@ -1541,60 +1265,30 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           createdBy: detail.CreatedBy,
           creationDate: detail.CreationDate,
           updatedBy: detail.UpdatedBy || '',
-          updateDate: detail.UpdateDate,
-          additionalInfo: detail.AdditionalInfo.map((info) => ({
+          updateDate: detail.UpdateDate || '',
+          additionalInfo: detail.AdditionalInfo.map(info => ({
             id: info.Id || undefined,
             endUse: info.EndUse,
             count: info.Count,
             weight: info.Weight,
             yarnBags: info.YarnBags,
-            labs: info.Labs,
-          })),
+            labs: info.Labs
+          }))
         })),
-        deliveryDetails: deliveryDetails.map((detail) => ({
-          id: detail.Id || undefined,
-          quantity: detail.Quantity,
-          rate: detail.Rate,
-          fabricValue: detail.FabricValue,
-          gst: detail.Gst,
-          gstValue: detail.GstValue,
-          commissionType: detail.CommissionType,
-          commissionPercentage: detail.CommissionPercentage,
-          commissionValue: detail.CommissionValue,
-          totalAmount: detail.TotalAmount,
-          unitOfMeasure: detail.UnitOfMeasure,
-          tolerance: detail.Tolerance,
-          packing: detail.Packing,
-          pieceLength: detail.PieceLength,
-          paymentTermsSeller: detail.PaymentTermsSeller,
-          paymentTermsBuyer: detail.PaymentTermsBuyer,
-          finishWidth: detail.FinishWidth,
-          deliveryTerms: detail.DeliveryTerms,
-          commissionFrom: detail.CommissionFrom,
-          sellerCommission: detail.SellerCommission,
-          buyerCommission: detail.BuyerCommission,
-          dispatchLater: detail.DispatchLater,
-          sellerRemark: detail.SellerRemark,
-          buyerRemark: detail.BuyerRemark,
-          deliveryDate: detail.DeliveryDate,
-          color: detail.Color,
-          weight: detail.Weight,
-          shrinkage: detail.Shrinkage,
-          finish: detail.Finish,
-          lbDispNo: detail.LBDispNo,
-          labDispatchDate: detail.LabDispatchDate,
-        })),
+        selvegeThickness: data.SelvegeThickness || '',
       };
 
+      // Remove any undefined or null values from the payload
       const cleanPayload = Object.fromEntries(
         Object.entries(payload).filter(([_, value]) => {
           if (Array.isArray(value)) {
             return value.length > 0;
           }
           return value !== undefined && value !== null && value !== '';
-        }),
+        })
       );
 
+      console.log('Form Payload:', JSON.stringify(cleanPayload, null, 2));
       let response;
       if (id) {
         response = await updateContract(id, cleanPayload);
@@ -1610,6 +1304,110 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       toast('Error submitting contract', { type: 'error' });
     }
   };
+
+  // Update the useEffect for form reset
+  useEffect(() => {
+    if (initialData) {
+      const formattedData = {
+        ContractNumber: initialData.contractNumber || '',
+        Date: initialData.date || '',
+        ContractType: initialData.contractType || 'Sale',
+        CompanyId: initialData.companyId || '',
+        BranchId: initialData.branchId || '',
+        ContractOwner: initialData.contractOwner || '',
+        Seller: initialData.seller || '',
+        Buyer: initialData.buyer || '',
+        ReferenceNumber: initialData.referenceNumber || '',
+        DeliveryDate: initialData.deliveryDate || '',
+        Refer: initialData.refer || '',
+        Referdate: initialData.referdate || '',
+        FabricType: initialData.fabricType || '',
+        Description: initialData.description || '',
+        Stuff: initialData.stuff || '',
+        BlendRatio: initialData.blendRatio || '',
+        BlendType: initialData.blendType || '',
+        WarpCount: initialData.warpCount || '',
+        WarpYarnType: initialData.warpYarnType || '',
+        WeftCount: initialData.weftCount || '',
+        WeftYarnType: initialData.weftYarnType || '',
+        NoOfEnds: initialData.noOfEnds || '',
+        NoOfPicks: initialData.noOfPicks || '',
+        Weaves: initialData.weaves || '',
+        PickInsertion: initialData.pickInsertion || '',
+        Width: initialData.width || '',
+        Final: initialData.final || '',
+        Selvedge: initialData.selvege || '',
+        SelvedgeWeave: initialData.selvegeWeaves || '',
+        SelvedgeWidth: initialData.selvegeWidth || '',
+        SelvageThread: initialData.selvageThread || '',
+        InductionThread: initialData.inductionThread || '',
+        GSM: initialData.gsm || '',
+        Quantity: initialData.quantity || '',
+        UnitOfMeasure: initialData.unitOfMeasure || '',
+        Tolerance: initialData.tolerance || '',
+        Rate: initialData.rate || '',
+        Packing: initialData.packing || '',
+        PieceLength: initialData.pieceLength || '',
+        FabricValue: initialData.fabricValue || '',
+        Gst: initialData.gst || '',
+        GstValue: initialData.gstValue || '',
+        TotalAmount: initialData.totalAmount || '',
+        PaymentTermsSeller: initialData.paymentTermsSeller || '',
+        PaymentTermsBuyer: initialData.paymentTermsBuyer || '',
+        DeliveryTerms: initialData.deliveryTerms || '',
+        CommissionFrom: initialData.commissionFrom || '',
+        CommissionType: initialData.commissionType || '',
+        CommissionPercentage: initialData.commissionPercentage || '',
+        CommissionValue: initialData.commissionValue || '',
+        DispatchAddress: initialData.dispatchAddress || '',
+        SellerRemark: initialData.sellerRemark || '',
+        BuyerRemark: initialData.buyerRemark || '',
+        CreatedBy: initialData.createdBy || '',
+        CreationDate: initialData.creationDate || '',
+        UpdatedBy: initialData.updatedBy || '',
+        UpdationDate: initialData.updationDate || '',
+        ApprovedBy: initialData.approvedBy || '',
+        ApprovedDate: initialData.approvedDate || '',
+        EndUse: initialData.endUse || '',
+        Notes: initialData.notes || '',
+        SelvegeThickness: initialData.selvegeThickness || '',
+        BuyerDeliveryBreakups: initialData.buyerDeliveryBreakups?.map(breakup => ({
+          Id: breakup.id,
+          Qty: breakup.qty,
+          DeliveryDate: breakup.deliveryDate
+        })) || [],
+        SellerDeliveryBreakups: initialData.sellerDeliveryBreakups?.map(breakup => ({
+          Id: breakup.id,
+          Qty: breakup.qty,
+          DeliveryDate: breakup.deliveryDate
+        })) || [],
+        SampleDetails: initialData.sampleDetails?.map(detail => ({
+          Id: detail.id,
+          SampleQty: detail.sampleQty,
+          SampleReceivedDate: detail.sampleReceivedDate,
+          SampleDeliveredDate: detail.sampleDeliveredDate,
+          CreatedBy: detail.createdBy,
+          CreationDate: detail.creationDate,
+          UpdatedBy: detail.updatedBy,
+          UpdateDate: detail.updateDate,
+          AdditionalInfo: detail.additionalInfo?.map(info => ({
+            Id: info.id,
+            EndUse: info.endUse,
+            Count: info.count,
+            Weight: info.weight,
+            YarnBags: info.yarnBags,
+            Labs: info.labs
+          })) || []
+        })) || []
+      };
+
+      reset(formattedData);
+      setBuyerDeliveryBreakups(formattedData.BuyerDeliveryBreakups);
+      setSellerDeliveryBreakups(formattedData.SellerDeliveryBreakups);
+      setSampleDetails(formattedData.SampleDetails);
+    }
+  }, [initialData, reset]);
+
   return (
     <div className="container mx-auto bg-white shadow-lg rounded-lg dark:bg-[#030630] p-6">
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded-t-lg flex items-center">
@@ -1620,10 +1418,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       </div>
 
       <div className="flex flex-col gap-6">
-        <div className="flex flex-row gap-6">
+        <div className="flex flex-row gap-6 ">
+          {/* First Div: Input Fields (70% width) */}
           <div className="w-[100%]">
             <form onSubmit={handleSubmit(onSubmit)}>
               <div className="flex flex-row gap-6 p-6">
+                {/* First Div: Input Fields (70% width) */}
                 <div className="w-11/12 space-y-6">
                   <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
                     <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">General Information</h2>
@@ -1734,43 +1534,36 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
                     <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Items</h2>
                     <div className="grid grid-cols-6 gap-4">
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="Description"
-                        name="Description"
-                        subName="DescriptionSubOptions"
                         options={descriptions}
                         selectedOption={watch('Description') || ''}
-                        selectedSubOptions={watch('DescriptionSubOptions') || []}
                         onChange={(value) => setValue('Description', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('DescriptionSubOptions', values, { shouldValidate: true })}
                         error={errors.Description?.message}
-                        subError={errors.DescriptionSubOptions?.message}
                         register={register}
                       />
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="Stuff"
-                        name="Stuff"
-                        subName="StuffSubOptions"
                         options={stuffs}
                         selectedOption={watch('Stuff') || ''}
-                        selectedSubOptions={watch('StuffSubOptions') || []}
                         onChange={(value) => setValue('Stuff', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('StuffSubOptions', values, { shouldValidate: true })}
                         error={errors.Stuff?.message}
-                        subError={errors.StuffSubOptions?.message}
                         register={register}
                       />
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="Blend Ratio"
-                        name="BlendRatio"
-                        subName="BlendType"
                         options={blendRatios}
                         selectedOption={watch('BlendRatio') || ''}
-                        selectedSubOptions={watch('BlendType') || []}
                         onChange={(value) => setValue('BlendRatio', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('BlendType', values, { shouldValidate: true })}
                         error={errors.BlendRatio?.message}
-                        subError={errors.BlendType?.message}
+                        register={register}
+                      />
+                      <CustomInputDropdown
+                        label="Blend Type"
+                        options={blendTypeOptions}
+                        selectedOption={watch('BlendType') || ''}
+                        onChange={(value) => setValue('BlendType', value, { shouldValidate: true })}
+                        error={errors.BlendType?.message}
                         register={register}
                       />
                       <CustomInput
@@ -1781,17 +1574,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         {...register('WarpCount')}
                         error={errors.WarpCount?.message}
                       />
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="Warp Yarn Type"
-                        name="WarpYarnType"
-                        subName="WarpYarnTypeSubOptions"
                         options={warpYarnTypes}
                         selectedOption={watch('WarpYarnType') || ''}
-                        selectedSubOptions={watch('WarpYarnTypeSubOptions') || []}
                         onChange={(value) => setValue('WarpYarnType', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('WarpYarnTypeSubOptions', values, { shouldValidate: true })}
                         error={errors.WarpYarnType?.message}
-                        subError={errors.WarpYarnTypeSubOptions?.message}
                         register={register}
                       />
                       <CustomInput
@@ -1805,17 +1593,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       {weftYarnTypes.length === 0 && loading ? (
                         <div>Loading Weft Yarn Types...</div>
                       ) : (
-                        <DescriptionWithSubSelect
+                        <CustomInputDropdown
                           label="Weft Yarn Type"
-                          name="WeftYarnType"
-                          subName="WeftYarnTypeSubOptions"
                           options={weftYarnTypes}
                           selectedOption={watch('WeftYarnType') || ''}
-                          selectedSubOptions={watch('WeftYarnTypeSubOptions') || []}
                           onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
-                          onSubChange={(values) => setValue('WeftYarnTypeSubOptions', values, { shouldValidate: true })}
                           error={errors.WeftYarnType?.message}
-                          subError={errors.WeftYarnTypeSubOptions?.message}
                           register={register}
                         />
                       )}
@@ -1840,31 +1623,21 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       {weaves.length === 0 && loading ? (
                         <div>Loading Weaves...</div>
                       ) : (
-                        <DescriptionWithSubSelect
+                        <CustomInputDropdown
                           label="Weaves"
-                          name="Weaves"
-                          subName="WeavesSubOptions"
                           options={weaves}
                           selectedOption={watch('Weaves') || ''}
-                          selectedSubOptions={watch('WeavesSubOptions') || []}
                           onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
-                          onSubChange={(values) => setValue('WeavesSubOptions', values, { shouldValidate: true })}
                           error={errors.Weaves?.message}
-                          subError={errors.WeavesSubOptions?.message}
                           register={register}
                         />
                       )}
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="Pick Insertion"
-                        name="PickInsertion"
-                        subName="PickInsertionSubOptions"
                         options={pickInsertions}
                         selectedOption={watch('PickInsertion') || ''}
-                        selectedSubOptions={watch('PickInsertionSubOptions') || []}
                         onChange={(value) => setValue('PickInsertion', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('PickInsertionSubOptions', values, { shouldValidate: true })}
                         error={errors.PickInsertion?.message}
-                        subError={errors.PickInsertionSubOptions?.message}
                         register={register}
                       />
                       <CustomInput
@@ -1875,165 +1648,113 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         {...register('Width')}
                         error={errors.Width?.message}
                       />
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="Final"
-                        name="Final"
-                        subName="FinalSubOptions"
                         options={finals}
                         selectedOption={watch('Final') || ''}
-                        selectedSubOptions={watch('FinalSubOptions') || []}
                         onChange={(value) => setValue('Final', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('FinalSubOptions', values, { shouldValidate: true })}
                         error={errors.Final?.message}
-                        subError={errors.FinalSubOptions?.message}
                         register={register}
                       />
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="Selvedge"
-                        name="Selvedge"
-                        subName="SelvedgeSubOptions"
                         options={selvedges}
                         selectedOption={watch('Selvedge') || ''}
-                        selectedSubOptions={watch('SelvedgeSubOptions') || []}
                         onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('SelvedgeSubOptions', values, { shouldValidate: true })}
                         error={errors.Selvedge?.message}
-                        subError={errors.SelvedgeSubOptions?.message}
                         register={register}
                       />
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="Selvedge Weave"
-                        name="SelvedgeWeave"
-                        subName="SelvedgeWeaveSubOptions"
                         options={selvedgeWeaves}
                         selectedOption={watch('SelvedgeWeave') || ''}
-                        selectedSubOptions={watch('SelvedgeWeaveSubOptions') || []}
                         onChange={(value) => setValue('SelvedgeWeave', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('SelvedgeWeaveSubOptions', values, { shouldValidate: true })}
                         error={errors.SelvedgeWeave?.message}
-                        subError={errors.SelvedgeWeaveSubOptions?.message}
                         register={register}
                       />
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="Selvedge Width"
-                        name="SelvedgeWidth"
-                        subName="SelvedgeWidthSubOptions"
                         options={selvedgeWidths}
                         selectedOption={watch('SelvedgeWidth') || ''}
-                        selectedSubOptions={watch('SelvedgeWidthSubOptions') || []}
                         onChange={(value) => setValue('SelvedgeWidth', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('SelvedgeWidthSubOptions', values, { shouldValidate: true })}
                         error={errors.SelvedgeWidth?.message}
-                        subError={errors.SelvedgeWidthSubOptions?.message}
                         register={register}
                       />
                       {selvageThreads.length === 0 && loading ? (
                         <div>Loading Selvage Threads...</div>
                       ) : (
-                        <DescriptionWithSubSelect
+                        <CustomInputDropdown
                           label="Selvage Thickness"
-                          name="SelvageThread"
-                          subName="SelvageThreadSubOptions"
                           options={selvageThreads}
                           selectedOption={watch('SelvageThread') || ''}
-                          selectedSubOptions={watch('SelvageThreadSubOptions') || []}
                           onChange={(value) => setValue('SelvageThread', value, { shouldValidate: true })}
-                          onSubChange={(values) => setValue('SelvageThreadSubOptions', values, { shouldValidate: true })}
                           error={errors.SelvageThread?.message}
-                          subError={errors.SelvageThreadSubOptions?.message}
                           register={register}
                         />
                       )}
                       {inductionThreads.length === 0 && loading ? (
                         <div>Loading Induction Threads...</div>
                       ) : (
-                        <DescriptionWithSubSelect
+                        <CustomInputDropdown
                           label="Induction Thread"
-                          name="InductionThread"
-                          subName="InductionThreadSubOptions"
                           options={inductionThreads}
                           selectedOption={watch('InductionThread') || ''}
-                          selectedSubOptions={watch('InductionThreadSubOptions') || []}
                           onChange={(value) => setValue('InductionThread', value, { shouldValidate: true })}
-                          onSubChange={(values) => setValue('InductionThreadSubOptions', values, { shouldValidate: true })}
                           error={errors.InductionThread?.message}
-                          subError={errors.InductionThreadSubOptions?.message}
                           register={register}
                         />
                       )}
                       {gsms.length === 0 && loading ? (
                         <div>Loading GSMs...</div>
                       ) : (
-                        <DescriptionWithSubSelect
+                        <CustomInputDropdown
                           label="GSM"
-                          name="GSM"
-                          subName="GSMSubOptions"
                           options={gsms}
                           selectedOption={watch('GSM') || ''}
-                          selectedSubOptions={watch('GSMSubOptions') || []}
                           onChange={(value) => setValue('GSM', value, { shouldValidate: true })}
-                          onSubChange={(values) => setValue('GSMSubOptions', values, { shouldValidate: true })}
                           error={errors.GSM?.message}
-                          subError={errors.GSMSubOptions?.message}
                           register={register}
                         />
                       )}
-                      <DescriptionWithSubSelect
+                      <CustomInputDropdown
                         label="End Use"
-                        name="EndUse"
-                        subName="EndUseSubOptions"
                         options={endUses}
                         selectedOption={watch('EndUse') || ''}
-                        selectedSubOptions={watch('EndUseSubOptions') || []}
                         onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('EndUseSubOptions', values, { shouldValidate: true })}
                         error={errors.EndUse?.message}
-                        subError={errors.EndUseSubOptions?.message}
                         register={register}
                       />
                     </div>
                   </div>
-                  
-                 {/* Delivery Details Section */}
-              <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
-                <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Delivery Details</h2>
-                {deliveryDetails.map((detail, index) => (
-                  <div key={index} className="mb-6 border rounded-lg p-4 bg-white dark:bg-gray-700 relative">
-                    <h3 className="text-lg font-semibold text-[#06b6d4] dark:text-white mb-4">Delivery Detail #{index + 1}</h3>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removeDeliveryDetail(index)}
-                      className="absolute top-4 right-4"
-                    >
-                      <MdDelete />
-                    </Button>
+
+                  <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+                    <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Delivery Details</h2>
                     <div className="grid grid-cols-5 gap-4">
                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Quantity"
-                        value={detail.Quantity}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'Quantity', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.Quantity?.message}
+                        id="Quantity"
+                        {...register('Quantity')}
+                        error={errors.Quantity?.message}
                       />
-                      <CustomInput
+                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Rate"
-                        value={detail.Rate}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'Rate', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.Rate?.message}
+                        id="Rate"
+                        {...register('Rate')}
+                        error={errors.Rate?.message}
                       />
-                      <CustomInput
+                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Fabric Value"
-                        value={detail.FabricValue}
+                        id="FabricValue"
+                        {...register('FabricValue')}
+                        error={errors.FabricValue?.message}
                         disabled
                         className="auto-calculated-field"
-                        error={errors.DeliveryDetails?.[index]?.FabricValue?.message}
                       />
                       {gstTypes.length === 0 && loading ? (
                         <div>Loading GST Types...</div>
@@ -2041,19 +1762,24 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         <CustomInputDropdown
                           label="GST Type"
                           options={gstTypes}
-                          selectedOption={detail.Gst || ''}
-                          onChange={(value) => handleDeliveryDetailChange(index, 'Gst', value)}
-                          error={errors.DeliveryDetails?.[index]?.Gst?.message}
+                          selectedOption={watch('Gst') || ''}
+                          onChange={(value) => {
+                            setValue('Gst', value, { shouldValidate: true });
+                            trigger('Gst');
+                          }}
+                          error={errors.Gst?.message}
+                          register={register}
                         />
                       )}
                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="GST Value"
-                        value={detail.GstValue}
+                        id="GstValue"
+                        {...register('GstValue')}
+                        error={errors.GstValue?.message}
                         disabled
                         className="auto-calculated-field"
-                        error={errors.DeliveryDetails?.[index]?.GstValue?.message}
                       />
                       {commissionTypes.length === 0 && loading ? (
                         <div>Loading Commission Types...</div>
@@ -2061,233 +1787,190 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         <CustomInputDropdown
                           label="Commission Type"
                           options={commissionTypes}
-                          selectedOption={detail.CommissionType || ''}
-                          onChange={(value) => handleDeliveryDetailChange(index, 'CommissionType', value)}
-                          error={errors.DeliveryDetails?.[index]?.CommissionType?.message}
+                          selectedOption={watch('CommissionType') || ''}
+                          onChange={(value) => setValue('CommissionType', value, { shouldValidate: true })}
+                          error={errors.CommissionType?.message}
+                          register={register}
                         />
                       )}
                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Commission (%)"
-                        value={detail.CommissionPercentage}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'CommissionPercentage', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.CommissionPercentage?.message}
+                        id="CommissionPercentage"
+                        {...register('CommissionPercentage')}
+                        error={errors.CommissionPercentage?.message}
                       />
                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Commission Value"
-                        value={detail.CommissionValue}
+                        id="CommissionValue"
+                        {...register('CommissionValue')}
+                        error={errors.CommissionValue?.message}
                         disabled
                         className="auto-calculated-field"
-                        error={errors.DeliveryDetails?.[index]?.CommissionValue?.message}
                       />
-                      <CustomInput
+                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Total Amount"
-                        value={detail.TotalAmount}
+                        id="TotalAmount"
+                        {...register('TotalAmount')}
+                        error={errors.TotalAmount?.message}
                         disabled
                         className="auto-calculated-field"
-                        error={errors.DeliveryDetails?.[index]?.TotalAmount?.message}
                       />
                       {unitsOfMeasure.length === 0 && loading ? (
                         <div>Loading Units of Measure...</div>
                       ) : (
                         <CustomInputDropdown
-                            label="Unit of Measure"
-                            options={unitsOfMeasure}
-                            selectedOption={detail.UnitOfMeasure || ''}
-                            onChange={(value) => handleDeliveryDetailChange(index, 'UnitOfMeasure', value)}
-                            error={errors.DeliveryDetails?.[index]?.UnitOfMeasure?.message}
-                          />
+                          label="Unit of Measure"
+                          options={unitsOfMeasure}
+                          selectedOption={watch('UnitOfMeasure') || ''}
+                          onChange={(value) => {
+                            setValue('UnitOfMeasure', value, { shouldValidate: true });
+                            trigger('UnitOfMeasure');
+                          }}
+                          error={errors.UnitOfMeasure?.message}
+                          register={register}
+                        />
                       )}
                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Tolerance (%)"
-                        value={detail.Tolerance}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'Tolerance', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.Tolerance?.message}
+                        id="Tolerance"
+                        {...register('Tolerance')}
+                        error={errors.Tolerance?.message}
                       />
+                     
                       <CustomInputDropdown
                         label="Packing"
                         options={packings}
-                        selectedOption={detail.Packing}
-                        onChange={(value) => handleDeliveryDetailChange(index, 'Packing', value)}
-                        error={errors.DeliveryDetails?.[index]?.Packing?.message}
+                        selectedOption={watch('Packing') || ''}
+                        onChange={(value) => setValue('Packing', value, { shouldValidate: true })}
+                        error={errors.Packing?.message}
+                        register={register}
                       />
                       <CustomInputDropdown
                         label="Piece Length"
                         options={pieceLengths}
-                        selectedOption={detail.PieceLength}
-                        onChange={(value) => handleDeliveryDetailChange(index, 'PieceLength', value)}
-                        error={errors.DeliveryDetails?.[index]?.PieceLength?.message}
+                        selectedOption={watch('PieceLength') || ''}
+                        onChange={(value) => setValue('PieceLength', value, { shouldValidate: true })}
+                        error={errors.PieceLength?.message}
+                        register={register}
                       />
                       {paymentTerms.length === 0 && loading ? (
                         <div>Loading Payment Terms...</div>
-                        ) : (
-                          <CustomInputDropdown
-                            label="Pay Term Seller"
-                            options={paymentTerms}
-                            selectedOption={detail.PaymentTermsSeller || ''}
-                            onChange={(value) => handleDeliveryDetailChange(index, 'PaymentTermsSeller', value)}
-                            error={errors.DeliveryDetails?.[index]?.PaymentTermsSeller?.message}
-                          />
+                      ) : (
+                        <CustomInputDropdown
+                          label="Pay Term Seller"
+                          options={paymentTerms}
+                          selectedOption={watch('PaymentTermsSeller') || ''}
+                          onChange={(value) => setValue('PaymentTermsSeller', value, { shouldValidate: true })}
+                          error={errors.PaymentTermsSeller?.message}
+                          register={register}
+                        />
                       )}
                       {paymentTerms.length === 0 && loading ? (
                         <div>Loading Payment Terms...</div>
-                        ) : (
-                          <CustomInputDropdown
-                            label="Pay Term Buyer"
-                            options={paymentTerms}
-                            selectedOption={detail.PaymentTermsBuyer || ''}
-                            onChange={(value) => handleDeliveryDetailChange(index, 'PaymentTermsBuyer', value)}
-                            error={errors.DeliveryDetails?.[index]?.PaymentTermsBuyer?.message}
-                          />
+                      ) : (
+                        <CustomInputDropdown
+                          label="Pay Term Buyer"
+                          options={paymentTerms}
+                          selectedOption={watch('PaymentTermsBuyer') || ''}
+                          onChange={(value) => setValue('PaymentTermsBuyer', value, { shouldValidate: true })}
+                          error={errors.PaymentTermsBuyer?.message}
+                          register={register}
+                        />
                       )}
+                     
                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Finish Width"
-                        value={detail.FinishWidth}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'FinishWidth', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.FinishWidth?.message}
+                        id="FinishWidth"
+                        {...register('FinishWidth')}
+                        error={errors.FinishWidth?.message}
                       />
+                     
                       {deliveryTerms.length === 0 && loading ? (
                         <div>Loading Delivery Terms...</div>
-                        ) : (
-                          <CustomInputDropdown
-                            label="Delivery Terms"
-                            options={deliveryTerms}
-                            selectedOption={detail.DeliveryTerms || ''}
-                            onChange={(value) => handleDeliveryDetailChange(index, 'DeliveryTerms', value)}
-                            error={errors.DeliveryDetails?.[index]?.DeliveryTerms?.message}
-                          />
+                      ) : (
+                        <CustomInputDropdown
+                          label="Delivery Terms"
+                          options={deliveryTerms}
+                          selectedOption={watch('DeliveryTerms') || ''}
+                          onChange={(value) => setValue('DeliveryTerms', value, { shouldValidate: true })}
+                          error={errors.DeliveryTerms?.message}
+                          register={register}
+                        />
                       )}
                       <CustomInputDropdown
                         label="Commission From"
                         options={commissionFromOptions}
-                        selectedOption={detail.CommissionFrom || ''}
-                        onChange={(value) => handleDeliveryDetailChange(index, 'CommissionFrom', value)}
-                        error={errors.DeliveryDetails?.[index]?.CommissionFrom?.message}
+                        selectedOption={watch('CommissionFrom') || ''}
+                        onChange={(value) => setValue('CommissionFrom', value, { shouldValidate: true })}
+                        error={errors.CommissionFrom?.message}
+                        register={register}
                       />
-                      {detail.CommissionFrom === 'Both' && (
-                        <>
-                          <CustomInput
-                            variant="floating"
-                            borderThickness="2"
-                            label="Seller Commission"
-                            value={detail.SellerCommission}
-                            onChange={(e) => handleDeliveryDetailChange(index, 'SellerCommission', e.target.value)}
-                            error={errors.DeliveryDetails?.[index]?.SellerCommission?.message}
-                          />
-                          <CustomInput
-                            variant="floating"
-                            borderThickness="2"
-                            label="Buyer Commission"
-                            value={detail.BuyerCommission}
-                            onChange={(e) => handleDeliveryDetailChange(index, 'BuyerCommission', e.target.value)}
-                            error={errors.DeliveryDetails?.[index]?.BuyerCommission?.message}
-                          />
-                        </>
+                      {watch('CommissionFrom') === 'Both' && (
+                        <CustomInput
+                          variant="floating"
+                          borderThickness="2"
+                          label="Seller Commission"
+                          id="SellerCommission"
+                          {...register('SellerCommission')}
+                          error={errors.SellerCommission?.message}
+                        />
                       )}
+                      {watch('CommissionFrom') === 'Both' && (
+                        <CustomInput
+                          variant="floating"
+                          borderThickness="2"
+                          label="Buyer Commission"
+                          id="BuyerCommission"
+                          {...register('BuyerCommission')}
+                          error={errors.BuyerCommission?.message}
+                        />
+                      )}
+                    
                       <CustomInputDropdown
                         label="Dispatch Later"
                         options={dispatchLaterOptions}
-                        selectedOption={detail.DispatchLater || ''}
-                        onChange={(value) => handleDeliveryDetailChange(index, 'DispatchLater', value)}
-                        error={errors.DeliveryDetails?.[index]?.DispatchLater?.message}
+                        selectedOption={watch('DispatchLater') || ''}
+                        onChange={(value) => setValue('DispatchLater', value, { shouldValidate: true })}
+                        error={errors.DispatchLater?.message}
+                        register={register}
                       />
                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Seller Remark"
-                        value={detail.SellerRemark}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'SellerRemark', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.SellerRemark?.message}
+                        id="SellerRemark"
+                        {...register('SellerRemark')}
+                        error={errors.SellerRemark?.message}
                       />
                       <CustomInput
                         variant="floating"
                         borderThickness="2"
                         label="Buyer Remark"
-                        value={detail.BuyerRemark}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'BuyerRemark', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.BuyerRemark?.message}
+                        id="BuyerRemark"
+                        {...register('BuyerRemark')}
+                        error={errors.BuyerRemark?.message}
                       />
                       <CustomInput
                         type="date"
                         variant="floating"
                         borderThickness="2"
                         label="Delivery Date"
-                        value={detail.DeliveryDate}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'DeliveryDate', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.DeliveryDate?.message}
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Color"
-                        value={detail.Color}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'Color', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.Color?.message}
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Weight"
-                        value={detail.Weight}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'Weight', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.Weight?.message}
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Shrinkage"
-                        value={detail.Shrinkage}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'Shrinkage', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.Shrinkage?.message}
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Finish"
-                        value={detail.Finish}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'Finish', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.Finish?.message}
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Lab Disp.No"
-                        value={detail.LBDispNo}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'LBDispNo', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.LBDispNo?.message}
-                      />
-                      <CustomInput
-                        type="date"
-                        variant="floating"
-                        borderThickness="2"
-                        label="Lab Disp.Date"
-                        value={detail.LabDispatchDate}
-                        onChange={(e) => handleDeliveryDetailChange(index, 'LabDispatchDate', e.target.value)}
-                        error={errors.DeliveryDetails?.[index]?.LabDispatchDate?.message}
+                        id="DeliveryDate"
+                        {...register('DeliveryDate')}
+                        error={errors.DeliveryDate?.message}
                       />
                     </div>
                   </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addDeliveryDetail}
-                  className="mt-2"
-                >
-                    <MdAdd /> Add Delivery Detail
-                </Button>
-              </div>
-
                 </div>
                 {/* Second Div: Delivery Breakups and Sample Details (30% width) */}
                 <div className="w-3/12 space-y-6">
