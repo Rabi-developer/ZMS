@@ -22,7 +22,7 @@ const ContractList = () => {
   const [openView, setOpenView] = React.useState(false);
   const [openEmailModal, setOpenEmailModal] = React.useState(false);
   const [openWhatsAppModal, setOpenWhatsAppModal] = React.useState(false);
-  const [openPDFModal, setOpenPDFModal] = React.useState(false); // New state for PDF modal
+  const [openPDFModal, setOpenPDFModal] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState('');
   const [selectedContract, setSelectedContract] = React.useState<ExtendedContract | null>(null);
   const [pageIndex, setPageIndex] = React.useState(0);
@@ -98,20 +98,37 @@ const ContractList = () => {
       'Buyer': contract.buyer,
       'Description': contract.descriptionName || '-',
       'Finish Width': contract.width || '-',
-      'Quantity': `${contract.quantity} ${contract.unitOfMeasure}`,
-      'Rate': contract.rate || '-',
+      'Quantity': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.quantity).join(', ')
+        : contract.quantity || '-',
+      'Rate': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.rate).join(', ')
+        : contract.rate || '-',
       'Piece Length': contract.pieceLength || '-',
-      'Delivery': contract.refer || '-',
+      'Delivery': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.deliveryDate).join(', ')
+        : contract.refer || '-',
       'Payment Terms': `Seller: ${contract.paymentTermsSeller || '-'} | Buyer: ${contract.paymentTermsBuyer || '-'}`,
       'Packing': contract.packing || '-',
-      'GST': contract.gst || '-',
-      'GST Value': contract.gstValue || '-',
-      'Fabric Value': contract.fabricValue || '-',
-      'Total Amount': contract.totalAmount,
+      'GST': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.gst).join(', ')
+        : contract.gst || '-',
+      'GST Value': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.gstValue).join(', ')
+        : contract.gstValue || '-',
+      'Fabric Value': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.fabricValue).join(', ')
+        : contract.fabricValue || '-',
+      'Total Amount': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.totalAmount).join(', ')
+        : contract.totalAmount || '-',
       'Commission': contract.commissionPercentage || '-',
       'Commission Value': contract.commissionValue || '-',
       'Dispatch Address': contract.dispatchAddress || '-',
       'Remarks': `Seller: ${contract.sellerRemark || '-'} | Buyer: ${contract.buyerRemark || '-'}`,
+      'Color': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.color).join(', ')
+        : '-',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
@@ -139,20 +156,37 @@ const ContractList = () => {
       'Buyer': contract.buyer,
       'Description': contract.descriptionName || '-',
       'Finish Width': contract.width || '-',
-      'Quantity': `${contract.quantity} ${contract.unitOfMeasure}`,
-      'Rate': contract.rate || '-',
+      'Quantity': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.quantity).join(', ')
+        : contract.quantity || '-',
+      'Rate': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.rate).join(', ')
+        : contract.rate || '-',
       'Piece Length': contract.pieceLength || '-',
-      'Delivery': contract.refer || '-',
+      'Delivery': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.deliveryDate).join(', ')
+        : contract.refer || '-',
       'Payment Terms': `Seller: ${contract.paymentTermsSeller || '-'} | Buyer: ${contract.paymentTermsBuyer || '-'}`,
       'Packing': contract.packing || '-',
-      'GST': contract.gst || '-',
-      'GST Value': contract.gstValue || '-',
-      'Fabric Value': contract.fabricValue || '-',
-      'Total Amount': contract.totalAmount,
+      'GST': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.gst).join(', ')
+        : contract.gst || '-',
+      'GST Value': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.gstValue).join(', ')
+        : contract.gstValue || '-',
+      'Fabric Value': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.fabricValue).join(', ')
+        : contract.fabricValue || '-',
+      'Total Amount': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.totalAmount).join(', ')
+        : contract.totalAmount || '-',
       'Commission': contract.commissionPercentage || '-',
       'Commission Value': contract.commissionValue || '-',
       'Dispatch Address': contract.dispatchAddress || '-',
       'Remarks': `Seller: ${contract.sellerRemark || '-'} | Buyer: ${contract.buyerRemark || '-'}`,
+      'Color': contract.deliveryDetails?.length
+        ? contract.deliveryDetails.map((detail) => detail.color).join(', ')
+        : '-',
     }];
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -166,52 +200,52 @@ const ContractList = () => {
   };
 
   const handleExportToPDF = async (type: 'purchase' | 'sales' | 'conversion') => {
-  if (selectedContractIds.length === 0) {
-    toast('Please select at least one contract', { type: 'warning' });
-    return;
-  }
-  for (const id of selectedContractIds) {
-    const contract = contracts.find((c) => c.id === id);
-    if (contract) {
-      try {
-        if (type === 'purchase') {
-          await ContractPDFExport.exportToPDF({
-            contract,
-            zmsSignature,
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
-            buyerAddress: undefined,
-          });
-        } else if (type === 'sales') {
-          await SalesPDFExport.exportToPDF({
-            contract,
-            zmsSignature,
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
-            buyerAddress: undefined,
-          });
-        } else if (type === 'conversion') {
-          await ConversionPDFExport.exportToPDF({
-            contract,
-            zmsSignature,
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
-            buyerAddress: undefined,
-          });
+    if (selectedContractIds.length === 0) {
+      toast('Please select at least one contract', { type: 'warning' });
+      return;
+    }
+    for (const id of selectedContractIds) {
+      const contract = contracts.find((c) => c.id === id);
+      if (contract) {
+        try {
+          if (type === 'purchase') {
+            await ContractPDFExport.exportToPDF({
+              contract,
+              zmsSignature,
+              sellerSignature: undefined,
+              buyerSignature: undefined,
+              sellerAddress: contract.dispatchAddress,
+              buyerAddress: undefined,
+            });
+          } else if (type === 'sales') {
+            await SalesPDFExport.exportToPDF({
+              contract,
+              zmsSignature,
+              sellerSignature: undefined,
+              buyerSignature: undefined,
+              sellerAddress: contract.dispatchAddress,
+              buyerAddress: undefined,
+            });
+          } else if (type === 'conversion') {
+            await ConversionPDFExport.exportToPDF({
+              contract,
+              zmsSignature,
+              sellerSignature: undefined,
+              buyerSignature: undefined,
+              sellerAddress: contract.dispatchAddress,
+              buyerAddress: undefined,
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to generate ${type} PDF:`, error);
+          toast(`Failed to generate ${type} PDF`, { type: 'error' });
         }
-      } catch (error) {
-        console.error(`Failed to generate ${type} PDF:`, error);
-        toast(`Failed to generate ${type} PDF`, { type: 'error' });
       }
     }
-  }
-  if (openPDFModal) {
-    setOpenPDFModal(false);
-  }
-};
+    if (openPDFModal) {
+      setOpenPDFModal(false);
+    }
+  };
 
   const handleSendEmail = async () => {
     if (selectedContractIds.length === 0 && !uploadedFile) {
@@ -229,7 +263,6 @@ const ContractList = () => {
       for (const id of selectedContractIds) {
         const contract = contracts.find((c) => c.id === id);
         if (contract) {
-          // Note: exportToPDF saves the file directly, so you'd need to modify it to return a Blob if you want to attach it
           await ContractPDFExport.exportToPDF({
             contract,
             zmsSignature,
@@ -246,9 +279,6 @@ const ContractList = () => {
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
           });
-          // If you modify exportToPDF to return Blobs, upload them here
-          // const purchasePdfUrl = await uploadPDFToServer(purchasePdfBlob, `Purchase_Contract_${contract.contractNumber}.pdf`);
-          // attachmentUrls.push(purchasePdfUrl);
         }
       }
 
@@ -304,9 +334,6 @@ const ContractList = () => {
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
           });
-          // If exportToPDF returns a Blob, upload it here
-          // const pdfUrl = await uploadPDFToServer(pdfBlob, `Contract_${contract.contractNumber}.pdf`);
-          // attachmentUrls.push(pdfUrl);
         }
       }
 
@@ -379,7 +406,7 @@ const ContractList = () => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
-    if (file && file.size > 10 * 1024 * 1024) { // 10MB limit
+    if (file && file.size > 10 * 1024 * 1024) {
       toast('File size exceeds 10MB limit', { type: 'error' });
       return;
     }
@@ -416,6 +443,7 @@ const ContractList = () => {
       selectedContract.width || '',
       selectedContract.final || '',
       selectedContract.selvege || '',
+      selectedContract.deliveryDetails?.map((detail) => detail.color).join(', ') || '',
     ]
       .filter((item) => item.trim() !== '')
       .join(' / ');
@@ -428,6 +456,7 @@ const ContractList = () => {
       setLoading(true);
       const response = await getAllContract(pageIndex === 0 ? 1 : pageIndex, pageSize);
       setContracts(response.data);
+      setFilteredContracts(response.data);
     } catch (error) {
       console.error('Error fetching contracts:', error);
       toast('Failed to fetch contracts', { type: 'error' });
@@ -537,7 +566,6 @@ const ContractList = () => {
       setUpdating(false);
     }
   };
-
   return (
     <div className="container bg-white rounded-md p-6 h-[110vh]">
       <div className="mb-4 flex items-center justify-between">
@@ -800,7 +828,7 @@ const ContractList = () => {
                   Delivery
                 </span>
                 <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.deliveryDate}
+                  {selectedContract.deliveryDetails?.map((detail) => detail.deliveryDate).join(', ') || '-'}
                 </div>
               </div>
               <div className="group">

@@ -953,7 +953,7 @@ const fetchDescriptions = async () => {
     }
   }, [selectedBlendRatio, blendRatios, setValue]);
 
-  // Calculate Fabric Value, GST Value, Total Amount, and Commission Value
+   // Calculate Fabric Value, GST Value, Total Amount, and Commission Value
   useEffect(() => {
     // Fabric Value: Quantity * Rate
     const qty = parseFloat(quantity || '0');
@@ -2088,15 +2088,7 @@ const fetchDescriptions = async () => {
                             className="auto-calculated-field"
                             error={errors.DeliveryDetails?.[idx]?.GstValue?.message}
                           />
-                          <CustomInput
-                            variant="floating"
-                            borderThickness="2"
-                            label="Total Amount"
-                            value={detail.TotalAmount}
-                            disabled
-                            className="auto-calculated-field"
-                            error={errors.DeliveryDetails?.[idx]?.TotalAmount?.message}
-                          />
+                         
                           <CustomInputDropdown
                             label="Commission Type"
                             options={commissionTypes}
@@ -2121,6 +2113,15 @@ const fetchDescriptions = async () => {
                             disabled
                             className="auto-calculated-field"
                             error={errors.DeliveryDetails?.[idx]?.CommissionValue?.message}
+                          />
+                           <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Total Amount"
+                            value={detail.TotalAmount}
+                            disabled
+                            className="auto-calculated-field"
+                            error={errors.DeliveryDetails?.[idx]?.TotalAmount?.message}
                           />
                           <CustomInputDropdown
                             label="Unit of Measure"

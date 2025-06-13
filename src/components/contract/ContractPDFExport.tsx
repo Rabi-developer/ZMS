@@ -374,8 +374,8 @@ const ContractPDFExport = {
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
       {
         label: 'Delivery:',
-        value: contract.deliveryDate && !isNaN(new Date(contract.deliveryDate).getTime())
-          ? new Date(contract.deliveryDate)
+        value: contract.date && !isNaN(new Date(contract.date).getTime())
+          ? new Date(contract.date)
               .toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',

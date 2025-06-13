@@ -5,18 +5,6 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export type Contract = {
-  deliveryDetails: any;
-  deliveryDetails: any;
-  deliveryDetails: boolean;
-  color: CellInput;
-  labdipdate: CellInput;
-  labdipno: CellInput;
-  shrinkage: string;
-  weight: string;
-  finishWidth: string;
-  indThread: string;
-  selvedgeThickness: string;
-  dispatchQty: string;
   id: string;
   contractNumber: string;
   date: string;
@@ -29,10 +17,9 @@ export type Contract = {
   seller: string;
   buyer: string;
   referenceNumber?: string;
-  deliveryDate: string;
   refer?: string;
   referdate?: string;
-  fabricType  : string;
+  fabricType: string;
   description: string;
   descriptionName?: string;
   stuff: string;
@@ -80,7 +67,6 @@ export type Contract = {
   updationDate?: string;
   approvedBy?: string;
   approvedDate?: string;
-
   endUse?: string;
   status?: 'Pending' | 'Approved' | 'Canceled' | 'Closed Dispatch' | 'Closed Payment' | 'Complete Closed';
   buyerDeliveryBreakups?: { qty: string; deliveryDate: string }[];
@@ -100,6 +86,40 @@ export type Contract = {
       yarnBags: string;
       labs: string;
     }[];
+  }[];
+  deliveryDetails?: {
+    id: string;
+    quantity: string;
+    rate: string;
+    fabricValue: string;
+    gst: string;
+    gstValue: string;
+    totalAmount: string;
+    commissionType: string;
+    commissionPercentage: string;
+    commissionValue: string;
+    unitOfMeasure: string;
+    tolerance: string;
+    packing: string;
+    pieceLength: string;
+    paymentTermsSeller: string;
+    paymentTermsBuyer: string;
+    finishWidth: string;
+    deliveryTerms: string;
+    commissionFrom: string;
+    sellerCommission: string;
+    buyerCommission: string;
+    dispatchLater: string;
+    sellerRemark: string;
+    buyerRemark: string;
+    deliveryDate: string;
+    color: string;
+    weight: string;
+    shrinkage: string;
+    finish: string;
+    labDispNo: string;
+    labDispDate: string;
+    contractId: string;
   }[];
 };
 
@@ -175,8 +195,14 @@ export const columns = (
     header: 'Reference #',
   },
   {
-    accessorKey: 'refer',
+    accessorKey: 'deliveryDetails',
     header: 'Delivery',
+    cell: ({ row }) => {
+      const deliveryDetails = row.original.deliveryDetails || [];
+      return deliveryDetails.length > 0
+        ? deliveryDetails.map((detail) => detail.deliveryDate).join(', ')
+        : row.original.refer || '-';
+    },
   },
   {
     accessorKey: 'referdate',
@@ -255,8 +281,14 @@ export const columns = (
     header: 'Selvedge Width',
   },
   {
-    accessorKey: 'quantity',
+    accessorKey: 'deliveryDetails',
     header: 'Quantity',
+    cell: ({ row }) => {
+      const deliveryDetails = row.original.deliveryDetails || [];
+      return deliveryDetails.length > 0
+        ? deliveryDetails.map((detail) => detail.quantity).join(', ')
+        : row.original.quantity || '-';
+    },
   },
   {
     accessorKey: 'unitOfMeasure',
@@ -267,8 +299,14 @@ export const columns = (
     header: 'Tolerance (%)',
   },
   {
-    accessorKey: 'rate',
+    accessorKey: 'deliveryDetails',
     header: 'Rate',
+    cell: ({ row }) => {
+      const deliveryDetails = row.original.deliveryDetails || [];
+      return deliveryDetails.length > 0
+        ? deliveryDetails.map((detail) => detail.rate).join(', ')
+        : row.original.rate || '-';
+    },
   },
   {
     accessorKey: 'packing',
@@ -279,20 +317,44 @@ export const columns = (
     header: 'Piece Length',
   },
   {
-    accessorKey: 'fabricValue',
+    accessorKey: 'deliveryDetails',
     header: 'Fabric Value',
+    cell: ({ row }) => {
+      const deliveryDetails = row.original.deliveryDetails || [];
+      return deliveryDetails.length > 0
+        ? deliveryDetails.map((detail) => detail.fabricValue).join(', ')
+        : row.original.fabricValue || '-';
+    },
   },
   {
-    accessorKey: 'gst',
+    accessorKey: 'deliveryDetails',
     header: 'GST Type',
+    cell: ({ row }) => {
+      const deliveryDetails = row.original.deliveryDetails || [];
+      return deliveryDetails.length > 0
+        ? deliveryDetails.map((detail) => detail.gst).join(', ')
+        : row.original.gst || '-';
+    },
   },
   {
-    accessorKey: 'gstValue',
+    accessorKey: 'deliveryDetails',
     header: 'GST Value',
+    cell: ({ row }) => {
+      const deliveryDetails = row.original.deliveryDetails || [];
+      return deliveryDetails.length > 0
+        ? deliveryDetails.map((detail) => detail.gstValue).join(', ')
+        : row.original.gstValue || '-';
+    },
   },
   {
-    accessorKey: 'totalAmount',
+    accessorKey: 'deliveryDetails',
     header: 'Total Amount',
+    cell: ({ row }) => {
+      const deliveryDetails = row.original.deliveryDetails || [];
+      return deliveryDetails.length > 0
+        ? deliveryDetails.map((detail) => detail.totalAmount).join(', ')
+        : row.original.totalAmount || '-';
+    },
   },
   {
     accessorKey: 'paymentTermsSeller',
@@ -363,8 +425,14 @@ export const columns = (
     header: 'End Use',
   },
   {
-    accessorKey: 'name',
-    header: '',
+    accessorKey: 'deliveryDetails',
+    header: 'Color',
+    cell: ({ row }) => {
+      const deliveryDetails = row.original.deliveryDetails || [];
+      return deliveryDetails.length > 0
+        ? deliveryDetails.map((detail) => detail.color).join(', ')
+        : '-';
+    },
   },
   {
     header: 'Actions',
@@ -397,5 +465,3 @@ export const columns = (
     },
   },
 ];
-
-

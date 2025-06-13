@@ -325,12 +325,12 @@ const ConversionPDFExport = {
     let totalQty = 0;
     let totalAmount = 0;
     if (contract.deliveryDetails && contract.deliveryDetails.length > 0) {
-      contract.deliveryDetails.forEach((detail: { quantity: any; totalAmount: string | number | undefined; deliveryTermDetails: any[]; finishWidth: any; rate: string | number | undefined; deliveryDate: string | number | Date; weight: any; shrinkage: any; color: any; labDispNo: any; }, index: any) => {
+      contract.deliveryDetails.forEach((detail, index) => {
         const qty = parseFloat(detail.quantity || '0');
         const amount = parseFloat((detail.totalAmount ?? '0').toString());
         totalQty += isNaN(qty) ? 0 : qty;
         totalAmount += isNaN(amount) ? 0 : amount;
-        const deliveryTerms = detail.deliveryTermDetails?.map(dt => dt.term).join(', ') || '-';
+        const deliveryTerms = (detail.deliveryTermDetails as any[] | undefined)?.map((dt: any) => dt.term).join(', ') || '-';
         tableBody.push([
           detail.finishWidth || '-',
           detail.quantity || '-',
