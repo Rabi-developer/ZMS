@@ -5,6 +5,9 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export type Contract = {
+  deliveryDetails: any;
+  deliveryDetails: any;
+  deliveryDetails: boolean;
   color: CellInput;
   labdipdate: CellInput;
   labdipno: CellInput;

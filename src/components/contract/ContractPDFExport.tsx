@@ -513,12 +513,7 @@ const ContractPDFExport = {
 
     yPos = Math.max(leftColumnYPos, rightColumnYPos) + 8;
 
-   // Separator Line
-    doc.setLineWidth(0.4);
-    doc.setDrawColor(0, 0, 0); 
-    doc.line(10, yPos, 200, yPos);
-    yPos += 1;
-
+   
     // Terms and Conditions
     autoTable(doc, {
       startY: yPos,
