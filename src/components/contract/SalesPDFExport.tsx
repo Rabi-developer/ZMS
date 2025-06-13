@@ -287,9 +287,8 @@ const SalesPDFExport = {
       },
       {
         label: 'Construction:',
-        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'} ${selvedgeSub}`,
+        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
-      { label: 'Selvege:', value: `${contract.selvege || '-'}` },
       { label: 'Finish Width:', value: `${contract.deliveryDetails?.[0]?.finishWidth || '-'}` },
       { label: 'Weight:', value: `${contract.deliveryDetails?.[0]?.weight || '-'}` },
       { label: 'Shrinkage:', value: `${contract.deliveryDetails?.[0]?.shrinkage || '-'}` },
@@ -476,8 +475,8 @@ const SalesPDFExport = {
       { label: 'Piece Length:', value: contract.deliveryDetails?.[0]?.pieceLength  || '-' },
       { label: 'Payment:', value: `${contract.deliveryDetails?.[0]?.paymentTermsSeller  || '-'}` },
       { label: 'Packing:', value:  contract.deliveryDetails?.[0]?.packing || '-', },
-      { label: 'Commission:', value:  `${contract.deliveryDetails?.[0]?.commissionFrom || '-'}%`, },
-      { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.deliveryDetails?.[0]?.commissionFrom )}` },
+      { label: 'Commission:', value:  `${contract.deliveryDetails?.[0]?.commissionPercentage || '-'}%`, },
+      { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.deliveryDetails?.[0]?.commissionValue )}` },
       { label: 'Delivery Destination:', value: `${contract.buyer || ''}` },
       { label: 'Remarks:', value: `${contract.deliveryDetails?.[0]?.buyerRemark  || '-'}` },
     ];

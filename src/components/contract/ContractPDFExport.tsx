@@ -288,7 +288,7 @@ const ContractPDFExport = {
       },
       {
         label: 'Construction:',
-        value: `${contract.warpCount || '-'}  ${warpYarnTypeSub} × ${contract.weftCount || '-'} x ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.width || '-'} ${contract.final || '-'} ${contract.selvege || '-'}`,
+        value: `${contract.warpCount || '-'}  ${warpYarnTypeSub} × ${contract.weftCount || '-'} x ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.width || '-'} ${contract.final || '-'} ${contract.selvege || 'Selvege'}`,
       },
     ];
 
@@ -366,12 +366,12 @@ const ContractPDFExport = {
 
     // Left Column: Additional Fields
     const additionalFields = [
-      { label: 'Quantity:', value: `Rs. ${formatCurrency(contract.quantity)} Mtr(+-${contract.tolerance || '-'})` },
+      { label: 'Quantity:', value: `Rs. ${formatCurrency(contract.deliveryDetails?.[0]?.quantity)} Mtr(+-${contract.deliveryDetails?.[0]?.tolerance || '-'})` },
       {
         label: 'Rate:',
-        value: `Rs. ${formatCurrency(contract.rate)}/Mtr + ${contract.gst || '-'} ${contract.deliveryTerms || '-'}`,
+        value: `Rs. ${formatCurrency(contract.deliveryDetails?.[0]?.rate)}/Mtr + ${contract.deliveryDetails?.[0]?.gst || '-'} ${contract.deliveryDetails?.[0]?.deliveryTerms || '-'}`,
       },
-      { label: 'Piece Length:', value: contract.pieceLength || '-' },
+      { label: 'Piece Length:', value: contract.deliveryDetails?.[0]?.pieceLength || '-' },
       {
         label: 'Delivery:',
         value: contract.date && !isNaN(new Date(contract.date).getTime())
@@ -385,16 +385,16 @@ const ContractPDFExport = {
               .join('-')
           : '-',
       },
-      { label: 'Payment:', value: `${contract.paymentTermsBuyer || '-'}` },
-      { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
-      { label: 'Fab.Value:', value: `Rs. ${formatCurrency(contract.fabricValue)}` },
-      { label: 'GST:', value: `${contract.gst || '-'}` },
-      { label: 'GST Val:', value: `Rs. ${formatCurrency(contract.gstValue)}` },
-      { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
-      { label: 'Comm.:', value: `${contract.commissionPercentage || '-'}%` },
-      { label: 'Comm.Val:', value: `Rs. ${formatCurrency(contract.commissionValue)}` },
-      { label: 'Dispatch:', value: `${contract.dispatchAddress || 'Adviced Later'}` },
-      { label: 'Remarks:', value: `${contract.buyerRemark || ''}` },
+      { label: 'Payment:', value: `${contract.deliveryDetails?.[0]?.paymentTermsBuyer || '-'}` },
+      { label: 'Packing:', value: `${contract.deliveryDetails?.[0]?.packing || '-'} Packing` },
+      { label: 'Fabric Value:', value: `Rs. ${formatCurrency(contract.deliveryDetails?.[0]?.fabricValue)}` },
+      { label: 'GST:', value: `${contract.deliveryDetails?.[0]?.gst|| '-'}` },
+      { label: 'GST Value:', value: `Rs. ${formatCurrency(contract.deliveryDetails?.[0]?.gstValue)}` },
+      { label: 'Total:', value: `Rs. ${formatCurrency(contract.deliveryDetails?.[0]?.totalAmount)}` },
+      { label: 'Commission:', value: `${contract.deliveryDetails?.[0]?.commissionPercentage || '-'}%` },
+      { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.deliveryDetails?.[0]?.commissionValue)}` },
+      { label: 'Dispatch:', value: `${contract.deliveryDetails?.[0]?.dispatchLater || 'Adviced Later'}` },
+      { label: 'Remarks:', value: `${contract.deliveryDetails?.[0]?.buyerRemark|| ''}` },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -426,8 +426,8 @@ const ContractPDFExport = {
         startY: rightColumnYPos,
         head: [['Qty', 'Del. Date']],
         body: buyerDeliveryBreakups.slice(0, 4).map((breakup) => [
-          breakup.Qty?.toString() || '-',
-          breakup.DeliveryDate?.toString() || '-',
+          contract.buyerDeliveryBreakups?.[0]?.qty?.toString() || '-',
+          contract.buyerDeliveryBreakups?.[0]?.deliveryDate?.toString() || '-',
         ]),
         styles: {
           fontSize: 9,
@@ -474,8 +474,8 @@ const ContractPDFExport = {
         startY: rightColumnYPos,
         head: [['Qty', 'Del. Date']],
         body: sellerDeliveryBreakups.slice(0, 4).map((breakup) => [
-          breakup.Qty?.toString() || '-',
-          breakup.DeliveryDate?.toString() || '-',
+          contract.buyerDeliveryBreakups?.[0]?.qty?.toString() || '-',
+          contract.buyerDeliveryBreakups?.[0]?.deliveryDate?.toString() || '-',
         ]),
         styles: {
           fontSize: 9,

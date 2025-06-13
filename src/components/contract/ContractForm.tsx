@@ -1795,7 +1795,7 @@ const fetchDescriptions = async () => {
                         selectedOption={watch('BlendRatio') || ''}
                         selectedSubOptions={
                           Array.isArray(watch('BlendType'))
-                            ? watch('BlendType').slice().filter((v: unknown): v is string => typeof v === 'string')
+                            ? (watch('BlendType') ?? []).slice().filter((v): v is string => typeof v === 'string')
                             : (typeof watch('BlendType') === 'string' && watch('BlendType') !== '')
                               ? [watch('BlendType')]
                               : []
