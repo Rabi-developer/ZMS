@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
 import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
+import DescriptionWithSubSelect from '@/components/ui/DescriptionWithSubSelect';
 import { MdAddBusiness, MdAdd, MdDelete, MdInfo } from 'react-icons/md';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -116,21 +117,30 @@ const ContractSchema = z.object({
   Referdate: z.string().optional(),
   FabricType: z.string().min(1, 'Fabric Type is required'),
   Description: z.string().min(1, 'Description is required'),
+  DescriptionSubOptions: z.array(z.string()).optional(),
   Stuff: z.string().min(1, 'Stuff is required'),
+  StuffSubOptions: z.array(z.string()).optional(),
   BlendRatio: z.string().optional(),
   BlendType: z.string().optional(),
   WarpCount: z.string().optional(),
   WarpYarnType: z.string().optional(),
+  WarpYarnTypeSubOptions: z.array(z.string()).optional(),
   WeftCount: z.string().optional(),
   WeftYarnType: z.string().min(1, 'Weft Yarn Type is required'),
+  WeftYarnTypeSubOptions: z.array(z.string()).optional(),
   NoOfEnds: z.string().optional(),
   NoOfPicks: z.string().optional(),
   Weaves: z.string().optional(),
+  WeavesSubOptions: z.array(z.string()).optional(),
   PickInsertion: z.string().optional(),
+  PickInsertionSubOptions: z.array(z.string()).optional(),
   Width: z.string().optional(),
   Final: z.string().optional(),
+  FinalSubOptions: z.array(z.string()).optional(), // <-- Add this line for FinalSubOptions
   Selvedge: z.string().optional(),
+  SelvedgeSubOptions: z.array(z.string()).optional(),
   SelvedgeWeave: z.string().optional(),
+  SelvedgeWeaveSubOptions: z.array(z.string()).optional(), // <-- Add this line
   SelvedgeWidth: z.string().optional(),
   SelvageThread: z.string().optional(),
   InductionThread: z.string().optional(), 
@@ -162,6 +172,7 @@ const ContractSchema = z.object({
   ApprovedBy: z.string().optional(),
   ApprovedDate: z.string().optional(),
   EndUse: z.string().optional(),
+  EndUseSubOptions: z.array(z.string()).optional(), // <-- Add this line
   Notes: z.string().optional(),
   SelvegeThickness: z.string().optional(),
   DeliveryDetails: z.array(DeliveryDetailSchema),
@@ -454,8 +465,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setLoading(false);
     }
   };
-
-  const fetchDescriptions = async () => {
+const fetchDescriptions = async () => {
     try {
       setLoading(true);
       const response = await getAllDescriptions();
@@ -463,10 +473,28 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((desc: any) => ({
           id: desc.listid,
           name: desc.descriptions,
-        }))
+          subDescription: desc.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching descriptions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+ const fetchStuffs = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllStuffs();
+      setStuffs(
+        response.data.map((item: any) => ({
+          id: item.listid,
+          name: item.descriptions,
+        }))
+      );
+    } catch (error) {
+      console.error('Error fetching stuffs:', error);
     } finally {
       setLoading(false);
     }
@@ -480,8 +508,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-          subDescription: item.subDescription,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching blend ratios:', error);
@@ -498,7 +526,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching end uses:', error);
@@ -515,7 +544,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching fabric types:', error);
@@ -532,7 +561,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching packings:', error);
@@ -549,7 +578,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+        })),
       );
     } catch (error) {
       console.error('Error fetching piece lengths:', error);
@@ -566,7 +595,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching pick insertions:', error);
@@ -583,7 +613,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching warp yarn types:', error);
@@ -600,7 +631,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching weft yarn types:', error);
@@ -617,7 +649,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching weaves:', error);
@@ -634,7 +667,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching finals:', error);
@@ -651,7 +685,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching selvedges:', error);
@@ -668,7 +703,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching selvedge weaves:', error);
@@ -685,7 +721,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
-        }))
+          subDescription: item.subDescription || '',
+        })),
       );
     } catch (error) {
       console.error('Error fetching selvedge widths:', error);
@@ -694,7 +731,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
-   const fetchSelvageThreads = async () => {
+  const fetchSelvageThreads = async () => {
     try {
       setLoading(true);
       const response = await getAllSelvegeThicknesss();
@@ -702,6 +739,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
+          subDescription: item.subDescription || '',
         })),
       );
     } catch (error) {
@@ -719,6 +757,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
+          subDescription: item.subDescription || '',
         })),
       );
     } catch (error) {
@@ -736,27 +775,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         response.data.map((item: any) => ({
           id: item.listid,
           name: item.descriptions,
+          subDescription: item.subDescription || '',
         })),
       );
     } catch (error) {
       console.error('Error fetching GSMs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStuffs = async () => {
-    try {
-      setLoading(true);
-      const response = await getAllStuffs();
-      setStuffs(
-        response.data.map((item: any) => ({
-          id: item.listid,
-          name: item.descriptions,
-        }))
-      );
-    } catch (error) {
-      console.error('Error fetching stuffs:', error);
     } finally {
       setLoading(false);
     }
@@ -1622,39 +1645,56 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     </div>
                   </div>
 
-                  <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+                                <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
                     <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Items</h2>
                     <div className="grid grid-cols-6 gap-4">
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Description"
+                        name="Description"
+                        subName="DescriptionSubOptions"
                         options={descriptions}
                         selectedOption={watch('Description') || ''}
+                        selectedSubOptions={
+                          Array.isArray(watch('DescriptionSubOptions'))
+                            ? watch('DescriptionSubOptions')?.slice().filter((v): v is string => typeof v === 'string')
+                            : []
+                        }
                         onChange={(value) => setValue('Description', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('DescriptionSubOptions', values, { shouldValidate: true })}
                         error={errors.Description?.message}
+                        subError={errors.DescriptionSubOptions?.message}
                         register={register}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Stuff"
+                        name="Stuff"
+                        subName="StuffSubOptions"
                         options={stuffs}
                         selectedOption={watch('Stuff') || ''}
+                        selectedSubOptions={watch('StuffSubOptions') ?? []}
                         onChange={(value) => setValue('Stuff', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('StuffSubOptions', values, { shouldValidate: true })}
                         error={errors.Stuff?.message}
+                        subError={errors.StuffSubOptions?.message}
                         register={register}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Blend Ratio"
+                        name="BlendRatio"
+                        subName="BlendType"
                         options={blendRatios}
                         selectedOption={watch('BlendRatio') || ''}
+                        selectedSubOptions={
+                          Array.isArray(watch('BlendType'))
+                            ? watch('BlendType').slice().filter((v: unknown): v is string => typeof v === 'string')
+                            : (typeof watch('BlendType') === 'string' && watch('BlendType') !== '')
+                              ? [watch('BlendType')]
+                              : []
+                        }
                         onChange={(value) => setValue('BlendRatio', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('BlendType', values[0] || '', { shouldValidate: true })}
                         error={errors.BlendRatio?.message}
-                        register={register}
-                      />
-                      <CustomInputDropdown
-                        label="Blend Type"
-                        options={blendTypeOptions}
-                        selectedOption={watch('BlendType') || ''}
-                        onChange={(value) => setValue('BlendType', value, { shouldValidate: true })}
-                        error={errors.BlendType?.message}
+                        subError={errors.BlendType?.message}
                         register={register}
                       />
                       <CustomInput
@@ -1665,12 +1705,21 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         {...register('WarpCount')}
                         error={errors.WarpCount?.message}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Warp Yarn Type"
+                        name="WarpYarnType"
+                        subName="WarpYarnTypeSubOptions"
                         options={warpYarnTypes}
                         selectedOption={watch('WarpYarnType') || ''}
+                        selectedSubOptions={
+                          Array.isArray(watch('WarpYarnTypeSubOptions'))
+                            ? (watch('WarpYarnTypeSubOptions') ?? []).slice().filter((v): v is string => typeof v === 'string')
+                            : []
+                        }
                         onChange={(value) => setValue('WarpYarnType', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('WarpYarnTypeSubOptions', values, { shouldValidate: true })}
                         error={errors.WarpYarnType?.message}
+                        subError={errors.WarpYarnTypeSubOptions?.message}
                         register={register}
                       />
                       <CustomInput
@@ -1684,12 +1733,17 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       {weftYarnTypes.length === 0 && loading ? (
                         <div>Loading Weft Yarn Types...</div>
                       ) : (
-                        <CustomInputDropdown
+                        <DescriptionWithSubSelect
                           label="Weft Yarn Type"
+                          name="WeftYarnType"
+                          subName="WeftYarnTypeSubOptions"
                           options={weftYarnTypes}
                           selectedOption={watch('WeftYarnType') || ''}
+                          selectedSubOptions={watch('WeftYarnTypeSubOptions') ?? []}
                           onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
+                          onSubChange={(values) => setValue('WeftYarnTypeSubOptions', values, { shouldValidate: true })}
                           error={errors.WeftYarnType?.message}
+                          subError={errors.WarpYarnTypeSubOptions?.message}
                           register={register}
                         />
                       )}
@@ -1712,23 +1766,56 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         error={errors.NoOfPicks?.message}
                       />
                       {weaves.length === 0 && loading ? (
-                        <div>Loading Weaves...</div>
+                        <>
+                          <div>Loading Weaves...</div>
+                          <DescriptionWithSubSelect
+                            label="Weaves"
+                            name="Weaves"
+                            subName="WeavesSubOptions"
+                            options={weaves}
+                            selectedOption={watch('Weaves') || ''}
+                            selectedSubOptions={
+                              Array.isArray(watch('WeavesSubOptions'))
+                                ? watch('WeavesSubOptions')?.slice().filter((v): v is string => typeof v === 'string')
+                                : []
+                            }
+                            onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
+                            onSubChange={(values) => setValue('WeavesSubOptions', values, { shouldValidate: true })}
+                            error={errors.Weaves?.message}
+                            subError={errors.WeavesSubOptions?.message}
+                            register={register}
+                          />
+                        </>
                       ) : (
-                        <CustomInputDropdown
+                        <DescriptionWithSubSelect
                           label="Weaves"
+                          name="Weaves"
+                          subName="WeavesSubOptions"
                           options={weaves}
                           selectedOption={watch('Weaves') || ''}
+                          selectedSubOptions={
+                            Array.isArray(watch('WeavesSubOptions'))
+                              ? watch('WeavesSubOptions')!.slice().filter((v): v is string => typeof v === 'string')
+                              : []
+                          }
                           onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
+                          onSubChange={(values) => setValue('WeavesSubOptions', values, { shouldValidate: true })}
                           error={errors.Weaves?.message}
+                          subError={errors.WeavesSubOptions?.message}
                           register={register}
                         />
                       )}
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Pick Insertion"
+                        name="PickInsertion"
+                        subName="PickInsertionSubOptions"
                         options={pickInsertions}
                         selectedOption={watch('PickInsertion') || ''}
+                        selectedSubOptions={watch('PickInsertionSubOptions') || []}
                         onChange={(value) => setValue('PickInsertion', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('PickInsertionSubOptions', values, { shouldValidate: true })}
                         error={errors.PickInsertion?.message}
+                        subError={errors.PickInsertionSubOptions?.message}
                         register={register}
                       />
                       <CustomInput
@@ -1739,76 +1826,128 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         {...register('Width')}
                         error={errors.Width?.message}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Final"
+                        name="Final"
+                        subName="FinalSubOptions"
                         options={finals}
                         selectedOption={watch('Final') || ''}
+                        selectedSubOptions={watch('FinalSubOptions') || []}
                         onChange={(value) => setValue('Final', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('FinalSubOptions', values, { shouldValidate: true })}
                         error={errors.Final?.message}
+                        subError={errors.FinalSubOptions?.message}
                         register={register}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Selvedge"
+                        name="Selvedge"
+                        subName="SelvedgeSubOptions"
                         options={selvedges}
-                        selectedOption={watch('Selvedge') || ''}
+                        selectedSubOptions={Array.isArray(watch('SelvedgeSubOptions'))
+                          ? (watch('SelvedgeSubOptions') ?? []).slice().filter((v): v is string => typeof v === 'string')
+                          : []}
                         onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('SelvedgeSubOptions', values, { shouldValidate: true })}
                         error={errors.Selvedge?.message}
-                        register={register}
-                      />
-                      <CustomInputDropdown
+                        subError={errors.SelvedgeSubOptions?.message}
+                        register={register} selectedOption={''}                      />
+                      <DescriptionWithSubSelect
                         label="Selvedge Weave"
+                        name="SelvedgeWeave"
+                        subName="SelvedgeWeaveSubOptions"
                         options={selvedgeWeaves}
                         selectedOption={watch('SelvedgeWeave') || ''}
+                        selectedSubOptions={
+                          Array.isArray(watch('SelvedgeWeaveSubOptions'))
+                            ? watch('SelvedgeWeaveSubOptions')?.slice().filter((v): v is string => typeof v === 'string')
+                            : []
+                        }
                         onChange={(value) => setValue('SelvedgeWeave', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('SelvedgeWeaveSubOptions', values, { shouldValidate: true })}
                         error={errors.SelvedgeWeave?.message}
+                        subError={errors.SelvedgeWeaveSubOptions?.message}
                         register={register}
                       />
-                      <CustomInputDropdown
+                      <DescriptionWithSubSelect
                         label="Selvedge Width"
+                        name="SelvedgeWidth"
+                        subName="SelvedgeWidthSubOptions"
                         options={selvedgeWidths}
                         selectedOption={watch('SelvedgeWidth') || ''}
+                        selectedSubOptions={[]}
                         onChange={(value) => setValue('SelvedgeWidth', value, { shouldValidate: true })}
+                        onSubChange={() => {}}
                         error={errors.SelvedgeWidth?.message}
+                        subError={errors.SelvedgeSubOptions?.message}
                         register={register}
                       />
                       {selvageThreads.length === 0 && loading ? (
                         <div>Loading Selvage Threads...</div>
                       ) : (
-                        <CustomInputDropdown
+                        <DescriptionWithSubSelect
                           label="Selvage Thickness"
+                          name="SelvageThread"
+                          subName="SelvageThreadSubOptions"
                           options={selvageThreads}
                           selectedOption={watch('SelvageThread') || ''}
+                          selectedSubOptions={[]} // No field in schema, so pass empty array
                           onChange={(value) => setValue('SelvageThread', value, { shouldValidate: true })}
+                          onSubChange={() => {}} // No-op since not in schema
                           error={errors.SelvageThread?.message}
+                          subError={undefined}
                           register={register}
                         />
                       )}
                       {inductionThreads.length === 0 && loading ? (
                         <div>Loading Induction Threads...</div>
                       ) : (
-                        <CustomInputDropdown
+                        <DescriptionWithSubSelect
                           label="Induction Thread"
+                          name="InductionThread"
+                          subName="InductionThreadSubOptions"
                           options={inductionThreads}
                           selectedOption={watch('InductionThread') || ''}
+                          selectedSubOptions={[]} // No field in schema, so pass empty array
                           onChange={(value) => setValue('InductionThread', value, { shouldValidate: true })}
+                          onSubChange={() => {}} // No-op since not in schema
                           error={errors.InductionThread?.message}
+                          subError={undefined}
                           register={register}
                         />
                       )}
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="GSM"
-                        id="GSM"
-                        {...register('GSM')}
-                        error={errors.GSM?.message}
-                      />
-                      <CustomInputDropdown
+                      {gsms.length === 0 && loading ? (
+                        <div>Loading GSMs...</div>
+                      ) : (
+                        <DescriptionWithSubSelect
+                          label="GSM"
+                          name="GSM"
+                          subName="GSMSubOptions"
+                          options={gsms}
+                          selectedOption={watch('GSM') || ''}
+                          selectedSubOptions={[]} // GSMSubOptions is not in schema, so pass empty array
+                          onChange={(value) => setValue('GSM', value, { shouldValidate: true })}
+                          onSubChange={() => {}}
+                          error={errors.GSM?.message}
+                          subError={undefined}
+                          register={register}
+                        />
+                      )}
+                      <DescriptionWithSubSelect
                         label="End Use"
+                        name="EndUse"
+                        subName="EndUseSubOptions"
                         options={endUses}
                         selectedOption={watch('EndUse') || ''}
+                        selectedSubOptions={
+                          Array.isArray(watch('EndUseSubOptions'))
+                            ? watch('EndUseSubOptions')?.slice().filter((v): v is string => typeof v === 'string')
+                            : []
+                        }
                         onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
+                        onSubChange={(values) => setValue('EndUseSubOptions', values, { shouldValidate: true })}
                         error={errors.EndUse?.message}
+                        subError={errors.EndUseSubOptions?.message}
                         register={register}
                       />
                     </div>
