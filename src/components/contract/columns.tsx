@@ -5,6 +5,12 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export type Contract = {
+  color: CellInput;
+  labdipdate: CellInput;
+  labdipno: CellInput;
+  shrinkage: string;
+  weight: string;
+  finishWidth: string;
   indThread: string;
   selvedgeThickness: string;
   dispatchQty: string;

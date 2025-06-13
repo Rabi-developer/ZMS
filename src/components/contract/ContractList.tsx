@@ -8,6 +8,7 @@ import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 import ContractPDFExport from './ContractPDFExport';
+import SalesPDFExport from './SalesPDFExport';
 import SignatureCanvas from 'react-signature-canvas';
 
 type ExtendedContract = Contract;
@@ -20,6 +21,7 @@ const ContractList = () => {
   const [openView, setOpenView] = React.useState(false);
   const [openEmailModal, setOpenEmailModal] = React.useState(false);
   const [openWhatsAppModal, setOpenWhatsAppModal] = React.useState(false);
+  const [openPDFModal, setOpenPDFModal] = React.useState(false); // New state for PDF modal
   const [deleteId, setDeleteId] = React.useState('');
   const [selectedContract, setSelectedContract] = React.useState<ExtendedContract | null>(null);
   const [pageIndex, setPageIndex] = React.useState(0);
@@ -31,7 +33,6 @@ const ContractList = () => {
   const [startDate, setStartDate] = React.useState<string | null>(null);
   const [endDate, setEndDate] = React.useState<string | null>(null);
   const [zmsSignature, setZmsSignature] = React.useState<string | undefined>(undefined);
-  // Modal-specific states
   const [emailRecipient, setEmailRecipient] = React.useState('');
   const [whatsappNumber, setWhatsappNumber] = React.useState('');
   const [uploadedFile, setUploadedFile] = React.useState<File | null>(null);
@@ -163,7 +164,7 @@ const ContractList = () => {
     XLSX.writeFile(workbook, `Contract_${contract.contractNumber}.xlsx`);
   };
 
-  const handleExportToPDF = async () => {
+  const handleExportToPDF = async (type: 'purchase' | 'sales') => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
       return;
@@ -172,19 +173,33 @@ const ContractList = () => {
       const contract = contracts.find((c) => c.id === id);
       if (contract) {
         try {
-          await ContractPDFExport.exportToPDF({
-            contract,
-            zmsSignature,
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
-            buyerAddress: undefined,
-          });
+          if (type === 'purchase') {
+            await ContractPDFExport.exportToPDF({
+              contract,
+              zmsSignature,
+              sellerSignature: undefined,
+              buyerSignature: undefined,
+              sellerAddress: contract.dispatchAddress,
+              buyerAddress: undefined,
+            });
+          } else {
+            await SalesPDFExport.exportToPDF({
+              contract,
+              zmsSignature,
+              sellerSignature: undefined,
+              buyerSignature: undefined,
+              sellerAddress: contract.dispatchAddress,
+              buyerAddress: undefined,
+            });
+          }
         } catch (error) {
-          console.error('Failed to generate PDF:', error);
-          toast('Failed to generate PDF', { type: 'error' });
+          console.error(`Failed to generate ${type} PDF:`, error);
+          toast(`Failed to generate ${type} PDF`, { type: 'error' });
         }
       }
+    }
+    if (openPDFModal) {
+      setOpenPDFModal(false); // Close the PDF modal after download
     }
   };
 
@@ -204,7 +219,8 @@ const ContractList = () => {
       for (const id of selectedContractIds) {
         const contract = contracts.find((c) => c.id === id);
         if (contract) {
-          const pdfBlob = await ContractPDFExport.exportToPDF({
+          // Note: exportToPDF saves the file directly, so you'd need to modify it to return a Blob if you want to attach it
+          await ContractPDFExport.exportToPDF({
             contract,
             zmsSignature,
             sellerSignature: undefined,
@@ -212,10 +228,17 @@ const ContractList = () => {
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
           });
-          // Removed void check for pdfBlob as exportToPDF returns void
-          // If you expect a Blob, update exportToPDF to return it
-          // const pdfUrl = await uploadPDFToServer(pdfBlob, `Contract_${contract.contractNumber}.pdf`);
-          // attachmentUrls.push(pdfUrl);
+          await SalesPDFExport.exportToPDF({
+            contract,
+            zmsSignature,
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            sellerAddress: contract.dispatchAddress,
+            buyerAddress: undefined,
+          });
+          // If you modify exportToPDF to return Blobs, upload them here
+          // const purchasePdfUrl = await uploadPDFToServer(purchasePdfBlob, `Purchase_Contract_${contract.contractNumber}.pdf`);
+          // attachmentUrls.push(purchasePdfUrl);
         }
       }
 
@@ -263,7 +286,15 @@ const ContractList = () => {
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
           });
-          // If exportToPDF returns a Blob in the future, handle it here.
+          await SalesPDFExport.exportToPDF({
+            contract,
+            zmsSignature,
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            sellerAddress: contract.dispatchAddress,
+            buyerAddress: undefined,
+          });
+          // If exportToPDF returns a Blob, upload it here
           // const pdfUrl = await uploadPDFToServer(pdfBlob, `Contract_${contract.contractNumber}.pdf`);
           // attachmentUrls.push(pdfUrl);
         }
@@ -506,7 +537,7 @@ const ContractList = () => {
             <select
               value={selectedStatusFilter}
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600"
             >
               {statusOptions.map((status) => (
                 <option key={status} value={status}>
@@ -521,14 +552,14 @@ const ContractList = () => {
               type="date"
               value={startDate || ''}
               onChange={(e) => setStartDate(e.target.value)}
-              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600"
             />
             <span className="text-gray-500">to</span>
             <input
               type="date"
               value={endDate || ''}
               onChange={(e) => setEndDate(e.target.value)}
-              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-600"
             />
           </div>
         </div>
@@ -564,7 +595,7 @@ const ContractList = () => {
           />
         </div>
       </div>
-      <div className="mt-4 space-y-2 border-t-2  border-b-2 h-[18vh]">
+      <div className="mt-4 space-y-2 border-t-2 border-b-2 h-[18vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -599,16 +630,16 @@ const ContractList = () => {
             Sign and Export PDF
           </button>
           <button
-            onClick={handleExportToPDF}
+            onClick={() => setOpenPDFModal(true)}
             disabled={selectedContractIds.length === 0}
             className={`flex items-center gap-2 px-4 py-2 rounded-md transition-all duration-200 ${
               selectedContractIds.length === 0
-                ? 'bg-red-300 cursor-not-allowed'
-                : 'bg-red-600 hover:bg-red-700 text-white'
+                ? 'bg-purple-300 cursor-not-allowed'
+                : 'bg-purple-600 hover:bg-purple-700 text-white'
             }`}
           >
             <FaFilePdf size={18} />
-            Export PDF
+            PDF
           </button>
           <button
             onClick={exportToExcel}
@@ -625,7 +656,7 @@ const ContractList = () => {
           <button
             onClick={() => setOpenEmailModal(true)}
             disabled={selectedContractIds.length === 0}
-            className={`flex items-center gap-2 px-4 py-2 h-16  rounded-md transition-all duration-200 ${
+            className={`flex items-center gap-2 px-4 py-2 h-16 rounded-md transition-all duration-200 ${
               selectedContractIds.length === 0
                 ? 'bg-blue-300 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
@@ -714,9 +745,9 @@ const ContractList = () => {
                         {selectedContract.buyer}
                       </div>
                     </div>
-                     <div className="group">
+                    <div className="group">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                       Rate
+                        Rate
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
                         {selectedContract.rate}
@@ -746,7 +777,7 @@ const ContractList = () => {
                         {selectedContract.commissionPercentage}
                       </div>
                     </div>
-                     <div className="group">
+                    <div className="group">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
                         Commission Value
                       </span>
@@ -790,6 +821,22 @@ const ContractList = () => {
                         }}
                         onEnd={() => handleSignatureUpload()}
                       />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleExportToPDF('purchase')}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
+                      >
+                        <FaFilePdf size={18} />
+                        Export Purchase PDF
+                      </button>
+                      <button
+                        onClick={() => handleExportToPDF('sales')}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
+                      >
+                        <FaFilePdf size={18} />
+                        Export Sales PDF
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -940,6 +987,44 @@ const ContractList = () => {
                   className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-all duration-200"
                 >
                   Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {openPDFModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-5 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+                Download PDF
+              </h2>
+              <button
+                className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
+                onClick={() => setOpenPDFModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 bg-gray-50 space-y-4">
+              <p className="text-sm text-gray-700">
+                Select the type of PDF to download for the selected contract(s).
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => handleExportToPDF('purchase')}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
+                >
+                  <FaFilePdf size={18} />
+                  Purchase PDF
+                </button>
+                <button
+                  onClick={() => handleExportToPDF('sales')}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
+                >
+                  <FaFilePdf size={18} />
+                  Sales PDF
                 </button>
               </div>
             </div>
