@@ -37,7 +37,7 @@ import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
 import { getAllSelvegeThicknesss, } from '@/apis/selvegethickness';
-import { getAllInductionThreads,  } from '@/apis/Inductionthread'; 
+import { getAllInductionThreads,  } from '@/apis/inductionthread'; 
 import { getAllGSMs, deleteGSM } from '@/apis/gsm'; 
 
 // Update schema to match state types
@@ -1795,7 +1795,7 @@ const fetchDescriptions = async () => {
                         selectedOption={watch('BlendRatio') || ''}
                         selectedSubOptions={
                           Array.isArray(watch('BlendType'))
-                            ? watch('BlendType').slice().filter((v: unknown): v is string => typeof v === 'string')
+                            ? watch('BlendType')?.slice().filter((v: unknown): v is string => typeof v === 'string')
                             : (typeof watch('BlendType') === 'string' && watch('BlendType') !== '')
                               ? [watch('BlendType')]
                               : []
@@ -1940,19 +1940,23 @@ const fetchDescriptions = async () => {
                         subError={errors.FinalSubOptions?.message}
                         register={register}
                       />
-                      <DescriptionWithSubSelect
-                        label="Selvedge"
-                        name="Selvedge"
-                        subName="SelvedgeSubOptions"
-                        options={selvedges}
-                        selectedSubOptions={Array.isArray(watch('SelvedgeSubOptions'))
-                          ? (watch('SelvedgeSubOptions') ?? []).slice().filter((v): v is string => typeof v === 'string')
-                          : []}
-                        onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
-                        onSubChange={(values) => setValue('SelvedgeSubOptions', values, { shouldValidate: true })}
-                        error={errors.Selvedge?.message}
-                        subError={errors.SelvedgeSubOptions?.message}
-                        register={register} selectedOption={''}                      />
+                     <DescriptionWithSubSelect
+  label="Selvedge"
+  name="Selvedge"
+  subName="SelvedgeSubOptions"
+  options={selvedges}
+  selectedOption={watch('Selvedge') || ''} // Use watch to get current value
+  selectedSubOptions={
+    Array.isArray(watch('SelvedgeSubOptions'))
+      ? (watch('SelvedgeSubOptions') ?? []).slice().filter((v): v is string => typeof v === 'string')
+      : []
+  }
+  onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
+  onSubChange={(values) => setValue('SelvedgeSubOptions', values, { shouldValidate: true })}
+  error={errors.Selvedge?.message}
+  subError={errors.SelvedgeSubOptions?.message}
+  register={register}
+/>
                       <DescriptionWithSubSelect
                         label="Selvedge Weave"
                         name="SelvedgeWeave"
