@@ -67,6 +67,39 @@ const SampleDetailSchema = z.object({
   AdditionalInfo: z.array(AdditionalInfoSchema),
 });
 
+const DeliveryDetailSchema = z.object({
+  Quantity: z.string().optional(),
+  Rate: z.string().optional(),
+  FabricValue: z.string().optional(),
+  Gst: z.string().optional(),
+  GstValue: z.string().optional(),
+  TotalAmount: z.string().optional(),
+  CommissionType: z.string().optional(),
+  CommissionPercentage: z.string().optional(),
+  CommissionValue: z.string().optional(),
+  UnitOfMeasure: z.string().optional(),
+  Tolerance: z.string().optional(),
+  Packing: z.string().optional(),
+  PieceLength: z.string().optional(),
+  PaymentTermsSeller: z.string().optional(),
+  PaymentTermsBuyer: z.string().optional(),
+  FinishWidth: z.string().optional(),
+  DeliveryTerms: z.string().optional(),
+  CommissionFrom: z.string().optional(),
+  SellerCommission: z.string().optional(),
+  BuyerCommission: z.string().optional(),
+  DispatchLater: z.string().optional(),
+  SellerRemark: z.string().optional(),
+  BuyerRemark: z.string().optional(),
+  DeliveryDate: z.string().optional(),
+  Color: z.string().optional(),
+  Weight: z.string().optional(),
+  Shrinkage: z.string().optional(),
+  Finish: z.string().optional(),
+  LabDispNo: z.string().optional(),
+  LabDispDate: z.string().optional(),
+});
+
 const ContractSchema = z.object({
   Id: z.string().optional(),
   ContractNumber: z.string().min(1, 'Contract Number is required'),
@@ -78,7 +111,7 @@ const ContractSchema = z.object({
   Seller: z.string().min(1, 'Seller is required'),
   Buyer: z.string().min(1, 'Buyer is required'),
   ReferenceNumber: z.string().optional(),
-  DeliveryDate: z.string().min(1, 'Delivery Date is required'),
+  DeliveryDate: z.string().optional(),
   Refer: z.string().optional(),
   Referdate: z.string().optional(),
   FabricType: z.string().min(1, 'Fabric Type is required'),
@@ -102,16 +135,16 @@ const ContractSchema = z.object({
   SelvageThread: z.string().optional(),
   InductionThread: z.string().optional(), 
   GSM: z.string().optional(), 
-  Quantity: z.string().min(1, 'Quantity is required'),
-  UnitOfMeasure: z.string().min(1, 'Unit of Measure is required'),
+  Quantity: z.string().optional(),
+  UnitOfMeasure: z.string().optional(),
   Tolerance: z.string().optional(),
-  Rate: z.string().min(1, 'Rate is required'),
+  Rate: z.string().optional(),
   Packing: z.string().optional(),
   PieceLength: z.string().optional(),
-  FabricValue: z.string().min(1, 'Fabric Value is required'),
-  Gst: z.string().min(1, 'GST Type is required'),
+  FabricValue: z.string().optional(),
+  Gst: z.string().optional(),
   GstValue: z.string().optional(),
-  TotalAmount: z.string().min(1, 'Total Amount is required'),
+  TotalAmount: z.string().optional(),
   PaymentTermsSeller: z.string().optional(),
   PaymentTermsBuyer: z.string().optional(),
   DeliveryTerms: z.string().optional(),
@@ -129,15 +162,9 @@ const ContractSchema = z.object({
   ApprovedBy: z.string().optional(),
   ApprovedDate: z.string().optional(),
   EndUse: z.string().optional(),
-  DispatchLater: z.string().optional(),
-  SellerCommission: z.string().optional(),
-  BuyerCommission: z.string().optional(),
-  FinishWidth: z.string().optional(),
-  BuyerDeliveryBreakups: z.array(DeliveryBreakupSchema).optional(),
-  SellerDeliveryBreakups: z.array(DeliveryBreakupSchema).optional(),
-  SampleDetails: z.array(SampleDetailSchema).optional(),
   Notes: z.string().optional(),
   SelvegeThickness: z.string().optional(),
+  DeliveryDetails: z.array(DeliveryDetailSchema),
 });
 
 type FormData = z.infer<typeof ContractSchema>;
@@ -207,6 +234,7 @@ type ContractApiResponse = {
   endUse: string;
   notes?: string;
   selvegeThickness?: string;
+  deliveryDetails?: DeliveryDetail[];
   buyerDeliveryBreakups: Array<{
     id?: string;
     qty: string;
@@ -251,6 +279,8 @@ interface CustomDropdownProps {
   error?: string;
   register: UseFormRegister<FormData>;
 }
+
+type DeliveryDetail = z.infer<typeof DeliveryDetailSchema>;
 
 const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const router = useRouter();
@@ -345,27 +375,45 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     resolver: zodResolver(ContractSchema),
     defaultValues: {
       ContractType: "Sale",
-      BuyerDeliveryBreakups: [],
-      SellerDeliveryBreakups: [],
-      SampleDetails: [{
-        SampleQty: '',
-        SampleReceivedDate: '',
-        SampleDeliveredDate: '',
-        CreatedBy: 'Current User',
-        CreationDate: new Date().toISOString().split('T')[0],
-        UpdatedBy: '',
-        UpdateDate: '',
-        AdditionalInfo: [{
-          EndUse: '',
-          Count: '',
+      DeliveryDetails: [
+        {
+          Quantity: '',
+          Rate: '',
+          FabricValue: '',
+          Gst: '',
+          GstValue: '',
+          TotalAmount: '',
+          CommissionType: '',
+          CommissionPercentage: '',
+          CommissionValue: '',
+          UnitOfMeasure: '',
+          Tolerance: '',
+          Packing: '',
+          PieceLength: '',
+          PaymentTermsSeller: '',
+          PaymentTermsBuyer: '',
+          FinishWidth: '',
+          DeliveryTerms: '',
+          CommissionFrom: '',
+          SellerCommission: '',
+          BuyerCommission: '',
+          DispatchLater: '',
+          SellerRemark: '',
+          BuyerRemark: '',
+          DeliveryDate: '',
+          Color: '',
           Weight: '',
-          YarnBags: '',
-          Labs: '',
-        }],
-      }],
+          Shrinkage: '',
+          Finish: '',
+          LabDispNo: '',
+          LabDispDate: '',
+        },
+      ],
       Notes: ""
     }
   });
+
+  const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetail[]>(watch('DeliveryDetails') || []);
 
   // Dropdown options
   const contractTypes = [
@@ -1021,6 +1069,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               ApprovedDate: initialData.approvedDate || '',
               EndUse: initialData.endUse || '',
               Notes: initialData.notes || '',
+              SelvegeThickness: initialData.selvegeThickness || '',
+              deliveryDetails: initialData.deliveryDetails || [],
               BuyerDeliveryBreakups: initialData.buyerDeliveryBreakups?.map(breakup => ({
                 Id: breakup.id,
                 Qty: breakup.qty,
@@ -1033,22 +1083,22 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               })) || [],
               SampleDetails: initialData.sampleDetails?.map(detail => ({
                 Id: detail.id,
-                SampleQty: detail.sampleQty,
-                SampleReceivedDate: detail.sampleReceivedDate,
-                SampleDeliveredDate: detail.sampleDeliveredDate,
-                CreatedBy: detail.createdBy,
-                CreationDate: detail.creationDate,
-                UpdatedBy: detail.updatedBy,
-                UpdateDate: detail.updateDate,
-                AdditionalInfo: detail.additionalInfo?.map(info => ({
+                SampleQty: detail.sampleQty || '',
+                SampleReceivedDate: detail.sampleReceivedDate || '',
+                SampleDeliveredDate: detail.sampleDeliveredDate || '',
+                CreatedBy: detail.createdBy || '',
+                CreationDate: detail.creationDate || '',
+                UpdatedBy: detail.updatedBy || '',
+                UpdateDate: detail.updateDate || '',
+                AdditionalInfo: (detail.additionalInfo || []).map(info => ({
                   Id: info.id,
-                  EndUse: info.endUse,
-                  Count: info.count,
-                  Weight: info.weight,
-                  YarnBags: info.yarnBags,
-                  Labs: info.labs
+                  EndUse: info.endUse || '',
+                  Count: info.count || '',
+                  Weight: info.weight || '',
+                  YarnBags: info.yarnBags || '',
+                  Labs: info.labs || '',
                 })) || []
-              })) || []
+              })) || [],
             };
 
             // Reset form with formatted data
@@ -1085,6 +1135,16 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
     fetchAllData();
   }, [initialData, reset, sampleDetails, trigger]);
+
+  useEffect(() => {
+    setValue('DeliveryDetails', deliveryDetails);
+  }, [deliveryDetails, setValue]);
+
+  useEffect(() => {
+    if (initialData && initialData.deliveryDetails) {
+      setDeliveryDetails(initialData.deliveryDetails);
+    }
+  }, [initialData]);
 
   const handleBuyerDeliveryBreakupChange = (index: number, field: string, value: string) => {
     const updatedBreakups = [...buyerDeliveryBreakups];
@@ -1182,7 +1242,56 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     setSampleDetails(updatedSampleDetails);
   };
 
-  const onSubmit = async (data: FormData) => {
+  const handleDeliveryDetailChange = (index: number, field: keyof DeliveryDetail, value: string) => {
+    const updated = [...deliveryDetails];
+    updated[index] = { ...updated[index], [field]: value };
+    setDeliveryDetails(updated);
+  };
+
+  const addDeliveryDetail = () => {
+    setDeliveryDetails([
+      ...deliveryDetails,
+      {
+        Quantity: '',
+        Rate: '',
+        FabricValue: '',
+        Gst: '',
+        GstValue: '',
+        TotalAmount: '',
+        CommissionType: '',
+        CommissionPercentage: '',
+        CommissionValue: '',
+        UnitOfMeasure: '',
+        Tolerance: '',
+        Packing: '',
+        PieceLength: '',
+        PaymentTermsSeller: '',
+        PaymentTermsBuyer: '',
+        FinishWidth: '',
+        DeliveryTerms: '',
+        CommissionFrom: '',
+        SellerCommission: '',
+        BuyerCommission: '',
+        DispatchLater: '',
+        SellerRemark: '',
+        BuyerRemark: '',
+        DeliveryDate: '',
+        Color: '',
+        Weight: '',
+        Shrinkage: '',
+        Finish: '',
+        LabDispNo: '',
+        LabDispDate: '',
+      },
+    ]);
+  };
+
+  const removeDeliveryDetail = (index: number) => {
+    setDeliveryDetails(deliveryDetails.filter((_, i) => i !== index));
+  };
+
+  const onSubmit: SubmitHandler<FormData> = async (data) => {
+    console.log('Form submitted!', data);
     try {
       // Format the data to match the API schema exactly
       const payload = {
@@ -1216,10 +1325,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         final: data.Final || '',
         selvege: data.Selvedge || '',
         selvegeWeaves: data.SelvedgeWeave || '',
-        selvegeWidth: data.SelvedgeWidth || '',
-         selvageThread: data.SelvageThread || '', 
-        inductionThread: data.InductionThread || '', 
-        gsm: data.GSM || '', 
+        selvedgeWidth: data.SelvedgeWidth || '',
+        selvageThread: data.SelvageThread || '',
+        inductionThread: data.InductionThread || '',
+        gsm: data.GSM || '',
         quantity: data.Quantity,
         unitOfMeasure: data.UnitOfMeasure,
         tolerance: data.Tolerance || '',
@@ -1247,42 +1356,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         approvedBy: data.ApprovedBy || '',
         approvedDate: data.ApprovedDate || '',
         endUse: data.EndUse || '',
-        buyerDeliveryBreakups: buyerDeliveryBreakups.map(breakup => ({
-          id: breakup.Id || undefined,
-          qty: breakup.Qty,
-          deliveryDate: breakup.DeliveryDate
-        })),
-        sellerDeliveryBreakups: sellerDeliveryBreakups.map(breakup => ({
-          id: breakup.Id || undefined,
-          qty: breakup.Qty,
-          deliveryDate: breakup.DeliveryDate
-        })),
-        sampleDetails: sampleDetails.map(detail => ({
-          id: detail.Id || undefined,
-          sampleQty: detail.SampleQty,
-          sampleReceivedDate: detail.SampleReceivedDate,
-          sampleDeliveredDate: detail.SampleDeliveredDate,
-          createdBy: detail.CreatedBy,
-          creationDate: detail.CreationDate,
-          updatedBy: detail.UpdatedBy || '',
-          updateDate: detail.UpdateDate || '',
-          additionalInfo: detail.AdditionalInfo.map(info => ({
-            id: info.Id || undefined,
-            endUse: info.EndUse,
-            count: info.Count,
-            weight: info.Weight,
-            yarnBags: info.YarnBags,
-            labs: info.Labs
-          }))
-        })),
+        notes: data.Notes || '',
         selvegeThickness: data.SelvegeThickness || '',
+        deliveryDetails: data.DeliveryDetails,
+        buyerDeliveryBreakups: buyerDeliveryBreakups,
+        sellerDeliveryBreakups: sellerDeliveryBreakups,
+        sampleDetails: sampleDetails,
       };
 
-      // Remove any undefined or null values from the payload
+      // Remove any undefined or null values from the payload, but keep arrays even if empty
       const cleanPayload = Object.fromEntries(
-        Object.entries(payload).filter(([_, value]) => {
+        Object.entries(payload).filter(([key, value]) => {
           if (Array.isArray(value)) {
-            return value.length > 0;
+            return true; // always keep arrays
           }
           return value !== undefined && value !== null && value !== '';
         })
@@ -1371,6 +1457,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         EndUse: initialData.endUse || '',
         Notes: initialData.notes || '',
         SelvegeThickness: initialData.selvegeThickness || '',
+        deliveryDetails: initialData.deliveryDetails || [],
         BuyerDeliveryBreakups: initialData.buyerDeliveryBreakups?.map(breakup => ({
           Id: breakup.id,
           Qty: breakup.qty,
@@ -1383,30 +1470,34 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })) || [],
         SampleDetails: initialData.sampleDetails?.map(detail => ({
           Id: detail.id,
-          SampleQty: detail.sampleQty,
-          SampleReceivedDate: detail.sampleReceivedDate,
-          SampleDeliveredDate: detail.sampleDeliveredDate,
-          CreatedBy: detail.createdBy,
-          CreationDate: detail.creationDate,
-          UpdatedBy: detail.updatedBy,
-          UpdateDate: detail.updateDate,
-          AdditionalInfo: detail.additionalInfo?.map(info => ({
+          SampleQty: detail.sampleQty || '',
+          SampleReceivedDate: detail.sampleReceivedDate || '',
+          SampleDeliveredDate: detail.sampleDeliveredDate || '',
+          CreatedBy: detail.createdBy || '',
+          CreationDate: detail.creationDate || '',
+          UpdatedBy: detail.updatedBy || '',
+          UpdateDate: detail.updateDate || '',
+          AdditionalInfo: (detail.additionalInfo || []).map(info => ({
             Id: info.id,
-            EndUse: info.endUse,
-            Count: info.count,
-            Weight: info.weight,
-            YarnBags: info.yarnBags,
-            Labs: info.labs
+            EndUse: info.endUse || '',
+            Count: info.count || '',
+            Weight: info.weight || '',
+            YarnBags: info.yarnBags || '',
+            Labs: info.labs || '',
           })) || []
-        })) || []
+        })) || [],
       };
 
       reset(formattedData);
       setBuyerDeliveryBreakups(formattedData.BuyerDeliveryBreakups);
       setSellerDeliveryBreakups(formattedData.SellerDeliveryBreakups);
       setSampleDetails(formattedData.SampleDetails);
+      setDeliveryDetails(formattedData.deliveryDetails);
     }
   }, [initialData, reset]);
+
+  // Add this before the return statement in ContractForm:
+  console.log('Form errors:', errors);
 
   return (
     <div className="container mx-auto bg-white shadow-lg rounded-lg dark:bg-[#030630] p-6">
@@ -1704,18 +1795,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           register={register}
                         />
                       )}
-                      {gsms.length === 0 && loading ? (
-                        <div>Loading GSMs...</div>
-                      ) : (
-                        <CustomInputDropdown
-                          label="GSM"
-                          options={gsms}
-                          selectedOption={watch('GSM') || ''}
-                          onChange={(value) => setValue('GSM', value, { shouldValidate: true })}
-                          error={errors.GSM?.message}
-                          register={register}
-                        />
-                      )}
+                      <CustomInput
+                        variant="floating"
+                        borderThickness="2"
+                        label="GSM"
+                        id="GSM"
+                        {...register('GSM')}
+                        error={errors.GSM?.message}
+                      />
                       <CustomInputDropdown
                         label="End Use"
                         options={endUses}
@@ -1729,247 +1816,239 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
                   <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
                     <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">Delivery Details</h2>
-                    <div className="grid grid-cols-5 gap-4">
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Quantity"
-                        id="Quantity"
-                        {...register('Quantity')}
-                        error={errors.Quantity?.message}
-                      />
-                       <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Rate"
-                        id="Rate"
-                        {...register('Rate')}
-                        error={errors.Rate?.message}
-                      />
-                       <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Fabric Value"
-                        id="FabricValue"
-                        {...register('FabricValue')}
-                        error={errors.FabricValue?.message}
-                        disabled
-                        className="auto-calculated-field"
-                      />
-                      {gstTypes.length === 0 && loading ? (
-                        <div>Loading GST Types...</div>
-                      ) : (
-                        <CustomInputDropdown
-                          label="GST Type"
-                          options={gstTypes}
-                          selectedOption={watch('Gst') || ''}
-                          onChange={(value) => {
-                            setValue('Gst', value, { shouldValidate: true });
-                            trigger('Gst');
-                          }}
-                          error={errors.Gst?.message}
-                          register={register}
-                        />
-                      )}
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="GST Value"
-                        id="GstValue"
-                        {...register('GstValue')}
-                        error={errors.GstValue?.message}
-                        disabled
-                        className="auto-calculated-field"
-                      />
-                      {commissionTypes.length === 0 && loading ? (
-                        <div>Loading Commission Types...</div>
-                      ) : (
-                        <CustomInputDropdown
-                          label="Commission Type"
-                          options={commissionTypes}
-                          selectedOption={watch('CommissionType') || ''}
-                          onChange={(value) => setValue('CommissionType', value, { shouldValidate: true })}
-                          error={errors.CommissionType?.message}
-                          register={register}
-                        />
-                      )}
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Commission (%)"
-                        id="CommissionPercentage"
-                        {...register('CommissionPercentage')}
-                        error={errors.CommissionPercentage?.message}
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Commission Value"
-                        id="CommissionValue"
-                        {...register('CommissionValue')}
-                        error={errors.CommissionValue?.message}
-                        disabled
-                        className="auto-calculated-field"
-                      />
-                       <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Total Amount"
-                        id="TotalAmount"
-                        {...register('TotalAmount')}
-                        error={errors.TotalAmount?.message}
-                        disabled
-                        className="auto-calculated-field"
-                      />
-                      {unitsOfMeasure.length === 0 && loading ? (
-                        <div>Loading Units of Measure...</div>
-                      ) : (
-                        <CustomInputDropdown
-                          label="Unit of Measure"
-                          options={unitsOfMeasure}
-                          selectedOption={watch('UnitOfMeasure') || ''}
-                          onChange={(value) => {
-                            setValue('UnitOfMeasure', value, { shouldValidate: true });
-                            trigger('UnitOfMeasure');
-                          }}
-                          error={errors.UnitOfMeasure?.message}
-                          register={register}
-                        />
-                      )}
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Tolerance (%)"
-                        id="Tolerance"
-                        {...register('Tolerance')}
-                        error={errors.Tolerance?.message}
-                      />
-                     
-                      <CustomInputDropdown
-                        label="Packing"
-                        options={packings}
-                        selectedOption={watch('Packing') || ''}
-                        onChange={(value) => setValue('Packing', value, { shouldValidate: true })}
-                        error={errors.Packing?.message}
-                        register={register}
-                      />
-                      <CustomInputDropdown
-                        label="Piece Length"
-                        options={pieceLengths}
-                        selectedOption={watch('PieceLength') || ''}
-                        onChange={(value) => setValue('PieceLength', value, { shouldValidate: true })}
-                        error={errors.PieceLength?.message}
-                        register={register}
-                      />
-                      {paymentTerms.length === 0 && loading ? (
-                        <div>Loading Payment Terms...</div>
-                      ) : (
-                        <CustomInputDropdown
-                          label="Pay Term Seller"
-                          options={paymentTerms}
-                          selectedOption={watch('PaymentTermsSeller') || ''}
-                          onChange={(value) => setValue('PaymentTermsSeller', value, { shouldValidate: true })}
-                          error={errors.PaymentTermsSeller?.message}
-                          register={register}
-                        />
-                      )}
-                      {paymentTerms.length === 0 && loading ? (
-                        <div>Loading Payment Terms...</div>
-                      ) : (
-                        <CustomInputDropdown
-                          label="Pay Term Buyer"
-                          options={paymentTerms}
-                          selectedOption={watch('PaymentTermsBuyer') || ''}
-                          onChange={(value) => setValue('PaymentTermsBuyer', value, { shouldValidate: true })}
-                          error={errors.PaymentTermsBuyer?.message}
-                          register={register}
-                        />
-                      )}
-                     
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Finish Width"
-                        id="FinishWidth"
-                        {...register('FinishWidth')}
-                        error={errors.FinishWidth?.message}
-                      />
-                     
-                      {deliveryTerms.length === 0 && loading ? (
-                        <div>Loading Delivery Terms...</div>
-                      ) : (
-                        <CustomInputDropdown
-                          label="Delivery Terms"
-                          options={deliveryTerms}
-                          selectedOption={watch('DeliveryTerms') || ''}
-                          onChange={(value) => setValue('DeliveryTerms', value, { shouldValidate: true })}
-                          error={errors.DeliveryTerms?.message}
-                          register={register}
-                        />
-                      )}
-                      <CustomInputDropdown
-                        label="Commission From"
-                        options={commissionFromOptions}
-                        selectedOption={watch('CommissionFrom') || ''}
-                        onChange={(value) => setValue('CommissionFrom', value, { shouldValidate: true })}
-                        error={errors.CommissionFrom?.message}
-                        register={register}
-                      />
-                      {watch('CommissionFrom') === 'Both' && (
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label="Seller Commission"
-                          id="SellerCommission"
-                          {...register('SellerCommission')}
-                          error={errors.SellerCommission?.message}
-                        />
-                      )}
-                      {watch('CommissionFrom') === 'Both' && (
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label="Buyer Commission"
-                          id="BuyerCommission"
-                          {...register('BuyerCommission')}
-                          error={errors.BuyerCommission?.message}
-                        />
-                      )}
-                    
-                      <CustomInputDropdown
-                        label="Dispatch Later"
-                        options={dispatchLaterOptions}
-                        selectedOption={watch('DispatchLater') || ''}
-                        onChange={(value) => setValue('DispatchLater', value, { shouldValidate: true })}
-                        error={errors.DispatchLater?.message}
-                        register={register}
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Seller Remark"
-                        id="SellerRemark"
-                        {...register('SellerRemark')}
-                        error={errors.SellerRemark?.message}
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Buyer Remark"
-                        id="BuyerRemark"
-                        {...register('BuyerRemark')}
-                        error={errors.BuyerRemark?.message}
-                      />
-                      <CustomInput
-                        type="date"
-                        variant="floating"
-                        borderThickness="2"
-                        label="Delivery Date"
-                        id="DeliveryDate"
-                        {...register('DeliveryDate')}
-                        error={errors.DeliveryDate?.message}
-                      />
-                    </div>
+                    {deliveryDetails.map((detail, idx) => (
+                      <div key={idx} className="mb-6 border p-4 rounded-lg bg-white dark:bg-gray-700">
+                        <div className="grid grid-cols-5 gap-4">
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Quantity"
+                            value={detail.Quantity}
+                            onChange={e => handleDeliveryDetailChange(idx, 'Quantity', e.target.value)}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Rate"
+                            value={detail.Rate}
+                            onChange={e => handleDeliveryDetailChange(idx, 'Rate', e.target.value)}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Fabric Value"
+                            value={detail.FabricValue}
+                            onChange={e => handleDeliveryDetailChange(idx, 'FabricValue', e.target.value)}
+                          />
+                          <CustomInputDropdown
+                            label="GST Type"
+                            options={gstTypes}
+                            selectedOption={detail.Gst || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'Gst', value)}
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="GST Value"
+                            value={detail.GstValue}
+                            onChange={e => handleDeliveryDetailChange(idx, 'GstValue', e.target.value)}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Total Amount"
+                            value={detail.TotalAmount}
+                            onChange={e => handleDeliveryDetailChange(idx, 'TotalAmount', e.target.value)}
+                          />
+                          <CustomInputDropdown
+                            label="Commission Type"
+                            options={commissionTypes}
+                            selectedOption={detail.CommissionType || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'CommissionType', value)}
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Commission (%)"
+                            value={detail.CommissionPercentage}
+                            onChange={e => handleDeliveryDetailChange(idx, 'CommissionPercentage', e.target.value)}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Commission Value"
+                            value={detail.CommissionValue}
+                            onChange={e => handleDeliveryDetailChange(idx, 'CommissionValue', e.target.value)}
+                          />
+                          <CustomInputDropdown
+                            label="Unit of Measure"
+                            options={unitsOfMeasure}
+                            selectedOption={detail.UnitOfMeasure || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'UnitOfMeasure', value)}
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Tolerance (%)"
+                            value={detail.Tolerance}
+                            onChange={e => handleDeliveryDetailChange(idx, 'Tolerance', e.target.value)}
+                          />
+                          <CustomInputDropdown
+                            label="Packing"
+                            options={packings}
+                            selectedOption={detail.Packing || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'Packing', value)}
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Piece Length"
+                            options={pieceLengths}
+                            selectedOption={detail.PieceLength || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'PieceLength', value)}
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Pay Term Seller"
+                            options={paymentTerms}
+                            selectedOption={detail.PaymentTermsSeller || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'PaymentTermsSeller', value)}
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Pay Term Buyer"
+                            options={paymentTerms}
+                            selectedOption={detail.PaymentTermsBuyer || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'PaymentTermsBuyer', value)}
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Finish Width"
+                            value={detail.FinishWidth}
+                            onChange={e => handleDeliveryDetailChange(idx, 'FinishWidth', e.target.value)}
+                          />
+                          <CustomInputDropdown
+                            label="Delivery Terms"
+                            options={deliveryTerms}
+                            selectedOption={detail.DeliveryTerms || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'DeliveryTerms', value)}
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Commission From"
+                            options={commissionFromOptions}
+                            selectedOption={detail.CommissionFrom || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'CommissionFrom', value)}
+                            register={register}
+                          />
+                          {detail.CommissionFrom === 'Both' && (
+                            <CustomInput
+                              variant="floating"
+                              borderThickness="2"
+                              label="Seller Commission"
+                              value={detail.SellerCommission}
+                              onChange={e => handleDeliveryDetailChange(idx, 'SellerCommission', e.target.value)}
+                            />
+                          )}
+                          {detail.CommissionFrom === 'Both' && (
+                            <CustomInput
+                              variant="floating"
+                              borderThickness="2"
+                              label="Buyer Commission"
+                              value={detail.BuyerCommission}
+                              onChange={e => handleDeliveryDetailChange(idx, 'BuyerCommission', e.target.value)}
+                            />
+                          )}
+                          <CustomInputDropdown
+                            label="Dispatch Later"
+                            options={dispatchLaterOptions}
+                            selectedOption={detail.DispatchLater || ''}
+                            onChange={value => handleDeliveryDetailChange(idx, 'DispatchLater', value)}
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Seller Remark"
+                            value={detail.SellerRemark}
+                            onChange={e => handleDeliveryDetailChange(idx, 'SellerRemark', e.target.value)}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Buyer Remark"
+                            value={detail.BuyerRemark}
+                            onChange={e => handleDeliveryDetailChange(idx, 'BuyerRemark', e.target.value)}
+                          />
+                          <CustomInput
+                            type="date"
+                            variant="floating"
+                            borderThickness="2"
+                            label="Delivery Date"
+                            value={detail.DeliveryDate}
+                            onChange={e => handleDeliveryDetailChange(idx, 'DeliveryDate', e.target.value)}
+                          />
+                          {/* New fields */}
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Color"
+                            value={detail.Color}
+                            onChange={e => handleDeliveryDetailChange(idx, 'Color', e.target.value)}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Weight"
+                            value={detail.Weight}
+                            onChange={e => handleDeliveryDetailChange(idx, 'Weight', e.target.value)}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Shrinkage"
+                            value={detail.Shrinkage}
+                            onChange={e => handleDeliveryDetailChange(idx, 'Shrinkage', e.target.value)}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Finish"
+                            value={detail.Finish}
+                            onChange={e => handleDeliveryDetailChange(idx, 'Finish', e.target.value)}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Lab Disp No"
+                            value={detail.LabDispNo}
+                            onChange={e => handleDeliveryDetailChange(idx, 'LabDispNo', e.target.value)}
+                          />
+                          <CustomInput
+                            type="date"
+                            variant="floating"
+                            borderThickness="2"
+                            label="Lab Disp Date"
+                            value={detail.LabDispDate}
+                            onChange={e => handleDeliveryDetailChange(idx, 'LabDispDate', e.target.value)}
+                          />
+                        </div>
+                        <div className="flex justify-end mt-2">
+                          {deliveryDetails.length > 1 && (
+                            <Button type="button" onClick={() => removeDeliveryDetail(idx)} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                              <MdDelete /> Remove
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <Button type="button" onClick={addDeliveryDetail} className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2 mt-2">
+                      <MdAdd /> Add Delivery Detail
+                    </Button>
                   </div>
                 </div>
                 {/* Second Div: Delivery Breakups and Sample Details (30% width) */}
@@ -2100,69 +2179,89 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Sample Quantity
                           </label>
-                          <CustomInput
-                            type="number"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Sample Quantity"
-                            value={sampleDetails[0].SampleQty}
-                            onChange={(e) => handleSampleDetailChange(0, 'SampleQty', e.target.value)}
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                type="number"
+                                variant="floating"
+                                borderThickness="2"
+                                label="Sample Quantity"
+                                value={detail.SampleQty || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'SampleQty', e.target.value)}
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Received Date
                           </label>
-                          <CustomInput
-                            type="date"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Received Date"
-                            value={sampleDetails[0].SampleReceivedDate}
-                            onChange={(e) => handleSampleDetailChange(0, 'SampleReceivedDate', e.target.value)}
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                type="date"
+                                variant="floating"
+                                borderThickness="2"
+                                label="Received Date"
+                                value={detail.SampleReceivedDate || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'SampleReceivedDate', e.target.value)}
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Delivered Date
                           </label>
-                          <CustomInput
-                            type="date"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Delivered Date"
-                            value={sampleDetails[0].SampleDeliveredDate}
-                            onChange={(e) => handleSampleDetailChange(0, 'SampleDeliveredDate', e.target.value)}
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                type="date"
+                                variant="floating"
+                                borderThickness="2"
+                                label="Delivered Date"
+                                value={detail.SampleDeliveredDate || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'SampleDeliveredDate', e.target.value)}
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Created By
                           </label>
-                          <CustomInput
-                            variant="floating"
-                            borderThickness="2"
-                            label="Created By"
-                            value={sampleDetails[0].CreatedBy}
-                            onChange={(e) => handleSampleDetailChange(0, 'CreatedBy', e.target.value)}
-                            disabled
-                            className="auto-calculated-field"
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                variant="floating"
+                                borderThickness="2"
+                                label="Created By"
+                                value={detail.CreatedBy || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'CreatedBy', e.target.value)}
+                                disabled
+                                className="auto-calculated-field"
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Creation Date
                           </label>
-                          <CustomInput
-                            type="date"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Creation Date"
-                            value={sampleDetails[0].CreationDate}
-                            onChange={(e) => handleSampleDetailChange(0, 'CreationDate', e.target.value)}
-                            disabled
-                            className="auto-calculated-field"
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                type="date"
+                                variant="floating"
+                                borderThickness="2"
+                                label="Creation Date"
+                                value={detail.CreationDate || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'CreationDate', e.target.value)}
+                                disabled
+                                className="auto-calculated-field"
+                              />
+                            ) : null
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -2210,98 +2309,126 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Sample Quantity
                           </label>
-                          <CustomInput
-                            type="number"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Sample Quantity"
-                            value={sampleDetails[0].SampleQty}
-                            onChange={(e) => handleSampleDetailChange(0, 'SampleQty', e.target.value)}
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                type="number"
+                                variant="floating"
+                                borderThickness="2"
+                                label="Sample Quantity"
+                                value={detail.SampleQty || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'SampleQty', e.target.value)}
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Received Date
                           </label>
-                          <CustomInput
-                            type="date"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Received Date"
-                            value={sampleDetails[0].SampleReceivedDate}
-                            onChange={(e) => handleSampleDetailChange(0, 'SampleReceivedDate', e.target.value)}
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                type="date"
+                                variant="floating"
+                                borderThickness="2"
+                                label="Received Date"
+                                value={detail.SampleReceivedDate || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'SampleReceivedDate', e.target.value)}
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Delivered Date
                           </label>
-                          <CustomInput
-                            type="date"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Delivered Date"
-                            value={sampleDetails[0].SampleDeliveredDate}
-                            onChange={(e) => handleSampleDetailChange(0, 'SampleDeliveredDate', e.target.value)}
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                type="date"
+                                variant="floating"
+                                borderThickness="2"
+                                label="Delivered Date"
+                                value={detail.SampleDeliveredDate || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'SampleDeliveredDate', e.target.value)}
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Created By
                           </label>
-                          <CustomInput
-                            variant="floating"
-                            borderThickness="2"
-                            label="Created By"
-                            value={sampleDetails[0].CreatedBy}
-                            onChange={(e) => handleSampleDetailChange(0, 'CreatedBy', e.target.value)}
-                            disabled
-                            className="auto-calculated-field"
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                variant="floating"
+                                borderThickness="2"
+                                label="Created By"
+                                value={detail.CreatedBy || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'CreatedBy', e.target.value)}
+                                disabled
+                                className="auto-calculated-field"
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Creation Date
                           </label>
-                          <CustomInput
-                            type="date"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Creation Date"
-                            value={sampleDetails[0].CreationDate}
-                            onChange={(e) => handleSampleDetailChange(0, 'CreationDate', e.target.value)}
-                            disabled
-                            className="auto-calculated-field"
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                type="date"
+                                variant="floating"
+                                borderThickness="2"
+                                label="Creation Date"
+                                value={detail.CreationDate || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'CreationDate', e.target.value)}
+                                disabled
+                                className="auto-calculated-field"
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Updated By
                           </label>
-                          <CustomInput
-                            variant="floating"
-                            borderThickness="2"
-                            label="Updated By"
-                            value={sampleDetails[0].UpdatedBy}
-                            onChange={(e) => handleSampleDetailChange(0, 'UpdatedBy', e.target.value)}
-                            disabled
-                            className="auto-calculated-field"
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                variant="floating"
+                                borderThickness="2"
+                                label="Updated By"
+                                value={detail.UpdatedBy || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'UpdatedBy', e.target.value)}
+                                disabled
+                                className="auto-calculated-field"
+                              />
+                            ) : null
+                          ))}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                             Update Date
                           </label>
-                          <CustomInput
-                            type="date"
-                            variant="floating"
-                            borderThickness="2"
-                            label="Update Date"
-                            value={sampleDetails[0].UpdateDate}
-                            onChange={(e) => handleSampleDetailChange(0, 'UpdateDate', e.target.value)}
-                            disabled
-                            className="auto-calculated-field"
-                          />
+                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
+                            detail ? (
+                              <CustomInput
+                                type="date"
+                                variant="floating"
+                                borderThickness="2"
+                                label="Update Date"
+                                value={detail.UpdateDate || ''}
+                                onChange={(e) => handleSampleDetailChange(idx, 'UpdateDate', e.target.value)}
+                                disabled
+                                className="auto-calculated-field"
+                              />
+                            ) : null
+                          ))}
                         </div>
                       </div>
                     </div>
