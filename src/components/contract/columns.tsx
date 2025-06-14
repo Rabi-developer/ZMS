@@ -170,14 +170,18 @@ export const columns = (
     accessorKey: 'contractType',
     header: 'Contract Type',
   },
+  // {
+  //   accessorKey: 'companyName',
+  //   header: 'Company',
+  // },
   {
-    accessorKey: 'companyName',
-    header: 'Company',
+    accessorKey: 'name',
+    header: '',
   },
-  {
-    accessorKey: 'branchName',
-    header: 'Branch',
-  },
+  // {
+  //   accessorKey: 'branchName',
+  //   header: 'Branch',
+  // },
   {
     accessorKey: 'contractOwner',
     header: 'Contract Owner',

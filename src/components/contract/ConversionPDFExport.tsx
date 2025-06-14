@@ -45,6 +45,7 @@ interface ExportToPDFProps {
   buyerAddress?: string;
   buyerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
   sellerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
+  type: 'purchase' | 'sale';
 }
 
 const ConversionPDFExport = {
@@ -57,6 +58,7 @@ const ConversionPDFExport = {
     buyerAddress,
     buyerDeliveryBreakups = [],
     sellerDeliveryBreakups = [],
+    type,
   }: ExportToPDFProps) => {
     if (!contract) {
       toast('Contract not found', { type: 'error' });
@@ -132,10 +134,9 @@ const ConversionPDFExport = {
 
     const doc = new jsPDF();
 
+    // Header
     doc.setFillColor(6, 182, 212);
     doc.rect(0, 0, 210, 28, 'F');
-
-    // Header
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);
     doc.setTextColor(0, 0, 0);
@@ -174,17 +175,19 @@ const ConversionPDFExport = {
     const contractSubheading = `${contract.contractNumber || '-'}`;
     doc.text(contractSubheading, 10, yPos, { align: 'left' });
 
+    // Title
     yPos = 34;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    doc.text('CONVERSION CONTRACT', 105, yPos, { align: 'center' });
+    const title = type === 'purchase' ? 'PURCHASE CONVERSION FABRIC CONTRACT' : 'SALE CONVERSION FABRIC CONTRACT';
+    doc.text(title, 105, yPos, { align: 'center' });
 
+    // Date
     yPos = 38;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
-
     const formattedDate = contract.date
       ? new Date(contract.date).toLocaleDateString('en-GB', {
           day: '2-digit',
@@ -194,10 +197,10 @@ const ConversionPDFExport = {
           .split('/')
           .join('-')
       : '-';
-
     doc.text(`Date: ${formattedDate}`, 200, yPos, { align: 'right' });
     yPos += 10;
 
+    // Seller and Buyer Info
     const leftColX = 10;
     const rightColX = 105;
     const labelStyle = {
@@ -219,10 +222,9 @@ const ConversionPDFExport = {
     doc.setLineWidth(0.4);
     doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
     doc.rect(leftColX - 2, sellerBoxY, 85, sellerBoxHeight, 'S');
-
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.setTextColor(...labelStyle.color);
     doc.text('Seller:', leftColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
@@ -251,10 +253,9 @@ const ConversionPDFExport = {
     doc.setLineWidth(0.4);
     doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
     doc.rect(rightColX - 2, buyerBoxY, 85, buyerBoxHeight, 'S');
-
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.setTextColor(...labelStyle.color);
     doc.text('Buyer:', rightColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
@@ -277,8 +278,9 @@ const ConversionPDFExport = {
     doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 5, yPos);
     doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 5, yPos + 5);
 
-    yPos += 20;
+    yPos += 18;
 
+    // Fields
     const fields = [
       { label: 'Description:', value: `${contract.description || '-'}, ${contract.stuff || '-'}` },
       {
@@ -287,7 +289,7 @@ const ConversionPDFExport = {
       },
       {
         label: 'Construction:',
-        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'} ${selvedgeSub}`,
+        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
     ];
 
@@ -307,7 +309,7 @@ const ConversionPDFExport = {
 
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...(labelStyle.color as [number, number, number]));
+      doc.setTextColor(...labelStyle.color);
       doc.text(field.label, leftColX, yPos);
 
       doc.setFont(valueStyle.font, valueStyle.style);
@@ -318,90 +320,158 @@ const ConversionPDFExport = {
       yPos += 5;
     });
 
-    yPos += 4;
+    yPos += 2;
 
-   // Financial Table
-    const tableBody = [];
+    // Financial Table
+    const tableBody: (string | number)[][] = [];
     let totalQty = 0;
     let totalAmount = 0;
-    if (contract.deliveryDetails && contract.deliveryDetails.length > 0) {
-      contract.deliveryDetails.forEach((detail, index) => {
-        const qty = parseFloat(detail.quantity || '0');
-        const amount = parseFloat((detail.totalAmount ?? '0').toString());
-        totalQty += isNaN(qty) ? 0 : qty;
-        totalAmount += isNaN(amount) ? 0 : amount;
-        const deliveryTerms = (detail.deliveryTermDetails as any[] | undefined)?.map((dt: any) => dt.term).join(', ') || '-';
+
+    if (Array.isArray(contract.deliveryDetails) && contract.deliveryDetails.length > 0) {
+      contract.deliveryDetails.forEach((delivery) => {
+        const qty = parseFloat(delivery.quantity || '0');
+        const rate = parseFloat(delivery.rate || '0');
+        const amount = qty * rate;
+
+        if (!isNaN(qty)) totalQty += qty;
+        if (!isNaN(amount)) totalAmount += amount;
+
         tableBody.push([
-          detail.finishWidth || '-',
-          detail.quantity || '-',
-          `PKR ${formatCurrency(detail.rate)}`,
-          formatCurrency(detail.totalAmount),
-          detail.deliveryDate
-            ? new Date(detail.deliveryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          delivery.labDispNo || '-',
+          delivery.labDispDate
+            ? new Date(delivery.labDispDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+                .split('/')
+                .join('-')
             : '-',
-          detail.weight || '-',
-          detail.shrinkage || '-',
-          detail.color || '-',
-          detail.labDispNo || '-',
-          deliveryTerms,
+          delivery.color || '-',
+          delivery.quantity?.toString() || '-',
+          `PKR ${delivery.rate || '-'}`,
+          formatCurrency(amount),
+          delivery.deliveryDate
+            ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+                .split('/')
+                .join('-')
+            : '-',
         ]);
-        
+      });
+    } else if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
+      buyerDeliveryBreakups.forEach((breakup, index) => {
+        const qty = parseFloat(breakup.Qty || '0');
+        const rate = parseFloat(contract.rate || '0');
+        const amount = qty * rate;
+
+        if (!isNaN(qty)) totalQty += qty;
+        if (!isNaN(amount) && index === 0) totalAmount += amount;
+
+        tableBody.push([
+          index === 0 ? contract.deliveryDetails?.[0]?.labDispNo || '-' : '',
+          index === 0 ? contract.deliveryDetails?.[0]?.labDispDate || '-' : '',
+          index === 0 ? contract.deliveryDetails?.[0]?.color || '-' : '',
+          breakup.Qty?.toString() || '-',
+          index === 0 ? `PKR ${contract.rate || '-'}` : '',
+          index === 0 ? formatCurrency(amount) : '',
+          breakup.DeliveryDate
+            ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+                .split('/')
+                .join('-')
+            : '-',
+        ]);
       });
     } else {
+      const qty = parseFloat(contract.quantity || '0');
+      const rate = parseFloat(contract.rate || '0');
+      const amount = qty * rate;
+
+      if (!isNaN(qty)) totalQty += qty;
+      if (!isNaN(amount)) totalAmount += amount;
+
       tableBody.push([
         contract.width || '-',
         contract.quantity || '-',
-        `PKR ${formatCurrency(contract.rate)}`,
-        formatCurrency(contract.totalAmount),
-        contract.deliveryDate
-          ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        contract.pickrate || '-',
+        contract.fabrate?.toString() || '-',
+        contract.amount|| '-',
+        contract.deliveryDetails?.[0]?.deliveryDate
+          ? new Date(contract.deliveryDetails[0].deliveryDate).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            })
+              .split('/')
+              .join('-')
           : '-',
-        contract.weight || '-',
-        contract.shrinkage || '-',
-        contract.color || '-',
-        contract.labdipno || '-',
-
-        '-',
-      ]
-    );
-
+    
+        contract.deliveryDetails?.[0]?.wrapWeight || '-',
+        contract.deliveryDetails?.[0]?.weftWeight || '-',
+        contract.deliveryDetails?.[0]?.wrapBags || '-',
+        contract.deliveryDetails?.[0]?.weftBags || '-',
+        contract.deliveryDetails?.[0]?.totalBags || '-',
+        formatCurrency(totalAmount),
+      ]);
     }
 
-    // GST and Total
-    const gstPercentage = parseFloat(contract.deliveryDetails?.[0]?.gst || '0') || 0;
+    // Calculate GST amount and total with GST
+    const gstPercentage = parseFloat(contract.deliveryDetails?.[0]?.gst as any) || 0;
     const gstAmount = (totalAmount * gstPercentage) / 100;
     const totalWithGST = totalAmount + gstAmount;
 
-    tableBody.push(['', '', 'Total:', formatCurrency(totalQty), '', formatCurrency(totalAmount), '', '', '', '']);
-    tableBody.push(['', '', 'GST:', `${gstPercentage}%`, '', formatCurrency(gstAmount), '', '', '', '']);
-    tableBody.push(['', '', '', 'Total:', '', formatCurrency(totalWithGST), '', '', '', '']);
+    // Add total quantity row (subtotal before GST)
+    tableBody.push(['', '', 'Subtotal:', formatCurrency(totalQty), '', formatCurrency(totalAmount), '']);
+
+    // Add GST row
+    tableBody.push(['', '', `GST (${gstPercentage}%):`, '', '', formatCurrency(gstAmount), '']);
+
+    // Add total with GST row
+    tableBody.push(['', '', `Total (with ${gstPercentage}% GST):`, '', '', formatCurrency(totalWithGST), '']);
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Width', 'Qty', 'Pick Rate', 'Fabric Rate', 'Amount', 'Delivery', 'Wrap wt.', 'Weft wt.', 'Wrap Bags', 'Weft Bags', 'Total Bags',]],
+      head: [['Width', 'Qty', 'Pick Rate', 'Fab. Rate', 'Amount', 'Delivery', 'Wrap.wt', 'Weft.wt', 'Wrap Bags', 'Weft Bags', 'Total Bags']],
       body: tableBody,
-      styles: { fontSize: 8, cellPadding: 1, lineColor: [0, 0, 0], lineWidth: 0.2, textColor: [0, 0, 0] },
-      headStyles: { fillColor: [6, 182, 212], textColor: '#000000', fontSize: 7, cellPadding: 1, lineWidth: 0.2 },
+      styles: {
+        fontSize: 8,
+        cellPadding: 1.5,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.3,
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+      },
+      headStyles: {
+        fillColor: [6, 182, 212],
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        fontSize: 8,
+        cellPadding: 1.5,
+        lineWidth: 0.3,
+        fontStyle: 'bold',
+      },
       columnStyles: {
-        0: { cellWidth: 16 },
-        1: { cellWidth: 16 },
-        2: { cellWidth: 21 },
-        3: { cellWidth: 21 },
-        4: { cellWidth: 21 },
-        5: { cellWidth: 16 },
-        6: { cellWidth: 16 },
-        7: { cellWidth: 16 },
-        8: { cellWidth: 16 },
-        9: { cellWidth: 16 },
-        10: { cellWidth: 18 },
+        0: { cellWidth: 20 }, // Lab Dip NO.
+        1: { cellWidth: 20 }, // Lab Dip Date
+        2: { cellWidth: 25 }, // Color
+        3: { cellWidth: 30 }, // Finish Qty
+        4: { cellWidth: 25 }, // PKR/Mtr
+        5: { cellWidth: 30 }, // Amount
+        6: { cellWidth: 25 }, // Delivery
       },
       margin: { left: 10, right: 10 },
       theme: 'grid',
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 8;
+    yPos = (doc as any).lastAutoTable.finalY + 5;
 
-    
     // Two-Column Layout
     const leftColumnX = 12;
     const rightColumnX = 145;
@@ -410,15 +480,20 @@ const ConversionPDFExport = {
     let leftColumnYPos = yPos;
     let rightColumnYPos = yPos;
 
-    // Left Column: Additional Fields
+    // Left Column: Additional Fields (Removed Commission and Commission Value)
     const additionalFields = [
-      { label: 'Piece Length:', value: contract.pieceLength || '-' },
-      { label: 'Payment:', value: `${contract.paymentTermsBuyer || '-'}` },
-      { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
-      { label: 'Commission:', value: `${contract.commissionPercentage || '-'}/Pick` },
-      { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.commissionValue)}` },
+      { label: 'Piece Length:', value: contract.deliveryDetails?.[0]?.pieceLength || '-' },
+      { label: 'Payment:', value: `${contract.deliveryDetails?.[0]?.paymentTermsSeller || '-'}` },
+      { label: 'Packing:', value: contract.deliveryDetails?.[0]?.packing || '-' },
+      { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
+      ...(type === 'purchase'
+        ? [
+            { label: 'Commission:', value: `${contract.commissionPercentage || '-'}%` },
+            { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.commissionValue)}` },
+          ]
+        : []),
       { label: 'Delivery Destination:', value: `${contract.buyer || ''}` },
-      { label: 'Remarks:', value: `${contract.sellerRemark || '-'}` },
+      { label: 'Remarks:', value: `${contract.deliveryDetails?.[0]?.buyerRemark || '-'}` },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -428,7 +503,7 @@ const ConversionPDFExport = {
       const wrappedText = doc.splitTextToSize(field.value, leftColumnWidth - maxAdditionalLabelWidth - 5);
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...(labelStyle.color as [number, number, number]));
+      doc.setTextColor(...labelStyle.color);
       doc.text(field.label, leftColumnX, leftColumnYPos);
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
@@ -442,7 +517,7 @@ const ConversionPDFExport = {
     // Right Column: Delivery Breakups
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.setTextColor(...labelStyle.color);
     doc.text('', rightColumnX, rightColumnYPos);
     rightColumnYPos += 6;
     if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
@@ -490,7 +565,8 @@ const ConversionPDFExport = {
 
     yPos = Math.max(leftColumnYPos, rightColumnYPos) + 5;
 
-    yPos += 37;
+    // Separator Line
+    yPos += 25;
 
     // Terms and Conditions
     autoTable(doc, {
@@ -513,7 +589,7 @@ const ConversionPDFExport = {
         if (data.section === 'body' && data.row.index === 0) {
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(9);
-          doc.setTextColor(...(labelStyle.color as [number, number, number]));
+          doc.setTextColor(...labelStyle.color);
           doc.text('Terms and Conditions', 10, data.cell.y - 3);
         }
       },
@@ -610,7 +686,11 @@ const ConversionPDFExport = {
     );
     doc.text('Confidential - ZMS Textiles Ltd.', 105, footerY + 5, { align: 'center' });
 
-    doc.save(`ZMS Conversion Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`);
+    // Save PDF
+    const filename = type === 'purchase'
+      ? `ZMS Sourcing Purchase Conversion Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`
+      : `ZMS Sourcing Sale Conversion Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`;
+    doc.save(filename);
   },
 };
 

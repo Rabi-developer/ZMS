@@ -1,4 +1,3 @@
-// ContractPDFExport.tsx
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -45,10 +44,14 @@ interface ExportToPDFProps {
   buyerAddress?: string;
   buyerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
   sellerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
-  type: 'sale' | 'purchase'; // Add type to props
+  type: 'sale' | 'purchase' | 'multiwidth';
 }
 
-const ContractPDFExport = {
+type MultiContractPDFExportType = {
+  exportToPDF: (props: ExportToPDFProps) => Promise<void>;
+};
+
+const MultiContractPDFExport: MultiContractPDFExportType = {
   exportToPDF: async ({
     contract,
     sellerSignature,
@@ -58,7 +61,7 @@ const ContractPDFExport = {
     buyerAddress,
     buyerDeliveryBreakups = [],
     sellerDeliveryBreakups = [],
-    type, // Destructure type
+    type,
   }: ExportToPDFProps) => {
     if (!contract) {
       toast('Contract not found', { type: 'error' });
@@ -181,7 +184,7 @@ const ContractPDFExport = {
     doc.setFontSize(16);
     doc.setTextColor(0, 0, 0);
     // Set heading based on type
-    const heading = type === 'sale' ? 'Sale Contract' : 'Purchase Contract';
+    const heading = type === 'sale' ? 'SALE CONTRACT' : type === 'purchase' ? 'PURCHASE CONTRACT' : 'MULTIWIDTH CONTRACT';
     doc.text(heading, 105, yPos, { align: 'center' });
 
     yPos = 46;
@@ -331,7 +334,7 @@ const ContractPDFExport = {
         [
           contract.selvegeWidth || '-',
           contract.selvegeWeaves || '-',
-          contract.selvegeThickness || '30% heavier than fabric body',
+          contract.selvegeThickness || '',
           contract.inductionThread || '-',
           contract.gsm || '-',
         ],
@@ -368,32 +371,10 @@ const ContractPDFExport = {
     let leftColumnYPos = yPos;
     let rightColumnYPos = yPos;
 
-    // Left Column: Additional Fields (Exclude Commission and Commission Value for Sale Contract)
+    // Left Column: Additional Fields (Include Commission for MultiWidth, similar to Purchase)
     const additionalFields = [
-      { label: 'Quantity:', value: `Rs. ${formatCurrency(contract.quantity)} Mtr(+-${contract.tolerance || '-'})` },
-      {
-        label: 'Rate:',
-        value: `Rs. ${formatCurrency(contract.rate)}/Mtr + ${contract.gst || '-'} ${contract.deliveryDetails?.[0]?.deliveryTerms || '-'}`,
-      },
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
-      {
-        label: 'Delivery:',
-        value: contract.date && !isNaN(new Date(contract.date).getTime())
-          ? new Date(contract.date)
-              .toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })
-              .split('/')
-              .join('-')
-          : '-',
-      },
-      { label: 'Payment:', value: `${contract.paymentTermsBuyer || '-'}` },
       { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
-      { label: 'Fabric Value:', value: `Rs. ${formatCurrency(contract.fabricValue)}` },
-      { label: 'GST:', value: `${contract.gst || '-'}` },
-      { label: 'GST Value:', value: `Rs. ${formatCurrency(contract.gstValue)}` },
       { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
       ...(type === 'purchase'
         ? [
@@ -401,7 +382,7 @@ const ContractPDFExport = {
             { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.commissionValue)}` },
           ]
         : []),
-      { label: 'Dispatch:', value: `${contract.dispatchAddress || 'Adviced Later'}` },
+      { label: 'Delivery Destination:', value: `${contract.buyer || ''}` },
       { label: 'Remarks:', value: `${contract.buyerRemark || ''}` },
     ];
 
@@ -434,8 +415,8 @@ const ContractPDFExport = {
         startY: rightColumnYPos,
         head: [['Qty', 'Del. Date']],
         body: buyerDeliveryBreakups.slice(0, 4).map((breakup) => [
-          contract.buyerDeliveryBreakups?.[0]?.qty?.toString() || '-',
-          contract.buyerDeliveryBreakups?.[0]?.deliveryDate?.toString() || '-',
+          breakup.Qty || '-',
+          breakup.DeliveryDate || '-',
         ]),
         styles: {
           fontSize: 9,
@@ -482,8 +463,8 @@ const ContractPDFExport = {
         startY: rightColumnYPos,
         head: [['Qty', 'Del. Date']],
         body: sellerDeliveryBreakups.slice(0, 4).map((breakup) => [
-          contract.buyerDeliveryBreakups?.[0]?.qty?.toString() || '-',
-          contract.buyerDeliveryBreakups?.[0]?.deliveryDate?.toString() || '-',
+          breakup.Qty || '-',
+          breakup.DeliveryDate || '-',
         ]),
         styles: {
           fontSize: 9,
@@ -525,7 +506,7 @@ const ContractPDFExport = {
     autoTable(doc, {
       startY: yPos,
       body: [
-        ['01', 'Dispatch first 5Mt fabric as production sample'],
+        ['01', 'Dispatch first 5Mt fabric as multi-width sample'],
         ['02', 'No Contamination guarantee in Pakistan Cotton'],
       ],
       theme: 'plain',
@@ -557,29 +538,23 @@ const ContractPDFExport = {
     const startX = 12;
     const sellerMargin = 10;
     const centerX = startX + signatureWidth + sellerMargin;
-    const pageWidth = 210;
-    const margin = 12;
-    const availableWidth = pageWidth - margin - (centerX + signatureWidth);
-    const gap = availableWidth / 2;
-    const endX = centerX + signatureWidth + gap;
-
-    const labelColor: [number, number, number] = [0, 0, 0];
-    const textColor: [number, number, number] = [0, 0, 0];
+    const buyerMargin = 10;
+    const endX = centerX + signatureWidth + buyerMargin;
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.setTextColor(...labelColor);
+    doc.setTextColor(0, 0, 0);
     if (zmsSignature) {
       doc.addImage(zmsSignature, 'PNG', startX, signatureY, signatureWidth, 14);
     }
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(15);
-    doc.setTextColor(...textColor);
+    doc.setTextColor(0, 0, 0);
     const zmsText = 'Z.M. SOURCING';
     const zmsTextWidth = doc.getTextWidth(zmsText);
     doc.text(zmsText, startX, signatureY + 16);
     doc.setLineWidth(0.3);
-    doc.setDrawColor(...textColor);
+    doc.setDrawColor(0, 0, 0);
     doc.line(startX, signatureY + 17, startX + zmsTextWidth, signatureY + 17);
 
     if (sellerSignature) {
@@ -587,12 +562,12 @@ const ContractPDFExport = {
     }
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(14);
-    doc.setTextColor(...textColor);
+    doc.setTextColor(0, 0, 0);
     const sellerText = `${contract.seller || '-'}`;
     const sellerTextWidth = doc.getTextWidth(sellerText);
     doc.text(sellerText, centerX, signatureY + 16);
     doc.setLineWidth(0.3);
-    doc.setDrawColor(...textColor);
+    doc.setDrawColor(0, 0, 0);
     doc.line(centerX, signatureY + 17, centerX + sellerTextWidth, signatureY + 17);
 
     if (buyerSignature) {
@@ -600,12 +575,12 @@ const ContractPDFExport = {
     }
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(14);
-    doc.setTextColor(...textColor);
+    doc.setTextColor(0, 0, 0);
     const buyerText = `${contract.buyer || '-'}`;
     const buyerTextWidth = doc.getTextWidth(buyerText);
     doc.text(buyerText, endX, signatureY + 16);
     doc.setLineWidth(0.3);
-    doc.setDrawColor(...textColor);
+    doc.setDrawColor(0, 0, 0);
     doc.line(endX, signatureY + 17, endX + buyerTextWidth, signatureY + 17);
 
     yPos = signatureY + 26;
@@ -631,8 +606,10 @@ const ContractPDFExport = {
     );
     doc.text('Confidential - ZMS Textiles Ltd.', 105, yPos + 6, { align: 'center' });
 
-    doc.save(`ZMS Sourcing ${heading}: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`);
+    // Update document name to reflect the heading
+    const fileName = `ZMS_${heading.replace(' ', '_')}_(${contract.seller || '-'}-${contract.buyer || '-'}).pdf`;
+    doc.save(fileName);
   },
 };
 
-export default ContractPDFExport;
+export default MultiContractPDFExport;

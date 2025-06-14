@@ -11,6 +11,7 @@ import ContractPDFExport from './ContractPDFExport';
 import SalesPDFExport from './SalesPDFExport';
 import SignatureCanvas from 'react-signature-canvas';
 import ConversionPDFExport from './ConversionPDFExport';
+import MultiContractPDFExport from './MultiContractPDFExport';
 
 type ExtendedContract = Contract;
 
@@ -38,6 +39,9 @@ const ContractList = () => {
   const [whatsappNumber, setWhatsappNumber] = React.useState('');
   const [uploadedFile, setUploadedFile] = React.useState<File | null>(null);
   const [messageBody, setMessageBody] = React.useState('');
+  const [showSinglePDFOptions, setShowSinglePDFOptions] = React.useState(false);
+  const [showMultiPDFOptions, setShowMultiPDFOptions] = React.useState(false);
+  const [showConversionPDFOptions, setShowConversionPDFOptions] = React.useState(false);
 
   const zmsSigCanvas = React.useRef<SignatureCanvas | null>(null);
 
@@ -199,7 +203,7 @@ const ContractList = () => {
     XLSX.writeFile(workbook, `Contract_${contract.contractNumber}.xlsx`);
   };
 
-  const handleExportToPDF = async (type: 'purchase' | 'sales' | 'conversion') => {
+  const handleExportToPDF = async (type: 'purchase' | 'sale' | 'multiwidth' | 'sales' | 'conversion') => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
       return;
@@ -208,32 +212,37 @@ const ContractList = () => {
       const contract = contracts.find((c) => c.id === id);
       if (contract) {
         try {
-          if (type === 'purchase') {
-            await ContractPDFExport.exportToPDF({
-              contract,
-              zmsSignature,
-              sellerSignature: undefined,
-              buyerSignature: undefined,
-              sellerAddress: contract.dispatchAddress,
-              buyerAddress: undefined,
-            });
-          } else if (type === 'sales') {
+          if (type === 'sales') {
+            return;
+          } else if (type === 'purchase' || type === 'sale') {
             await SalesPDFExport.exportToPDF({
               contract,
-              zmsSignature,
+              zmsSignature: zmsSignature || '',
               sellerSignature: undefined,
               buyerSignature: undefined,
               sellerAddress: contract.dispatchAddress,
               buyerAddress: undefined,
+              type,
+            });
+          } else if (type === 'multiwidth') {
+            await MultiContractPDFExport.exportToPDF({
+              contract,
+              zmsSignature: zmsSignature || '',
+              sellerSignature: undefined,
+              buyerSignature: undefined,
+              sellerAddress: contract.dispatchAddress,
+              buyerAddress: undefined,
+              type,
             });
           } else if (type === 'conversion') {
             await ConversionPDFExport.exportToPDF({
               contract,
-              zmsSignature,
+              zmsSignature: zmsSignature || '',
               sellerSignature: undefined,
               buyerSignature: undefined,
               sellerAddress: contract.dispatchAddress,
               buyerAddress: undefined,
+              type,
             });
           }
         } catch (error) {
@@ -242,9 +251,10 @@ const ContractList = () => {
         }
       }
     }
-    if (openPDFModal) {
-      setOpenPDFModal(false);
-    }
+    setOpenPDFModal(false);
+    setShowSinglePDFOptions(false);
+    setShowMultiPDFOptions(false);
+    setShowConversionPDFOptions(false);
   };
 
   const handleSendEmail = async () => {
@@ -270,6 +280,7 @@ const ContractList = () => {
             buyerSignature: undefined,
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
+            type: 'purchase',
           });
           await SalesPDFExport.exportToPDF({
             contract,
@@ -278,6 +289,7 @@ const ContractList = () => {
             buyerSignature: undefined,
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
+            type: 'sale',
           });
         }
       }
@@ -325,6 +337,7 @@ const ContractList = () => {
             buyerSignature: undefined,
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
+            type: 'purchase',
           });
           await SalesPDFExport.exportToPDF({
             contract,
@@ -333,6 +346,7 @@ const ContractList = () => {
             buyerSignature: undefined,
             sellerAddress: contract.dispatchAddress,
             buyerAddress: undefined,
+            type: 'sale',
           });
         }
       }
@@ -566,6 +580,67 @@ const ContractList = () => {
       setUpdating(false);
     }
   };
+
+  const handleExportMultiPDF = async (type: 'sale' | 'purchase') => {
+    if (selectedContractIds.length === 0) {
+      toast('Please select at least one contract', { type: 'warning' });
+      return;
+    }
+    for (const id of selectedContractIds) {
+      const contract = contracts.find((c) => c.id === id);
+      if (contract) {
+        try {
+          await ContractPDFExport.exportToPDF({
+            contract,
+            zmsSignature: zmsSignature || '',
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            sellerAddress: contract.dispatchAddress,
+            buyerAddress: undefined,
+            type,
+          });
+        } catch (error) {
+          console.error(`Failed to generate ${type} PDF:`, error);
+          toast(`Failed to generate ${type} PDF`, { type: 'error' });
+        }
+      }
+    }
+    setOpenPDFModal(false);
+    setShowSinglePDFOptions(false);
+    setShowMultiPDFOptions(false);
+    setShowConversionPDFOptions(false);
+  };
+
+  const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
+    if (selectedContractIds.length === 0) {
+      toast('Please select at least one contract', { type: 'warning' });
+      return;
+    }
+    for (const id of selectedContractIds) {
+      const contract = contracts.find((c) => c.id === id);
+      if (contract) {
+        try {
+          await ConversionPDFExport.exportToPDF({
+            contract,
+            zmsSignature: zmsSignature || '',
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            sellerAddress: contract.dispatchAddress,
+            buyerAddress: undefined,
+            type,
+          });
+        } catch (error) {
+          console.error(`Failed to generate ${type} conversion PDF:`, error);
+          toast(`Failed to generate ${type} conversion PDF`, { type: 'error' });
+        }
+      }
+    }
+    setOpenPDFModal(false);
+    setShowSinglePDFOptions(false);
+    setShowMultiPDFOptions(false);
+    setShowConversionPDFOptions(false);
+  };
+
   return (
     <div className="container bg-white rounded-md p-6 h-[110vh]">
       <div className="mb-4 flex items-center justify-between">
@@ -609,7 +684,7 @@ const ContractList = () => {
           Download Excel
         </button>
       </div>
-      <div className="">
+      <div>
         <DataTable
           columns={columns(handleDeleteOpen, handleViewOpen, handleCheckboxChange)}
           data={filteredContracts}
@@ -726,170 +801,170 @@ const ContractList = () => {
         />
       )}
       {openView && (
-  <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-    <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
-      <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-5 flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
-          Contract Details
-        </h2>
-        <button
-          className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
-          onClick={handleViewClose}
-        >
-          ×
-        </button>
-      </div>
-      <div className="p-6 bg-gray-50">
-        {selectedContract && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Contract Number
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.contractNumber}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Date
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.date || '-'}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Contract Type
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.contractType}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Seller
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.seller}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Buyer
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.buyer}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Rate
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.rate}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Quantity
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.quantity}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Total Amount
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.totalAmount}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Commission
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.commissionPercentage}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Commission Value
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.commissionValue}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Delivery
-                </span>
-                <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                  {selectedContract.deliveryDetails?.map((detail) => detail.deliveryDate).join(', ') || '-'}
-                </div>
-              </div>
-              <div className="group">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                  Status
-                </span>
-                <div>
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
-                      selectedContract.status || 'Pending'
-                    )}`}
-                  >
-                    {selectedContract.status || 'Pending'}
-                  </span>
-                </div>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
+            <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-5 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+                Contract Details
+              </h2>
+              <button
+                className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
+                onClick={handleViewClose}
+              >
+                ×
+              </button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Z.M.SOURCING Signature
-                </label>
-                <SignatureCanvas
-                  ref={zmsSigCanvas}
-                  penColor="black"
-                  canvasProps={{
-                    className: 'border border-gray-300 rounded-md w-full h-24',
-                  }}
-                  onEnd={() => handleSignatureUpload()}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => handleExportToPDF('purchase')}
-                  className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
-                >
-                  <FaFilePdf size={18} />
-                  Export Purchase PDF
-                </button>
-                <button
-                  onClick={() => handleExportToPDF('sales')}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
-                >
-                  <FaFilePdf size={18} />
-                  Export Sales PDF
-                </button>
-                <button
-                  onClick={() => handleExportToPDF('conversion')}
-                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all duration-200"
-                >
-                  <FaFilePdf size={18} />
-                  Export Conversion PDF
-                </button>
-              </div>
+            <div className="p-6 bg-gray-50">
+              {selectedContract && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Contract Number
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.contractNumber}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Date
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.date || '-'}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Contract Type
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.contractType}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Seller
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.seller}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Buyer
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.buyer}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Rate
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.rate}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Quantity
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.quantity}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Total Amount
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.totalAmount}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Commission
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.commissionPercentage}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Commission Value
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.commissionValue}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Delivery
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.deliveryDetails?.map((detail) => detail.deliveryDate).join(', ') || '-'}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Status
+                      </span>
+                      <div>
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
+                            selectedContract.status || 'Pending'
+                          )}`}
+                        >
+                          {selectedContract.status || 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Z.M.SOURCING Signature
+                      </label>
+                      <SignatureCanvas
+                        ref={zmsSigCanvas}
+                        penColor="black"
+                        canvasProps={{
+                          className: 'border border-gray-300 rounded-md w-full h-24',
+                        }}
+                        onEnd={() => handleSignatureUpload()}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleExportToPDF('purchase')}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
+                      >
+                        <FaFilePdf size={18} />
+                        Export Purchase PDF
+                      </button>
+                      <button
+                        onClick={() => handleExportToPDF('sale')}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
+                      >
+                        <FaFilePdf size={18} />
+                        Export Sale PDF
+                      </button>
+                      <button
+                        onClick={() => handleExportToPDF('conversion')}
+                        className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all duration-200"
+                      >
+                        <FaFilePdf size={18} />
+                        Export Conversion PDF
+                      </button>                    
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
+        </div>
+      )}
       {openEmailModal && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
           <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
@@ -937,9 +1012,9 @@ const ContractList = () => {
                 </label>
                 <textarea
                   value={messageBody}
-                  onChange={(e) => setMessageBody(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setMessageBody(e.target.value)}
                   placeholder="Enter your message"
-                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   rows={4}
                 />
               </div>
@@ -1039,50 +1114,135 @@ const ContractList = () => {
         </div>
       )}
       {openPDFModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-    <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
-      <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-5 flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
-          Download PDF
-        </h2>
-        <button
-          className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
-          onClick={() => setOpenPDFModal(false)}
-        >
-          ×
-        </button>
-      </div>
-      <div className="p-6 bg-gray-50 space-y-4">
-        <p className="text-sm text-gray-700">
-          Select the type of PDF to download for the selected contract(s).
-        </p>
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={() => handleExportToPDF('purchase')}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
-          >
-            <FaFilePdf size={18} />
-            Purchase PDF
-          </button>
-          <button
-            onClick={() => handleExportToPDF('sales')}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
-          >
-            <FaFilePdf size={18} />
-            Sales PDF
-          </button>
-          <button
-            onClick={() => handleExportToPDF('conversion')}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all duration-200"
-          >
-            <FaFilePdf size={18} />
-            Conversion PDF
-          </button>
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
+          <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-5 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
+                Download PDF
+              </h2>
+              <button
+                className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
+                onClick={() => {
+                  setOpenPDFModal(false);
+                  setShowSinglePDFOptions(false);
+                  setShowMultiPDFOptions(false);
+                  setShowConversionPDFOptions(false);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 bg-gray-50 space-y-4">
+              <p className="text-sm text-gray-700">
+                Select the type of PDF to download for the selected contract(s).
+              </p>
+              <div className="flex justify-end gap-2 flex-wrap">
+                {!showSinglePDFOptions && !showMultiPDFOptions && !showConversionPDFOptions ? (
+                  <>
+                    <button
+                      onClick={() => setShowSinglePDFOptions(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                     MULTI PDF
+                    </button>
+                    <button
+                      onClick={() => setShowMultiPDFOptions(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                     SINGLE PDF
+                    </button>
+                    <button
+                      onClick={() => setShowSinglePDFOptions(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      DIET PDF
+                    </button>
+                    <button
+                      onClick={() => setShowConversionPDFOptions(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      CONVERISSION PDF
+                    </button>
+                  </>
+                ) : showSinglePDFOptions ? (
+                  <>
+                    <button
+                      onClick={() => handleExportToPDF('purchase')}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      Purchase Contract
+                    </button>
+                    <button
+                      onClick={() => handleExportToPDF('sale')}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      Sale Contract
+                    </button>
+                    <button
+                      onClick={() => setShowSinglePDFOptions(false)}
+                      className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-all duration-200"
+                    >
+                      Back
+                    </button>
+                  </>
+                ) : showMultiPDFOptions ? (
+                  <>
+                    <button
+                      onClick={() => handleExportMultiPDF('purchase')}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      Purchase Contract
+                    </button>
+                    <button
+                      onClick={() => handleExportMultiPDF('sale')}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      Sale Contract
+                    </button>
+                    <button
+                      onClick={() => setShowMultiPDFOptions(false)}
+                      className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-all duration-200"
+                    >
+                      Back
+                    </button>
+                  </>
+                ) : showConversionPDFOptions ? (
+                  <>
+                    <button
+                      onClick={() => handleExportConversionPDF('purchase')}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      Purchase Contract
+                    </button>
+                    <button
+                      onClick={() => handleExportConversionPDF('sale')}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      Sale Contract
+                    </button>
+                    <button
+                      onClick={() => setShowConversionPDFOptions(false)}
+                      className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-all duration-200"
+                    >
+                      Back
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
     </div>
   );
 };

@@ -45,6 +45,7 @@ interface ExportToPDFProps {
   buyerAddress?: string;
   buyerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
   sellerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
+  type: 'sale' | 'purchase';
 }
 
 const SalesPDFExport = {
@@ -57,6 +58,7 @@ const SalesPDFExport = {
     buyerAddress,
     buyerDeliveryBreakups = [],
     sellerDeliveryBreakups = [],
+    type,
   }: ExportToPDFProps) => {
     if (!contract) {
       toast('Contract not found', { type: 'error' });
@@ -132,10 +134,9 @@ const SalesPDFExport = {
 
     const doc = new jsPDF();
 
+    // Header
     doc.setFillColor(6, 182, 212);
     doc.rect(0, 0, 210, 28, 'F');
-
-    // Header
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);
     doc.setTextColor(0, 0, 0);
@@ -174,17 +175,19 @@ const SalesPDFExport = {
     const contractSubheading = `${contract.contractNumber || '-'}`;
     doc.text(contractSubheading, 10, yPos, { align: 'left' });
 
+    // Title based on type
     yPos = 34;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    doc.text('SALE CONTRACT', 105, yPos, { align: 'center' });
+    const title = type === 'purchase' ? 'PURCHASE FABRIC CONTRACT' : 'SALE FABRIC CONTRACT';
+    doc.text(title, 105, yPos, { align: 'center' });
 
+    // Date
     yPos = 38;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
-
     const formattedDate = contract.date
       ? new Date(contract.date).toLocaleDateString('en-GB', {
           day: '2-digit',
@@ -194,10 +197,10 @@ const SalesPDFExport = {
           .split('/')
           .join('-')
       : '-';
-
     doc.text(`Date: ${formattedDate}`, 200, yPos, { align: 'right' });
     yPos += 10;
 
+    // Seller and Buyer Info
     const leftColX = 10;
     const rightColX = 105;
     const labelStyle = {
@@ -219,10 +222,9 @@ const SalesPDFExport = {
     doc.setLineWidth(0.4);
     doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
     doc.rect(leftColX - 2, sellerBoxY, 85, sellerBoxHeight, 'S');
-
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.setTextColor(...labelStyle.color);
     doc.text('Seller:', leftColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
@@ -251,10 +253,9 @@ const SalesPDFExport = {
     doc.setLineWidth(0.4);
     doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
     doc.rect(rightColX - 2, buyerBoxY, 85, buyerBoxHeight, 'S');
-
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.setTextColor(...labelStyle.color);
     doc.text('Buyer:', rightColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
@@ -279,6 +280,7 @@ const SalesPDFExport = {
 
     yPos += 18;
 
+    // Fields
     const fields = [
       { label: 'Description:', value: `${contract.description || '-'}, ${contract.stuff || '-'}` },
       {
@@ -310,7 +312,7 @@ const SalesPDFExport = {
 
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...(labelStyle.color as [number, number, number]));
+      doc.setTextColor(...labelStyle.color);
       doc.text(field.label, leftColX, yPos);
 
       doc.setFont(valueStyle.font, valueStyle.style);
@@ -328,11 +330,12 @@ const SalesPDFExport = {
     let totalQty = 0;
     let totalAmount = 0;
 
-    // Handle multiple delivery details
     if (Array.isArray(contract.deliveryDetails) && contract.deliveryDetails.length > 0) {
-      contract.deliveryDetails.forEach((delivery, index) => {
+      contract.deliveryDetails.forEach((delivery) => {
         const qty = parseFloat(delivery.quantity || '0');
-        const amount = parseFloat(delivery.totalAmount || '0');
+        const rate = parseFloat(delivery.rate || '0');
+        const amount = qty * rate;
+
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount)) totalAmount += amount;
 
@@ -350,7 +353,7 @@ const SalesPDFExport = {
           delivery.color || '-',
           delivery.quantity?.toString() || '-',
           `PKR ${delivery.rate || '-'}`,
-          formatCurrency(delivery.totalAmount),
+          formatCurrency(amount),
           delivery.deliveryDate
             ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
                 day: '2-digit',
@@ -363,10 +366,13 @@ const SalesPDFExport = {
         ]);
       });
     } else if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
-      // Fallback to buyerDeliveryBreakups if deliveryDetails is empty
       buyerDeliveryBreakups.forEach((breakup, index) => {
         const qty = parseFloat(breakup.Qty || '0');
+        const rate = parseFloat(contract.rate || '0');
+        const amount = qty * rate;
+
         if (!isNaN(qty)) totalQty += qty;
+        if (!isNaN(amount) && index === 0) totalAmount += amount;
 
         tableBody.push([
           index === 0 ? contract.deliveryDetails?.[0]?.labDispNo || '-' : '',
@@ -374,7 +380,7 @@ const SalesPDFExport = {
           index === 0 ? contract.deliveryDetails?.[0]?.color || '-' : '',
           breakup.Qty?.toString() || '-',
           index === 0 ? `PKR ${contract.rate || '-'}` : '',
-          index === 0 ? formatCurrency(contract.totalAmount) : '',
+          index === 0 ? formatCurrency(amount) : '',
           breakup.DeliveryDate
             ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
                 day: '2-digit',
@@ -386,12 +392,13 @@ const SalesPDFExport = {
             : '-',
         ]);
       });
-      totalAmount = parseFloat(contract.totalAmount || '0') || 0;
     } else {
-      // Fallback if no deliveryDetails or buyerDeliveryBreakups
       const qty = parseFloat(contract.quantity || '0');
+      const rate = parseFloat(contract.rate || '0');
+      const amount = qty * rate;
+
       if (!isNaN(qty)) totalQty += qty;
-      totalAmount = parseFloat(contract.totalAmount || '0') || 0;
+      if (!isNaN(amount)) totalAmount += amount;
 
       tableBody.push([
         contract.deliveryDetails?.[0]?.labDispNo || '-',
@@ -399,7 +406,7 @@ const SalesPDFExport = {
         contract.deliveryDetails?.[0]?.color || '-',
         contract.quantity?.toString() || '-',
         `PKR ${contract.rate || '-'}`,
-        formatCurrency(contract.totalAmount),
+        formatCurrency(amount),
         contract.deliveryDetails?.[0]?.deliveryDate
           ? new Date(contract.deliveryDetails[0].deliveryDate).toLocaleDateString('en-GB', {
               day: '2-digit',
@@ -412,19 +419,19 @@ const SalesPDFExport = {
       ]);
     }
 
-    // Calculate GST and total with GST
-    const gstPercentage = parseFloat(contract.gst || '0') || 0;
+    // Calculate GST amount and total with GST
+    const gstPercentage = parseFloat(contract.deliveryDetails?.[0]?.gst as any) || 0;
     const gstAmount = (totalAmount * gstPercentage) / 100;
     const totalWithGST = totalAmount + gstAmount;
 
-    // Add total quantity row
-    tableBody.push(['', '', 'Total:', formatCurrency(totalQty), '', formatCurrency(totalAmount), '']);
+    // Add total quantity row (subtotal before GST)
+    tableBody.push(['', '', 'Subtotal:', formatCurrency(totalQty), '', formatCurrency(totalAmount), '']);
 
     // Add GST row
-    tableBody.push(['', '', 'GST:', `${contract.deliveryDetails?.[0]?.gst  || '-'}%`, '', formatCurrency(gstAmount), '']);
+    tableBody.push(['', '', `GST (${gstPercentage}%):`, '', '', formatCurrency(gstAmount), '']);
 
     // Add total with GST row
-    tableBody.push(['', '', 'Total:', '', '', formatCurrency(totalWithGST), '']);
+    tableBody.push(['', '', `Total (with ${gstPercentage}% GST):`, '', '', formatCurrency(totalWithGST), '']);
 
     autoTable(doc, {
       startY: yPos,
@@ -470,15 +477,20 @@ const SalesPDFExport = {
     let leftColumnYPos = yPos;
     let rightColumnYPos = yPos;
 
-    // Left Column: Additional Fields
+    // Left Column: Additional Fields (Removed Commission and Commission Value)
     const additionalFields = [
-      { label: 'Piece Length:', value: contract.deliveryDetails?.[0]?.pieceLength  || '-' },
-      { label: 'Payment:', value: `${contract.deliveryDetails?.[0]?.paymentTermsSeller  || '-'}` },
-      { label: 'Packing:', value:  contract.deliveryDetails?.[0]?.packing || '-', },
-      { label: 'Commission:', value:  `${contract.deliveryDetails?.[0]?.commissionPercentage || '-'}%`, },
-      { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.deliveryDetails?.[0]?.commissionValue )}` },
+      { label: 'Piece Length:', value: contract.pieceLength || '-' },
+      { label: 'Payment:', value: `${contract.paymentTermsSeller || '-'}` },
+      { label: 'Packing:', value: contract.packing || '-' },
+      { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
+      ...(type === 'purchase'
+        ? [
+            { label: 'Commission:', value: `${contract.commissionPercentage || '-'}%` },
+            { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.commissionValue)}` },
+          ]
+        : []),
       { label: 'Delivery Destination:', value: `${contract.buyer || ''}` },
-      { label: 'Remarks:', value: `${contract.deliveryDetails?.[0]?.buyerRemark  || '-'}` },
+      { label: 'Remarks:', value: `${contract.buyerRemark || '-'}` },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -488,7 +500,7 @@ const SalesPDFExport = {
       const wrappedText = doc.splitTextToSize(field.value, leftColumnWidth - maxAdditionalLabelWidth - 5);
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...(labelStyle.color as [number, number, number]));
+      doc.setTextColor(...labelStyle.color);
       doc.text(field.label, leftColumnX, leftColumnYPos);
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
@@ -502,7 +514,7 @@ const SalesPDFExport = {
     // Right Column: Delivery Breakups
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.setTextColor(...labelStyle.color);
     doc.text('', rightColumnX, rightColumnYPos);
     rightColumnYPos += 6;
     if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
@@ -574,7 +586,7 @@ const SalesPDFExport = {
         if (data.section === 'body' && data.row.index === 0) {
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(9);
-          doc.setTextColor(...(labelStyle.color as [number, number, number]));
+          doc.setTextColor(...labelStyle.color);
           doc.text('Terms and Conditions', 10, data.cell.y - 3);
         }
       },
@@ -671,7 +683,9 @@ const SalesPDFExport = {
     );
     doc.text('Confidential - ZMS Textiles Ltd.', 105, footerY + 5, { align: 'center' });
 
-    doc.save(`ZMS Sourcing Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`);
+    // Save PDF with dynamic name
+    const pdfName = `ZMS Sourcing ${type === 'purchase' ? 'Purchase' : 'Sale'} Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`;
+    doc.save(pdfName);
   },
 };
 
