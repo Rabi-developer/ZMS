@@ -326,7 +326,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       yPos += 10;
     });
 
-    // Financial Table
+    // Financial Table (Sel.Length, Sel.Weaves, etc.)
     autoTable(doc, {
       startY: yPos,
       head: [['Sel.Length', 'Sel.Weaves', 'Sel.Thick', 'Ind.Thread', 'GSM']],
@@ -361,17 +361,155 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       theme: 'grid',
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 8;
+    yPos = (doc as any).lastAutoTable.finalY + 5;
 
-    // Two-Column Layout
+    // New Delivery Details Table
+    const tableBody: (string | number)[][] = [];
+    let totalQty = 0;
+    let totalAmount = 0;
+
+    if (Array.isArray(contract.deliveryDetails) && contract.deliveryDetails.length > 0) {
+      contract.deliveryDetails.forEach((delivery) => {
+        const qty = parseFloat(delivery.quantity || '0');
+        const rate = parseFloat(delivery.rate || '0');
+        const amount = qty * rate;
+
+        if (!isNaN(qty)) totalQty += qty;
+        if (!isNaN(amount)) totalAmount += amount;
+
+        tableBody.push([
+          delivery.labDispNo || '-',
+          delivery.labDispDate
+            ? new Date(delivery.labDispDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+                .split('/')
+                .join('-')
+            : '-',
+          delivery.color || '-',
+          delivery.quantity?.toString() || '-',
+          `PKR ${delivery.rate || '-'}`,
+          formatCurrency(amount),
+          delivery.deliveryDate
+            ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+                .split('/')
+                .join('-')
+            : '-',
+        ]);
+      });
+    } else if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
+      buyerDeliveryBreakups.forEach((breakup, index) => {
+        const qty = parseFloat(breakup.Qty || '0');
+        const rate = parseFloat(contract.rate || '0');
+        const amount = qty * rate;
+
+        if (!isNaN(qty)) totalQty += qty;
+        if (!isNaN(amount) && index === 0) totalAmount += amount;
+
+        tableBody.push([
+          index === 0 ? contract.width || '-' : '',
+          index === 0 ? contract.quantity || '-' : '',
+          index === 0 ? `PKR ${contract.rate || '-'}` : '',
+          index === 0 ? formatCurrency(amount) : '',
+          breakup.DeliveryDate
+            ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+                .split('/')
+                .join('-')
+            : '-',
+        ]);
+      });
+    } else {
+      const qty = parseFloat(contract.quantity || '0');
+      const rate = parseFloat(contract.rate || '0');
+      const amount = qty * rate;
+
+      if (!isNaN(qty)) totalQty += qty;
+      if (!isNaN(amount)) totalAmount += amount;
+
+      tableBody.push([
+        contract.deliveryDetails?.[0]?.labDispNo || '-',
+        contract.deliveryDetails?.[0]?.labDispDate || '-',
+        contract.deliveryDetails?.[0]?.color || '-',
+        contract.quantity?.toString() || '-',
+        `PKR ${contract.rate || '-'}`,
+        formatCurrency(amount),
+        contract.deliveryDetails?.[0]?.deliveryDate
+          ? new Date(contract.deliveryDetails[0].deliveryDate).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            })
+              .split('/')
+              .join('-')
+          : '-',
+      ]);
+    }
+
+    // Calculate GST amount and total with GST
+    const gstPercentage = parseFloat(contract.deliveryDetails?.[0]?.gst as any) || 0;
+    const gstAmount = (totalAmount * gstPercentage) / 100;
+    const totalWithGST = totalAmount + gstAmount;
+
+    // Add total quantity row (subtotal before GST)
+    tableBody.push(['', '', 'Subtotal:', formatCurrency(totalQty), '', formatCurrency(totalAmount), '']);
+
+    // Add GST row
+    tableBody.push(['', '', `GST (${gstPercentage}%):`, '', '', formatCurrency(gstAmount), '']);
+
+    // Add total with GST row
+    tableBody.push(['', '', `Total (with ${gstPercentage}% GST):`, '', '', formatCurrency(totalWithGST), '']);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Width', 'Greige Qty', 'PKR/ MTr', 'Amount', 'Delivery']],
+      body: tableBody,
+      styles: {
+        fontSize: 8,
+        cellPadding: 1.5,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.3,
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+      },
+      headStyles: {
+        fillColor: [6, 182, 212],
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        fontSize: 8,
+        cellPadding: 1.5,
+        lineWidth: 0.3,
+        fontStyle: 'bold',
+      },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 30 },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 30 },
+        6: { cellWidth: 25 },
+      },
+      margin: { left: 10, right: 10 },
+      theme: 'grid',
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 5;
+
+    // Additional Fields
     const leftColumnX = 12;
-    const rightColumnX = 150;
-    const leftColumnWidth = 150;
-    const rightColumnWidth = 87;
+    const leftColumnWidth = 186; // Increased to use full page width (210 - 12 left - 12 right)
     let leftColumnYPos = yPos;
-    let rightColumnYPos = yPos;
 
-    // Left Column: Additional Fields (Include Commission for MultiWidth, similar to Purchase)
     const additionalFields = [
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
       { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
@@ -404,103 +542,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       leftColumnYPos += wrappedText.length * 6;
     });
 
-    // Right Column: Delivery Breakups
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
-    doc.text('Buyer Del. Breakups', rightColumnX, rightColumnYPos);
-    rightColumnYPos += 8;
-    if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
-      autoTable(doc, {
-        startY: rightColumnYPos,
-        head: [['Qty', 'Del. Date']],
-        body: buyerDeliveryBreakups.slice(0, 4).map((breakup) => [
-          breakup.Qty || '-',
-          breakup.DeliveryDate || '-',
-        ]),
-        styles: {
-          fontSize: 9,
-          cellPadding: 2,
-          lineColor: isDarkMode ? [0, 0, 0] : [200, 200, 200],
-          lineWidth: 0.2,
-        },
-        headStyles: {
-          fillColor: isDarkMode ? [30, 30, 30] : [0, 0, 0],
-          textColor: [0, 0, 0],
-          fontSize: 10,
-          cellPadding: 2,
-          lineWidth: 0.2,
-          fontStyle: 'bold',
-        },
-        columnStyles: { 0: { cellWidth: 33 }, 1: { cellWidth: 48 } },
-        margin: { left: rightColumnX, right: 5 },
-        theme: 'grid',
-      });
-      rightColumnYPos = (doc as any).lastAutoTable.finalY + 6;
-      if (buyerDeliveryBreakups.length > 4) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.setTextColor(0, 0, 0);
-        doc.text('... (more)', rightColumnX, rightColumnYPos);
-        rightColumnYPos += 6;
-      }
-    } else {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(0, 0, 0);
-      doc.text('No Buyer Breakups', rightColumnX, rightColumnYPos);
-      rightColumnYPos += 6;
-    }
-
-    rightColumnYPos += 4;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
-    doc.text('Seller Del. Breakups', rightColumnX, rightColumnYPos);
-    rightColumnYPos += 6;
-    if (Array.isArray(sellerDeliveryBreakups) && sellerDeliveryBreakups.length > 0) {
-      autoTable(doc, {
-        startY: rightColumnYPos,
-        head: [['Qty', 'Del. Date']],
-        body: sellerDeliveryBreakups.slice(0, 4).map((breakup) => [
-          breakup.Qty || '-',
-          breakup.DeliveryDate || '-',
-        ]),
-        styles: {
-          fontSize: 9,
-          cellPadding: 2,
-          lineColor: isDarkMode ? [0, 0, 0] : [200, 200, 200],
-          lineWidth: 0.2,
-        },
-        headStyles: {
-          fillColor: isDarkMode ? [30, 30, 30] : [0, 0, 0],
-          textColor: [0, 0, 0],
-          fontSize: 10,
-          cellPadding: 2,
-          lineWidth: 0.2,
-          fontStyle: 'bold',
-        },
-        columnStyles: { 0: { cellWidth: 33 }, 1: { cellWidth: 48 } },
-        margin: { left: rightColumnX, right: 5 },
-        theme: 'grid',
-      });
-      rightColumnYPos = (doc as any).lastAutoTable.finalY + 6;
-      if (sellerDeliveryBreakups.length > 4) {
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.setTextColor(0, 0, 0);
-        doc.text('... (more)', rightColumnX, rightColumnYPos);
-        rightColumnYPos += 6;
-      }
-    } else {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(0, 0, 0);
-      doc.text('No Seller Breakups', rightColumnX, rightColumnYPos);
-      rightColumnYPos += 6;
-    }
-
-    yPos = Math.max(leftColumnYPos, rightColumnYPos) + 8;
+    yPos = leftColumnYPos + 8;
 
     // Terms and Conditions
     autoTable(doc, {
@@ -607,8 +649,10 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     doc.text('Confidential - ZMS Textiles Ltd.', 105, yPos + 6, { align: 'center' });
 
     // Update document name to reflect the heading
-    const fileName = `ZMS_${heading.replace(' ', '_')}_(${contract.seller || '-'}-${contract.buyer || '-'}).pdf`;
-    doc.save(fileName);
+     const filename = type === 'purchase'
+      ? `ZMS Sourcing Purchase MultWidth  Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`
+      : `ZMS Sourcing Sale MultiWidth Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`;
+    doc.save(filename);
   },
 };
 

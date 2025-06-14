@@ -8,7 +8,7 @@ import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 import ContractPDFExport from './ContractPDFExport';
-import SalesPDFExport from './SalesPDFExport';
+import DietPDFExport from './DietPDFExport';
 import SignatureCanvas from 'react-signature-canvas';
 import ConversionPDFExport from './ConversionPDFExport';
 import MultiContractPDFExport from './MultiContractPDFExport';
@@ -41,6 +41,7 @@ const ContractList = () => {
   const [messageBody, setMessageBody] = React.useState('');
   const [showSinglePDFOptions, setShowSinglePDFOptions] = React.useState(false);
   const [showMultiPDFOptions, setShowMultiPDFOptions] = React.useState(false);
+   const [showDietPDFOptions, setDietMultiPDFOptions] = React.useState(false);
   const [showConversionPDFOptions, setShowConversionPDFOptions] = React.useState(false);
 
   const zmsSigCanvas = React.useRef<SignatureCanvas | null>(null);
@@ -203,7 +204,7 @@ const ContractList = () => {
     XLSX.writeFile(workbook, `Contract_${contract.contractNumber}.xlsx`);
   };
 
-  const handleExportToPDF = async (type: 'purchase' | 'sale' | 'multiwidth' | 'sales' | 'conversion') => {
+  const handleExportToPDF = async (type: 'purchase' | 'sale' |'diet' | 'multiwidth' | 'single' | 'conversion') => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
       return;
@@ -212,10 +213,10 @@ const ContractList = () => {
       const contract = contracts.find((c) => c.id === id);
       if (contract) {
         try {
-          if (type === 'sales') {
+          if (type === 'purchase' || type === 'sale') {
             return;
-          } else if (type === 'purchase' || type === 'sale') {
-            await SalesPDFExport.exportToPDF({
+          } else if (type === 'diet') {
+            await DietPDFExport.exportToPDF({
               contract,
               zmsSignature: zmsSignature || '',
               sellerSignature: undefined,
@@ -224,8 +225,8 @@ const ContractList = () => {
               buyerAddress: undefined,
               type,
             });
-          } else if (type === 'multiwidth') {
-            await MultiContractPDFExport.exportToPDF({
+          } else if (type === 'single') {
+            await ContractPDFExport.exportToPDF({
               contract,
               zmsSignature: zmsSignature || '',
               sellerSignature: undefined,
@@ -235,6 +236,17 @@ const ContractList = () => {
               type,
             });
           } else if (type === 'conversion') {
+            await ConversionPDFExport.exportToPDF({
+              contract,
+              zmsSignature: zmsSignature || '',
+              sellerSignature: undefined,
+              buyerSignature: undefined,
+              sellerAddress: contract.dispatchAddress,
+              buyerAddress: undefined,
+              type,
+            });
+          }
+          else if (type === 'multiwidth') {
             await ConversionPDFExport.exportToPDF({
               contract,
               zmsSignature: zmsSignature || '',
@@ -282,7 +294,7 @@ const ContractList = () => {
             buyerAddress: undefined,
             type: 'purchase',
           });
-          await SalesPDFExport.exportToPDF({
+          await DietPDFExport.exportToPDF({
             contract,
             zmsSignature,
             sellerSignature: undefined,
@@ -339,7 +351,7 @@ const ContractList = () => {
             buyerAddress: undefined,
             type: 'purchase',
           });
-          await SalesPDFExport.exportToPDF({
+          await DietPDFExport.exportToPDF({
             contract,
             zmsSignature,
             sellerSignature: undefined,
@@ -581,7 +593,39 @@ const ContractList = () => {
     }
   };
 
-  const handleExportMultiPDF = async (type: 'sale' | 'purchase') => {
+
+
+  const handleExportDietPDF = async (type: 'sale' | 'purchase') => {
+    if (selectedContractIds.length === 0) {
+      toast('Please select at least one contract', { type: 'warning' });
+      return;
+    }
+    for (const id of selectedContractIds) {
+      const contract = contracts.find((c) => c.id === id);
+      if (contract) {
+        try {
+          await DietPDFExport.exportToPDF({
+            contract,
+            zmsSignature: zmsSignature || '',
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            sellerAddress: contract.dispatchAddress,
+            buyerAddress: undefined,
+            type,
+          });
+        } catch (error) {
+          console.error(`Failed to generate ${type} PDF:`, error);
+          toast(`Failed to generate ${type} PDF`, { type: 'error' });
+        }
+      }
+    }
+    setOpenPDFModal(false);
+    setShowSinglePDFOptions(false);
+    setShowMultiPDFOptions(false);
+    setShowConversionPDFOptions(false);
+  };
+
+  const handleSingleMultiPDF = async (type: 'sale' | 'purchase') => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
       return;
@@ -591,6 +635,35 @@ const ContractList = () => {
       if (contract) {
         try {
           await ContractPDFExport.exportToPDF({
+            contract,
+            zmsSignature: zmsSignature || '',
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            sellerAddress: contract.dispatchAddress,
+            buyerAddress: undefined,
+            type,
+          });
+        } catch (error) {
+          console.error(`Failed to generate ${type} PDF:`, error);
+          toast(`Failed to generate ${type} PDF`, { type: 'error' });
+        }
+      }
+    }
+    setOpenPDFModal(false);
+    setShowSinglePDFOptions(false);
+    setShowMultiPDFOptions(false);
+    setShowConversionPDFOptions(false);
+  };
+  const handleExportMultiPDF = async (type: 'sale' | 'purchase') => {
+    if (selectedContractIds.length === 0) {
+      toast('Please select at least one contract', { type: 'warning' });
+      return;
+    }
+    for (const id of selectedContractIds) {
+      const contract = contracts.find((c) => c.id === id);
+      if (contract) {
+        try {
+          await MultiContractPDFExport.exportToPDF({
             contract,
             zmsSignature: zmsSignature || '',
             sellerSignature: undefined,
@@ -1123,10 +1196,10 @@ const ContractList = () => {
               <button
                 className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
                 onClick={() => {
-                  setOpenPDFModal(false);
                   setShowSinglePDFOptions(false);
                   setShowMultiPDFOptions(false);
                   setShowConversionPDFOptions(false);
+                  setDietMultiPDFOptions(false);
                 }}
               >
                 ×
@@ -1137,48 +1210,52 @@ const ContractList = () => {
                 Select the type of PDF to download for the selected contract(s).
               </p>
               <div className="flex justify-end gap-2 flex-wrap">
-                {!showSinglePDFOptions && !showMultiPDFOptions && !showConversionPDFOptions ? (
+                {!showSinglePDFOptions && !showMultiPDFOptions && 
+                !showConversionPDFOptions &&
+                !showDietPDFOptions? (
                   <>
+                    
                     <button
                       onClick={() => setShowSinglePDFOptions(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
-                    >
-                      <FaFilePdf size={18} />
-                     MULTI PDF
-                    </button>
-                    <button
-                      onClick={() => setShowMultiPDFOptions(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-all duration-200"
                     >
                       <FaFilePdf size={18} />
                      SINGLE PDF
                     </button>
-                    <button
-                      onClick={() => setShowSinglePDFOptions(true)}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
-                    >
-                      <FaFilePdf size={18} />
-                      DIET PDF
-                    </button>
-                    <button
-                      onClick={() => setShowConversionPDFOptions(true)}
+                      <button
+                      onClick={() => setShowMultiPDFOptions(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all duration-200"
                     >
                       <FaFilePdf size={18} />
+                      MULTIWIDTH PDF
+                    </button>
+                    <button
+                      onClick={() => setShowConversionPDFOptions(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
                       CONVERISSION PDF
+                    </button>
+                   
+                      <button
+                      onClick={() => setDietMultiPDFOptions(true)}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      DIET PDF
                     </button>
                   </>
                 ) : showSinglePDFOptions ? (
                   <>
                     <button
-                      onClick={() => handleExportToPDF('purchase')}
+                      onClick={() => handleSingleMultiPDF('purchase')}
                       className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
                     >
                       <FaFilePdf size={18} />
                       Purchase Contract
                     </button>
                     <button
-                      onClick={() => handleExportToPDF('sale')}
+                      onClick={() => handleSingleMultiPDF('sale')}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
                     >
                       <FaFilePdf size={18} />
@@ -1237,7 +1314,33 @@ const ContractList = () => {
                       Back
                     </button>
                   </>
-                ) : null}
+                ) : showDietPDFOptions ? (
+                  <>
+                    <button
+                      onClick={() => handleExportDietPDF('purchase')}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      Purchase Contract
+                    </button>
+                    <button
+                      onClick={() => handleExportDietPDF('sale')}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
+                    >
+                      <FaFilePdf size={18} />
+                      Sale Contract
+                    </button>
+                    <button
+                      onClick={() => setDietMultiPDFOptions(false)}
+                      className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition-all duration-200"
+                    >
+                      Back
+                    </button>
+                  </>
+                
+                ) :
+                
+                null}
               </div>
             </div>
           </div>

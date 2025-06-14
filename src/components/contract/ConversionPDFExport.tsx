@@ -180,7 +180,7 @@ const ConversionPDFExport = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    const title = type === 'purchase' ? 'PURCHASE CONVERSION FABRIC CONTRACT' : 'SALE CONVERSION FABRIC CONTRACT';
+    const title = type === 'purchase' ? 'CONVERSION PURCHASE CONTRACT' : 'CONVERSION SALE CONTRACT';
     doc.text(title, 105, yPos, { align: 'center' });
 
     // Date
@@ -458,13 +458,18 @@ const ConversionPDFExport = {
         fontStyle: 'bold',
       },
       columnStyles: {
-        0: { cellWidth: 20 }, // Lab Dip NO.
-        1: { cellWidth: 20 }, // Lab Dip Date
-        2: { cellWidth: 25 }, // Color
-        3: { cellWidth: 30 }, // Finish Qty
-        4: { cellWidth: 25 }, // PKR/Mtr
-        5: { cellWidth: 30 }, // Amount
-        6: { cellWidth: 25 }, // Delivery
+        0: { cellWidth: 15 }, // Lab Dip NO.
+        1: { cellWidth: 15 }, // Lab Dip Date
+        2: { cellWidth: 15 }, // Color
+        3: { cellWidth: 15 }, // Finish Qty
+        4: { cellWidth: 15 }, // PKR/Mtr
+        5: { cellWidth: 15 }, // Amount
+        6: { cellWidth: 15 }, // Delivery
+        7: { cellWidth: 15 }, // Wrap Weight
+        8: { cellWidth: 15 }, // Weft Weight
+        9: { cellWidth: 15 }, // Wrap Bags
+        10: { cellWidth: 15 }, // Weft Bags
+        11: { cellWidth: 15 }, // Total Bags
       },
       margin: { left: 10, right: 10 },
       theme: 'grid',

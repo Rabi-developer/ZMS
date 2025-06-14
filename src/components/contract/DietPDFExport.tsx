@@ -48,7 +48,7 @@ interface ExportToPDFProps {
   type: 'sale' | 'purchase';
 }
 
-const SalesPDFExport = {
+const DietPDFExport = {
   exportToPDF: async ({
     contract,
     sellerSignature,
@@ -684,9 +684,11 @@ const SalesPDFExport = {
     doc.text('Confidential - ZMS Textiles Ltd.', 105, footerY + 5, { align: 'center' });
 
     // Save PDF with dynamic name
-    const pdfName = `ZMS Sourcing ${type === 'purchase' ? 'Purchase' : 'Sale'} Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`;
-    doc.save(pdfName);
+     const filename = type === 'purchase'
+      ? `ZMS Sourcing Purchase Diet Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`
+      : `ZMS Sourcing Sale Diet Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`;
+    doc.save(filename);
   },
 };
 
-export default SalesPDFExport;
+export default DietPDFExport;
