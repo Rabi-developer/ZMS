@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, UseFormRegister, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
@@ -53,7 +53,7 @@ import { getAllPaymentTerms } from '@/apis/paymentterm';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
 import { getAllSelvegeThicknesss } from '@/apis/selvegethickness';
-import { getAllInductionThreads } from '@/apis/Inductionthread';
+import { getAllInductionThreads } from '@/apis/inductionthread';
 import { getAllGSMs } from '@/apis/gsm';
 
 // Schema definitions
@@ -125,7 +125,6 @@ const ContractSchema = z.object({
   SelvedgeWeave: z.string().optional(),
   SelvedgeWeaveSubOptions: z.array(z.string()).optional(),
   SelvedgeWidth: z.string().optional(),
-  SelvageThread: z.string().optional(),
   InductionThread: z.string().optional(),
   GSM: z.string().optional(),
   Quantity: z.string().min(1, 'Quantity is required'),
@@ -213,7 +212,6 @@ type ContractApiResponse = {
   selvege: string;
   selvegeWeaves: string;
   selvegeWidth: string;
-  selvageThread: string;
   inductionThread: string;
   gsm: string;
   quantity: string;
@@ -327,7 +325,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const [selvedges, setSelvedges] = useState<{ id: string; name: string }[]>([]);
   const [selvedgeWeaves, setSelvedgeWeaves] = useState<{ id: string; name: string }[]>([]);
   const [selvedgeWidths, setSelvedgeWidths] = useState<{ id: string; name: string }[]>([]);
-  const [selvageThreads, setSelvageThreads] = useState<{ id: string; name: string }[]>([]);
   const [inductionThreads, setInductionThreads] = useState<{ id: string; name: string }[]>([]);
   const [gsms, setGsms] = useState<{ id: string; name: string }[]>([]);
   const [stuffs, setStuffs] = useState<{ id: string; name: string }[]>([]);
@@ -369,7 +366,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       Labs: string;
     }>;
   }>>([]);
-  const [showSamplePopup, setShowSamplePopup] = useState<number | null>(null);
+  const [showSamplePopup, setShowSamplePopup] = useState<boolean>(false);
   const currentUser = 'Current User';
   const [fieldValues, setFieldValues] = useState<Partial<Record<keyof FormData, string[]>>>({
     FinishWidth: [''],
@@ -755,24 +752,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
-  const fetchSelvageThreads = async () => {
-    try {
-      setLoading(true);
-      const response = await getAllSelvegeThicknesss();
-      setSelvageThreads(
-        response.data.map((item: any) => ({
-          id: item.listid,
-          name: item.descriptions,
-          subDescription: item.subDescription || '',
-        })),
-      );
-    } catch (error) {
-      console.error('Error fetching selvage threads:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchInductionThreads = async () => {
     try {
       setLoading(true);
@@ -1107,7 +1086,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           fetchSelvedges(),
           fetchSelvedgeWeaves(),
           fetchSelvedgeWidths(),
-          fetchSelvageThreads(),
           fetchInductionThreads(),
           fetchGsms(),
           fetchStuffs(),
@@ -1123,12 +1101,15 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
         if (initialData) {
           setTimeout(() => {
-            const ensureArray = (val: unknown): string[] =>
-              Array.isArray(val)
-                ? val.filter((v): v is string => typeof v === 'string')
-                : typeof val === 'string'
-                  ? [val]
-                  : [''];
+            const splitToArray = (value: string | string[] | null | undefined): string[] => {
+                if (typeof value === 'string' && value) {
+                    return value.split('|');
+                }
+                if (Array.isArray(value)) {
+                    return value.length > 0 ? value.filter((v): v is string => typeof v === 'string') : [''];
+                }
+                return [''];
+            };
 
             const formattedData = {
               ...initialData,
@@ -1162,7 +1143,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               Selvedge: initialData.selvege || '',
               SelvedgeWeave: initialData.selvegeWeaves || '',
               SelvedgeWidth: initialData.selvegeWidth || '',
-              SelvageThread: initialData.selvageThread || '',
               InductionThread: initialData.inductionThread || '',
               GSM: initialData.gsm || '',
               Quantity: initialData.quantity || '1',
@@ -1194,24 +1174,24 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               EndUse: initialData.endUse || '',
               Notes: initialData.notes || '',
               SelvegeThickness: initialData.selvegeThickness || '',
-              FinishWidth: ensureArray(initialData.finishWidth),
-              Color: ensureArray(initialData.color),
-              Weight: ensureArray(initialData.weight),
-              Shrinkage: ensureArray(initialData.shrinkage),
-              Finish: ensureArray(initialData.finish),
-              LabDispNo: ensureArray(initialData.labDispNo),
-              LabDispDate: ensureArray(initialData.labDispDate),
-              PickRate: ensureArray(initialData.pickRate),
-              FabricRate: ensureArray(initialData.fabricRate),
-              Amounts: ensureArray(initialData.amounts),
-              Wrapwt: ensureArray(initialData.wrapwt),
-              Weftwt: ensureArray(initialData.weftwt),
-              WrapBag: ensureArray(initialData.wrapBag),
-              WeftBag: ensureArray(initialData.weftBag),
-              TotalBag: ensureArray(initialData.totalBag),
-              TotalAmountMultiple: ensureArray(initialData.totalAmountMultiple),
-              SellerCommission: ensureArray(initialData.sellerCommission),
-              BuyerCommission: ensureArray(initialData.buyerCommission),
+              FinishWidth: splitToArray(initialData.finishWidth),
+              Color: splitToArray(initialData.color),
+              Weight: splitToArray(initialData.weight),
+              Shrinkage: splitToArray(initialData.shrinkage),
+              Finish: splitToArray(initialData.finish),
+              LabDispNo: splitToArray(initialData.labDispNo),
+              LabDispDate: splitToArray(initialData.labDispDate),
+              PickRate: splitToArray(initialData.pickRate),
+              FabricRate: splitToArray(initialData.fabricRate),
+              Amounts: splitToArray(initialData.amounts),
+              Wrapwt: splitToArray(initialData.wrapwt),
+              Weftwt: splitToArray(initialData.weftwt),
+              WrapBag: splitToArray(initialData.wrapBag),
+              WeftBag: splitToArray(initialData.weftBag),
+              TotalBag: splitToArray(initialData.totalBag),
+              TotalAmountMultiple: splitToArray(initialData.totalAmountMultiple),
+              SellerCommission: splitToArray(initialData.sellerCommission),
+              BuyerCommission: splitToArray(initialData.buyerCommission),
             };
 
             reset(formattedData);
@@ -1252,96 +1232,24 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
             }
 
             setFieldValues({
-              FinishWidth: Array.isArray(initialData.finishWidth)
-                ? initialData.finishWidth
-                : typeof initialData.finishWidth === 'string'
-                  ? [initialData.finishWidth]
-                  : [''],
-              Color: Array.isArray(initialData.color)
-                ? initialData.color
-                : typeof initialData.color === 'string' && initialData.color !== ''
-                  ? [initialData.color]
-                  : [''],
-              Weight: Array.isArray(initialData.weight)
-                ? initialData.weight
-                : typeof initialData.weight === 'string' && initialData.weight !== ''
-                  ? [initialData.weight]
-                  : [''],
-              Shrinkage: Array.isArray(initialData.shrinkage)
-                ? initialData.shrinkage
-                : typeof initialData.shrinkage === 'string' && initialData.shrinkage !== ''
-                  ? [initialData.shrinkage]
-                  : [''],
-              Finish: Array.isArray(initialData.finish)
-                ? initialData.finish
-                : typeof initialData.finish === 'string' && initialData.finish !== ''
-                  ? [initialData.finish]
-                  : [''],
-              LabDispNo: Array.isArray(initialData.labDispNo)
-                ? initialData.labDispNo
-                : typeof initialData.labDispNo === 'string' && initialData.labDispNo !== ''
-                  ? [initialData.labDispNo]
-                  : [''],
-              LabDispDate: Array.isArray(initialData.labDispDate)
-                ? initialData.labDispDate
-                : typeof initialData.labDispDate === 'string' && initialData.labDispDate !== ''
-                  ? [initialData.labDispDate]
-                  : [''],
-              PickRate: Array.isArray(initialData.pickRate)
-                ? initialData.pickRate
-                : typeof initialData.pickRate === 'string' && initialData.pickRate !== ''
-                  ? [initialData.pickRate]
-                  : [''],
-              FabricRate: Array.isArray(initialData.fabricRate)
-                ? initialData.fabricRate
-                : typeof initialData.fabricRate === 'string' && initialData.fabricRate !== ''
-                  ? [initialData.fabricRate]
-                  : [''],
-              Amounts: Array.isArray(initialData.amounts)
-                ? initialData.amounts
-                : typeof initialData.amounts === 'string' && initialData.amounts !== ''
-                  ? [initialData.amounts]
-                  : [''],
-              Wrapwt: Array.isArray(initialData.wrapwt)
-                ? initialData.wrapwt
-                : typeof initialData.wrapwt === 'string' && initialData.wrapwt !== ''
-                  ? [initialData.wrapwt]
-                  : [''],
-              Weftwt: Array.isArray(initialData.weftwt)
-                ? initialData.weftwt
-                : typeof initialData.weftwt === 'string' && initialData.weftwt !== ''
-                  ? [initialData.weftwt]
-                  : [''],
-              WrapBag: Array.isArray(initialData.wrapBag)
-                ? initialData.wrapBag
-                : typeof initialData.wrapBag === 'string' && initialData.wrapBag !== ''
-                  ? [initialData.wrapBag]
-                  : [''],
-              WeftBag: Array.isArray(initialData.weftBag)
-                ? initialData.weftBag
-                : typeof initialData.weftBag === 'string' && initialData.weftBag !== ''
-                  ? [initialData.weftBag]
-                  : [''],
-              TotalBag: Array.isArray(initialData.totalBag)
-                ? initialData.totalBag
-                : typeof initialData.totalBag === 'string' && initialData.totalBag !== ''
-                  ? [initialData.totalBag]
-                  : [''],
-              TotalAmountMultiple: Array.isArray(initialData.totalAmountMultiple)
-                ? initialData.totalAmountMultiple
-                : typeof initialData.totalAmountMultiple === 'string' && initialData.totalAmountMultiple !== ''
-                  ? [initialData.totalAmountMultiple]
-                  : [''],
-              SellerCommission: Array.isArray(initialData.sellerCommission)
-                ? initialData.sellerCommission
-                : typeof initialData.sellerCommission === 'string' && initialData.sellerCommission !== ''
-                  ? [initialData.sellerCommission]
-                  : [''],
-              BuyerCommission: Array.isArray(initialData.buyerCommission)
-                ? initialData.buyerCommission
-                : typeof initialData.buyerCommission === 'string' && initialData.buyerCommission !== ''
-                  ? [initialData.buyerCommission]
-                  : [''],
+              FinishWidth: splitToArray(initialData.finishWidth),
+              Color: splitToArray(initialData.color),
+              Weight: splitToArray(initialData.weight),
+              Shrinkage: splitToArray(initialData.shrinkage),
+              Finish: splitToArray(initialData.finish),
+              LabDispNo: splitToArray(initialData.labDispNo),
+              LabDispDate: splitToArray(initialData.labDispDate),
+              PickRate: splitToArray(initialData.pickRate),
+              FabricRate: splitToArray(initialData.fabricRate),
+              Amounts: splitToArray(initialData.amounts),
+              Wrapwt: splitToArray(initialData.wrapwt),
+              Weftwt: splitToArray(initialData.weftwt),
+              WrapBag: splitToArray(initialData.wrapBag),
+              WeftBag: splitToArray(initialData.weftBag),
+              TotalBag: splitToArray(initialData.totalBag),
+              TotalAmountMultiple: splitToArray(initialData.totalAmountMultiple),
+              SellerCommission: splitToArray(initialData.sellerCommission),
+              BuyerCommission: splitToArray(initialData.buyerCommission),
             });
 
             Object.keys(formattedData).forEach((key) => {
@@ -1406,7 +1314,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       SampleQty: '',
       SampleReceivedDate: '',
       SampleDeliveredDate: '',
-      CreatedBy: 'Current User',
+      CreatedBy: currentUser,
       CreationDate: new Date().toISOString().split('T')[0],
       UpdatedBy: '',
       UpdateDate: '',
@@ -1651,7 +1559,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         selvege: data.Selvedge || '',
         selvegeWeaves: data.SelvedgeWeave || '',
         selvegeWidth: data.SelvedgeWidth || '',
-        selvageThread: data.SelvageThread || '',
         inductionThread: data.InductionThread || '',
         gsm: data.GSM || '',
         quantity: data.Quantity,
@@ -1674,33 +1581,33 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         dispatchAddress: data.DispatchAddress || '',
         sellerRemark: data.SellerRemark || '',
         buyerRemark: data.BuyerRemark || '',
-        createdBy: data.CreatedBy || '',
+        // createdBy: data.CreatedBy || '',
         creationDate: data.CreationDate || '',
-        updatedBy: data.UpdatedBy || '',
+       // updatedBy: data.UpdatedBy || '',
         updationDate: data.UpdationDate || '',
         approvedBy: data.ApprovedBy || '',
         approvedDate: data.ApprovedDate || '',
         endUse: data.EndUse || '',
         notes: data.Notes || '',
         selvegeThickness: data.SelvegeThickness || '',
-        finishWidth: fieldValues.FinishWidth?.filter(v => v) || [],
-        color: fieldValues.Color?.filter(v => v) || [],
-        weight: fieldValues.Weight?.filter(v => v) || [],
-        shrinkage: fieldValues.Shrinkage?.filter(v => v) || [],
-        finish: fieldValues.Finish?.filter(v => v) || [],
-        labDispNo: fieldValues.LabDispNo?.filter(v => v) || [],
-        labDispDate: fieldValues.LabDispDate?.filter(v => v) || [],
-        pickRate: fieldValues.PickRate?.filter(v => v) || [],
-        fabricRate: fieldValues.FabricRate?.filter(v => v) || [],
-        amounts: fieldValues.Amounts?.filter(v => v) || [],
-        wrapwt: fieldValues.Wrapwt?.filter(v => v) || [],
-        weftwt: fieldValues.Weftwt?.filter(v => v) || [],
-        wrapBag: fieldValues.WrapBag?.filter(v => v) || [],
-        weftBag: fieldValues.WeftBag?.filter(v => v) || [],
-        totalBag: fieldValues.TotalBag?.filter(v => v) || [],
-        totalAmountMultiple: fieldValues.TotalAmountMultiple?.filter(v => v) || [],
-        sellerCommission: fieldValues.SellerCommission?.filter(v => v) || [],
-        buyerCommission: fieldValues.BuyerCommission?.filter(v => v) || [],
+        finishWidth: fieldValues.FinishWidth?.filter(v => v).join('|') || '',
+        color: fieldValues.Color?.filter(v => v).join('|') || '',
+        weight: fieldValues.Weight?.filter(v => v).join('|') || '',
+        shrinkage: fieldValues.Shrinkage?.filter(v => v).join('|') || '',
+        finish: fieldValues.Finish?.filter(v => v).join('|') || '',
+        labDispNo: fieldValues.LabDispNo?.filter(v => v).join('|') || '',
+        labDispDate: fieldValues.LabDispDate?.filter(v => v).join('|') || '',
+        pickRate: fieldValues.PickRate?.filter(v => v).join('|') || '',
+        fabricRate: fieldValues.FabricRate?.filter(v => v).join('|') || '',
+        amounts: fieldValues.Amounts?.filter(v => v).join('|') || '',
+        wrapwt: fieldValues.Wrapwt?.filter(v => v).join('|') || '',
+        weftwt: fieldValues.Weftwt?.filter(v => v).join('|') || '',
+        wrapBag: fieldValues.WrapBag?.filter(v => v).join('|') || '',
+        weftBag: fieldValues.WeftBag?.filter(v => v).join('|') || '',
+        totalBag: fieldValues.TotalBag?.filter(v => v).join('|') || '',
+        totalAmountMultiple: fieldValues.TotalAmountMultiple?.filter(v => v).join('|') || '',
+        sellerCommission: fieldValues.SellerCommission?.filter(v => v).join('|') || '',
+        buyerCommission: fieldValues.BuyerCommission?.filter(v => v).join('|') || '',
         dispatchLater: data.DispatchLater || '',
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
@@ -1710,9 +1617,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       const cleanPayload = Object.fromEntries(
         Object.entries(payload).filter(([key, value]) => {
           if (Array.isArray(value)) {
-            return value.length > 0;
+            return true; 
           }
-          return value !== undefined && value !== null && value !== '';
+          return value !== undefined && value !== null;
         })
       );
 
@@ -1892,13 +1799,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         subName="BlendType"
                         options={blendRatios}
                         selectedOption={watch('BlendRatio') || ''}
-                        selectedSubOptions={
-                          Array.isArray(watch('BlendType'))
-                            ? (watch('BlendType') ?? []).slice().filter((v: unknown): v is string => typeof v === 'string')
-                            : (typeof watch('BlendType') === 'string' && watch('BlendType') !== '')
-                              ? [watch('BlendType')]
-                              : []
-                        }
+                        selectedSubOptions={watch('BlendType') ? [watch('BlendType')!] : []}
                         onChange={(value) => setValue('BlendRatio', value, { shouldValidate: true })}
                         onSubChange={(values) => setValue('BlendType', values[0] || '', { shouldValidate: true })}
                         error={errors.BlendRatio?.message}
@@ -2051,7 +1952,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         onSubChange={(values) => setValue('SelvedgeSubOptions', values, { shouldValidate: true })}
                         error={errors.Selvedge?.message}
                         subError={errors.SelvedgeSubOptions?.message}
-                        register={register} selectedOption={''}                      />
+                        register={register} selectedOption={watch('Selvedge') || ''}                      />
                       <DescriptionWithSubSelect
                         label="Selvedge Weave"
                         name="SelvedgeWeave"
@@ -2082,19 +1983,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         subError={errors.SelvedgeSubOptions?.message}
                         register={register}
                       />
-                      {selvageThreads.length === 0 && loading ? (
-                        <div>Loading Selvage Threads...</div>
+                      {selvegeThicknesses.length === 0 && loading ? (
+                        <div>Loading Selvage Thickness...</div>
                       ) : (
                         <DescriptionWithSubSelect
                           label="Selvage Thickness"
-                          name="SelvageThread"
-                          subName="SelvageThreadSubOptions"
-                          options={selvageThreads}
-                          selectedOption={watch('SelvageThread') || ''}
-                          selectedSubOptions={[]} // No field in schema, so pass empty array
-                          onChange={(value) => setValue('SelvageThread', value, { shouldValidate: true })}
-                          onSubChange={() => {}} // No-op since not in schema
-                          error={errors.SelvageThread?.message}
+                          name="SelvegeThickness"
+                          subName="SelvegeThicknessSubOptions"
+                          options={selvegeThicknesses}
+                          selectedOption={watch('SelvegeThickness') || ''}
+                          selectedSubOptions={[]}
+                          onChange={(value) => setValue('SelvegeThickness', value, { shouldValidate: true })}
+                          onSubChange={() => {}}
+                          error={errors.SelvegeThickness?.message}
                           subError={undefined}
                           register={register}
                         />
@@ -2329,27 +2230,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         error={errors.CommissionFrom?.message}
                         register={register}
                       />
-                      {watch('CommissionFrom') === 'Both' && (
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label="Seller Commission"
-                          id="SellerCommission"
-                          {...register('SellerCommission')}
-                          error={errors.SellerCommission?.message}
-                        />
-                      )}
-                      {watch('CommissionFrom') === 'Both' && (
-                        <CustomInput
-                          variant="floating"
-                          borderThickness="2"
-                          label="Buyer Commission"
-                          id="BuyerCommission"
-                          {...register('BuyerCommission')}
-                          error={errors.BuyerCommission?.message}
-                        />
-                      )}
-                    
                       <CustomInputDropdown
                         label="Dispatch Later"
                         options={dispatchLaterOptions}
@@ -2392,7 +2272,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     {renderMultiInputGroup('Shrinkage', 'Shrinkage', fieldIcons.Shrinkage.add, fieldIcons.Shrinkage.delete)}
     {renderMultiInputGroup('Finish', 'Finish', fieldIcons.Finish.add, fieldIcons.Finish.delete)}
     {renderMultiInputGroup('LabDispNo', 'LabDispNo', fieldIcons.LabDispNo.add, fieldIcons.LabDispNo.delete)}
-    {renderMultiInputGroup('LabDispDate', 'LabDispDate', fieldIcons.LabDispDate.add, fieldIcons.LabDispDate.delete)}
+    {renderMultiInputGroup('LabDispDate', 'LabDispDate', fieldIcons.LabDispDate.add, fieldIcons.LabDispDate.delete, true)}
 
     {renderMultiInputGroup('PickRate', 'PickRate', fieldIcons.PickRate.add, fieldIcons.PickRate.delete)}
     {renderMultiInputGroup('FabricRate', 'FabRate', fieldIcons.FabricRate.add, fieldIcons.FabricRate.delete)}
@@ -2403,6 +2283,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     {renderMultiInputGroup('WeftBag', 'WeftBag', fieldIcons.WeftBag.add, fieldIcons.WeftBag.delete)}
     {/* {renderMultiInputGroup('TotalBag', 'Total Bag', fieldIcons.TotalBag.add, fieldIcons.TotalBag.delete)} */}
     {renderMultiInputGroup('TotalAmountMultiple', 'TotalAmount', fieldIcons.TotalAmountMultiple.add, fieldIcons.TotalAmountMultiple.delete)}
+    {watch('CommissionFrom') === 'Both' && (
+      <>
+        {renderMultiInputGroup('SellerCommission', 'Seller Commission', fieldIcons.SellerCommission.add, fieldIcons.SellerCommission.delete)}
+        {renderMultiInputGroup('BuyerCommission', 'Buyer Commission', fieldIcons.BuyerCommission.add, fieldIcons.BuyerCommission.delete)}
+      </>
+    )}
   </div>
     </div>
 
@@ -2526,103 +2412,21 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
                         <Button
                           type="button"
-                          onClick={() => setShowSamplePopup(0)}
+                          onClick={() => {
+                            if (sampleDetails.length === 0) {
+                              addSampleDetail();
+                            }
+                            setShowSamplePopup(true);
+                          }}
                           className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded flex items-center gap-2"
                         >
                           <MdInfo /> Additional Info
                         </Button>
                       </div>
                     <div className="border rounded-lg p-4 bg-white dark:bg-gray-700">
-                      <div className="grid grid-cols-1 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Sample Quantity
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                type="number"
-                                variant="floating"
-                                borderThickness="2"
-                                label="Sample Quantity"
-                                value={detail.SampleQty || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'SampleQty', e.target.value)}
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Received Date
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                type="date"
-                                variant="floating"
-                                borderThickness="2"
-                                label="Received Date"
-                                value={detail.SampleReceivedDate || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'SampleReceivedDate', e.target.value)}
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Delivered Date
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                type="date"
-                                variant="floating"
-                                borderThickness="2"
-                                label="Delivered Date"
-                                value={detail.SampleDeliveredDate || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'SampleDeliveredDate', e.target.value)}
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Created By
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                variant="floating"
-                                borderThickness="2"
-                                label="Created By"
-                                value={detail.CreatedBy || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'CreatedBy', e.target.value)}
-                                disabled
-                                className="auto-calculated-field"
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Creation Date
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                type="date"
-                                variant="floating"
-                                borderThickness="2"
-                                label="Creation Date"
-                                value={detail.CreationDate || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'CreationDate', e.target.value)}
-                                disabled
-                                className="auto-calculated-field"
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                      </div>
+                      <p className="text-center text-gray-500 dark:text-gray-400">
+                        Click "Additional Info" to view and edit sample details.
+                      </p>
                     </div>
                   </div>
                   <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
@@ -2639,159 +2443,146 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               </div>
 
               {/* Sample Details Popup */}
-              {showSamplePopup !== null && (
-                <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
-                    <Button
-                      type="button"
-                      onClick={() => setShowSamplePopup(0)}
-                      className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2"
-                    >
-                      <MdInfo /> Additional Info
-                    </Button>
-                  </div>
-                  <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white">Sample Details</h2>
-                      <Button
-                        type="button"
-                        onClick={() => setShowSamplePopup(0)}
-                        className="bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-lg flex items-center gap-2"
-                      >
-                        <MdInfo /> Additional Info
-                      </Button>
+              {showSamplePopup && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-2xl font-bold text-[#06b6d4]">Sample Details</h2>
+                            <Button
+                                type="button"
+                                onClick={() => setShowSamplePopup(false)}
+                                className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+                            >
+                                <MdClose size={24} />
+                            </Button>
+                        </div>
+                        <div className="space-y-4">
+                            {sampleDetails.map((detail, sampleIndex) => (
+                                <div key={sampleIndex} className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-700">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                                            Sample {sampleIndex + 1}
+                                        </h3>
+                                        <Button
+                                            type="button"
+                                            onClick={() => removeSampleDetail(sampleIndex)}
+                                            className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center gap-1 text-sm"
+                                        >
+                                            <MdDelete /> Remove
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <CustomInput
+                                            type="number"
+                                            variant="floating"
+                                            borderThickness="2"
+                                            label="Sample Quantity"
+                                            value={detail.SampleQty || ''}
+                                            onChange={(e) => handleSampleDetailChange(sampleIndex, 'SampleQty', e.target.value)}
+                                        />
+                                        <CustomInput
+                                            type="date"
+                                            variant="floating"
+                                            borderThickness="2"
+                                            label="Received Date"
+                                            value={detail.SampleReceivedDate || ''}
+                                            onChange={(e) => handleSampleDetailChange(sampleIndex, 'SampleReceivedDate', e.target.value)}
+                                        />
+                                        <CustomInput
+                                            type="date"
+                                            variant="floating"
+                                            borderThickness="2"
+                                            label="Delivered Date"
+                                            value={detail.SampleDeliveredDate || ''}
+                                            onChange={(e) => handleSampleDetailChange(sampleIndex, 'SampleDeliveredDate', e.target.value)}
+                                        />
+                                        <CustomInput
+                                            variant="floating"
+                                            borderThickness="2"
+                                            label="Created By"
+                                            value={detail.CreatedBy || ''}
+                                            onChange={(e) => handleSampleDetailChange(sampleIndex, 'CreatedBy', e.target.value)}
+                                            disabled
+                                        />
+                                        <CustomInput
+                                            type="date"
+                                            variant="floating"
+                                            borderThickness="2"
+                                            label="Creation Date"
+                                            value={detail.CreationDate || ''}
+                                            onChange={(e) => handleSampleDetailChange(sampleIndex, 'CreationDate', e.target.value)}
+                                            disabled
+                                        />
+                                    </div>
+                                    <div className="mt-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <h4 className="text-md font-semibold text-gray-700 dark:text-gray-300">Additional Info</h4>
+                                            <Button
+                                                type="button"
+                                                onClick={() => addAdditionalInfo(sampleIndex)}
+                                                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md flex items-center gap-1 text-sm"
+                                            >
+                                                <MdAdd /> Add Info
+                                            </Button>
+                                        </div>
+                                        {detail.AdditionalInfo.map((info, infoIndex) => (
+                                            <div key={infoIndex} className="grid grid-cols-3 gap-2 items-center mb-2 p-2 border rounded-md">
+                                                <CustomInput
+                                                    variant="floating"
+                                                    borderThickness="2"
+                                                    label="End Use"
+                                                    value={info.EndUse}
+                                                    onChange={(e) => handleAdditionalInfoChange(sampleIndex, infoIndex, 'EndUse', e.target.value)}
+                                                />
+                                                <CustomInput
+                                                    variant="floating"
+                                                    borderThickness="2"
+                                                    label="Count"
+                                                    value={info.Count}
+                                                    onChange={(e) => handleAdditionalInfoChange(sampleIndex, infoIndex, 'Count', e.target.value)}
+                                                />
+                                                <CustomInput
+                                                    variant="floating"
+                                                    borderThickness="2"
+                                                    label="Weight"
+                                                    value={info.Weight}
+                                                    onChange={(e) => handleAdditionalInfoChange(sampleIndex, infoIndex, 'Weight', e.target.value)}
+                                                />
+                                                <CustomInput
+                                                    variant="floating"
+                                                    borderThickness="2"
+                                                    label="Yarn Bags"
+                                                    value={info.YarnBags}
+                                                    onChange={(e) => handleAdditionalInfoChange(sampleIndex, infoIndex, 'YarnBags', e.target.value)}
+                                                />
+                                                <CustomInput
+                                                    variant="floating"
+                                                    borderThickness="2"
+                                                    label="Labs"
+                                                    value={info.Labs}
+                                                    onChange={(e) => handleAdditionalInfoChange(sampleIndex, infoIndex, 'Labs', e.target.value)}
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    onClick={() => removeAdditionalInfo(sampleIndex, infoIndex)}
+                                                    className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-md flex items-center justify-center"
+                                                >
+                                                    <MdDelete />
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                            <Button
+                                type="button"
+                                onClick={addSampleDetail}
+                                className="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-md flex items-center justify-center gap-2"
+                            >
+                                <MdAdd /> Add Sample
+                            </Button>
+                        </div>
                     </div>
-                    <div className="border rounded-lg p-4 bg-white dark:bg-gray-700">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Sample Quantity
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                type="number"
-                                variant="floating"
-                                borderThickness="2"
-                                label="Sample Quantity"
-                                value={detail.SampleQty || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'SampleQty', e.target.value)}
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Received Date
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                type="date"
-                                variant="floating"
-                                borderThickness="2"
-                                label="Received Date"
-                                value={detail.SampleReceivedDate || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'SampleReceivedDate', e.target.value)}
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Delivered Date
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                type="date"
-                                variant="floating"
-                                borderThickness="2"
-                                label="Delivered Date"
-                                value={detail.SampleDeliveredDate || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'SampleDeliveredDate', e.target.value)}
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Created By
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                variant="floating"
-                                borderThickness="2"
-                                label="Created By"
-                                value={detail.CreatedBy || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'CreatedBy', e.target.value)}
-                                disabled
-                                className="auto-calculated-field"
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Creation Date
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                type="date"
-                                variant="floating"
-                                borderThickness="2"
-                                label="Creation Date"
-                                value={detail.CreationDate || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'CreationDate', e.target.value)}
-                                disabled
-                                className="auto-calculated-field"
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Updated By
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                variant="floating"
-                                borderThickness="2"
-                                label="Updated By"
-                                value={detail.UpdatedBy || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'UpdatedBy', e.target.value)}
-                                disabled
-                                className="auto-calculated-field"
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Update Date
-                          </label>
-                          {sampleDetails && sampleDetails.length > 0 && sampleDetails.map((detail, idx) => (
-                            detail ? (
-                              <CustomInput
-                                type="date"
-                                variant="floating"
-                                borderThickness="2"
-                                label="Update Date"
-                                value={detail.UpdateDate || ''}
-                                onChange={(e) => handleSampleDetailChange(idx, 'UpdateDate', e.target.value)}
-                                disabled
-                                className="auto-calculated-field"
-                              />
-                            ) : null
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
 
