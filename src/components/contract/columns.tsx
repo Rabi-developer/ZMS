@@ -50,6 +50,7 @@ import Link from 'next/link';
     fabricValue: string;
     gst: string;
     gstValue?: string;
+    gstpercentage?:string;
     totalAmount: string;
     paymentTermsSeller?: string;
     paymentTermsBuyer?: string;
@@ -68,6 +69,24 @@ import Link from 'next/link';
     approvedBy?: string;
     approvedDate?: string;
     endUse?: string;
+     // New
+    finishWidth? :string;
+    dispatchLater? :string;
+    color?: string;
+    weight?: string;
+    shrinkage?: string;
+    finish: string;
+    labDispNo: string;
+    labDispDate: string;
+    pickRate: string;
+    fabricRate: string;
+    amounts: string;
+    wrapwt: string;
+    weftwt: string;
+    wrapBag: string;
+    weftBag: string;
+    totalAmountMultiple: string;
+     deliveryDate: string;
     status?: 'Pending' | 'Approved' | 'Canceled' | 'Closed Dispatch' | 'Closed Payment' | 'Complete Closed';
     buyerDeliveryBreakups?: { qty: string; deliveryDate: string }[];
     sellerDeliveryBreakups?: { qty: string; deliveryDate: string }[];
@@ -174,10 +193,7 @@ export const columns = (
   //   accessorKey: 'companyName',
   //   header: 'Company',
   // },
-  {
-    accessorKey: 'name',
-    header: '',
-  },
+ 
   // {
   //   accessorKey: 'branchName',
   //   header: 'Branch',
@@ -400,33 +416,37 @@ export const columns = (
     accessorKey: 'buyerRemark',
     header: 'Buyer Remark',
   },
-  {
-    accessorKey: 'createdBy',
-    header: 'Created By',
-  },
-  {
-    accessorKey: 'creationDate',
-    header: 'Creation Date',
-  },
-  {
-    accessorKey: 'updatedBy',
-    header: 'Updated By',
-  },
-  {
-    accessorKey: 'updationDate',
-    header: 'Updation Date',
-  },
-  {
-    accessorKey: 'approvedBy',
-    header: 'Approved By',
-  },
-  {
-    accessorKey: 'approvedDate',
-    header: 'Approved Date',
-  },
+  // {
+  //   accessorKey: 'createdBy',
+  //   header: 'Created By',
+  // },
+  // {
+  //   accessorKey: 'creationDate',
+  //   header: 'Creation Date',
+  // },
+  // {
+  //   accessorKey: 'updatedBy',
+  //   header: 'Updated By',
+  // },
+  // {
+  //   accessorKey: 'updationDate',
+  //   header: 'Updation Date',
+  // },
+  // {
+  //   accessorKey: 'approvedBy',
+  //   header: 'Approved By',
+  // },
+  // {
+  //   accessorKey: 'approvedDate',
+  //   header: 'Approved Date',
+  // },
   {
     accessorKey: 'endUse',
     header: 'End Use',
+  },
+    {
+    accessorKey: 'name',
+    header: '',
   },
   {
     accessorKey: 'deliveryDetails',

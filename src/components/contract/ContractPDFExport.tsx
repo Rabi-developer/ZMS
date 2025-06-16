@@ -373,7 +373,7 @@ const ContractPDFExport = {
       { label: 'Quantity:', value: `Rs. ${formatCurrency(contract.quantity)} Mtr(+-${contract.tolerance || '-'})` },
       {
         label: 'Rate:',
-        value: `Rs. ${formatCurrency(contract.rate)}/Mtr + ${contract.gst || '-'} ${contract.deliveryDetails?.[0]?.deliveryTerms || '-'}`,
+        value: `Rs. ${formatCurrency(contract.rate)}/Mtr + ${contract.gst || '-'} ${contract.deliveryTerms || '-'}`,
       },
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
       {

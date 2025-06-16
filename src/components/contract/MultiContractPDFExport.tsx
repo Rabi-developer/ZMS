@@ -437,9 +437,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       if (!isNaN(amount)) totalAmount += amount;
 
       tableBody.push([
-        contract.deliveryDetails?.[0]?.labDispNo || '-',
-        contract.deliveryDetails?.[0]?.labDispDate || '-',
-        contract.deliveryDetails?.[0]?.color || '-',
+        contract.width || '-',
         contract.quantity?.toString() || '-',
         `PKR ${contract.rate || '-'}`,
         formatCurrency(amount),
@@ -456,7 +454,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     }
 
     // Calculate GST amount and total with GST
-    const gstPercentage = parseFloat(contract.deliveryDetails?.[0]?.gst as any) || 0;
+    const gstPercentage = parseFloat(contract.gst as any) || 0;
     const gstAmount = (totalAmount * gstPercentage) / 100;
     const totalWithGST = totalAmount + gstAmount;
 

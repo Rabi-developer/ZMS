@@ -400,9 +400,9 @@ const ConversionPDFExport = {
       tableBody.push([
         contract.width || '-',
         contract.quantity || '-',
-        contract.pickrate || '-',
-        contract.fabrate?.toString() || '-',
-        contract.amount|| '-',
+        contract.pickRate || '-',
+        contract.fabricRate?.toString() || '-',
+        contract.amounts|| '-',
         contract.deliveryDetails?.[0]?.deliveryDate
           ? new Date(contract.deliveryDetails[0].deliveryDate).toLocaleDateString('en-GB', {
               day: '2-digit',
@@ -413,17 +413,17 @@ const ConversionPDFExport = {
               .join('-')
           : '-',
     
-        contract.deliveryDetails?.[0]?.wrapWeight || '-',
-        contract.deliveryDetails?.[0]?.weftWeight || '-',
-        contract.deliveryDetails?.[0]?.wrapBags || '-',
-        contract.deliveryDetails?.[0]?.weftBags || '-',
-        contract.deliveryDetails?.[0]?.totalBags || '-',
+        contract.wrapwt|| '-',
+        contract.weftBag || '-',
+        contract.wrapBag || '-',
+        contract.weftBag|| '-',
+        contract.totalAmountMultiple || '-',
         formatCurrency(totalAmount),
       ]);
     }
 
     // Calculate GST amount and total with GST
-    const gstPercentage = parseFloat(contract.deliveryDetails?.[0]?.gst as any) || 0;
+    const gstPercentage = parseFloat(contract.gst as any) || 0;
     const gstAmount = (totalAmount * gstPercentage) / 100;
     const totalWithGST = totalAmount + gstAmount;
 
@@ -487,9 +487,9 @@ const ConversionPDFExport = {
 
     // Left Column: Additional Fields (Removed Commission and Commission Value)
     const additionalFields = [
-      { label: 'Piece Length:', value: contract.deliveryDetails?.[0]?.pieceLength || '-' },
-      { label: 'Payment:', value: `${contract.deliveryDetails?.[0]?.paymentTermsSeller || '-'}` },
-      { label: 'Packing:', value: contract.deliveryDetails?.[0]?.packing || '-' },
+      { label: 'Piece Length:', value: contract.pieceLength || '-' },
+      { label: 'Payment:', value: `${contract.paymentTermsSeller || '-'}` },
+      { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
       { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
       ...(type === 'purchase'
         ? [

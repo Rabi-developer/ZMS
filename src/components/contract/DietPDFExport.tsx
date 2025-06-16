@@ -180,7 +180,7 @@ const DietPDFExport = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    const title = type === 'purchase' ? 'PURCHASE FABRIC CONTRACT' : 'SALE FABRIC CONTRACT';
+    const title = type === 'purchase' ? 'DIET PURCHASE  CONTRACT' : 'DIET SALE CONTRACT';
     doc.text(title, 105, yPos, { align: 'center' });
 
     // Date
@@ -291,9 +291,9 @@ const DietPDFExport = {
         label: 'Construction:',
         value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
-      { label: 'Finish Width:', value: `${contract.deliveryDetails?.[0]?.finishWidth || '-'}` },
-      { label: 'Weight:', value: `${contract.deliveryDetails?.[0]?.weight || '-'}` },
-      { label: 'Shrinkage:', value: `${contract.deliveryDetails?.[0]?.shrinkage || '-'}` },
+      { label: 'Finish Width:', value: `${contract.finishWidth || '-'}` },
+      { label: 'Weight:', value: `${contract.weight || '-'}` },
+      { label: 'Shrinkage:', value: `${contract.shrinkage || '-'}` },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -375,9 +375,9 @@ const DietPDFExport = {
         if (!isNaN(amount) && index === 0) totalAmount += amount;
 
         tableBody.push([
-          index === 0 ? contract.deliveryDetails?.[0]?.labDispNo || '-' : '',
-          index === 0 ? contract.deliveryDetails?.[0]?.labDispDate || '-' : '',
-          index === 0 ? contract.deliveryDetails?.[0]?.color || '-' : '',
+          index === 0 ? contract.labDispNo || '-' : '',
+          index === 0 ? contract.labDispDate || '-' : '',
+          index === 0 ? contract.color || '-' : '',
           breakup.Qty?.toString() || '-',
           index === 0 ? `PKR ${contract.rate || '-'}` : '',
           index === 0 ? formatCurrency(amount) : '',
@@ -401,14 +401,14 @@ const DietPDFExport = {
       if (!isNaN(amount)) totalAmount += amount;
 
       tableBody.push([
-        contract.deliveryDetails?.[0]?.labDispNo || '-',
-        contract.deliveryDetails?.[0]?.labDispDate || '-',
-        contract.deliveryDetails?.[0]?.color || '-',
+        contract.labDispNo || '-',
+        contract.labDispDate || '-',
+        contract.color || '-',
         contract.quantity?.toString() || '-',
         `PKR ${contract.rate || '-'}`,
         formatCurrency(amount),
-        contract.deliveryDetails?.[0]?.deliveryDate
-          ? new Date(contract.deliveryDetails[0].deliveryDate).toLocaleDateString('en-GB', {
+        contract.deliveryDate
+          ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
               day: '2-digit',
               month: '2-digit',
               year: 'numeric',
@@ -420,7 +420,7 @@ const DietPDFExport = {
     }
 
     // Calculate GST amount and total with GST
-    const gstPercentage = parseFloat(contract.deliveryDetails?.[0]?.gst as any) || 0;
+    const gstPercentage = parseFloat(contract.gst as any) || 0;
     const gstAmount = (totalAmount * gstPercentage) / 100;
     const totalWithGST = totalAmount + gstAmount;
 
