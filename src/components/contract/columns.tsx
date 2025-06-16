@@ -40,7 +40,7 @@ import Link from 'next/link';
     selvegeWidth?: string;
     selvegeThickness?: string;
     inductionThread?: string;
-    gsm: string;
+    gsm?: string;
     quantity: string;
     unitOfMeasure: string;
     tolerance?: string;

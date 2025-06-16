@@ -36,6 +36,14 @@ const formatCurrency = (value: string | number | undefined): string => {
   return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+// Helper function to split pipe-separated values into an array
+const splitMultiValue = (value: string | number | undefined): string[] => {
+  if (!value || typeof value !== 'string' || !value.includes('|')) {
+    return [value?.toString() || '-'];
+  }
+  return value.split('|').map((v) => v.trim());
+};
+
 interface ExportToPDFProps {
   contract: Contract | null;
   sellerSignature?: string;
@@ -180,7 +188,7 @@ const DietPDFExport = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    const title = type === 'purchase' ? 'DIET PURCHASE  CONTRACT' : 'DIET SALE CONTRACT';
+    const title = type === 'purchase' ? 'DIET PURCHASE CONTRACT' : 'DIET SALE CONTRACT';
     doc.text(title, 105, yPos, { align: 'center' });
 
     // Date
@@ -291,22 +299,9 @@ const DietPDFExport = {
         label: 'Construction:',
         value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
-      { 
-        label: 'Finish Width:', 
-        value: contract.finishWidth ? contract.finishWidth.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Color:', 
-        value: contract.color ? contract.color.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Weight:', 
-        value: contract.weight ? contract.weight.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Shrinkage:', 
-        value: contract.shrinkage ? contract.shrinkage.split('|').join('\n') : '-' 
-      },
+      { label: 'Finish Width:', value: `${contract.finishWidth || '-'}` },
+      { label: 'Weight:', value: `${contract.weight || '-'}` },
+      { label: 'Shrinkage:', value: `${contract.shrinkage || '-'}` },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -331,16 +326,9 @@ const DietPDFExport = {
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
+      doc.text(value, leftColX + maxLabelWidth + 5, yPos);
 
-      // Split value by newlines and print each line
-      const lines = value.split('\n');
-      lines.forEach((line, index) => {
-        const lineY = yPos + (index * 5); // Add 5 units of space between lines
-        doc.text(line, leftColX + maxLabelWidth + 5, lineY);
-      });
-
-      // Update yPos based on number of lines
-      yPos += (lines.length * 5) + 2; // Add extra space after each field
+      yPos += 5;
     });
 
     yPos += 2;
@@ -350,105 +338,141 @@ const DietPDFExport = {
     let totalQty = 0;
     let totalAmount = 0;
 
+    // Helper function to get the maximum length of split values
+    const getMaxSplitLength = (values: string[][]): number => {
+      return Math.max(...values.map((v) => v.length));
+    };
+
     if (Array.isArray(contract.deliveryDetails) && contract.deliveryDetails.length > 0) {
       contract.deliveryDetails.forEach((delivery) => {
-        const qty = parseFloat(delivery.quantity || '0');
-        const rate = parseFloat(delivery.rate || '0');
-        const amount = qty * rate;
+        const qty = parseFloat(contract.quantity || '0');
+        const rateValues = splitMultiValue(contract.rate);
+        const amount = qty * parseFloat(rateValues[0] || '0'); // Use first rate for total calculation
 
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount)) totalAmount += amount;
 
-        // Split color values and create multiple rows if needed
-        const colors = delivery.color ? delivery.color.split('|') : ['-'];
-        colors.forEach((color, colorIndex) => {
+        // Split all relevant fields
+        const labDispNoValues = splitMultiValue(contract.labDispNo);
+        const labDispDateValues = splitMultiValue(
+          contract.labDispDate
+            ? new Date(contract.labDispDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              }).split('/').join('-')
+            : '-'
+        );
+        const colorValues = splitMultiValue(contract.color);
+
+        // Get the maximum number of rows needed
+        const maxRows = getMaxSplitLength([labDispNoValues, labDispDateValues, colorValues, rateValues]);
+
+        // Create a row for each split value
+        for (let i = 0; i < maxRows; i++) {
           tableBody.push([
-            colorIndex === 0 ? delivery.labDispNo || '-' : '',
-            colorIndex === 0 ? delivery.labDispDate
-              ? new Date(delivery.labDispDate).toLocaleDateString('en-GB', {
+            labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-'),
+            labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-'),
+            colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-'),
+            i === 0 ? contract.quantity?.toString() || '-' : '-', // Quantity only in first row
+            `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}`,
+            i === 0 ? formatCurrency(amount) : '-', // Amount only in first row
+            i === 0 && contract.deliveryDate
+              ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',
-                })
-                  .split('/')
-                  .join('-')
-              : '-' : '',
-            color,
-            colorIndex === 0 ? delivery.quantity?.toString() || '-' : '',
-            colorIndex === 0 ? `PKR ${delivery.rate || '-'}` : '',
-            colorIndex === 0 ? formatCurrency(amount) : '',
-            colorIndex === 0 ? delivery.deliveryDate
-              ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                })
-                  .split('/')
-                  .join('-')
-              : '-' : '',
+                }).split('/').join('-')
+              : '-',
           ]);
-        });
+        }
       });
     } else if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
       buyerDeliveryBreakups.forEach((breakup, index) => {
         const qty = parseFloat(breakup.Qty || '0');
-        const rate = parseFloat(contract.rate || '0');
-        const amount = qty * rate;
+        const rateValues = splitMultiValue(contract.rate);
+        const amount = qty * parseFloat(rateValues[0] || '0'); // Use first rate for total calculation
 
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount) && index === 0) totalAmount += amount;
 
-        // Split color values and create multiple rows if needed
-        const colors = contract.color ? contract.color.split('|') : ['-'];
-        colors.forEach((color, colorIndex) => {
+        // Split all relevant fields
+        const labDispNoValues = splitMultiValue(contract.labDispNo);
+        const labDispDateValues = splitMultiValue(
+          contract.labDispDate
+            ? new Date(contract.labDispDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              }).split('/').join('-')
+            : '-'
+        );
+        const colorValues = splitMultiValue(contract.color);
+
+        // Get the maximum number of rows needed
+        const maxRows = getMaxSplitLength([labDispNoValues, labDispDateValues, colorValues, rateValues]);
+
+        // Create a row for each split value
+        for (let i = 0; i < maxRows; i++) {
           tableBody.push([
-            colorIndex === 0 && index === 0 ? contract.labDispNo || '-' : '',
-            colorIndex === 0 && index === 0 ? contract.labDispDate || '-' : '',
-            color,
-            colorIndex === 0 ? breakup.Qty?.toString() || '-' : '',
-            colorIndex === 0 && index === 0 ? `PKR ${contract.rate || '-'}` : '',
-            colorIndex === 0 && index === 0 ? formatCurrency(amount) : '',
-            colorIndex === 0 ? breakup.DeliveryDate
-              ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
+            index === 0 ? (labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-')) : '-',
+            index === 0 ? (labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-')) : '-',
+            index === 0 ? (colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-')) : '-',
+            contract.quantity?.toString() || '-',
+            index === 0 ? `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}` : '-',
+            index === 0 ? formatCurrency(amount) : '-',
+            contract.deliveryDate
+              ? new Date(contract.labDispDate).toLocaleDateString('en-GB', {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',
-                })
-                  .split('/')
-                  .join('-')
-              : '-' : '',
+                }).split('/').join('-')
+              : '-',
           ]);
-        });
+        }
       });
     } else {
       const qty = parseFloat(contract.quantity || '0');
-      const rate = parseFloat(contract.rate || '0');
-      const amount = qty * rate;
+      const rateValues = splitMultiValue(contract.rate);
+      const amount = qty * parseFloat(rateValues[0] || '0'); // Use first rate for total calculation
 
       if (!isNaN(qty)) totalQty += qty;
       if (!isNaN(amount)) totalAmount += amount;
 
-      // Split color values and create multiple rows if needed
-      const colors = contract.color ? contract.color.split('|') : ['-'];
-      colors.forEach((color, colorIndex) => {
+      // Split all relevant fields
+      const labDispNoValues = splitMultiValue(contract.labDispNo);
+      const labDispDateValues = splitMultiValue(
+        contract.labDispDate
+          ? new Date(contract.labDispDate).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            }).split('/').join('-')
+          : '-'
+      );
+      const colorValues = splitMultiValue(contract.color);
+
+      // Get the maximum number of rows needed
+      const maxRows = getMaxSplitLength([labDispNoValues, labDispDateValues, colorValues, rateValues]);
+
+      // Create a row for each split value
+      for (let i = 0; i < maxRows; i++) {
         tableBody.push([
-          colorIndex === 0 ? contract.labDispNo || '-' : '',
-          colorIndex === 0 ? contract.labDispDate || '-' : '',
-          color,
-          colorIndex === 0 ? contract.quantity?.toString() || '-' : '',
-          colorIndex === 0 ? `PKR ${contract.rate || '-'}` : '',
-          colorIndex === 0 ? formatCurrency(amount) : '',
-          colorIndex === 0 ? contract.deliveryDate
+          labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-'),
+          labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-'),
+          colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-'),
+          i === 0 ? contract.quantity?.toString() || '-' : '-', // Quantity only in first row
+          `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}`,
+          i === 0 ? formatCurrency(amount) : '-', // Amount only in first row
+          i === 0 && contract.deliveryDate
             ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-' : '',
+              }).split('/').join('-')
+            : '-',
         ]);
-      });
+      }
     }
 
     // Calculate GST amount and total with GST
@@ -509,7 +533,7 @@ const DietPDFExport = {
     let leftColumnYPos = yPos;
     let rightColumnYPos = yPos;
 
-    // Left Column: Additional Fields (Removed Commission and Commission Value)
+    // Left Column: Additional Fields
     const additionalFields = [
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
       { label: 'Payment:', value: `${contract.paymentTermsSeller || '-'}` },
@@ -716,7 +740,7 @@ const DietPDFExport = {
     doc.text('Confidential - ZMS Textiles Ltd.', 105, footerY + 5, { align: 'center' });
 
     // Save PDF with dynamic name
-     const filename = type === 'purchase'
+    const filename = type === 'purchase'
       ? `ZMS Sourcing Purchase Diet Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`
       : `ZMS Sourcing Sale Diet Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`;
     doc.save(filename);

@@ -36,6 +36,14 @@ const formatCurrency = (value: string | number | undefined): string => {
   return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+// Helper function to split pipe-separated values into an array
+const splitMultiValue = (value: string | number | undefined): string[] => {
+  if (!value || typeof value !== 'string' || !value.includes('|')) {
+    return [value?.toString() || '-'];
+  }
+  return value.split('|').map((v) => v.trim());
+};
+
 interface ExportToPDFProps {
   contract: Contract | null;
   sellerSignature?: string;
@@ -327,99 +335,193 @@ const ConversionPDFExport = {
     let totalQty = 0;
     let totalAmount = 0;
 
+    // Helper function to get the maximum length of split values
+    const getMaxSplitLength = (values: string[][]): number => {
+      return Math.max(...values.map((v) => v.length));
+    };
+
     if (Array.isArray(contract.deliveryDetails) && contract.deliveryDetails.length > 0) {
       contract.deliveryDetails.forEach((delivery) => {
-        const qty = parseFloat(delivery.quantity || '0');
-        const rate = parseFloat(delivery.rate || '0');
-        const amount = qty * rate;
+        const qty = parseFloat(contract.quantity || '0');
+        const rateValues = splitMultiValue(contract.rate);
+        const amount = qty * parseFloat(rateValues[0] || '0'); // Use first rate for total calculation
 
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount)) totalAmount += amount;
 
-        tableBody.push([
-          delivery.labDispNo || '-',
-          delivery.labDispDate
-            ? new Date(delivery.labDispDate).toLocaleDateString('en-GB', {
+        // Split all relevant fields
+        const labDispNoValues = splitMultiValue(contract.labDispNo);
+        const labDispDateValues = splitMultiValue(
+          contract.labDispDate
+            ? new Date(contract.labDispDate).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-',
-          delivery.color || '-',
-          delivery.quantity?.toString() || '-',
-          `PKR ${delivery.rate || '-'}`,
-          formatCurrency(amount),
-          delivery.deliveryDate
-            ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-',
+              }).split('/').join('-')
+            : '-'
+        );
+        const colorValues = splitMultiValue(contract.color);
+        const wrapWtValues = splitMultiValue( contract.wrapwt);
+        const weftWtValues = splitMultiValue(contract.weftwt);
+        const wrapBagValues = splitMultiValue(contract.wrapBag);
+        const weftBagValues = splitMultiValue( contract.weftBag);
+        const totalAmountMultipleValues = splitMultiValue(contract.totalAmountMultiple);
+
+        // Get the maximum number of rows needed
+        const maxRows = getMaxSplitLength([
+          labDispNoValues,
+          labDispDateValues,
+          colorValues,
+          rateValues,
+          wrapWtValues,
+          weftWtValues,
+          wrapBagValues,
+          weftBagValues,
+          totalAmountMultipleValues,
         ]);
+
+        // Create a row for each split value
+        for (let i = 0; i < maxRows; i++) {
+          tableBody.push([
+            labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-'),
+            labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-'),
+            colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-'),
+            i === 0 ? contract.quantity?.toString() || '-' : '-', // Quantity only in first row
+            `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}`,
+            i === 0 ? formatCurrency(amount) : '-', // Amount only in first row
+            i === 0 && contract.deliveryDate
+              ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                }).split('/').join('-')
+              : '-',
+            wrapWtValues[i] || (i === 0 ? wrapWtValues[0] || '-' : '-'),
+            weftWtValues[i] || (i === 0 ? weftWtValues[0] || '-' : '-'),
+            wrapBagValues[i] || (i === 0 ? wrapBagValues[0] || '-' : '-'),
+            weftBagValues[i] || (i === 0 ? weftBagValues[0] || '-' : '-'),
+            totalAmountMultipleValues[i] || (i === 0 ? totalAmountMultipleValues[0] || '-' : '-'),
+          ]);
+        }
       });
     } else if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
       buyerDeliveryBreakups.forEach((breakup, index) => {
         const qty = parseFloat(breakup.Qty || '0');
-        const rate = parseFloat(contract.rate || '0');
-        const amount = qty * rate;
+        const rateValues = splitMultiValue(contract.rate);
+        const amount = qty * parseFloat(rateValues[0] || '0'); // Use first rate for total calculation
 
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount) && index === 0) totalAmount += amount;
 
-        tableBody.push([
-          index === 0 ? contract.deliveryDetails?.[0]?.labDispNo || '-' : '',
-          index === 0 ? contract.deliveryDetails?.[0]?.labDispDate || '-' : '',
-          index === 0 ? contract.deliveryDetails?.[0]?.color || '-' : '',
-          breakup.Qty?.toString() || '-',
-          index === 0 ? `PKR ${contract.rate || '-'}` : '',
-          index === 0 ? formatCurrency(amount) : '',
-          breakup.DeliveryDate
-            ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
+        // Split all relevant fields
+        const labDispNoValues = splitMultiValue(contract.labDispNo);
+        const labDispDateValues = splitMultiValue(
+          contract.labDispDate
+            ? new Date(contract.labDispDate).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-',
+              }).split('/').join('-')
+            : '-'
+        );
+        const colorValues = splitMultiValue(contract.color);
+        const wrapWtValues = splitMultiValue(contract.wrapwt);
+        const weftWtValues = splitMultiValue(contract.weftwt);
+        const wrapBagValues = splitMultiValue(contract.wrapBag);
+        const weftBagValues = splitMultiValue(contract.weftBag);
+        const totalAmountMultipleValues = splitMultiValue(contract.totalAmountMultiple);
+
+        // Get the maximum number of rows needed
+        const maxRows = getMaxSplitLength([
+          labDispNoValues,
+          labDispDateValues,
+          colorValues,
+          rateValues,
+          wrapWtValues,
+          weftWtValues,
+          wrapBagValues,
+          weftBagValues,
+          totalAmountMultipleValues,
         ]);
+
+        // Create a row for each split value
+        for (let i = 0; i < maxRows; i++) {
+          tableBody.push([
+            index === 0 ? (labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-')) : '-',
+            index === 0 ? (labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-')) : '-',
+            index === 0 ? (colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-')) : '-',
+            breakup.Qty?.toString() || '-',
+            index === 0 ? `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}` : '-',
+            index === 0 ? formatCurrency(amount) : '-',
+            contract.deliveryDate
+              ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                }).split('/').join('-')
+              : '-',
+            index === 0 ? (wrapWtValues[i] || (i === 0 ? wrapWtValues[0] || '-' : '-')) : '-',
+            index === 0 ? (weftWtValues[i] || (i === 0 ? weftWtValues[0] || '-' : '-')) : '-',
+            index === 0 ? (wrapBagValues[i] || (i === 0 ? wrapBagValues[0] || '-' : '-')) : '-',
+            index === 0 ? (weftBagValues[i] || (i === 0 ? weftBagValues[0] || '-' : '-')) : '-',
+            index === 0 ? (totalAmountMultipleValues[i] || (i === 0 ? totalAmountMultipleValues[0] || '-' : '-')) : '-',
+          ]);
+        }
       });
     } else {
       const qty = parseFloat(contract.quantity || '0');
-      const rate = parseFloat(contract.rate || '0');
-      const amount = qty * rate;
+      const rateValues = splitMultiValue(contract.rate);
+      const amount = qty * parseFloat(rateValues[0] || '0'); // Use first rate for total calculation
 
       if (!isNaN(qty)) totalQty += qty;
       if (!isNaN(amount)) totalAmount += amount;
 
-      tableBody.push([
-        contract.width || '-',
-        contract.quantity || '-',
-        contract.pickRate || '-',
-        contract.fabricRate?.toString() || '-',
-        contract.amounts|| '-',
-        contract.deliveryDetails?.[0]?.deliveryDate
-          ? new Date(contract.deliveryDetails[0].deliveryDate).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            })
-              .split('/')
-              .join('-')
-          : '-',
-    
-        contract.wrapwt|| '-',
-        contract.weftBag || '-',
-        contract.wrapBag || '-',
-        contract.weftBag|| '-',
-        contract.totalAmountMultiple || '-',
-        formatCurrency(totalAmount),
+      // Split all relevant fields
+      const widthValues = splitMultiValue(contract.width);
+      const pickRateValues = splitMultiValue(contract.pickRate);
+      const fabricRateValues = splitMultiValue(contract.fabricRate?.toString());
+      const amountsValues = splitMultiValue(contract.amounts);
+      const wrapWtValues = splitMultiValue(contract.wrapwt);
+      const weftWtValues = splitMultiValue(contract.weftwt);
+      const wrapBagValues = splitMultiValue(contract.wrapBag);
+      const weftBagValues = splitMultiValue(contract.weftBag);
+      const totalAmountMultipleValues = splitMultiValue(contract.totalAmountMultiple);
+
+      // Get the maximum number of rows needed
+      const maxRows = getMaxSplitLength([
+        widthValues,
+        pickRateValues,
+        fabricRateValues,
+        amountsValues,
+        wrapWtValues,
+        weftWtValues,
+        wrapBagValues,
+        weftBagValues,
+        totalAmountMultipleValues,
       ]);
+
+      // Create a row for each split value
+      for (let i = 0; i < maxRows; i++) {
+        tableBody.push([
+          widthValues[i] || (i === 0 ? widthValues[0] || '-' : '-'),
+          i === 0 ? contract.quantity || '-' : '-', // Quantity only in first row
+          pickRateValues[i] || (i === 0 ? pickRateValues[0] || '-' : '-'),
+          fabricRateValues[i] || (i === 0 ? fabricRateValues[0] || '-' : '-'),
+          amountsValues[i] || (i === 0 ? amountsValues[0] || '-' : '-'),
+          contract.deliveryDate
+            ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              }).split('/').join('-')
+            : '-',
+          wrapWtValues[i] || (i === 0 ? wrapWtValues[0] || '-' : '-'),
+          weftWtValues[i] || (i === 0 ? weftWtValues[0] || '-' : '-'),
+          wrapBagValues[i] || (i === 0 ? wrapBagValues[0] || '-' : '-'),
+          weftBagValues[i] || (i === 0 ? weftBagValues[0] || '-' : '-'),
+          totalAmountMultipleValues[i] || (i === 0 ? totalAmountMultipleValues[0] || '-' : '-'),
+        ]);
+      }
     }
 
     // Calculate GST amount and total with GST
@@ -428,13 +530,13 @@ const ConversionPDFExport = {
     const totalWithGST = totalAmount + gstAmount;
 
     // Add total quantity row (subtotal before GST)
-    tableBody.push(['', '', 'Subtotal:', formatCurrency(totalQty), '', formatCurrency(totalAmount), '']);
+    tableBody.push(['', '', 'Subtotal:', formatCurrency(totalQty), '', formatCurrency(totalAmount), '', '', '', '', '']);
 
     // Add GST row
-    tableBody.push(['', '', `GST (${gstPercentage}%):`, '', '', formatCurrency(gstAmount), '']);
+    tableBody.push(['', '', `GST (${gstPercentage}%):`, '', '', formatCurrency(gstAmount), '', '', '', '', '']);
 
     // Add total with GST row
-    tableBody.push(['', '', `Total (with ${gstPercentage}% GST):`, '', '', formatCurrency(totalWithGST), '']);
+    tableBody.push(['', '', `Total (with ${gstPercentage}% GST):`, '', '', formatCurrency(totalWithGST), '', '', '', '', '']);
 
     autoTable(doc, {
       startY: yPos,
@@ -458,18 +560,17 @@ const ConversionPDFExport = {
         fontStyle: 'bold',
       },
       columnStyles: {
-        0: { cellWidth: 15 }, // Lab Dip NO.
-        1: { cellWidth: 15 }, // Lab Dip Date
-        2: { cellWidth: 15 }, // Color
-        3: { cellWidth: 15 }, // Finish Qty
-        4: { cellWidth: 15 }, // PKR/Mtr
-        5: { cellWidth: 15 }, // Amount
-        6: { cellWidth: 15 }, // Delivery
-        7: { cellWidth: 15 }, // Wrap Weight
-        8: { cellWidth: 15 }, // Weft Weight
-        9: { cellWidth: 15 }, // Wrap Bags
-        10: { cellWidth: 15 }, // Weft Bags
-        11: { cellWidth: 15 }, // Total Bags
+        0: { cellWidth: 15 }, // Width
+        1: { cellWidth: 15 }, // Qty
+        2: { cellWidth: 15 }, // Pick Rate
+        3: { cellWidth: 15 }, // Fab. Rate
+        4: { cellWidth: 15 }, // Amount
+        5: { cellWidth: 15 }, // Delivery
+        6: { cellWidth: 15 }, // Wrap Weight
+        7: { cellWidth: 15 }, // Weft Weight
+        8: { cellWidth: 15 }, // Wrap Bags
+        9: { cellWidth: 15 }, // Weft Bags
+        10: { cellWidth: 15 }, // Total Bags
       },
       margin: { left: 10, right: 10 },
       theme: 'grid',
@@ -485,10 +586,10 @@ const ConversionPDFExport = {
     let leftColumnYPos = yPos;
     let rightColumnYPos = yPos;
 
-    // Left Column: Additional Fields (Removed Commission and Commission Value)
+    // Left Column: Additional Fields
     const additionalFields = [
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
-      { label: 'Payment:', value: `${contract.paymentTermsSeller || '-'}` },
+      { label: 'Payment:', value: `${contract.paymentTermsBuyer || '-'}` },
       { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
       { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
       ...(type === 'purchase'
@@ -498,7 +599,7 @@ const ConversionPDFExport = {
           ]
         : []),
       { label: 'Delivery Destination:', value: `${contract.buyer || ''}` },
-      { label: 'Remarks:', value: `${contract.deliveryDetails?.[0]?.buyerRemark || '-'}` },
+      { label: 'Remarks:', value: `${contract.buyerRemark || '-'}` },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -536,9 +637,7 @@ const ConversionPDFExport = {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
-              })
-                .split('/')
-                .join('-')
+              }).split('/').join('-')
             : '-',
         ]),
         styles: {
