@@ -287,15 +287,64 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
 
     yPos += 25;
 
+    // Fields
     const fields = [
-      { label: 'Description:', value: `${contract.description || '-'}, ${contract.stuff}` },
+      { label: 'Description:', value: `${contract.description || '-'}, ${contract.stuff || '-'}` },
       {
         label: 'Blend Ratio:',
-        value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'} ${contract.warpYarnType || '-'}`,
+        value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}`,
       },
       {
         label: 'Construction:',
-        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} x ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${contract.weaves || '-'} ${contract.pickInsertion || '-'} ${contract.width || '-'} ${contract.final || '-'} ${contract.selvege || 'Selvege'}`,
+        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
+      },
+      { 
+        label: 'Finish Width:', 
+        value: contract.finishWidth ? contract.finishWidth.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Weight:', 
+        value: contract.weight ? contract.weight.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Shrinkage:', 
+        value: contract.shrinkage ? contract.shrinkage.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Color:', 
+        value: contract.color ? contract.color.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Lab Dip No:', 
+        value: contract.labDispNo ? contract.labDispNo.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Lab Dip Date:', 
+        value: contract.labDispDate ? contract.labDispDate.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Pick Rate:', 
+        value: contract.pickRate ? contract.pickRate.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Fabric Rate:', 
+        value: contract.fabricRate ? contract.fabricRate.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Amounts:', 
+        value: contract.amounts ? contract.amounts.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Wrap Bag:', 
+        value: contract.wrapBag ? contract.wrapBag.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Weft Bag:', 
+        value: contract.weftBag ? contract.weftBag.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Total Amount:', 
+        value: contract.totalAmountMultiple ? contract.totalAmountMultiple.split('|').join('\n') : '-' 
       },
     ];
 
@@ -321,9 +370,16 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
-      doc.text(value, leftColX + maxLabelWidth + 6, yPos);
 
-      yPos += 10;
+      // Split value by newlines and print each line
+      const lines = value.split('\n');
+      lines.forEach((line, index) => {
+        const lineY = yPos + (index * 5); // Add 5 units of space between lines
+        doc.text(line, leftColX + maxLabelWidth + 6, lineY);
+      });
+
+      // Update yPos based on number of lines
+      yPos += (lines.length * 5) + 2; // Add extra space after each field
     });
 
     // Financial Table (Sel.Length, Sel.Weaves, etc.)
@@ -377,31 +433,35 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount)) totalAmount += amount;
 
-        tableBody.push([
-          delivery.labDispNo || '-',
-          delivery.labDispDate
-            ? new Date(delivery.labDispDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-',
-          delivery.color || '-',
-          delivery.quantity?.toString() || '-',
-          `PKR ${delivery.rate || '-'}`,
-          formatCurrency(amount),
-          delivery.deliveryDate
-            ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-',
-        ]);
+        // Split color values and create multiple rows if needed
+        const colors = delivery.color ? delivery.color.split('|') : ['-'];
+        colors.forEach((color, colorIndex) => {
+          tableBody.push([
+            colorIndex === 0 ? delivery.labDispNo || '-' : '',
+            colorIndex === 0 ? delivery.labDispDate
+              ? new Date(delivery.labDispDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })
+                  .split('/')
+                  .join('-')
+              : '-' : '',
+            color,
+            colorIndex === 0 ? delivery.quantity?.toString() || '-' : '',
+            colorIndex === 0 ? `PKR ${delivery.rate || '-'}` : '',
+            colorIndex === 0 ? formatCurrency(amount) : '',
+            colorIndex === 0 ? delivery.deliveryDate
+              ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })
+                  .split('/')
+                  .join('-')
+              : '-' : '',
+          ]);
+        });
       });
     } else if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
       buyerDeliveryBreakups.forEach((breakup, index) => {
@@ -412,21 +472,26 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount) && index === 0) totalAmount += amount;
 
-        tableBody.push([
-          index === 0 ? contract.width || '-' : '',
-          index === 0 ? contract.quantity || '-' : '',
-          index === 0 ? `PKR ${contract.rate || '-'}` : '',
-          index === 0 ? formatCurrency(amount) : '',
-          breakup.DeliveryDate
-            ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-',
-        ]);
+        // Split color values and create multiple rows if needed
+        const colors = contract.color ? contract.color.split('|') : ['-'];
+        colors.forEach((color, colorIndex) => {
+          tableBody.push([
+            colorIndex === 0 && index === 0 ? contract.width || '-' : '',
+            colorIndex === 0 ? breakup.Qty?.toString() || '-' : '',
+            colorIndex === 0 && index === 0 ? `PKR ${contract.rate || '-'}` : '',
+            colorIndex === 0 && index === 0 ? formatCurrency(amount) : '',
+            color,
+            colorIndex === 0 ? breakup.DeliveryDate
+              ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })
+                  .split('/')
+                  .join('-')
+              : '-' : '',
+          ]);
+        });
       });
     } else {
       const qty = parseFloat(contract.quantity || '0');
@@ -436,21 +501,26 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       if (!isNaN(qty)) totalQty += qty;
       if (!isNaN(amount)) totalAmount += amount;
 
-      tableBody.push([
-        contract.width || '-',
-        contract.quantity?.toString() || '-',
-        `PKR ${contract.rate || '-'}`,
-        formatCurrency(amount),
-        contract.deliveryDetails?.[0]?.deliveryDate
-          ? new Date(contract.deliveryDetails[0].deliveryDate).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            })
-              .split('/')
-              .join('-')
-          : '-',
-      ]);
+      // Split color values and create multiple rows if needed
+      const colors = contract.color ? contract.color.split('|') : ['-'];
+      colors.forEach((color, colorIndex) => {
+        tableBody.push([
+          colorIndex === 0 ? contract.width || '-' : '',
+          colorIndex === 0 ? contract.quantity?.toString() || '-' : '',
+          colorIndex === 0 ? `PKR ${contract.rate || '-'}` : '',
+          colorIndex === 0 ? formatCurrency(amount) : '',
+          color,
+          colorIndex === 0 ? contract.deliveryDetails?.[0]?.deliveryDate
+            ? new Date(contract.deliveryDetails[0].deliveryDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+                .split('/')
+                .join('-')
+            : '-' : '',
+        ]);
+      });
     }
 
     // Calculate GST amount and total with GST

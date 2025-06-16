@@ -291,9 +291,22 @@ const DietPDFExport = {
         label: 'Construction:',
         value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
-      { label: 'Finish Width:', value: `${contract.finishWidth || '-'}` },
-      { label: 'Weight:', value: `${contract.weight || '-'}` },
-      { label: 'Shrinkage:', value: `${contract.shrinkage || '-'}` },
+      { 
+        label: 'Finish Width:', 
+        value: contract.finishWidth ? contract.finishWidth.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Color:', 
+        value: contract.color ? contract.color.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Weight:', 
+        value: contract.weight ? contract.weight.split('|').join('\n') : '-' 
+      },
+      { 
+        label: 'Shrinkage:', 
+        value: contract.shrinkage ? contract.shrinkage.split('|').join('\n') : '-' 
+      },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -318,9 +331,16 @@ const DietPDFExport = {
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
-      doc.text(value, leftColX + maxLabelWidth + 5, yPos);
 
-      yPos += 5;
+      // Split value by newlines and print each line
+      const lines = value.split('\n');
+      lines.forEach((line, index) => {
+        const lineY = yPos + (index * 5); // Add 5 units of space between lines
+        doc.text(line, leftColX + maxLabelWidth + 5, lineY);
+      });
+
+      // Update yPos based on number of lines
+      yPos += (lines.length * 5) + 2; // Add extra space after each field
     });
 
     yPos += 2;
@@ -339,31 +359,35 @@ const DietPDFExport = {
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount)) totalAmount += amount;
 
-        tableBody.push([
-          delivery.labDispNo || '-',
-          delivery.labDispDate
-            ? new Date(delivery.labDispDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-',
-          delivery.color || '-',
-          delivery.quantity?.toString() || '-',
-          `PKR ${delivery.rate || '-'}`,
-          formatCurrency(amount),
-          delivery.deliveryDate
-            ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-',
-        ]);
+        // Split color values and create multiple rows if needed
+        const colors = delivery.color ? delivery.color.split('|') : ['-'];
+        colors.forEach((color, colorIndex) => {
+          tableBody.push([
+            colorIndex === 0 ? delivery.labDispNo || '-' : '',
+            colorIndex === 0 ? delivery.labDispDate
+              ? new Date(delivery.labDispDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })
+                  .split('/')
+                  .join('-')
+              : '-' : '',
+            color,
+            colorIndex === 0 ? delivery.quantity?.toString() || '-' : '',
+            colorIndex === 0 ? `PKR ${delivery.rate || '-'}` : '',
+            colorIndex === 0 ? formatCurrency(amount) : '',
+            colorIndex === 0 ? delivery.deliveryDate
+              ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })
+                  .split('/')
+                  .join('-')
+              : '-' : '',
+          ]);
+        });
       });
     } else if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
       buyerDeliveryBreakups.forEach((breakup, index) => {
@@ -374,23 +398,27 @@ const DietPDFExport = {
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount) && index === 0) totalAmount += amount;
 
-        tableBody.push([
-          index === 0 ? contract.labDispNo || '-' : '',
-          index === 0 ? contract.labDispDate || '-' : '',
-          index === 0 ? contract.color || '-' : '',
-          breakup.Qty?.toString() || '-',
-          index === 0 ? `PKR ${contract.rate || '-'}` : '',
-          index === 0 ? formatCurrency(amount) : '',
-          breakup.DeliveryDate
-            ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-',
-        ]);
+        // Split color values and create multiple rows if needed
+        const colors = contract.color ? contract.color.split('|') : ['-'];
+        colors.forEach((color, colorIndex) => {
+          tableBody.push([
+            colorIndex === 0 && index === 0 ? contract.labDispNo || '-' : '',
+            colorIndex === 0 && index === 0 ? contract.labDispDate || '-' : '',
+            color,
+            colorIndex === 0 ? breakup.Qty?.toString() || '-' : '',
+            colorIndex === 0 && index === 0 ? `PKR ${contract.rate || '-'}` : '',
+            colorIndex === 0 && index === 0 ? formatCurrency(amount) : '',
+            colorIndex === 0 ? breakup.DeliveryDate
+              ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })
+                  .split('/')
+                  .join('-')
+              : '-' : '',
+          ]);
+        });
       });
     } else {
       const qty = parseFloat(contract.quantity || '0');
@@ -400,23 +428,27 @@ const DietPDFExport = {
       if (!isNaN(qty)) totalQty += qty;
       if (!isNaN(amount)) totalAmount += amount;
 
-      tableBody.push([
-        contract.labDispNo || '-',
-        contract.labDispDate || '-',
-        contract.color || '-',
-        contract.quantity?.toString() || '-',
-        `PKR ${contract.rate || '-'}`,
-        formatCurrency(amount),
-        contract.deliveryDate
-          ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            })
-              .split('/')
-              .join('-')
-          : '-',
-      ]);
+      // Split color values and create multiple rows if needed
+      const colors = contract.color ? contract.color.split('|') : ['-'];
+      colors.forEach((color, colorIndex) => {
+        tableBody.push([
+          colorIndex === 0 ? contract.labDispNo || '-' : '',
+          colorIndex === 0 ? contract.labDispDate || '-' : '',
+          color,
+          colorIndex === 0 ? contract.quantity?.toString() || '-' : '',
+          colorIndex === 0 ? `PKR ${contract.rate || '-'}` : '',
+          colorIndex === 0 ? formatCurrency(amount) : '',
+          colorIndex === 0 ? contract.deliveryDate
+            ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
+                .split('/')
+                .join('-')
+            : '-' : '',
+        ]);
+      });
     }
 
     // Calculate GST amount and total with GST
