@@ -364,9 +364,10 @@ const DietPDFExport = {
             : '-'
         );
         const colorValues = splitMultiValue(contract.color);
+        const quantity = splitMultiValue(contract.quantity);
 
         // Get the maximum number of rows needed
-        const maxRows = getMaxSplitLength([labDispNoValues, labDispDateValues, colorValues, rateValues]);
+        const maxRows = getMaxSplitLength([labDispNoValues, labDispDateValues, colorValues,quantity, rateValues]);
 
         // Create a row for each split value
         for (let i = 0; i < maxRows; i++) {
@@ -374,7 +375,8 @@ const DietPDFExport = {
             labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-'),
             labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-'),
             colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-'),
-            i === 0 ? contract.quantity?.toString() || '-' : '-', // Quantity only in first row
+            i === 0 ? contract.quantity?.toString() || '-' : '-',
+            i === 0 ? contract.finish?.toString() || '-' : '-', // Quantity only in first row
             `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}`,
             i === 0 ? formatCurrency(amount) : '-', // Amount only in first row
             i === 0 && contract.deliveryDate
@@ -418,7 +420,7 @@ const DietPDFExport = {
             index === 0 ? (labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-')) : '-',
             index === 0 ? (labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-')) : '-',
             index === 0 ? (colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-')) : '-',
-            contract.quantity?.toString() || '-',
+            contract.finish?.toString() || '-',
             index === 0 ? `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}` : '-',
             index === 0 ? formatCurrency(amount) : '-',
             contract.deliveryDate
@@ -461,7 +463,7 @@ const DietPDFExport = {
           labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-'),
           labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-'),
           colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-'),
-          i === 0 ? contract.quantity?.toString() || '-' : '-', // Quantity only in first row
+          i === 0 ? contract.finish?.toString() || '-' : '-', // Quantity only in first row
           `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}`,
           i === 0 ? formatCurrency(amount) : '-', // Amount only in first row
           i === 0 && contract.deliveryDate
@@ -491,7 +493,7 @@ const DietPDFExport = {
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Lab Dip NO.', 'Lab Dip Date', 'Color', 'Finish Qty', 'PKR/Mtr', 'Amount', 'Delivery']],
+      head: [['Lab Dip NO.', 'Lab Dip Date', 'Color', 'Qty', 'Finish Qty', 'PKR/Mtr', 'Amount', 'Delivery']],
       body: tableBody,
       styles: {
         fontSize: 8,
@@ -536,7 +538,7 @@ const DietPDFExport = {
     // Left Column: Additional Fields
     const additionalFields = [
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
-      { label: 'Payment:', value: `${contract.paymentTermsSeller || '-'}` },
+      { label: 'Payment:', value: `${contract.paymentTermsBuyer || '-'}` },
       { label: 'Packing:', value: contract.packing || '-' },
       { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
       ...(type === 'purchase'

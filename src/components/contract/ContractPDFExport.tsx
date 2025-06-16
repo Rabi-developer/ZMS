@@ -427,7 +427,7 @@ const ContractPDFExport = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(...(labelStyle.color as [number, number, number]));
-    doc.text('Buyer Del. Breakups', rightColumnX, rightColumnYPos);
+  //  doc.text('Buyer Del. Breakups', rightColumnX, rightColumnYPos);
     rightColumnYPos += 8;
     if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
       autoTable(doc, {
@@ -467,7 +467,7 @@ const ContractPDFExport = {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(0, 0, 0);
-      doc.text('No Buyer Breakups', rightColumnX, rightColumnYPos);
+   //   doc.text('No Buyer Breakups', rightColumnX, rightColumnYPos);
       rightColumnYPos += 6;
     }
 
@@ -475,7 +475,7 @@ const ContractPDFExport = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.setTextColor(...(labelStyle.color as [number, number, number]));
-    doc.text('Seller Del. Breakups', rightColumnX, rightColumnYPos);
+   // doc.text('Seller Del. Breakups', rightColumnX, rightColumnYPos);
     rightColumnYPos += 6;
     if (Array.isArray(sellerDeliveryBreakups) && sellerDeliveryBreakups.length > 0) {
       autoTable(doc, {
@@ -515,7 +515,7 @@ const ContractPDFExport = {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(0, 0, 0);
-      doc.text('No Seller Breakups', rightColumnX, rightColumnYPos);
+   //   doc.text('No Seller Breakups', rightColumnX, rightColumnYPos);
       rightColumnYPos += 6;
     }
 

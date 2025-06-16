@@ -298,54 +298,6 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
         label: 'Construction:',
         value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
-      { 
-        label: 'Finish Width:', 
-        value: contract.finishWidth ? contract.finishWidth.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Weight:', 
-        value: contract.weight ? contract.weight.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Shrinkage:', 
-        value: contract.shrinkage ? contract.shrinkage.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Color:', 
-        value: contract.color ? contract.color.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Lab Dip No:', 
-        value: contract.labDispNo ? contract.labDispNo.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Lab Dip Date:', 
-        value: contract.labDispDate ? contract.labDispDate.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Pick Rate:', 
-        value: contract.pickRate ? contract.pickRate.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Fabric Rate:', 
-        value: contract.fabricRate ? contract.fabricRate.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Amounts:', 
-        value: contract.amounts ? contract.amounts.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Wrap Bag:', 
-        value: contract.wrapBag ? contract.wrapBag.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Weft Bag:', 
-        value: contract.weftBag ? contract.weftBag.split('|').join('\n') : '-' 
-      },
-      { 
-        label: 'Total Amount:', 
-        value: contract.totalAmountMultiple ? contract.totalAmountMultiple.split('|').join('\n') : '-' 
-      },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -434,8 +386,8 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
         if (!isNaN(amount)) totalAmount += amount;
 
         // Split color values and create multiple rows if needed
-        const colors = delivery.color ? delivery.color.split('|') : ['-'];
-        colors.forEach((color, colorIndex) => {
+        const contract = delivery.color ? delivery.color.split('|') : ['-'];
+        contract.forEach((color, colorIndex) => {
           tableBody.push([
             colorIndex === 0 ? delivery.labDispNo || '-' : '',
             colorIndex === 0 ? delivery.labDispDate
@@ -473,8 +425,8 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
         if (!isNaN(amount) && index === 0) totalAmount += amount;
 
         // Split color values and create multiple rows if needed
-        const colors = contract.color ? contract.color.split('|') : ['-'];
-        colors.forEach((color, colorIndex) => {
+        const deliveryDate = contract.deliveryDate ? contract.deliveryDate.split('|') : ['-'];
+        deliveryDate.forEach((color, colorIndex) => {
           tableBody.push([
             colorIndex === 0 && index === 0 ? contract.width || '-' : '',
             colorIndex === 0 ? breakup.Qty?.toString() || '-' : '',
@@ -502,16 +454,16 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       if (!isNaN(amount)) totalAmount += amount;
 
       // Split color values and create multiple rows if needed
-      const colors = contract.color ? contract.color.split('|') : ['-'];
-      colors.forEach((color, colorIndex) => {
+      const colors = contract.deliveryDate ? contract.deliveryDate.split('|') : ['-'];
+      colors.forEach((deliveryDate, colorIndex) => {
         tableBody.push([
           colorIndex === 0 ? contract.width || '-' : '',
           colorIndex === 0 ? contract.quantity?.toString() || '-' : '',
           colorIndex === 0 ? `PKR ${contract.rate || '-'}` : '',
           colorIndex === 0 ? formatCurrency(amount) : '',
-          color,
-          colorIndex === 0 ? contract.deliveryDetails?.[0]?.deliveryDate
-            ? new Date(contract.deliveryDetails[0].deliveryDate).toLocaleDateString('en-GB', {
+          deliveryDate,
+          colorIndex === 0 ? contract.deliveryDate
+            ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
