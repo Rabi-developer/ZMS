@@ -23,8 +23,8 @@ const isDarkMode = typeof window !== 'undefined' && window.matchMedia('(prefers-
 
 // Style constants
 const styles = {
-  label: { size: 10, color: [0, 0, 0] as [number, number, number] },
-  value: { size: 9, color: [0, 0, 0] as [number, number, number] },
+  label: { size: 8, color: [0, 0, 0] as [number, number, number] },
+  value: { size: 7, color: [0, 0, 0] as [number, number, number] },
   margins: { left: 10, right: 10 },
 };
 
@@ -51,8 +51,6 @@ interface ExportToPDFProps {
   zmsSignature?: string;
   sellerAddress?: string;
   buyerAddress?: string;
-  buyerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
-  sellerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
   type: 'purchase' | 'sale';
 }
 
@@ -64,8 +62,6 @@ const ConversionPDFExport = {
     zmsSignature,
     sellerAddress,
     buyerAddress,
-    buyerDeliveryBreakups = [],
-    sellerDeliveryBreakups = [],
     type,
   }: ExportToPDFProps) => {
     if (!contract) {
@@ -128,7 +124,7 @@ const ConversionPDFExport = {
       const pickInsertionMatch = pickInsertionData.data.find(
         (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.pickInsertion
       );
-      pickInsertionSub = pickInsertionMatch ? pickInsertionMatch.subDescription : '-';
+      pickInsertionSub = pickInsertionMatch ? pickInsertionSub : '-';
 
       const selvedgeData = await getAllSelveges();
       const selvedgeMatch = selvedgeData.data.find(
@@ -146,28 +142,28 @@ const ConversionPDFExport = {
     doc.setFillColor(6, 182, 212);
     doc.rect(0, 0, 210, 28, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(26);
+    doc.setFontSize(24);
     doc.setTextColor(0, 0, 0);
     doc.text('ZM SOURCING', 105, 10, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
+    doc.setFontSize(5);
     doc.text('Suit No. 108, SP Chamber, Main Estate Avenue, SITE Karachi', 105, 15, { align: 'center' });
     doc.text('Phone: +92 21 32550917-18', 105, 20, { align: 'center' });
 
     // Logo
     try {
-      doc.addImage(ZMS_LOGO, 'PNG', 10, 6, 20, 14);
+      doc.addImage(ZMS_LOGO, 'PNG', 10, 6, 18, 12);
     } catch (error) {
       console.error('Failed to load logo:', error);
-      doc.setFontSize(12);
+      doc.setFontSize(10);
       doc.setTextColor(0, 0, 0);
       doc.text('[ZMS Logo]', 10, 14);
     }
 
     // Subheading: ZMS/ContractNo/Month/Year
-    let yPos = 38;
+    let yPos = 36;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setTextColor(0, 0, 0);
     let monthYear = '-';
     if (contract.date) {
@@ -184,17 +180,17 @@ const ConversionPDFExport = {
     doc.text(contractSubheading, 10, yPos, { align: 'left' });
 
     // Title
-    yPos = 34;
+    yPos = 32;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
     const title = type === 'purchase' ? 'CONVERSION PURCHASE CONTRACT' : 'CONVERSION SALE CONTRACT';
     doc.text(title, 105, yPos, { align: 'center' });
 
     // Date
-    yPos = 38;
+    yPos = 36;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setTextColor(0, 0, 0);
     const formattedDate = contract.date
       ? new Date(contract.date).toLocaleDateString('en-GB', {
@@ -206,7 +202,7 @@ const ConversionPDFExport = {
           .join('-')
       : '-';
     doc.text(`Date: ${formattedDate}`, 200, yPos, { align: 'right' });
-    yPos += 10;
+    yPos += 8;
 
     // Seller and Buyer Info
     const leftColX = 10;
@@ -214,22 +210,22 @@ const ConversionPDFExport = {
     const labelStyle = {
       font: 'helvetica' as const,
       style: 'bold' as const,
-      size: 8,
+      size: 7,
       color: [0, 0, 0] as [number, number, number],
     };
     const valueStyle = {
       font: 'helvetica' as const,
       style: 'normal' as const,
-      size: 8,
+      size: 6,
       color: [0, 0, 0] as [number, number, number],
     };
 
     // Seller Info
-    const sellerBoxY = yPos - 4;
-    const sellerBoxHeight = 12;
-    doc.setLineWidth(0.4);
+    const sellerBoxY = yPos - 3;
+    const sellerBoxHeight = 10;
+    doc.setLineWidth(0.3);
     doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
-    doc.rect(leftColX - 2, sellerBoxY, 85, sellerBoxHeight, 'S');
+    doc.rect(leftColX - 2, sellerBoxY, 80, sellerBoxHeight, 'S');
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     doc.setTextColor(...labelStyle.color);
@@ -238,8 +234,8 @@ const ConversionPDFExport = {
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
     let sellerName = contract.seller || '-';
-    let sellerAddressText = GetSellerAddress || '';
-    const maxSellerWidth = 70;
+    let sellerAddressText = sellerAddress || GetSellerAddress || '-';
+    const maxSellerWidth = 65;
     if (doc.getTextWidth(sellerName) > maxSellerWidth) {
       while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
         sellerName = sellerName.slice(0, -1);
@@ -252,15 +248,15 @@ const ConversionPDFExport = {
       }
       sellerAddressText += '...';
     }
-    doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 5, yPos);
-    doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 5, yPos + 5);
+    doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 4, yPos);
+    doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 4, yPos + 4);
 
     // Buyer Info
-    const buyerBoxY = yPos - 4;
-    const buyerBoxHeight = 12;
-    doc.setLineWidth(0.4);
+    const buyerBoxY = yPos - 3;
+    const buyerBoxHeight = 10;
+    doc.setLineWidth(0.3);
     doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
-    doc.rect(rightColX - 2, buyerBoxY, 85, buyerBoxHeight, 'S');
+    doc.rect(rightColX - 2, buyerBoxY, 80, buyerBoxHeight, 'S');
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     doc.setTextColor(...labelStyle.color);
@@ -269,8 +265,8 @@ const ConversionPDFExport = {
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
     let buyerName = contract.buyer || '-';
-    let buyerAddressText = GetBuyerAddress || '';
-    const maxBuyerWidth = 70;
+    let buyerAddressText = buyerAddress || GetBuyerAddress || '-';
+    const maxBuyerWidth = 65;
     if (doc.getTextWidth(buyerName) > maxBuyerWidth) {
       while (doc.getTextWidth(buyerName + '...') > maxBuyerWidth && buyerName.length > 0) {
         buyerName = buyerName.slice(0, -1);
@@ -283,22 +279,21 @@ const ConversionPDFExport = {
       }
       buyerAddressText += '...';
     }
-    doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 5, yPos);
-    doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 5, yPos + 5);
+    doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 4, yPos);
+    doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 4, yPos + 4);
 
-    yPos += 18;
+    yPos += 12;
 
     // Fields
     const fields = [
       { label: 'Description:', value: `${contract.description || '-'}, ${contract.stuff || '-'}` },
-      {
-        label: 'Blend Ratio:',
-        value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}`,
-      },
+      { label: 'Blend Ratio:', value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}` },
       {
         label: 'Construction:',
-        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
+        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.finishWidth || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
+      { label: 'Reference Number:', value: contract.referenceNumber || '-' },
+      { label: 'Fabric Type:', value: contract.fabricType || '-' },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -306,7 +301,7 @@ const ConversionPDFExport = {
     const maxLabelWidth = Math.max(...fields.map((field) => doc.getTextWidth(field.label)));
 
     fields.forEach((field) => {
-      const maxWidth = 180;
+      const maxWidth = 170;
       let value = field.value;
       if (doc.getTextWidth(value) > maxWidth) {
         while (doc.getTextWidth(value + '...') > maxWidth && value.length > 0) {
@@ -323,9 +318,9 @@ const ConversionPDFExport = {
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
-      doc.text(value, leftColX + maxLabelWidth + 5, yPos);
+      doc.text(value, leftColX + maxLabelWidth + 4, yPos);
 
-      yPos += 5;
+      yPos += 4;
     });
 
     yPos += 2;
@@ -340,192 +335,94 @@ const ConversionPDFExport = {
       return Math.max(...values.map((v) => v.length));
     };
 
-    if (Array.isArray(contract.deliveryDetails) && contract.deliveryDetails.length > 0) {
-      contract.deliveryDetails.forEach((delivery) => {
-        const qty = parseFloat(contract.quantity || '0');
-        const rateValues = splitMultiValue(contract.rate);
-        const amount = qty * parseFloat(rateValues[0] || '0'); // Use first rate for total calculation
+    if (Array.isArray(contract.conversionContractRow) && contract.conversionContractRow.length > 0) {
+      contract.conversionContractRow.forEach((row, index) => {
+        const qty = parseFloat(row.quantity || '0');
+        const pickRate = parseFloat(row.pickRate || '0');
+        const fabricRate = parseFloat(row.fabRate || '0');
+        const amount = parseFloat(row.amounts || '0');
 
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount)) totalAmount += amount;
 
         // Split all relevant fields
-        const labDispNoValues = splitMultiValue(contract.labDispNo);
-        const labDispDateValues = splitMultiValue(
-          contract.labDispDate
-            ? new Date(contract.labDispDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              }).split('/').join('-')
-            : '-'
-        );
-        const colorValues = splitMultiValue(contract.color);
-        const wrapWtValues = splitMultiValue( contract.wrapwt);
-        const weftWtValues = splitMultiValue(contract.weftwt);
-        const wrapBagValues = splitMultiValue(contract.wrapBag);
-        const weftBagValues = splitMultiValue( contract.weftBag);
-        const totalAmountMultipleValues = splitMultiValue(contract.totalAmountMultiple);
+        const widthValues = splitMultiValue(row.width);
+        const wrapWtValues = splitMultiValue(row.wrapwt);
+        const weftWtValues = splitMultiValue(row.weftBag);
+        const wrapBagValues = splitMultiValue(row.wrapBag);
+        const weftBagValues = splitMultiValue(row.weftBag);
+        const totalBagValues = splitMultiValue(row.totalAmountMultiple);
 
         // Get the maximum number of rows needed
         const maxRows = getMaxSplitLength([
-          labDispNoValues,
-          labDispDateValues,
-          colorValues,
-          rateValues,
+          widthValues,
           wrapWtValues,
           weftWtValues,
           wrapBagValues,
           weftBagValues,
-          totalAmountMultipleValues,
+          totalBagValues,
         ]);
 
         // Create a row for each split value
         for (let i = 0; i < maxRows; i++) {
           tableBody.push([
-            labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-'),
-            labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-'),
-            colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-'),
-            i === 0 ? contract.quantity?.toString() || '-' : '-', // Quantity only in first row
-            `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}`,
-            i === 0 ? formatCurrency(amount) : '-', // Amount only in first row
-            i === 0 && contract.deliveryDate
-              ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
+            widthValues[i] || (i === 0 ? widthValues[0] || '-' : '-'),
+            i === 0 ? row.quantity || '-' : '-',
+            i === 0 ? formatCurrency(pickRate) : '-',
+            i === 0 ? formatCurrency(fabricRate) : '-',
+            i === 0 ? formatCurrency(amount) : '-',
+            i === 0 && contract.buyerDeliveryBreakups?.[index]?.deliveryDate
+              ? new Date(contract.buyerDeliveryBreakups[index].deliveryDate).toLocaleDateString('en-GB', {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',
                 }).split('/').join('-')
-              : '-',
+              : i === 0 ? (contract.deliveryDate
+                  ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    }).split('/').join('-')
+                  : '-') : '-',
             wrapWtValues[i] || (i === 0 ? wrapWtValues[0] || '-' : '-'),
             weftWtValues[i] || (i === 0 ? weftWtValues[0] || '-' : '-'),
             wrapBagValues[i] || (i === 0 ? wrapBagValues[0] || '-' : '-'),
             weftBagValues[i] || (i === 0 ? weftBagValues[0] || '-' : '-'),
-            totalAmountMultipleValues[i] || (i === 0 ? totalAmountMultipleValues[0] || '-' : '-'),
-          ]);
-        }
-      });
-    } else if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
-      buyerDeliveryBreakups.forEach((breakup, index) => {
-        const qty = parseFloat(breakup.Qty || '0');
-        const rateValues = splitMultiValue(contract.rate);
-        const amount = qty * parseFloat(rateValues[0] || '0'); // Use first rate for total calculation
-
-        if (!isNaN(qty)) totalQty += qty;
-        if (!isNaN(amount) && index === 0) totalAmount += amount;
-
-        // Split all relevant fields
-        const labDispNoValues = splitMultiValue(contract.labDispNo);
-        const labDispDateValues = splitMultiValue(
-          contract.labDispDate
-            ? new Date(contract.labDispDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              }).split('/').join('-')
-            : '-'
-        );
-        const colorValues = splitMultiValue(contract.color);
-        const wrapWtValues = splitMultiValue(contract.wrapwt);
-        const weftWtValues = splitMultiValue(contract.weftwt);
-        const wrapBagValues = splitMultiValue(contract.wrapBag);
-        const weftBagValues = splitMultiValue(contract.weftBag);
-        const totalAmountMultipleValues = splitMultiValue(contract.totalAmountMultiple);
-
-        // Get the maximum number of rows needed
-        const maxRows = getMaxSplitLength([
-          labDispNoValues,
-          labDispDateValues,
-          colorValues,
-          rateValues,
-          wrapWtValues,
-          weftWtValues,
-          wrapBagValues,
-          weftBagValues,
-          totalAmountMultipleValues,
-        ]);
-
-        // Create a row for each split value
-        for (let i = 0; i < maxRows; i++) {
-          tableBody.push([
-            index === 0 ? (labDispNoValues[i] || (i === 0 ? labDispNoValues[0] || '-' : '-')) : '-',
-            index === 0 ? (labDispDateValues[i] || (i === 0 ? labDispDateValues[0] || '-' : '-')) : '-',
-            index === 0 ? (colorValues[i] || (i === 0 ? colorValues[0] || '-' : '-')) : '-',
-            breakup.Qty?.toString() || '-',
-            index === 0 ? `PKR ${rateValues[i] || (i === 0 ? rateValues[0] || '-' : '-')}` : '-',
-            index === 0 ? formatCurrency(amount) : '-',
-            contract.deliveryDate
-              ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                }).split('/').join('-')
-              : '-',
-            index === 0 ? (wrapWtValues[i] || (i === 0 ? wrapWtValues[0] || '-' : '-')) : '-',
-            index === 0 ? (weftWtValues[i] || (i === 0 ? weftWtValues[0] || '-' : '-')) : '-',
-            index === 0 ? (wrapBagValues[i] || (i === 0 ? wrapBagValues[0] || '-' : '-')) : '-',
-            index === 0 ? (weftBagValues[i] || (i === 0 ? weftBagValues[0] || '-' : '-')) : '-',
-            index === 0 ? (totalAmountMultipleValues[i] || (i === 0 ? totalAmountMultipleValues[0] || '-' : '-')) : '-',
+            totalBagValues[i] || (i === 0 ? totalBagValues[0] || '-' : '-'),
           ]);
         }
       });
     } else {
       const qty = parseFloat(contract.quantity || '0');
-      const rateValues = splitMultiValue(contract.rate);
-      const amount = qty * parseFloat(rateValues[0] || '0'); // Use first rate for total calculation
+      const rate = parseFloat(contract.rate || '0');
+      const amount = qty * rate;
 
       if (!isNaN(qty)) totalQty += qty;
       if (!isNaN(amount)) totalAmount += amount;
 
-      // Split all relevant fields
-      const widthValues = splitMultiValue(contract.width);
-      const pickRateValues = splitMultiValue(contract.pickRate);
-      const fabricRateValues = splitMultiValue(contract.fabricRate?.toString());
-      const amountsValues = splitMultiValue(contract.amounts);
-      const wrapWtValues = splitMultiValue(contract.wrapwt);
-      const weftWtValues = splitMultiValue(contract.weftwt);
-      const wrapBagValues = splitMultiValue(contract.wrapBag);
-      const weftBagValues = splitMultiValue(contract.weftBag);
-      const totalAmountMultipleValues = splitMultiValue(contract.totalAmountMultiple);
-
-      // Get the maximum number of rows needed
-      const maxRows = getMaxSplitLength([
-        widthValues,
-        pickRateValues,
-        fabricRateValues,
-        amountsValues,
-        wrapWtValues,
-        weftWtValues,
-        wrapBagValues,
-        weftBagValues,
-        totalAmountMultipleValues,
+      tableBody.push([
+        contract.finishWidth || '-',
+        contract.quantity || '-',
+        formatCurrency(rate),
+        formatCurrency(rate),
+        formatCurrency(amount),
+        contract.deliveryDate
+          ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            }).split('/').join('-')
+          : '-',
+        '-',
+        '-',
+        '-',
+        '-',
+        '-',
       ]);
-
-      // Create a row for each split value
-      for (let i = 0; i < maxRows; i++) {
-        tableBody.push([
-          widthValues[i] || (i === 0 ? widthValues[0] || '-' : '-'),
-          i === 0 ? contract.quantity || '-' : '-', // Quantity only in first row
-          pickRateValues[i] || (i === 0 ? pickRateValues[0] || '-' : '-'),
-          fabricRateValues[i] || (i === 0 ? fabricRateValues[0] || '-' : '-'),
-          amountsValues[i] || (i === 0 ? amountsValues[0] || '-' : '-'),
-          contract.deliveryDate
-            ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              }).split('/').join('-')
-            : '-',
-          wrapWtValues[i] || (i === 0 ? wrapWtValues[0] || '-' : '-'),
-          weftWtValues[i] || (i === 0 ? weftWtValues[0] || '-' : '-'),
-          wrapBagValues[i] || (i === 0 ? wrapBagValues[0] || '-' : '-'),
-          weftBagValues[i] || (i === 0 ? weftBagValues[0] || '-' : '-'),
-          totalAmountMultipleValues[i] || (i === 0 ? totalAmountMultipleValues[0] || '-' : '-'),
-        ]);
-      }
     }
 
     // Calculate GST amount and total with GST
-    const gstPercentage = parseFloat(contract.gst as any) || 0;
+    const gstPercentage = parseFloat(contract.gst || '0');
     const gstAmount = (totalAmount * gstPercentage) / 100;
     const totalWithGST = totalAmount + gstAmount;
 
@@ -540,73 +437,83 @@ const ConversionPDFExport = {
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Width', 'Qty', 'Pick Rate', 'Fab. Rate', 'Amount', 'Delivery', 'Wrap.wt', 'Weft.wt', 'Wrap Bags', 'Weft Bags', 'Total Bags']],
+      head: [['Width', 'Qty', 'Pick Rate', 'Fab. Rate', 'Amount', 'Delivery', 'Wrap Wt', 'Weft Wt', 'Wrap Bags', 'Weft Bags', 'Total Bags']],
       body: tableBody,
       styles: {
-        fontSize: 8,
-        cellPadding: 1.5,
+        fontSize: 6,
+        cellPadding: 0.5,
         lineColor: [0, 0, 0],
-        lineWidth: 0.3,
+        lineWidth: 0.1,
         textColor: [0, 0, 0],
-        fontStyle: 'bold',
+        fontStyle: 'normal',
       },
       headStyles: {
         fillColor: [6, 182, 212],
         textColor: [0, 0, 0],
         lineColor: [0, 0, 0],
-        fontSize: 8,
-        cellPadding: 1.5,
-        lineWidth: 0.3,
+        fontSize: 6,
+        cellPadding: 0.5,
+        lineWidth: 0.1,
         fontStyle: 'bold',
       },
       columnStyles: {
-        0: { cellWidth: 15 }, // Width
-        1: { cellWidth: 15 }, // Qty
-        2: { cellWidth: 15 }, // Pick Rate
-        3: { cellWidth: 15 }, // Fab. Rate
-        4: { cellWidth: 15 }, // Amount
-        5: { cellWidth: 15 }, // Delivery
-        6: { cellWidth: 15 }, // Wrap Weight
-        7: { cellWidth: 15 }, // Weft Weight
-        8: { cellWidth: 15 }, // Wrap Bags
-        9: { cellWidth: 15 }, // Weft Bags
-        10: { cellWidth: 15 }, // Total Bags
+        0: { cellWidth: 14 }, // Width
+        1: { cellWidth: 14 }, // Qty
+        2: { cellWidth: 14 }, // Pick Rate
+        3: { cellWidth: 14 }, // Fab. Rate
+        4: { cellWidth: 14 }, // Amount
+        5: { cellWidth: 14 }, // Delivery
+        6: { cellWidth: 14 }, // Wrap Weight
+        7: { cellWidth: 14 }, // Weft Weight
+        8: { cellWidth: 14 }, // Wrap Bags
+        9: { cellWidth: 14 }, // Weft Bags
+        10: { cellWidth: 14 }, // Total Bags
       },
       margin: { left: 10, right: 10 },
       theme: 'grid',
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 5;
+    yPos = (doc as any).lastAutoTable.finalY + 3;
 
     // Two-Column Layout
     const leftColumnX = 12;
     const rightColumnX = 145;
-    const leftColumnWidth = 130;
-    const rightColumnWidth = 50;
+    const leftColumnWidth = 125;
+    const rightColumnWidth = 45;
     let leftColumnYPos = yPos;
     let rightColumnYPos = yPos;
 
     // Left Column: Additional Fields
     const additionalFields = [
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
-      { label: 'Payment:', value: `${contract.paymentTermsBuyer || '-'}` },
+      { 
+        label: 'Payment:', 
+        value: type === 'purchase' 
+          ? contract.dietContractRow?.[0]?.commisionInfo?.paymentTermsSeller || '-' 
+          : contract.dietContractRow?.[0]?.commisionInfo?.paymentTermsBuyer || '-' 
+      },
       { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
-      { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
+      { label: 'Total:', value: `Rs. ${formatCurrency(totalWithGST)}` },
       ...(type === 'purchase'
         ? [
-            { label: 'Commission:', value: `${contract.commissionPercentage || '-'}%` },
-            { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.commissionValue)}` },
+            { label: 'Commission:', value: `${contract.dietContractRow?.[0]?.commissionPercentage || '-'}%` },
+            { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.dietContractRow?.[0]?.commissionValue)}` },
           ]
         : []),
-      { label: 'Delivery Destination:', value: `${contract.buyer || ''}` },
-      { label: 'Remarks:', value: `${contract.buyerRemark || '-'}` },
+      { label: 'Delivery Destination:', value: contract.buyer || '-' },
+      { 
+        label: 'Remarks:', 
+        value: type === 'purchase' 
+          ? contract.dietContractRow?.[0]?.commisionInfo?.sellerRemark || '-' 
+          : contract.dietContractRow?.[0]?.commisionInfo?.buyerRemark || '-' 
+      },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     const maxAdditionalLabelWidth = Math.max(...additionalFields.map((field) => doc.getTextWidth(field.label)));
     additionalFields.forEach((field) => {
-      const wrappedText = doc.splitTextToSize(field.value, leftColumnWidth - maxAdditionalLabelWidth - 5);
+      const wrappedText = doc.splitTextToSize(field.value, leftColumnWidth - maxAdditionalLabelWidth - 4);
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
       doc.setTextColor(...labelStyle.color);
@@ -615,25 +522,25 @@ const ConversionPDFExport = {
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
       wrappedText.forEach((line: string, i: number) => {
-        doc.text(line, leftColumnX + maxAdditionalLabelWidth + 5, leftColumnYPos + i * 5);
+        doc.text(line, leftColumnX + maxAdditionalLabelWidth + 4, leftColumnYPos + i * 4);
       });
-      leftColumnYPos += wrappedText.length * 7;
+      leftColumnYPos += wrappedText.length * 5;
     });
 
     // Right Column: Delivery Breakups
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(7);
     doc.setTextColor(...labelStyle.color);
-    doc.text('', rightColumnX, rightColumnYPos);
-    rightColumnYPos += 6;
-    if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
+    doc.text('Delivery Schedule:', rightColumnX, rightColumnYPos);
+    rightColumnYPos += 4;
+    if (Array.isArray(contract.buyerDeliveryBreakups) && contract.buyerDeliveryBreakups.length > 0) {
       autoTable(doc, {
         startY: rightColumnYPos,
         head: [['Qty', 'Date']],
-        body: buyerDeliveryBreakups.slice(0, 3).map((breakup) => [
-          breakup.Qty?.toString() || '-',
-          breakup.DeliveryDate
-            ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
+        body: contract.buyerDeliveryBreakups.slice(0, 3).map((breakup) => [
+          breakup.qty?.toString() || '-',
+          breakup.deliveryDate
+            ? new Date(breakup.deliveryDate).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
@@ -641,36 +548,33 @@ const ConversionPDFExport = {
             : '-',
         ]),
         styles: {
-          fontSize: 7,
-          cellPadding: 1,
+          fontSize: 5,
+          cellPadding: 0.3,
           lineColor: [0, 0, 0],
-          lineWidth: 0.2,
+          lineWidth: 0.1,
         },
         headStyles: {
           fillColor: [6, 182, 212],
           textColor: [0, 0, 0],
-          fontSize: 7,
-          cellPadding: 1,
-          lineWidth: 0.2,
+          fontSize: 5,
+          cellPadding: 0.3,
+          lineWidth: 0.1,
           fontStyle: 'bold',
         },
-        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 25 } },
+        columnStyles: { 0: { cellWidth: 15 }, 1: { cellWidth: 20 } },
         margin: { left: rightColumnX, right: 10 },
         theme: 'grid',
       });
-      rightColumnYPos = (doc as any).lastAutoTable.finalY + 4;
+      rightColumnYPos = (doc as any).lastAutoTable.finalY + 2;
     } else {
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
+      doc.setFontSize(5);
       doc.setTextColor(0, 0, 0);
-      doc.text('', rightColumnX, rightColumnYPos);
-      rightColumnYPos += 5;
+      doc.text('No delivery breakups', rightColumnX, rightColumnYPos);
+      rightColumnYPos += 4;
     }
 
-    yPos = Math.max(leftColumnYPos, rightColumnYPos) + 5;
-
-    // Separator Line
-    yPos += 25;
+    yPos = Math.max(leftColumnYPos, rightColumnYPos) + 3;
 
     // Terms and Conditions
     autoTable(doc, {
@@ -682,42 +586,36 @@ const ConversionPDFExport = {
       theme: 'plain',
       styles: {
         font: 'helvetica',
-        fontSize: 8,
-        cellPadding: { top: 1, bottom: 1, left: 2, right: 6 },
+        fontSize: 6,
+        cellPadding: { top: 0.5, bottom: 0.5, left: 1, right: 3 },
         textColor: [0, 0, 0],
         halign: 'left',
       },
-      columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 160 } },
+      columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 150 } },
       margin: { left: 10, right: 10 },
       didDrawCell: (data) => {
         if (data.section === 'body' && data.row.index === 0) {
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(9);
+          doc.setFontSize(7);
           doc.setTextColor(...labelStyle.color);
-          doc.text('Terms and Conditions', 10, data.cell.y - 3);
+          doc.text('Terms and Conditions', 10, data.cell.y - 2);
         }
       },
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 5;
+    yPos = (doc as any).lastAutoTable.finalY + 3;
 
     // Reserve space for footer and signatures
     const pageHeight = 297;
-    const footerHeight = 14;
-    const signatureHeight = 20;
+    const footerHeight = 12;
+    const signatureHeight = 18;
     const footerY = pageHeight - footerHeight;
-    const signatureY = footerY - signatureHeight - 5;
-
-    // Ensure content doesn't overlap signatures
-    if (yPos > signatureY - 10) {
-      doc.addPage();
-      yPos = 10;
-    }
+    const signatureY = footerY - signatureHeight - 3;
 
     // Signatures
-    const signatureWidth = 35;
+    const signatureWidth = 30;
     const startX = 10;
-    const sellerMargin = 8;
+    const sellerMargin = 6;
     const centerX = startX + signatureWidth + sellerMargin;
     const pageWidth = 210;
     const margin = 10;
@@ -729,55 +627,55 @@ const ConversionPDFExport = {
     const textColor: [number, number, number] = [0, 0, 0];
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(7);
     doc.setTextColor(...labelColor);
     if (zmsSignature) {
-      doc.addImage(zmsSignature, 'PNG', startX, signatureY, signatureWidth, 12);
+      doc.addImage(zmsSignature, 'PNG', startX, signatureY, signatureWidth, 10);
     }
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setTextColor(...textColor);
     const zmsText = 'Z.M. SOURCING';
     const zmsTextWidth = doc.getTextWidth(zmsText);
-    doc.text(zmsText, startX, signatureY + 14);
-    doc.setLineWidth(0.2);
+    doc.text(zmsText, startX, signatureY + 12);
+    doc.setLineWidth(0.1);
     doc.setDrawColor(...textColor);
-    doc.line(startX, signatureY + 15, startX + zmsTextWidth, signatureY + 15);
+    doc.line(startX, signatureY + 13, startX + zmsTextWidth, signatureY + 13);
 
     if (sellerSignature) {
-      doc.addImage(sellerSignature, 'PNG', centerX, signatureY, signatureWidth, 12);
+      doc.addImage(sellerSignature, 'PNG', centerX, signatureY, signatureWidth, 10);
     }
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setTextColor(...textColor);
     const sellerText = `${contract.seller || '-'}`;
     const sellerTextWidth = doc.getTextWidth(sellerText);
-    doc.text(sellerText, centerX, signatureY + 14);
-    doc.setLineWidth(0.2);
+    doc.text(sellerText, centerX, signatureY + 12);
+    doc.setLineWidth(0.1);
     doc.setDrawColor(...textColor);
-    doc.line(centerX, signatureY + 15, centerX + sellerTextWidth, signatureY + 15);
+    doc.line(centerX, signatureY + 13, centerX + sellerTextWidth, signatureY + 13);
 
     if (buyerSignature) {
-      doc.addImage(buyerSignature, 'PNG', endX, signatureY, signatureWidth, 12);
+      doc.addImage(buyerSignature, 'PNG', endX, signatureY, signatureWidth, 10);
     }
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setTextColor(...textColor);
     const buyerText = `${contract.buyer || '-'}`;
     const buyerTextWidth = doc.getTextWidth(buyerText);
-    doc.text(buyerText, endX, signatureY + 14);
-    doc.setLineWidth(0.2);
+    doc.text(buyerText, endX, signatureY + 12);
+    doc.setLineWidth(0.1);
     doc.setDrawColor(...textColor);
-    doc.line(endX, signatureY + 15, endX + buyerTextWidth, signatureY + 15);
+    doc.line(endX, signatureY + 13, endX + buyerTextWidth, signatureY + 13);
 
     // Footer
-    doc.setLineWidth(0.2);
+    doc.setLineWidth(0.1);
     doc.setFillColor(6, 182, 212);
     doc.rect(0, footerY, 210, footerHeight, 'F');
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
+    doc.setFontSize(6);
     doc.setTextColor(0, 0, 0);
-    doc.text('Page 1 of 1', 200, footerY + 5, { align: 'right' });
+    doc.text('Page 1 of 1', 200, footerY + 4, { align: 'right' });
     doc.text(
       `Generated on ${new Date().toLocaleString('en-US', {
         timeZone: 'Asia/Karachi',
@@ -786,9 +684,9 @@ const ConversionPDFExport = {
         day: 'numeric',
       })}`,
       10,
-      footerY + 5
+      footerY + 4
     );
-    doc.text('Confidential - ZMS Textiles Ltd.', 105, footerY + 5, { align: 'center' });
+    doc.text('Confidential - ZMS Textiles Ltd.', 105, footerY + 4, { align: 'center' });
 
     // Save PDF
     const filename = type === 'purchase'

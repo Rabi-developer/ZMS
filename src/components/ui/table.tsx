@@ -1,4 +1,6 @@
 "use client";
+import { motion } from "framer-motion";
+import { motion as motion$1 } from "framer-motion"; 
 import { FaFilter, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import { IoIosCreate } from "react-icons/io";
 import { MdManageSearch } from "react-icons/md";
@@ -135,7 +137,7 @@ export {
   TableRow,
   TableCell,
   TableCaption,
-}
+};
 
 import {
   DropdownMenu,
@@ -306,68 +308,108 @@ export function DataTable<TData, TValue>({
 
 
 {/* Pagination Controls */}
-<div className="flex justify-between py-2 mt-1 px-4 rounded-md items-center">
-  {/* Page count (Start Section) */}
-  <div className="flex items-center">
-    <span className="text-sm text-gray-700">
-      Page {pageIndex + 1} of {Math.ceil(data.length / pageSize)}
-    </span>
-  </div>
+  {/* Pagination Controls */}
+        <motion.div 
+          className="flex flex-col md:flex-row justify-between items-center p-4 border-t border-gray-200 dark:border-gray-700"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          {/* Page count */}
+          <div className="mb-4 md:mb-0">
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, data.length)} of {data.length} entries
+            </span>
+          </div>
 
-  {/* Pagination controls (End Section) */}
-  <div className="flex items-center space-x-3">
-    {/* Rows per page selection */}
-    <div className="flex items-center space-x-3">
-      <span className="text-sm text-gray-700">Rows per page:</span>
-      <select
-        value={pageSize}
-        onChange={(e) => setPageSize(Number(e.target.value))}
-        className="border border-gray-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-[#030630]"
-      >
-        {[5, 10, 20, 50, 100].map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+          {/* Pagination controls */}
+          <div className="flex items-center space-x-2">
+            {/* Rows per page selection */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-600 dark:text-gray-300">Rows:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPageIndex(0);
+                }}
+                className="border border-gray-300 dark:border-gray-600 rounded-md p-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#0e61e7] dark:bg-[#0a0f3d] dark:text-white"
+              >
+                {[5, 10, 20, 50, 100].map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Previous button */}
+            <motion.button
+              onClick={() => setPageIndex(Math.max(0, pageIndex - 1))}
+              disabled={pageIndex === 0}
+              whileHover={{ scale: pageIndex === 0 ? 1 : 1.05 }}
+              whileTap={{ scale: pageIndex === 0 ? 1 : 0.95 }}
+              className={`p-2 text-sm border rounded-md ${
+                pageIndex === 0
+                  ? "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
+                  : "bg-white dark:bg-[#124ebb] text-[#0e61e7] dark:text-white hover:bg-[#bae2ff] dark:hover:bg-[#387fbf]"
+              }`}
+            >
+              <FaArrowLeft size={14} />
+            </motion.button>
+
+            {/* Page numbers */}
+            <div className="flex space-x-1">
+              {Array.from({ length: Math.min(5, Math.ceil(data.length / pageSize)) }, (_, i) => {
+                const pageNumber = i + Math.max(0, Math.min(
+                  pageIndex - 2,
+                  Math.ceil(data.length / pageSize) - 5
+                ));
+                if (pageNumber >= Math.ceil(data.length / pageSize)) return null;
+                
+                return (
+                  <motion.button
+                    key={pageNumber}
+                    onClick={() => setPageIndex(pageNumber)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`px-3 py-1 text-sm rounded-md ${
+                      pageNumber === pageIndex
+                        ? "bg-[#0e61e7] text-white"
+                        : "bg-white dark:bg-[#0a0f3d] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#124ebb]"
+                    }`}
+                  >
+                    {pageNumber + 1}
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* Next button */}
+            <motion.button
+              onClick={() => setPageIndex(Math.min(pageIndex + 1, Math.ceil(data.length / pageSize) - 1))}
+              disabled={pageIndex >= Math.ceil(data.length / pageSize) - 1}
+              whileHover={{ scale: pageIndex >= Math.ceil(data.length / pageSize) - 1 ? 1 : 1.05 }}
+              whileTap={{ scale: pageIndex >= Math.ceil(data.length / pageSize) - 1 ? 1 : 0.95 }}
+              className={`p-2 text-sm border rounded-md ${
+                pageIndex >= Math.ceil(data.length / pageSize) - 1
+                  ? "bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed"
+                  : "bg-white dark:bg-[#124ebb] text-[#0e61e7] dark:text-white hover:bg-[#bae2ff] dark:hover:bg-[#387fbf]"
+              }`}
+            >
+              <FaArrowRight size={14} />
+            </motion.button>
+          </div>
+      </motion.div>
+
+
+
+
+
+
+</div>
+
+
     </div>
-
-    {/* Previous button */}
-    <button
-      onClick={() => setPageIndex(pageIndex - 1)}
-      disabled={pageIndex === 0}
-      className={`px-3 py-2 text-sm border rounded-md ${
-        pageIndex === 0
-          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-          : "bg-white text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-      }`}
-    >
-      <FaArrowLeft size={14} />
-    </button>
-
-    {/* Current page indicator */}
-    <span className="px-4 py-2 text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100 rounded-md">
-      {pageIndex + 1}
-    </span>
-
-    {/* Next button */}
-    <button
-      onClick={() => setPageIndex(pageIndex + 1)}
-      disabled={data.length < pageSize}
-      className={`px-3 py-2 text-sm border rounded-md ${
-        data.length < pageSize
-          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-          : "bg-white text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-      }`}
-    >
-      <FaArrowRight size={14} />
-    </button>
-  </div>
-</div>
-</div>
-</div>
-
-
     </>
   );
 }

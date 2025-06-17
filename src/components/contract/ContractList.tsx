@@ -41,7 +41,7 @@ const ContractList = () => {
   const [messageBody, setMessageBody] = React.useState('');
   const [showSinglePDFOptions, setShowSinglePDFOptions] = React.useState(false);
   const [showMultiPDFOptions, setShowMultiPDFOptions] = React.useState(false);
-   const [showDietPDFOptions, setDietMultiPDFOptions] = React.useState(false);
+  const [showDietPDFOptions, setDietMultiPDFOptions] = React.useState(false);
   const [showConversionPDFOptions, setShowConversionPDFOptions] = React.useState(false);
 
   const zmsSigCanvas = React.useRef<SignatureCanvas | null>(null);
@@ -101,38 +101,40 @@ const ContractList = () => {
       'Contract Type': contract.contractType,
       'Seller': contract.seller,
       'Buyer': contract.buyer,
-      'Description': contract.descriptionName || '-',
-      'Finish Width': contract.width || '-',
-      'Quantity': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.quantity).join(', ')
+      'Reference Number': contract.referenceNumber || '-',
+      'Fabric Type': contract.fabricType || '-',
+      'Description': contract.description || '-',
+      'Finish Width': contract.finishWidth || '-',
+      'Quantity': contract.buyerDeliveryBreakups?.length
+        ? contract.buyerDeliveryBreakups.map((detail) => detail.qty).join(', ')
         : contract.quantity || '-',
-      'Rate': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.rate).join(', ')
+      'Rate': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.rate).join(', ')
         : contract.rate || '-',
       'Piece Length': contract.pieceLength || '-',
-      'Delivery': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.deliveryDate).join(', ')
-        : contract.refer || '-',
-      'Payment Terms': `Seller: ${contract.paymentTermsSeller || '-'} | Buyer: ${contract.paymentTermsBuyer || '-'}`,
+      'Delivery': contract.buyerDeliveryBreakups?.length
+        ? contract.buyerDeliveryBreakups.map((detail) => detail.deliveryDate).join(', ')
+        : contract.deliveryDate || '-',
+      'Payment Terms': `Seller: ${contract.dietContractRow[0]?.commisionInfo?.paymentTermsSeller || '-'} | Buyer: ${contract.dietContractRow[0]?.commisionInfo?.paymentTermsBuyer || '-'}`,
       'Packing': contract.packing || '-',
-      'GST': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.gst).join(', ')
+      'GST': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.gst).join(', ')
         : contract.gst || '-',
-      'GST Value': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.gstValue).join(', ')
+      'GST Value': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.gstValue).join(', ')
         : contract.gstValue || '-',
-      'Fabric Value': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.fabricValue).join(', ')
+      'Fabric Value': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.fabricValue).join(', ')
         : contract.fabricValue || '-',
-      'Total Amount': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.totalAmount).join(', ')
+      'Total Amount': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.totalAmount).join(', ')
         : contract.totalAmount || '-',
-      'Commission': contract.commissionPercentage || '-',
-      'Commission Value': contract.commissionValue || '-',
-      'Dispatch Address': contract.dispatchAddress || '-',
-      'Remarks': `Seller: ${contract.sellerRemark || '-'} | Buyer: ${contract.buyerRemark || '-'}`,
-      'Color': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.color).join(', ')
+      'Commission': contract.dietContractRow[0]?.commissionPercentage || '-',
+      'Commission Value': contract.dietContractRow[0]?.commissionValue || '-',
+      'Dispatch Address': contract.dietContractRow[0]?.commisionInfo?.dispatchAddress || '-',
+      'Remarks': `Seller: ${contract.dietContractRow[0]?.commisionInfo?.sellerRemark || '-'} | Buyer: ${contract.dietContractRow[0]?.commisionInfo?.buyerRemark || '-'}`,
+      'Color': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.color).join(', ')
         : '-',
     }));
 
@@ -159,38 +161,40 @@ const ContractList = () => {
       'Contract Type': contract.contractType,
       'Seller': contract.seller,
       'Buyer': contract.buyer,
-      'Description': contract.descriptionName || '-',
-      'Finish Width': contract.width || '-',
-      'Quantity': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.quantity).join(', ')
+      'Reference Number': contract.referenceNumber || '-',
+      'Fabric Type': contract.fabricType || '-',
+      'Description': contract.description || '-',
+      'Finish Width': contract.finishWidth || '-',
+      'Quantity': contract.buyerDeliveryBreakups?.length
+        ? contract.buyerDeliveryBreakups.map((detail) => detail.qty).join(', ')
         : contract.quantity || '-',
-      'Rate': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.rate).join(', ')
+      'Rate': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.rate).join(', ')
         : contract.rate || '-',
       'Piece Length': contract.pieceLength || '-',
-      'Delivery': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.deliveryDate).join(', ')
-        : contract.refer || '-',
-      'Payment Terms': `Seller: ${contract.paymentTermsSeller || '-'} | Buyer: ${contract.paymentTermsBuyer || '-'}`,
+      'Delivery': contract.buyerDeliveryBreakups?.length
+        ? contract.buyerDeliveryBreakups.map((detail) => detail.deliveryDate).join(', ')
+        : contract.deliveryDate || '-',
+      'Payment Terms': `Seller: ${contract.dietContractRow[0]?.commisionInfo?.paymentTermsSeller || '-'} | Buyer: ${contract.dietContractRow[0]?.commisionInfo?.paymentTermsBuyer || '-'}`,
       'Packing': contract.packing || '-',
-      'GST': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.gst).join(', ')
+      'GST': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.gst).join(', ')
         : contract.gst || '-',
-      'GST Value': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.gstValue).join(', ')
+      'GST Value': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.gstValue).join(', ')
         : contract.gstValue || '-',
-      'Fabric Value': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.fabricValue).join(', ')
+      'Fabric Value': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.fabricValue).join(', ')
         : contract.fabricValue || '-',
-      'Total Amount': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.totalAmount).join(', ')
+      'Total Amount': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.totalAmount).join(', ')
         : contract.totalAmount || '-',
-      'Commission': contract.commissionPercentage || '-',
-      'Commission Value': contract.commissionValue || '-',
-      'Dispatch Address': contract.dispatchAddress || '-',
-      'Remarks': `Seller: ${contract.sellerRemark || '-'} | Buyer: ${contract.buyerRemark || '-'}`,
-      'Color': contract.deliveryDetails?.length
-        ? contract.deliveryDetails.map((detail) => detail.color).join(', ')
+      'Commission': contract.dietContractRow[0]?.commissionPercentage || '-',
+      'Commission Value': contract.dietContractRow[0]?.commissionValue || '-',
+      'Dispatch Address': contract.dietContractRow[0]?.commisionInfo?.dispatchAddress || '-',
+      'Remarks': `Seller: ${contract.dietContractRow[0]?.commisionInfo?.sellerRemark || '-'} | Buyer: ${contract.dietContractRow[0]?.commisionInfo?.buyerRemark || '-'}`,
+      'Color': contract.dietContractRow?.length
+        ? contract.dietContractRow.map((detail) => detail.color).join(', ')
         : '-',
     }];
 
@@ -204,7 +208,7 @@ const ContractList = () => {
     XLSX.writeFile(workbook, `Contract_${contract.contractNumber}.xlsx`);
   };
 
-  const handleExportToPDF = async (type: 'purchase' | 'sale' |'diet' | 'multiwidth' | 'single' | 'conversion') => {
+  const handleExportToPDF = async (type: 'purchase' | 'sale' | 'diet' | 'multiwidth' | 'single' | 'conversion') => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
       return;
@@ -221,9 +225,9 @@ const ContractList = () => {
               zmsSignature: zmsSignature || '',
               sellerSignature: undefined,
               buyerSignature: undefined,
-              sellerAddress: contract.dispatchAddress,
+              sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
               buyerAddress: undefined,
-              type,
+              type: 'sale', // or 'purchase', depending on your logic
             });
           } else if (type === 'single') {
             await ContractPDFExport.exportToPDF({
@@ -231,9 +235,9 @@ const ContractList = () => {
               zmsSignature: zmsSignature || '',
               sellerSignature: undefined,
               buyerSignature: undefined,
-              sellerAddress: contract.dispatchAddress,
+              sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
               buyerAddress: undefined,
-              type,
+              type: 'purchase',
             });
           } else if (type === 'conversion') {
             await ConversionPDFExport.exportToPDF({
@@ -241,18 +245,17 @@ const ContractList = () => {
               zmsSignature: zmsSignature || '',
               sellerSignature: undefined,
               buyerSignature: undefined,
-              sellerAddress: contract.dispatchAddress,
+              sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
               buyerAddress: undefined,
-              type,
+              type: 'purchase', // or 'sale', depending on your logic
             });
-          }
-          else if (type === 'multiwidth') {
-            await ConversionPDFExport.exportToPDF({
+          } else if (type === 'multiwidth') {
+            await MultiContractPDFExport.exportToPDF({
               contract,
               zmsSignature: zmsSignature || '',
               sellerSignature: undefined,
               buyerSignature: undefined,
-              sellerAddress: contract.dispatchAddress,
+              sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
               buyerAddress: undefined,
               type,
             });
@@ -267,6 +270,7 @@ const ContractList = () => {
     setShowSinglePDFOptions(false);
     setShowMultiPDFOptions(false);
     setShowConversionPDFOptions(false);
+    setDietMultiPDFOptions(false);
   };
 
   const handleSendEmail = async () => {
@@ -290,7 +294,7 @@ const ContractList = () => {
             zmsSignature,
             sellerSignature: undefined,
             buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
+            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
             buyerAddress: undefined,
             type: 'purchase',
           });
@@ -299,7 +303,7 @@ const ContractList = () => {
             zmsSignature,
             sellerSignature: undefined,
             buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
+            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
             buyerAddress: undefined,
             type: 'sale',
           });
@@ -347,7 +351,7 @@ const ContractList = () => {
             zmsSignature,
             sellerSignature: undefined,
             buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
+            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
             buyerAddress: undefined,
             type: 'purchase',
           });
@@ -356,7 +360,7 @@ const ContractList = () => {
             zmsSignature,
             sellerSignature: undefined,
             buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
+            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
             buyerAddress: undefined,
             type: 'sale',
           });
@@ -469,7 +473,7 @@ const ContractList = () => {
       selectedContract.width || '',
       selectedContract.final || '',
       selectedContract.selvege || '',
-      selectedContract.deliveryDetails?.map((detail) => detail.color).join(', ') || '',
+      selectedContract.dietContractRow?.map((detail) => detail.color).join(', ') || '',
     ]
       .filter((item) => item.trim() !== '')
       .join(' / ');
@@ -593,8 +597,6 @@ const ContractList = () => {
     }
   };
 
-
-
   const handleExportDietPDF = async (type: 'sale' | 'purchase') => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
@@ -609,7 +611,7 @@ const ContractList = () => {
             zmsSignature: zmsSignature || '',
             sellerSignature: undefined,
             buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
+            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
             buyerAddress: undefined,
             type,
           });
@@ -623,6 +625,7 @@ const ContractList = () => {
     setShowSinglePDFOptions(false);
     setShowMultiPDFOptions(false);
     setShowConversionPDFOptions(false);
+    setDietMultiPDFOptions(false);
   };
 
   const handleSingleMultiPDF = async (type: 'sale' | 'purchase') => {
@@ -639,7 +642,7 @@ const ContractList = () => {
             zmsSignature: zmsSignature || '',
             sellerSignature: undefined,
             buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
+            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
             buyerAddress: undefined,
             type,
           });
@@ -653,7 +656,9 @@ const ContractList = () => {
     setShowSinglePDFOptions(false);
     setShowMultiPDFOptions(false);
     setShowConversionPDFOptions(false);
+    setDietMultiPDFOptions(false);
   };
+
   const handleExportMultiPDF = async (type: 'sale' | 'purchase') => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
@@ -668,7 +673,7 @@ const ContractList = () => {
             zmsSignature: zmsSignature || '',
             sellerSignature: undefined,
             buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
+            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
             buyerAddress: undefined,
             type,
           });
@@ -682,6 +687,7 @@ const ContractList = () => {
     setShowSinglePDFOptions(false);
     setShowMultiPDFOptions(false);
     setShowConversionPDFOptions(false);
+    setDietMultiPDFOptions(false);
   };
 
   const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
@@ -698,7 +704,7 @@ const ContractList = () => {
             zmsSignature: zmsSignature || '',
             sellerSignature: undefined,
             buyerSignature: undefined,
-            sellerAddress: contract.dispatchAddress,
+            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
             buyerAddress: undefined,
             type,
           });
@@ -712,6 +718,7 @@ const ContractList = () => {
     setShowSinglePDFOptions(false);
     setShowMultiPDFOptions(false);
     setShowConversionPDFOptions(false);
+    setDietMultiPDFOptions(false);
   };
 
   return (
@@ -933,10 +940,26 @@ const ContractList = () => {
                     </div>
                     <div className="group">
                       <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Reference Number
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.referenceNumber || '-'}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
+                        Fabric Type
+                      </span>
+                      <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
+                        {selectedContract.fabricType || '-'}
+                      </div>
+                    </div>
+                    <div className="group">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
                         Rate
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.rate}
+                        {selectedContract.rate || '-'}
                       </div>
                     </div>
                     <div className="group">
@@ -944,7 +967,7 @@ const ContractList = () => {
                         Quantity
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.quantity}
+                        {selectedContract.quantity || '-'}
                       </div>
                     </div>
                     <div className="group">
@@ -952,7 +975,7 @@ const ContractList = () => {
                         Total Amount
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.totalAmount}
+                        {selectedContract.totalAmount || '-'}
                       </div>
                     </div>
                     <div className="group">
@@ -960,7 +983,7 @@ const ContractList = () => {
                         Commission
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.commissionPercentage}
+                        {selectedContract.dietContractRow[0]?.commissionPercentage || '-'}
                       </div>
                     </div>
                     <div className="group">
@@ -968,7 +991,7 @@ const ContractList = () => {
                         Commission Value
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.commissionValue}
+                        {selectedContract.dietContractRow[0]?.commissionValue || '-'}
                       </div>
                     </div>
                     <div className="group">
@@ -976,7 +999,7 @@ const ContractList = () => {
                         Delivery
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.deliveryDetails?.map((detail) => detail.deliveryDate).join(', ') || '-'}
+                        {selectedContract.buyerDeliveryBreakups?.map((detail) => detail.deliveryDate).join(', ') || selectedContract.deliveryDate || '-'}
                       </div>
                     </div>
                     <div className="group">
@@ -1029,7 +1052,7 @@ const ContractList = () => {
                       >
                         <FaFilePdf size={18} />
                         Export Conversion PDF
-                      </button>                    
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1200,6 +1223,7 @@ const ContractList = () => {
                   setShowMultiPDFOptions(false);
                   setShowConversionPDFOptions(false);
                   setDietMultiPDFOptions(false);
+                  setOpenPDFModal(false);
                 }}
               >
                 ×
@@ -1211,18 +1235,16 @@ const ContractList = () => {
               </p>
               <div className="flex justify-end gap-2 flex-wrap">
                 {!showSinglePDFOptions && !showMultiPDFOptions && 
-                !showConversionPDFOptions &&
-                !showDietPDFOptions? (
+                 !showConversionPDFOptions && !showDietPDFOptions ? (
                   <>
-                    
                     <button
                       onClick={() => setShowSinglePDFOptions(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-all duration-200"
                     >
                       <FaFilePdf size={18} />
-                     SINGLE PDF
+                      SINGLE PDF
                     </button>
-                      <button
+                    <button
                       onClick={() => setShowMultiPDFOptions(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all duration-200"
                     >
@@ -1234,10 +1256,9 @@ const ContractList = () => {
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all duration-200"
                     >
                       <FaFilePdf size={18} />
-                      CONVERISSION PDF
+                      CONVERSION PDF
                     </button>
-                   
-                      <button
+                    <button
                       onClick={() => setDietMultiPDFOptions(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-700 text-white rounded-md transition-all duration-200"
                     >
@@ -1337,10 +1358,7 @@ const ContractList = () => {
                       Back
                     </button>
                   </>
-                
-                ) :
-                
-                null}
+                ) : null}
               </div>
             </div>
           </div>
