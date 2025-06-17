@@ -1981,227 +1981,217 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }
   };
 
-  const onSubmit: SubmitHandler<FormData> = async (data) => {
-    try {
-      setSubmissionErrors([]);
-      const validBuyerBreakups = validateBreakups(buyerDeliveryBreakups);
-      const validSellerBreakups = validateBreakups(sellerDeliveryBreakups);
+ const onSubmit: SubmitHandler<FormData> = async (data) => {
+  try {
+    setSubmissionErrors([]);
+    const validBuyerBreakups = validateBreakups(buyerDeliveryBreakups);
+    const validSellerBreakups = validateBreakups(sellerDeliveryBreakups);
 
-      const buyerDeliveryBreakupsPayload = validBuyerBreakups.map((b) => ({
-        id: b.Id,
-        qty: b.Qty,
-        deliveryDate: b.DeliveryDate,
-      }));
-      const sellerDeliveryBreakupsPayload = validSellerBreakups.map((b) => ({
-        id: b.Id,
-        qty: b.Qty,
-        deliveryDate: b.DeliveryDate,
-      }));
+    const buyerDeliveryBreakupsPayload = validBuyerBreakups.map((b) => ({
+      id: b.Id,
+      qty: b.Qty,
+      deliveryDate: b.DeliveryDate,
+    }));
+    const sellerDeliveryBreakupsPayload = validSellerBreakups.map((b) => ({
+      id: b.Id,
+      qty: b.Qty,
+      deliveryDate: b.DeliveryDate,
+    }));
 
-      // Helper function to convert arrays to pipe-separated strings
-      const arrayToPipeString = (arr: string[] | undefined): string => {
-        return arr && arr.length > 0 ? arr.filter(v => v).join('|') : '';
-      };
+    const arrayToPipeString = (arr: string[] | undefined): string => {
+      return arr && arr.length > 0 ? arr.filter(v => v).join('|') : '';
+    };
 
-      const payload = {
-        id: id || undefined,
-        contractNumber: data.ContractNumber,
-        date: data.Date,
-        contractType: data.ContractType,
-        companyId: data.CompanyId,
-        branchId: data.BranchId,
-        contractOwner: data.ContractOwner,
-        seller: data.Seller,
-        buyer: data.Buyer,
-        referenceNumber: data.ReferenceNumber || '',
-        deliveryDate: data.DeliveryDate || '',
-        refer: data.Refer || '',
-        referdate: data.Referdate || '',
-        fabricType: data.FabricType,
-        description: data.Description,
-        descriptionSubOptions: arrayToPipeString(data.DescriptionSubOptions),
-        stuff: data.Stuff,
-        stuffSubOptions: arrayToPipeString(data.StuffSubOptions),
-        blendRatio: data.BlendRatio || '',
-        blendType: data.BlendType || '',
-        warpCount: data.WarpCount || '',
-        warpYarnType: data.WarpYarnType || '',
-        warpYarnTypeSubOptions: arrayToPipeString(data.WarpYarnTypeSubOptions),
-        weftCount: data.WeftCount || '',
-        weftYarnType: data.WeftYarnType,
-        weftYarnTypeSubOptions: arrayToPipeString(data.WeftYarnTypeSubOptions),
-        noOfEnds: data.NoOfEnds || '',
-        noOfPicks: data.NoOfPicks || '',
-        weaves: data.Weaves || '',
-        weavesSubOptions: arrayToPipeString(data.WeavesSubOptions),
-        pickInsertion: data.PickInsertion || '',
-        pickInsertionSubOptions: arrayToPipeString(data.PickInsertionSubOptions),
-        width: data.Width || '',
-        final: data.Final || '',
-        selvege: data.Selvedge || '',
-        selvegeSubOptions: arrayToPipeString(data.SelvedgeSubOptions),
-        selvegeWeaves: data.SelvedgeWeave || '',
-        selvegeWeaveSubOptions: arrayToPipeString(data.SelvedgeWeaveSubOptions),
-        selvegeWidth: data.SelvedgeWidth || '',
-        inductionThread: data.InductionThread || '',
-        inductionThreadSubOptions: arrayToPipeString(data.InductionThreadSubOptions),
-        gsm: data.GSM || '',
-        quantity: data.Quantity || '',
-        unitOfMeasure: data.UnitOfMeasure || '',
-        tolerance: data.Tolerance || '',
-        rate: data.Rate || '',
-        packing: data.Packing || '',
-        pieceLength: data.PieceLength || '',
-        fabricValue: data.FabricValue || '',
-        gst: data.Gst || '',
-        gstValue: data.GstValue || '',
-        totalAmount: data.TotalAmount || '',
-       // createdBy: data.CreatedBy || '',
-        creationDate: data.CreationDate || '',
-        // updatedBy: data.UpdatedBy || '',
-        updationDate: data.UpdationDate || '',
-        approvedBy: data.ApprovedBy || '',
-        approvedDate: data.ApprovedDate || '',
-        endUse: data.EndUse || '',
-        endUseSubOptions: arrayToPipeString(data.EndUseSubOptions),
-        notes: data.Notes || '',
-        selvegeThickness: data.SelvegeThickness || '',
-        selvegeThicknessSubOptions: '',
-        dispatchLater: data.DispatchLater || '',
-        status: 'Active',
-        finishWidth: data.FinishWidth || '',
+    const payload = {
+      id: id || undefined,
+      contractNumber: data.ContractNumber,
+      date: data.Date,
+      contractType: data.ContractType,
+      companyId: data.CompanyId,
+      branchId: data.BranchId,
+      contractOwner: data.ContractOwner,
+      seller: data.Seller,
+      buyer: data.Buyer,
+      referenceNumber: data.ReferenceNumber || '',
+      deliveryDate: data.DeliveryDate || '',
+      refer: data.Refer || '',
+      referdate: data.Referdate || '',
+      fabricType: data.FabricType,
+      description: data.Description,
+      descriptionSubOptions: arrayToPipeString(data.DescriptionSubOptions),
+      stuff: data.Stuff,
+      stuffSubOptions: arrayToPipeString(data.StuffSubOptions),
+      blendRatio: data.BlendRatio || '',
+      blendType: data.BlendType || '',
+      warpCount: data.WarpCount || '',
+      warpYarnType: data.WarpYarnType || '',
+      warpYarnTypeSubOptions: arrayToPipeString(data.WarpYarnTypeSubOptions),
+      weftCount: data.WeftCount || '',
+      weftYarnType: data.WeftYarnType,
+      weftYarnTypeSubOptions: arrayToPipeString(data.WeftYarnTypeSubOptions),
+      noOfEnds: data.NoOfEnds || '',
+      noOfPicks: data.NoOfPicks || '',
+      weaves: data.Weaves || '',
+      weavesSubOptions: arrayToPipeString(data.WeavesSubOptions),
+      pickInsertion: data.PickInsertion || '',
+      pickInsertionSubOptions: arrayToPipeString(data.PickInsertionSubOptions),
+      width: data.Width || '',
+      final: data.Final || '',
+      selvege: data.Selvedge || '',
+      selvegeSubOptions: arrayToPipeString(data.SelvedgeSubOptions),
+      selvegeWeaves: data.SelvedgeWeave || '',
+      selvegeWeaveSubOptions: arrayToPipeString(data.SelvedgeWeaveSubOptions),
+      selvegeWidth: data.SelvedgeWidth || '',
+      inductionThread: data.InductionThread || '',
+      inductionThreadSubOptions: arrayToPipeString(data.InductionThreadSubOptions),
+      gsm: data.GSM || '',
+      quantity: data.Quantity || '',
+      unitOfMeasure: data.UnitOfMeasure || '',
+      tolerance: data.Tolerance || '',
+      rate: data.Rate || '',
+      packing: data.Packing || '',
+      pieceLength: data.PieceLength || '',
+      fabricValue: data.FabricValue || '',
+      gst: data.Gst || '',
+      gstValue: data.GstValue || '',
+      totalAmount: data.TotalAmount || '',
+      creationDate: data.CreationDate || '',
+      updationDate: data.UpdationDate || '',
+      approvedBy: data.ApprovedBy || '',
+      approvedDate: data.ApprovedDate || '',
+      endUse: data.EndUse || '',
+      endUseSubOptions: arrayToPipeString(data.EndUseSubOptions),
+      notes: data.Notes || '',
+      selvegeThickness: data.SelvegeThickness || '',
+      selvegeThicknessSubOptions: '',
+      dispatchLater: data.DispatchLater || '',
+      status: 'Active',
+      finishWidth: data.FinishWidth || '',
+      buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
+      sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
+      // Explicitly include all contract row arrays
+      conversionContractRow: conversionContractRows.map((row) => ({
+        width: row.Width || '',
+        quantity: row.Quantity || '1',
+        pickRate: row.PickRate || '',
+        fabRate: row.FabRate || '',
+        rate: row.Rate || '0',
+        amounts: row.Amounts || '',
+        deliveryDate: row.DeliveryDate ? new Date(row.DeliveryDate).toISOString() : '',
+        wrapwt: row.Wrapwt || '',
+        weftwt: row.Weftwt || '',
+        wrapBag: row.WrapBag || '',
+        weftBag: row.WeftBag || '',
+        totalAmountMultiple: row.TotalAmountMultiple || '',
+        gst: row.Gst || '',
+        gstValue: row.GstValue || '',
+        fabricValue: row.FabricValue || '',
+        commissionType: row.CommissionType || '',
+        commissionPercentage: row.CommissionPercentage || '',
+        commissionValue: row.CommissionValue || '',
+        totalAmount: row.TotalAmount || '',
+        commisionInfo: {
+          paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
+          paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
+          deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
+          commissionFrom: row.CommissionInfo?.CommissionFrom || '',
+          dispatchAddress: row.CommissionInfo?.DispatchAddress || '',
+          sellerRemark: row.CommissionInfo?.SellerRemark || '',
+          buyerRemark: row.CommissionInfo?.BuyerRemark || '',
+          endUse: row.CommissionInfo?.EndUse || '',
+          endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
+          dispatchLater: row.CommissionInfo?.DispatchLater || '',
+          sellerCommission: row.CommissionInfo?.SellerCommission || '',
+          buyerCommission: row.CommissionInfo?.BuyerCommission || '',
+        },
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
-        conversionContractRow: activeContractType === 'Conversion' ? conversionContractRows.map((row) => ({
-          width: row.Width,
-          quantity: row.Quantity,
-          pickRate: row.PickRate,
-          fabRate: row.FabRate,
-          rate: row.Rate,
-          amounts: row.Amounts,
-          deliveryDate: row.DeliveryDate ? new Date(row.DeliveryDate).toISOString() : '',
-          wrapwt: row.Wrapwt,
-          weftwt: row.Weftwt,
-          wrapBag: row.WrapBag,
-          weftBag: row.WeftBag,
-          totalAmountMultiple: row.TotalAmountMultiple,
-          gst: row.Gst,
-          gstValue: row.GstValue,
-          fabricValue: row.FabricValue,
-          commissionType: row.CommissionType,
-          commissionPercentage: row.CommissionPercentage,
-          commissionValue: row.CommissionValue,
-          totalAmount: row.TotalAmount,
-          commisionInfo: {
-            paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
-            paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
-            deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
-            commissionFrom: row.CommissionInfo?.CommissionFrom || '',
-            dispatchAddress: row.CommissionInfo?.DispatchAddress || '',
-            sellerRemark: row.CommissionInfo?.SellerRemark || '',
-            buyerRemark: row.CommissionInfo?.BuyerRemark || '',
-            endUse: row.CommissionInfo?.EndUse || '',
-            endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
-            dispatchLater: row.CommissionInfo?.DispatchLater || '',
-            sellerCommission: row.CommissionInfo?.SellerCommission || '',
-            buyerCommission: row.CommissionInfo?.BuyerCommission || '',
-          },
-          buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
-          sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
-        })) : [],
-        dietContractRow: activeContractType === 'Diet' ? dietContractRows.map((row) => ({
-          labDispatchNo: row.LabDispatchNo,
-          labDispatchDate: row.LabDispatchDate ? new Date(row.LabDispatchDate).toISOString() : '',
-          color: row.Color,
-          quantity: row.Quantity,
-          finish: row.Finish,
-          rate: row.Rate,
-          amountTotal: row.AmountTotal,
-          deliveryDate: row.DeliveryDate ? new Date(row.DeliveryDate).toISOString() : '',
-          gst: row.Gst,
-          gstValue: row.GstValue,
-          fabricValue: row.FabricValue,
-          commissionType: row.CommissionType,
-          commissionPercentage: row.CommissionPercentage,
-          commissionValue: row.CommissionValue,
-          totalAmount: row.TotalAmount,
-          shrinkage: row.Shrinkage,
-          finishWidth: row.FinishWidth,
-          weight: row.Weight,
-          commisionInfo: {
-            paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
-            paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
-            deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
-            commissionFrom: row.CommissionInfo?.CommissionFrom || '',
-            dispatchAddress: row.CommissionInfo?.DispatchAddress || '',
-            sellerRemark: row.CommissionInfo?.SellerRemark || '',
-            buyerRemark: row.CommissionInfo?.BuyerRemark || '',
-            endUse: row.CommissionInfo?.EndUse || '',
-            endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
-            dispatchLater: row.CommissionInfo?.DispatchLater || '',
-            sellerCommission: row.CommissionInfo?.SellerCommission || '',
-            buyerCommission: row.CommissionInfo?.BuyerCommission || '',
-          },
-          buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
-          sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
-        })) : [],
-        multiWidthContractRow: activeContractType === 'MultiWidth' ? multiWidthContractRows.map((row) => ({
-          width: row.Width,
-          quantity: row.Quantity,
-          rate: row.Rate,
-          amount: row.Amount,
-          gst: row.Gst,
-          gstValue: row.GstValue,
-          fabricValue: row.FabricValue,
-          commissionType: row.CommissionType,
-          commissionPercentage: row.CommissionPercentage,
-          commissionValue: row.CommissionValue,
-          totalAmount: row.TotalAmount,
-          commisionInfo: {
-            paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
-            paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
-            deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
-            commissionFrom: row.CommissionInfo?.CommissionFrom || '',
-            dispatchAddress: row.CommissionInfo?.DispatchAddress || '',
-            sellerRemark: row.CommissionInfo?.SellerRemark || '',
-            buyerRemark: row.CommissionInfo?.BuyerRemark || '',
-            endUse: row.CommissionInfo?.EndUse || '',
-            endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
-            dispatchLater: row.CommissionInfo?.DispatchLater || '',
-            sellerCommission: row.CommissionInfo?.SellerCommission || '',
-            buyerCommission: row.CommissionInfo?.BuyerCommission || '',
-          },
-          buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
-          sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
-        })) : [],
-      };
+      })),
+      dietContractRow: dietContractRows.map((row) => ({
+        labDispatchNo: row.LabDispatchNo || '',
+        labDispatchDate: row.LabDispatchDate ? new Date(row.LabDispatchDate).toISOString() : '',
+        color: row.Color || '',
+        quantity: row.Quantity || '1',
+        finish: row.Finish || '',
+        rate: row.Rate || '0',
+        amountTotal: row.AmountTotal || '',
+        deliveryDate: row.DeliveryDate ? new Date(row.DeliveryDate).toISOString() : '',
+        gst: row.Gst || '',
+        gstValue: row.GstValue || '',
+        fabricValue: row.FabricValue || '',
+        commissionType: row.CommissionType || '',
+        commissionPercentage: row.CommissionPercentage || '',
+        commissionValue: row.CommissionValue || '',
+        totalAmount: row.TotalAmount || '',
+        shrinkage: row.Shrinkage || '',
+        finishWidth: row.FinishWidth || '',
+        weight: row.Weight || '',
+        commisionInfo: {
+          paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
+          paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
+          deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
+          commissionFrom: row.CommissionInfo?.CommissionFrom || '',
+          dispatchAddress: row.CommissionInfo?.DispatchAddress || '',
+          sellerRemark: row.CommissionInfo?.SellerRemark || '',
+          buyerRemark: row.CommissionInfo?.BuyerRemark || '',
+          endUse: row.CommissionInfo?.EndUse || '',
+          endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
+          dispatchLater: row.CommissionInfo?.DispatchLater || '',
+          sellerCommission: row.CommissionInfo?.SellerCommission || '',
+          buyerCommission: row.CommissionInfo?.BuyerCommission || '',
+        },
+        buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
+        sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
+      })),
+      multiWidthContractRow: multiWidthContractRows.map((row) => ({
+        width: row.Width || '',
+        quantity: row.Quantity || '1',
+        rate: row.Rate || '0',
+        amount: row.Amount || '',
+        gst: row.Gst || '',
+        gstValue: row.GstValue || '',
+        fabricValue: row.FabricValue || '',
+        commissionType: row.CommissionType || '',
+        commissionPercentage: row.CommissionPercentage || '',
+        commissionValue: row.CommissionValue || '',
+        totalAmount: row.TotalAmount || '',
+        commisionInfo: {
+          paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
+          paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
+          deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
+          commissionFrom: row.CommissionInfo?.CommissionFrom || '',
+          dispatchAddress: row.CommissionInfo?.DispatchAddress || '',
+          sellerRemark: row.CommissionInfo?.SellerRemark || '',
+          buyerRemark: row.CommissionInfo?.BuyerRemark || '',
+          endUse: row.CommissionInfo?.EndUse || '',
+          endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
+          dispatchLater: row.CommissionInfo?.DispatchLater || '',
+          sellerCommission: row.CommissionInfo?.SellerCommission || '',
+          buyerCommission: row.CommissionInfo?.BuyerCommission || '',
+        },
+        buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
+        sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
+      })),
+    };
 
-      const cleanPayload = Object.fromEntries(
-        Object.entries(payload).filter(([key, value]) => {
-          if (Array.isArray(value)) {
-            return true;
-          }
-          return value !== undefined && value !== null;
-        }),
-      );
-
-      let response;
-      if (id) {
-        response = await updateContract(id, cleanPayload);
-        toast('Contract Updated Successfully', { type: 'success' });
-      } else {
-        response = await createContract(cleanPayload);
-        toast('Contract Created Successfully', { type: 'success' });
-      }
-      reset();
-      router.push('/contract');
-    } catch (error: any) {
-      console.error('Error submitting form:', error);
-      const errorMessages = error?.response?.data?.errors || ['Error submitting contract'];
-      setSubmissionErrors(errorMessages);
-      toast(errorMessages.join(', '), { type: 'error' });
+    // Avoid filtering out empty arrays
+    let response;
+    if (id) {
+      response = await updateContract(id, payload);
+      toast('Contract Updated Successfully', { type: 'success' });
+    } else {
+      response = await createContract(payload);
+      toast('Contract Created Successfully', { type: 'success' });
     }
-  };
+    reset();
+    router.push('/contract');
+  } catch (error: any) {
+    console.error('Error submitting form:', error);
+    const errorMessages = error?.response?.data?.errors || ['Error submitting contract'];
+    setSubmissionErrors(errorMessages);
+    toast(errorMessages.join(', '), { type: 'error' });
+  }
+};
 
   useEffect(() => {
     if (activeSection === 'DeliveryDetails') {
