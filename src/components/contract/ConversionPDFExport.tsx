@@ -296,8 +296,6 @@ const ConversionPDFExport = {
           label: 'Construction:',
           value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.finishWidth || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
         },
-        { label: 'Reference Number:', value: contract.referenceNumber || '-' },
-        { label: 'Fabric Type:', value: contract.fabricType || '-' },
       ];
 
       doc.setFont(labelStyle.font, labelStyle.style);
@@ -431,13 +429,13 @@ const ConversionPDFExport = {
       const totalWithGST = totalAmount + gstAmount;
 
       // Add total quantity row (subtotal before GST)
-      tableBody.push(['', '', 'Subtotal:', formatCurrency(totalQty), '', formatCurrency(totalAmount), '', '', '', '', '']);
+      tableBody.push(['Subtotal:', formatCurrency(totalQty), '',  '',formatCurrency(totalAmount), '', '', '', '']);
 
       // Add GST row
-      tableBody.push(['', '', `GST (${gstPercentage}%):`, '', '', formatCurrency(gstAmount), '', '', '', '', '']);
+      tableBody.push(['', '', `GST (${gstPercentage}%):`,   formatCurrency(gstAmount), '', '', '', '', '']);
 
       // Add total with GST row
-      tableBody.push(['', '', `Total (with ${gstPercentage}% GST):`, '', '', formatCurrency(totalWithGST), '', '', '', '', '']);
+      tableBody.push(['', '', `Total (with ${gstPercentage}% GST):`, '', formatCurrency(totalWithGST), '', '', '', '', '']);
 
       autoTable(doc, {
         startY: yPos,
@@ -535,7 +533,7 @@ const ConversionPDFExport = {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7);
       doc.setTextColor(...labelStyle.color);
-      doc.text('Delivery Schedule:', rightColumnX, rightColumnYPos);
+  //    doc.text('Delivery Schedule:', rightColumnX, rightColumnYPos);
       rightColumnYPos += 4;
       if (Array.isArray(contract.buyerDeliveryBreakups) && contract.buyerDeliveryBreakups.length > 0) {
         autoTable(doc, {
@@ -574,7 +572,7 @@ const ConversionPDFExport = {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(5);
         doc.setTextColor(0, 0, 0);
-        doc.text('No delivery breakups', rightColumnX, rightColumnYPos);
+     //   doc.text('No delivery breakups', rightColumnX, rightColumnYPos);
         rightColumnYPos += 4;
       }
 

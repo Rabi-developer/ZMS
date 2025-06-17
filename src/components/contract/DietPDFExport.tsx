@@ -296,8 +296,6 @@ const DietPDFExport = {
       { label: 'Finish Width:', value: dietRow?.finishWidth || contract.finishWidth || '-' },
       { label: 'Weight:', value: dietRow?.weight || '-' },
       { label: 'Shrinkage:', value: dietRow?.shrinkage || '-' },
-      { label: 'Reference Number:', value: contract.referenceNumber || '-' },
-      { label: 'Fabric Type:', value: contract.fabricType || '-' },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);

@@ -2677,15 +2677,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     error={errors.Gst?.message}
                     register={register}
                   />
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="GST Value"
-                    id="GstValue"
-                    {...register('GstValue')}
-                    error={errors.GstValue?.message}
-                  />
+                  
                   <CustomInput
                     type="number"
                     variant="floating"
@@ -2694,7 +2686,18 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     id="TotalAmount"
                     {...register('TotalAmount')}
                     error={errors.TotalAmount?.message}
-                  /> */}
+                  />
+                  
+                   <CustomInput
+                    type="number"
+                    variant="floating"
+                    borderThickness="2"
+                    label="GST Value"
+                    id="GstValue"
+                    {...register('GstValue')}
+                    error={errors.GstValue?.message}
+                  />*/}
+                 
                   <CustomInputDropdown
                     label="End Use"
                     options={endUses}
@@ -2984,7 +2987,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">
                           Row {index + 1} Commission Info
                         </h4>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-9 gap-4">
                           <CustomInputDropdown
                             label="Payment Terms (Seller)"
                             options={paymentTerms}

@@ -286,8 +286,6 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
         label: 'Construction:',
         value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
-      { label: 'Reference Number:', value: contract.referenceNumber || '-' },
-      { label: 'Fabric Type:', value: contract.fabricType || '-' },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -389,9 +387,9 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     const totalWithGST = totalAmount + gstAmount;
 
     // Add total rows
-    tableBody.push(['', 'Subtotal:', '', formatCurrency(totalQty), formatCurrency(totalAmount), '']);
-    tableBody.push(['', `GST (${gstPercentage}%):`, '', '', formatCurrency(gstAmount), '']);
-    tableBody.push(['', `Total (with ${gstPercentage}% GST):`, '', '', formatCurrency(totalWithGST), '']);
+    tableBody.push(['Subtotal:','', formatCurrency(totalQty),  formatCurrency(totalAmount), '']);
+    tableBody.push(['', `GST (${gstPercentage}%):`, '', formatCurrency(gstAmount),'',  '']);
+    tableBody.push(['', `Total (with ${gstPercentage}% GST):`, '', formatCurrency(totalWithGST), '', '']);
 
     autoTable(doc, {
       startY: yPos,
@@ -472,7 +470,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       wrappedText.forEach((line: string, i: number) => {
         doc.text(line, leftColumnX + maxAdditionalLabelWidth + 5, leftColumnYPos + i * 4);
       });
-      leftColumnYPos += wrappedText.length * 4;
+      leftColumnYPos += wrappedText.length * 3;
     });
 
     yPos = leftColumnYPos + 5;
@@ -504,83 +502,105 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       },
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 5;
+    yPos = (doc as any).lastAutoTable.finalY + 3;
+// Reserve space for footer and signatures
+      const pageHeight = 297;
+      const footerHeight = 12;
+      const signatureHeight = 18;
+      const footerY = pageHeight - footerHeight;
+      const signatureY = footerY - signatureHeight - 3;
+  
+      // Signatures
+      const signatureWidth = 30;
+      const startX = 10;
+      const sellerMargin = 6;
+      const centerX = startX + signatureWidth + sellerMargin;
+      const pageWidth = 210;
+      const margin = 10;
+      const availableWidth = pageWidth - margin - (centerX + signatureWidth);
+      const gap = availableWidth / 2;
+      const endX = centerX + signatureWidth + gap;
 
-    // Signatures
-    const signatureY = yPos;
-    const signatureWidth = 35;
-    const startX = 10;
-    const sellerMargin = 8;
-    const centerX = startX + signatureWidth + sellerMargin;
-    const pageWidth = 210;
-    const margin = 10;
-    const availableWidth = pageWidth - margin - (centerX + signatureWidth);
-    const gap = availableWidth / 2;
-    const endX = centerX + signatureWidth + gap;
+      const labelColor: [number, number, number] = [0, 0, 0];
+      const textColor: [number, number, number] = [0, 0, 0];
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(...labelStyle.color);
-    if (zmsSignature) {
-      doc.addImage(zmsSignature, 'PNG', startX, signatureY, signatureWidth, 12);
-    }
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(...valueStyle.color);
-    const zmsText = 'Z.M. SOURCING';
-    const zmsTextWidth = doc.getTextWidth(zmsText);
-    doc.text(zmsText, startX, signatureY + 14);
-    doc.setLineWidth(0.2);
-    doc.setDrawColor(...valueStyle.color);
-    doc.line(startX, signatureY + 15, startX + zmsTextWidth, signatureY + 15);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7);
+      doc.setTextColor(...labelColor);
+      if (zmsSignature) {
+        try {
+          doc.addImage(zmsSignature, 'PNG', startX, signatureY, signatureWidth, 10);
+        } catch (error) {
+          console.warn('Failed to add ZMS signature:', error);
+          doc.text('[ZMS Signature]', startX, signatureY + 5);
+        }
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...textColor);
+      const zmsText = 'Z.M. SOURCING';
+      const zmsTextWidth = doc.getTextWidth(zmsText);
+      doc.text(zmsText, startX, signatureY + 12);
+      doc.setLineWidth(0.1);
+      doc.setDrawColor(...textColor);
+      doc.line(startX, signatureY + 13, startX + zmsTextWidth, signatureY + 13);
 
-    if (sellerSignature) {
-      doc.addImage(sellerSignature, 'PNG', centerX, signatureY, signatureWidth, 12);
-    }
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(...valueStyle.color);
-    const sellerText = `${contract.seller || '-'}`;
-    const sellerTextWidth = doc.getTextWidth(sellerText);
-    doc.text(sellerText, centerX, signatureY + 14);
-    doc.setLineWidth(0.2);
-    doc.setDrawColor(...valueStyle.color);
-    doc.line(centerX, signatureY + 15, centerX + sellerTextWidth, signatureY + 15);
+      if (sellerSignature) {
+        try {
+          doc.addImage(sellerSignature, 'PNG', centerX, signatureY, signatureWidth, 10);
+        } catch (error) {
+          console.warn('Failed to add seller signature:', error);
+          doc.text('[Seller Signature]', centerX, signatureY + 5);
+        }
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...textColor);
+      const sellerText = `${contract.seller || '-'}`;
+      const sellerTextWidth = doc.getTextWidth(sellerText);
+      doc.text(sellerText, centerX, signatureY + 12);
+      doc.setLineWidth(0.1);
+      doc.setDrawColor(...textColor);
+      doc.line(centerX, signatureY + 13, centerX + sellerTextWidth, signatureY + 13);
 
-    if (buyerSignature) {
-      doc.addImage(buyerSignature, 'PNG', endX, signatureY, signatureWidth, 12);
-    }
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(...valueStyle.color);
-    const buyerText = `${contract.buyer || '-'}`;
-    const buyerTextWidth = doc.getTextWidth(buyerText);
-    doc.text(buyerText, endX, signatureY + 14);
-    doc.setLineWidth(0.2);
-    doc.setDrawColor(...valueStyle.color);
-    doc.line(endX, signatureY + 15, endX + buyerTextWidth, signatureY + 15);
+      if (buyerSignature) {
+        try {
+          doc.addImage(buyerSignature, 'PNG', endX, signatureY, signatureWidth, 10);
+        } catch (error) {
+          console.warn('Failed to add buyer signature:', error);
+          doc.text('[Buyer Signature]', endX, signatureY + 5);
+        }
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...textColor);
+      const buyerText = `${contract.buyer || '-'}`;
+      const buyerTextWidth = doc.getTextWidth(buyerText);
+      doc.text(buyerText, endX, signatureY + 12);
+      doc.setLineWidth(0.1);
+      doc.setDrawColor(...textColor);
+      doc.line(endX, signatureY + 13, endX + buyerTextWidth, signatureY + 13);
 
-    yPos = signatureY + 20;
+      // Footer
+      doc.setLineWidth(0.1);
+      doc.setFillColor(6, 182, 212);
+      doc.rect(0, footerY, 210, footerHeight, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6);
+      doc.setTextColor(0, 0, 0);
+      doc.text('Page 1 of 1', 200, footerY + 4, { align: 'right' });
+      doc.text(
+        `Generated on ${new Date().toLocaleString('en-US', {
+          timeZone: 'Asia/Karachi',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })}`,
+        10,
+        footerY + 4
+      );
 
-    // Footer
-    doc.setLineWidth(0.2);
-    doc.setFillColor(6, 182, 212);
-    doc.rect(0, yPos, 210, 12, 'F');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6);
-    doc.setTextColor(0, 0, 0);
-    doc.text('Page 1 of 1', 200, yPos + 5, { align: 'right' });
-    doc.text(
-      `Generated on ${new Date().toLocaleString('en-US', {
-        timeZone: 'Asia/Karachi',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      })}`,
-      10,
-      yPos + 5
-    );
-    doc.text('Confidential - ZMS Textiles Ltd.', 105, yPos + 5, { align: 'center' });
+      doc.text('Confidential - ZMS Textiles Ltd.', 105, footerY + 4, { align: 'center' });
 
     // Save PDF
     const filename = type === 'purchase'
