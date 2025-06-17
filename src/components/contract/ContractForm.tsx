@@ -1,52 +1,50 @@
-'use client';
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useForm, UseFormRegister, SubmitHandler } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'react-toastify';
-import CustomInput from '@/components/ui/CustomInput';
-import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
-import DescriptionWithSubSelect from '@/components/ui/DescriptionWithSubSelect';
-import { MdAddBusiness, MdAdd, MdDelete, MdArrowForward, MdArrowBack } from 'react-icons/md';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { getAllOrganization } from '@/apis/organization';
-import { getAllBranch } from '@/apis/branchs';
-import { getAllDescriptions } from '@/apis/description';
-import { createContract, updateContract } from '@/apis/contract';
-import { getAllBlendRatios } from '@/apis/blendratio';
-import { getAllEndUses } from '@/apis/enduse';
-import { getAllFabricTypess } from '@/apis/fabrictypes';
-import { getAllPackings } from '@/apis/packing';
-import { getAllPeiceLengths } from '@/apis/peicelength';
-import { getAllPickInsertions } from '@/apis/pickinsertion';
-import { getAllWrapYarnTypes } from '@/apis/wrapyarntype';
-import { getAllWeftYarnType } from '@/apis/weftyarntype';
-import { getAllWeaves } from '@/apis/weaves';
-import { getAllFinal } from '@/apis/final';
-import { getAllSelveges } from '@/apis/selvege';
-import { getAllSelvegeWeaves } from '@/apis/selvegeweave';
-import { getAllSelvegeWidths } from '@/apis/selvegewidth';
-import { getAllStuffs } from '@/apis/stuff';
-import { getAllSellers } from '@/apis/seller';
-import { getAllBuyer } from '@/apis/buyer';
-import { getAllDeliveryTerms } from '@/apis/deliveryterm';
-import { getAllCommissionTypes } from '@/apis/commissiontype';
-import { getAllPaymentTerms } from '@/apis/paymentterm';
-import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
-import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
-import { getAllSelvegeThicknesss } from '@/apis/selvegethickness';
-import { getAllInductionThreads } from '@/apis/Inductionthread';
-import { getAllGSMs } from '@/apis/gsm';
-import { MdLibraryAddCheck } from "react-icons/md";
+"use client"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useForm, type UseFormRegister, type SubmitHandler } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { toast } from "react-toastify"
+import CustomInput from "@/components/ui/CustomInput"
+import CustomInputDropdown from "@/components/ui/CustomeInputDropdown"
+import DescriptionWithSubSelect from "@/components/ui/DescriptionWithSubSelect"
+import { MdAddBusiness, MdArrowForward, MdArrowBack } from "react-icons/md"
+import { Button } from "@/components/ui/button"
+import { getAllOrganization } from "@/apis/organization"
+import { getAllBranch } from "@/apis/branchs"
+import { getAllDescriptions } from "@/apis/description"
+import { createContract, updateContract } from "@/apis/contract"
+import { getAllBlendRatios } from "@/apis/blendratio"
+import { getAllEndUses } from "@/apis/enduse"
+import { getAllFabricTypess } from "@/apis/fabrictypes"
+import { getAllPackings } from "@/apis/packing"
+import { getAllPeiceLengths } from "@/apis/peicelength"
+import { getAllPickInsertions } from "@/apis/pickinsertion"
+import { getAllWrapYarnTypes } from "@/apis/wrapyarntype"
+import { getAllWeftYarnType } from "@/apis/weftyarntype"
+import { getAllWeaves } from "@/apis/weaves"
+import { getAllFinal } from "@/apis/final"
+import { getAllSelveges } from "@/apis/selvege"
+import { getAllSelvegeWeaves } from "@/apis/selvegeweave"
+import { getAllSelvegeWidths } from "@/apis/selvegewidth"
+import { getAllStuffs } from "@/apis/stuff"
+import { getAllSellers } from "@/apis/seller"
+import { getAllBuyer } from "@/apis/buyer"
+import { getAllDeliveryTerms } from "@/apis/deliveryterm"
+import { getAllCommissionTypes } from "@/apis/commissiontype"
+import { getAllPaymentTerms } from "@/apis/paymentterm"
+import { getAllUnitOfMeasures } from "@/apis/unitofmeasure"
+import { getAllGeneralSaleTextTypes } from "@/apis/generalSaleTextType"
+import { getAllSelvegeThicknesss } from "@/apis/selvegethickness"
+import { getAllInductionThreads } from "@/apis/Inductionthread"
+import { getAllGSMs } from "@/apis/gsm"
 
 // Schema definitions
 const DeliveryBreakupSchema = z.object({
   Id: z.string().optional(),
-  Qty: z.string().min(1, 'Quantity is required'),
-  DeliveryDate: z.string().min(1, 'Delivery Date is required'),
-});
+  Qty: z.string().min(1, "Quantity is required"),
+  DeliveryDate: z.string().min(1, "Delivery Date is required"),
+})
 
 const AdditionalInfoSchema = z.object({
   Id: z.string().optional(),
@@ -55,7 +53,7 @@ const AdditionalInfoSchema = z.object({
   Weight: z.string().optional(),
   YarnBags: z.string().optional(),
   Labs: z.string().optional(),
-});
+})
 
 const SampleDetailSchema = z.object({
   Id: z.string().optional(),
@@ -67,40 +65,56 @@ const SampleDetailSchema = z.object({
   UpdatedBy: z.string().optional(),
   UpdateDate: z.string().optional(),
   AdditionalInfo: z.array(AdditionalInfoSchema).optional(),
-});
+})
+
+const CommissionInfoSchema = z.object({
+  PaymentTermsSeller: z.string().optional(),
+  PaymentTermsBuyer: z.string().optional(),
+  DeliveryTerms: z.string().optional(),
+  CommissionFrom: z.string().optional(),
+  DispatchAddress: z.string().optional(),
+  SellerRemark: z.string().optional(),
+  BuyerRemark: z.string().optional(),
+  EndUse: z.string().optional(),
+  EndUseSubOptions: z.string().optional(),
+  DispatchLater: z.string().optional(),
+  SellerCommission: z.string().optional(),
+  BuyerCommission: z.string().optional(),
+})
 
 const ConversionContractRowSchema = z.object({
   Width: z.string().optional(),
-  Quantity: z.string().min(1, 'Quantity is required'),
+  Quantity: z.string().min(1, "Quantity is required"),
   PickRate: z.string().optional(),
   FabRate: z.string().optional(),
-  Rate: z.string().min(1, 'Rate is required'),
+  Rate: z.string().min(1, "Rate is required"),
   Amounts: z.string().optional(),
-  DeliveryDate: z.string().min(1, 'Delivery Date is required'),
+  DeliveryDate: z.string().min(1, "Delivery Date is required"),
   Wrapwt: z.string().optional(),
   Weftwt: z.string().optional(),
   WrapBag: z.string().optional(),
   WeftBag: z.string().optional(),
   TotalAmountMultiple: z.string().optional(),
-  Gst: z.string().min(1, 'GST is required'),
+  Gst: z.string().min(1, "GST is required"),
   GstValue: z.string().optional(),
   FabricValue: z.string().optional(),
   CommissionType: z.string().optional(),
   CommissionPercentage: z.string().optional(),
   CommissionValue: z.string().optional(),
   TotalAmount: z.string().optional(),
-});
+  CommissionInfo: CommissionInfoSchema.optional(),
+})
 
 const DietContractRowSchema = z.object({
   LabDispatchNo: z.string().optional(),
   LabDispatchDate: z.string().optional(),
   Color: z.string().optional(),
-  Quantity: z.string().min(1, 'Quantity is required'),
+  Quantity: z.string().min(1, "Quantity is required"),
   Finish: z.string().optional(),
-  Rate: z.string().min(1, 'Rate is required'),
+  Rate: z.string().min(1, "Rate is required"),
   AmountTotal: z.string().optional(),
-  DeliveryDate: z.string().min(1, 'Delivery Date is required'),
-  Gst: z.string().min(1, 'GST is required'),
+  DeliveryDate: z.string().min(1, "Delivery Date is required"),
+  Gst: z.string().min(1, "GST is required"),
   GstValue: z.string().optional(),
   FabricValue: z.string().optional(),
   CommissionType: z.string().optional(),
@@ -110,40 +124,42 @@ const DietContractRowSchema = z.object({
   Shrinkage: z.string().optional(),
   FinishWidth: z.string().optional(),
   Weight: z.string().optional(),
-});
+  CommissionInfo: CommissionInfoSchema.optional(),
+})
 
 const MultiWidthContractRowSchema = z.object({
   Width: z.string().optional(),
-  Quantity: z.string().min(1, 'Quantity is required'),
-  Rate: z.string().min(1, 'Rate is required'),
+  Quantity: z.string().min(1, "Quantity is required"),
+  Rate: z.string().min(1, "Rate is required"),
   Amount: z.string().optional(),
-  Gst: z.string().min(1, 'GST is required'),
+  Gst: z.string().min(1, "GST is required"),
   GstValue: z.string().optional(),
   FabricValue: z.string().optional(),
   CommissionType: z.string().optional(),
   CommissionPercentage: z.string().optional(),
   CommissionValue: z.string().optional(),
   TotalAmount: z.string().optional(),
-});
+  CommissionInfo: CommissionInfoSchema.optional(),
+})
 
 const ContractSchema = z.object({
   Id: z.string().optional(),
-  ContractNumber: z.string().min(1, 'Contract Number is required'),
-  Date: z.string().min(1, 'Date is required'),
-  ContractType: z.enum(['Sale', 'Purchase'], { required_error: 'Contract Type is required' }),
-  CompanyId: z.string().min(1, 'Company is required'),
-  BranchId: z.string().min(1, 'Branch is required'),
-  ContractOwner: z.string().min(1, 'Contract Owner is required'),
-  Seller: z.string().min(1, 'Seller is required'),
-  Buyer: z.string().min(1, 'Buyer is required'),
+  ContractNumber: z.string().min(1, "Contract Number is required"),
+  Date: z.string().min(1, "Date is required"),
+  ContractType: z.enum(["Sale", "Purchase"], { required_error: "Contract Type is required" }),
+  CompanyId: z.string().min(1, "Company is required"),
+  BranchId: z.string().min(1, "Branch is required"),
+  ContractOwner: z.string().min(1, "Contract Owner is required"),
+  Seller: z.string().min(1, "Seller is required"),
+  Buyer: z.string().min(1, "Buyer is required"),
   ReferenceNumber: z.string().optional(),
   DeliveryDate: z.string().optional(),
   Refer: z.string().optional(),
   Referdate: z.string().optional(),
-  FabricType: z.string().min(1, 'Fabric Type is required'),
-  Description: z.string().min(1, 'Description is required'),
+  FabricType: z.string().min(1, "Fabric Type is required"),
+  Description: z.string().min(1, "Description is required"),
   DescriptionSubOptions: z.array(z.string()).optional(),
-  Stuff: z.string().min(1, 'Stuff is required'),
+  Stuff: z.string().min(1, "Stuff is required"),
   StuffSubOptions: z.array(z.string()).optional(),
   BlendRatio: z.string().optional(),
   BlendType: z.string().optional(),
@@ -151,7 +167,7 @@ const ContractSchema = z.object({
   WarpYarnType: z.string().optional(),
   WarpYarnTypeSubOptions: z.array(z.string()).optional(),
   WeftCount: z.string().optional(),
-  WeftYarnType: z.string().min(1, 'Weft Yarn Type is required'),
+  WeftYarnType: z.string().min(1, "Weft Yarn Type is required"),
   WeftYarnTypeSubOptions: z.array(z.string()).optional(),
   NoOfEnds: z.string().optional(),
   NoOfPicks: z.string().optional(),
@@ -203,122 +219,241 @@ const ContractSchema = z.object({
   DispatchLater: z.string().optional(),
   SellerCommission: z.array(z.string()).optional(),
   BuyerCommission: z.array(z.string()).optional(),
-});
+  FinishWidth: z.string().optional(),
+})
 
-type FormData = z.infer<typeof ContractSchema>;
+type FormData = z.infer<typeof ContractSchema>
 
-type ConversionContractRow = z.infer<typeof ConversionContractRowSchema>;
-type DietContractRow = z.infer<typeof DietContractRowSchema>;
-type MultiWidthContractRow = z.infer<typeof MultiWidthContractRowSchema>;
+type ConversionContractRow = z.infer<typeof ConversionContractRowSchema>
+type DietContractRow = z.infer<typeof DietContractRowSchema>
+type MultiWidthContractRow = z.infer<typeof MultiWidthContractRowSchema>
 
 type ContractApiResponse = {
-  id: string;
-  contractNumber: string;
-  date: string;
-  contractType: 'Sale' | 'Purchase';
-  companyId: string;
-  branchId: string;
-  contractOwner: string;
-  seller: string;
-  buyer: string;
-  referenceNumber: string;
-  deliveryDate: string;
-  refer: string;
-  referdate: string;
-  fabricType: string;
-  description: string;
-  stuff: string;
-  blendRatio: string;
-  blendType: string;
-  warpCount: string;
-  warpYarnType: string;
-  weftCount: string;
-  weftYarnType: string;
-  noOfEnds: string;
-  noOfPicks: string;
-  weaves: string;
-  pickInsertion: string;
-  width: string;
-  final: string;
-  selvege: string;
-  selvegeWeaves: string;
-  selvegeWidth: string;
-  inductionThread: string;
-  gsm: string;
-  quantity: string;
-  unitOfMeasure: string;
-  tolerance: string;
-  rate: string;
-  packing: string;
-  pieceLength: string;
-  fabricValue: string;
-  gst: string;
-  gstValue: string;
-  totalAmount: string;
-  paymentTermsSeller: string;
-  paymentTermsBuyer: string;
-  deliveryTerms: string;
-  commissionFrom: string;
-  commissionType: string;
-  commissionPercentage: string;
-  commissionValue: string;
-  dispatchAddress: string;
-  sellerRemark: string;
-  buyerRemark: string;
-  createdBy: string;
-  creationDate: string;
-  updatedBy: string;
-  updationDate: string;
-  approvedBy: string;
-  approvedDate: string;
-  endUse: string;
-  notes?: string;
-  selvegeThickness?: string;
-  dispatchLater: string;
-  sellerCommission?: string;
-  buyerCommission?: string;
+  id: string
+  contractNumber: string
+  date: string
+  contractType: "Sale" | "Purchase"
+  companyId: string
+  branchId: string
+  contractOwner: string
+  seller: string
+  buyer: string
+  referenceNumber: string
+  deliveryDate: string
+  refer: string
+  referdate: string
+  fabricType: string
+  description: string
+  descriptionSubOptions: string
+  stuff: string
+  stuffSubOptions: string
+  blendRatio: string
+  blendType: string
+  warpCount: string
+  warpYarnType: string
+  warpYarnTypeSubOptions: string
+  weftCount: string
+  weftYarnType: string
+  weftYarnTypeSubOptions: string
+  noOfEnds: string
+  noOfPicks: string
+  weaves: string
+  weavesSubOptions: string
+  pickInsertion: string
+  pickInsertionSubOptions: string
+  width: string
+  final: string
+  selvege: string
+  selvegeSubOptions: string
+  selvegeWeaves: string
+  selvegeWeaveSubOptions: string
+  selvegeWidth: string
+  inductionThread: string
+  inductionThreadSubOptions: string
+  gsm: string
+  quantity: string
+  unitOfMeasure: string
+  tolerance: string
+  rate: string
+  packing: string
+  pieceLength: string
+  fabricValue: string
+  gst: string
+  gstValue: string
+  totalAmount: string
+  createdBy: string
+  creationDate: string
+  updatedBy: string
+  updationDate: string
+  approvedBy: string
+  approvedDate: string
+  endUse: string
+  endUseSubOptions: string
+  notes?: string
+  selvegeThickness?: string
+  selvegeThicknessSubOptions?: string
+  dispatchLater: string
+  status: string
+  finishWidth: string
   buyerDeliveryBreakups: Array<{
-    id?: string;
-    qty: string;
-    deliveryDate: string;
-  }>;
+    id?: string
+    qty: string
+    deliveryDate: string
+  }>
   sellerDeliveryBreakups: Array<{
-    id?: string;
-    qty: string;
-    deliveryDate: string;
-  }>;
-  sampleDetails: Array<{
-    id?: string;
-    sampleQty: string;
-    sampleReceivedDate: string;
-    sampleDeliveredDate: string;
-    createdBy: string;
-    creationDate: string;
-    updatedBy: string;
-    updateDate: string;
-    additionalInfo: Array<{
-      id?: string;
-      endUse: string;
-      count: string;
-      weight: string;
-      yarnBags: string;
-      labs: string;
-    }>;
-  }>;
-};
+    id?: string
+    qty: string
+    deliveryDate: string
+  }>
+  conversionContractRow: Array<{
+    id?: string
+    contractId?: string
+    width: string
+    quantity: string
+    pickRate: string
+    fabRate: string
+    rate: string
+    amounts: string
+    deliveryDate: string
+    wrapwt: string
+    weftwt: string
+    wrapBag: string
+    weftBag: string
+    totalAmountMultiple: string
+    gst: string
+    gstValue: string
+    fabricValue: string
+    commissionType: string
+    commissionPercentage: string
+    commissionValue: string
+    totalAmount: string
+    commisionInfo: {
+      id?: string
+      paymentTermsSeller: string
+      paymentTermsBuyer: string
+      deliveryTerms: string
+      commissionFrom: string
+      dispatchAddress: string
+      sellerRemark: string
+      buyerRemark: string
+      endUse: string
+      endUseSubOptions: string
+      dispatchLater: string
+      sellerCommission: string
+      buyerCommission: string
+    }
+    buyerDeliveryBreakups: Array<{
+      id?: string
+      qty: string
+      deliveryDate: string
+    }>
+    sellerDeliveryBreakups: Array<{
+      id?: string
+      qty: string
+      deliveryDate: string
+    }>
+  }>
+  dietContractRow: Array<{
+    id?: string
+    contractId?: string
+    labDispatchNo: string
+    labDispatchDate: string
+    color: string
+    quantity: string
+    finish: string
+    rate: string
+    amountTotal: string
+    deliveryDate: string
+    gst: string
+    gstValue: string
+    fabricValue: string
+    commissionType: string
+    commissionPercentage: string
+    commissionValue: string
+    totalAmount: string
+    shrinkage: string
+    finishWidth: string
+    weight: string
+    commisionInfo: {
+      id?: string
+      paymentTermsSeller: string
+      paymentTermsBuyer: string
+      deliveryTerms: string
+      commissionFrom: string
+      dispatchAddress: string
+      sellerRemark: string
+      buyerRemark: string
+      endUse: string
+      endUseSubOptions: string
+      dispatchLater: string
+      sellerCommission: string
+      buyerCommission: string
+    }
+    buyerDeliveryBreakups: Array<{
+      id?: string
+      qty: string
+      deliveryDate: string
+    }>
+    sellerDeliveryBreakups: Array<{
+      id?: string
+      qty: string
+      deliveryDate: string
+    }>
+  }>
+  multiWidthContractRow: Array<{
+    id?: string
+    contractId?: string
+    width: string
+    quantity: string
+    rate: string
+    amount: string
+    gst: string
+    gstValue: string
+    fabricValue: string
+    commissionType: string
+    commissionPercentage: string
+    commissionValue: string
+    totalAmount: string
+    commisionInfo: {
+      id?: string
+      paymentTermsSeller: string
+      paymentTermsBuyer: string
+      deliveryTerms: string
+      commissionFrom: string
+      dispatchAddress: string
+      sellerRemark: string
+      buyerRemark: string
+      endUse: string
+      endUseSubOptions: string
+      dispatchLater: string
+      sellerCommission: string
+      buyerCommission: string
+    }
+    buyerDeliveryBreakups: Array<{
+      id?: string
+      qty: string
+      deliveryDate: string
+    }>
+    sellerDeliveryBreakups: Array<{
+      id?: string
+      qty: string
+      deliveryDate: string
+    }>
+  }>
+}
 
 type ContractFormProps = {
-  id?: string;
-  initialData?: Partial<ContractApiResponse>;
-};
+  id?: string
+  initialData?: Partial<ContractApiResponse>
+}
 
 interface CustomDropdownProps {
-  label: string;
-  options: { id: string; name: string }[];
-  selectedOption: string;
-  onChange: (value: string) => void;
-  error?: string;
-  register: UseFormRegister<FormData>;
+  label: string
+  options: { id: string; name: string }[]
+  selectedOption: string
+  onChange: (value: string) => void
+  error?: string
+  register: UseFormRegister<FormData>
 }
 
 const ContractForm = ({ id, initialData }: ContractFormProps) => {
@@ -403,6 +538,20 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       CommissionPercentage: '',
       CommissionValue: '',
       TotalAmount: '',
+      CommissionInfo: {
+        PaymentTermsSeller: '',
+        PaymentTermsBuyer: '',
+        DeliveryTerms: '',
+        CommissionFrom: '',
+        DispatchAddress: '',
+        SellerRemark: '',
+        BuyerRemark: '',
+        EndUse: '',
+        EndUseSubOptions: '',
+        DispatchLater: '',
+        SellerCommission: '',
+        BuyerCommission: '',
+      },
     },
   ]);
   const [dietContractRows, setDietContractRows] = useState<DietContractRow[]>([
@@ -422,6 +571,23 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       CommissionPercentage: '',
       CommissionValue: '',
       TotalAmount: '',
+      Shrinkage: '',
+      FinishWidth: '',
+      Weight: '',
+      CommissionInfo: {
+        PaymentTermsSeller: '',
+        PaymentTermsBuyer: '',
+        DeliveryTerms: '',
+        CommissionFrom: '',
+        DispatchAddress: '',
+        SellerRemark: '',
+        BuyerRemark: '',
+        EndUse: '',
+        EndUseSubOptions: '',
+        DispatchLater: '',
+        SellerCommission: '',
+        BuyerCommission: '',
+      },
     },
   ]);
   const [multiWidthContractRows, setMultiWidthContractRows] = useState<MultiWidthContractRow[]>([
@@ -437,6 +603,20 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       CommissionPercentage: '',
       CommissionValue: '',
       TotalAmount: '',
+      CommissionInfo: {
+        PaymentTermsSeller: '',
+        PaymentTermsBuyer: '',
+        DeliveryTerms: '',
+        CommissionFrom: '',
+        DispatchAddress: '',
+        SellerRemark: '',
+        BuyerRemark: '',
+        EndUse: '',
+        EndUseSubOptions: '',
+        DispatchLater: '',
+        SellerCommission: '',
+        BuyerCommission: '',
+      },
     },
   ]);
   const [activeSection, setActiveSection] = useState<'GeneralInfo' | 'Items' | 'DeliveryDetails'>('GeneralInfo');
@@ -960,31 +1140,31 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
   // Calculations for Conversion Contract Rows
   useEffect(() => {
-    const noOfEnds = parseFloat(watch('NoOfEnds') || '0');
+    const noOfEnds = Number.parseFloat(watch('NoOfEnds') || '0');
     setConversionContractRows((prevRows) =>
       prevRows.map((row) => {
-        const pickRate = parseFloat(row.PickRate || '0');
+        const pickRate = Number.parseFloat(row.PickRate || '0');
         const fabRate = (pickRate * noOfEnds).toFixed(2);
-        const qty = parseFloat(row.Quantity || '0');
-        const amounts = (qty * parseFloat(fabRate || '0')).toFixed(2);
-        const wrapwt = parseFloat(row.Wrapwt || '0');
+        const qty = Number.parseFloat(row.Quantity || '0');
+        const amounts = (qty * Number.parseFloat(fabRate || '0')).toFixed(2);
+        const wrapwt = Number.parseFloat(row.Wrapwt || '0');
         const wrapBag = ((qty * wrapwt) / 100).toFixed(2);
-        const weftwt = parseFloat(row.Weftwt || '0');
+        const weftwt = Number.parseFloat(row.Weftwt || '0');
         const weftBag = ((qty * weftwt) / 100).toFixed(2);
         const totalAmountMultiple = (
-          parseFloat(wrapBag || '0') + parseFloat(weftBag || '0')
+          Number.parseFloat(wrapBag || '0') + Number.parseFloat(weftBag || '0')
         ).toFixed(2);
-        const rate = parseFloat(row.Rate || '0');
+        const rate = Number.parseFloat(row.Rate || '0');
         const fabricValue = (qty * rate).toFixed(2);
         const selectedGst = gstTypes.find((g) => g.id === row.Gst);
         let gstValue = '0.00';
         if (selectedGst) {
-          const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
-          gstValue = ((parseFloat(fabricValue) * percentage) / 100).toFixed(2);
+          const percentage = Number.parseFloat(selectedGst.name.replace('% GST', '')) || 0;
+          gstValue = ((Number.parseFloat(fabricValue) * percentage) / 100).toFixed(2);
         }
-        const totalAmount = (parseFloat(fabricValue) + parseFloat(gstValue)).toFixed(2);
+        const totalAmount = (Number.parseFloat(fabricValue) + Number.parseFloat(gstValue)).toFixed(2);
         let commissionValue = '0.00';
-        const commissionPercentage = parseFloat(row.CommissionPercentage || '0');
+        const commissionPercentage = Number.parseFloat(row.CommissionPercentage || '0');
         if (row.CommissionType) {
           const commissionTypeName = commissionTypes.find(
             (type) => type.id === row.CommissionType,
@@ -992,10 +1172,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           if (
             commissionTypeName === 'on value' &&
             commissionPercentage > 0 &&
-            parseFloat(totalAmount) > 0
+            Number.parseFloat(totalAmount) > 0
           ) {
             commissionValue = (
-              (parseFloat(totalAmount) * commissionPercentage) / 100
+              (Number.parseFloat(totalAmount) * commissionPercentage) / 100
             ).toFixed(2);
           } else if (
             commissionTypeName === 'on qty' &&
@@ -1030,19 +1210,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   useEffect(() => {
     setDietContractRows((prevRows) =>
       prevRows.map((row) => {
-        const qty = parseFloat(row.Quantity || '0');
-        const rate = parseFloat(row.Rate || '0');
+        const qty = Number.parseFloat(row.Quantity || '0');
+        const rate = Number.parseFloat(row.Rate || '0');
         const amountTotal = (qty * rate).toFixed(2);
         const fabricValue = amountTotal;
         const selectedGst = gstTypes.find((g) => g.id === row.Gst);
         let gstValue = '0.00';
         if (selectedGst) {
-          const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
-          gstValue = ((parseFloat(fabricValue) * percentage) / 100).toFixed(2);
+          const percentage = Number.parseFloat(selectedGst.name.replace('% GST', '')) || 0;
+          gstValue = ((Number.parseFloat(fabricValue) * percentage) / 100).toFixed(2);
         }
-        const totalAmount = (parseFloat(fabricValue) + parseFloat(gstValue)).toFixed(2);
+        const totalAmount = (Number.parseFloat(fabricValue) + Number.parseFloat(gstValue)).toFixed(2);
         let commissionValue = '0.00';
-        const commissionPercentage = parseFloat(row.CommissionPercentage || '0');
+        const commissionPercentage = Number.parseFloat(row.CommissionPercentage || '0');
         if (row.CommissionType) {
           const commissionTypeName = commissionTypes.find(
             (type) => type.id === row.CommissionType,
@@ -1050,10 +1230,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           if (
             commissionTypeName === 'on value' &&
             commissionPercentage > 0 &&
-            parseFloat(totalAmount) > 0
+            Number.parseFloat(totalAmount) > 0
           ) {
             commissionValue = (
-              (parseFloat(totalAmount) * commissionPercentage) / 100
+              (Number.parseFloat(totalAmount) * commissionPercentage) / 100
             ).toFixed(2);
           } else if (
             commissionTypeName === 'on qty' &&
@@ -1079,19 +1259,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   useEffect(() => {
     setMultiWidthContractRows((prevRows) =>
       prevRows.map((row) => {
-        const qty = parseFloat(row.Quantity || '0');
-        const rate = parseFloat(row.Rate || '0');
+        const qty = Number.parseFloat(row.Quantity || '0');
+        const rate = Number.parseFloat(row.Rate || '0');
         const amount = (qty * rate).toFixed(2);
         const fabricValue = amount;
         const selectedGst = gstTypes.find((g) => g.id === row.Gst);
         let gstValue = '0.00';
         if (selectedGst) {
-          const percentage = parseFloat(selectedGst.name.replace('% GST', '')) || 0;
-          gstValue = ((parseFloat(fabricValue) * percentage) / 100).toFixed(2);
+          const percentage = Number.parseFloat(selectedGst.name.replace('% GST', '')) || 0;
+          gstValue = ((Number.parseFloat(fabricValue) * percentage) / 100).toFixed(2);
         }
-        const totalAmount = (parseFloat(fabricValue) + parseFloat(gstValue)).toFixed(2);
+        const totalAmount = (Number.parseFloat(fabricValue) + Number.parseFloat(gstValue)).toFixed(2);
         let commissionValue = '0.00';
-        const commissionPercentage = parseFloat(row.CommissionPercentage || '0');
+        const commissionPercentage = Number.parseFloat(row.CommissionPercentage || '0');
         if (row.CommissionType) {
           const commissionTypeName = commissionTypes.find(
             (type) => type.id === row.CommissionType,
@@ -1099,10 +1279,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           if (
             commissionTypeName === 'on value' &&
             commissionPercentage > 0 &&
-            parseFloat(totalAmount) > 0
+            Number.parseFloat(totalAmount) > 0
           ) {
             commissionValue = (
-              (parseFloat(totalAmount) * commissionPercentage) / 100
+              (Number.parseFloat(totalAmount) * commissionPercentage) / 100
             ).toFixed(2);
           } else if (
             commissionTypeName === 'on qty' &&
@@ -1186,23 +1366,33 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               Referdate: initialData.referdate || '',
               FabricType: initialData.fabricType || '',
               Description: initialData.description || '',
+              DescriptionSubOptions: splitToArray(initialData.descriptionSubOptions),
               Stuff: initialData.stuff || '',
+              StuffSubOptions: splitToArray(initialData.stuffSubOptions),
               BlendRatio: initialData.blendRatio || '',
               BlendType: initialData.blendType || '',
               WarpCount: initialData.warpCount || '',
               WarpYarnType: initialData.warpYarnType || '',
+              WarpYarnTypeSubOptions: splitToArray(initialData.warpYarnTypeSubOptions),
               WeftCount: initialData.weftCount || '',
               WeftYarnType: initialData.weftYarnType || '',
+              WeftYarnTypeSubOptions: splitToArray(initialData.weftYarnTypeSubOptions),
               NoOfEnds: initialData.noOfEnds || '',
               NoOfPicks: initialData.noOfPicks || '',
               Weaves: initialData.weaves || '',
+              WeavesSubOptions: splitToArray(initialData.weavesSubOptions),
               PickInsertion: initialData.pickInsertion || '',
+              PickInsertionSubOptions: splitToArray(initialData.pickInsertionSubOptions),
               Width: initialData.width || '',
               Final: initialData.final || '',
+              FinalSubOptions: splitToArray(initialData.final),
               Selvedge: initialData.selvege || '',
+              SelvedgeSubOptions: splitToArray(initialData.selvegeSubOptions),
               SelvedgeWeave: initialData.selvegeWeaves || '',
+              SelvedgeWeaveSubOptions: splitToArray(initialData.selvegeWeaveSubOptions),
               SelvedgeWidth: initialData.selvegeWidth || '',
               InductionThread: initialData.inductionThread || '',
+              InductionThreadSubOptions: splitToArray(initialData.inductionThreadSubOptions),
               GSM: initialData.gsm || '',
               Quantity: initialData.quantity || '1',
               UnitOfMeasure: initialData.unitOfMeasure || '',
@@ -1214,16 +1404,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               Gst: initialData.gst || '',
               GstValue: initialData.gstValue || '',
               TotalAmount: initialData.totalAmount || '',
-              PaymentTermsSeller: initialData.paymentTermsSeller || '',
-              PaymentTermsBuyer: initialData.paymentTermsBuyer || '',
-              DeliveryTerms: initialData.deliveryTerms || '',
-              CommissionFrom: initialData.commissionFrom || '',
-              CommissionType: initialData.commissionType || '',
-              CommissionPercentage: initialData.commissionPercentage || '',
-              CommissionValue: initialData.commissionValue || '',
-              DispatchAddress: initialData.dispatchAddress || '',
-              SellerRemark: initialData.sellerRemark || '',
-              BuyerRemark: initialData.buyerRemark || '',
               CreatedBy: initialData.createdBy || '',
               CreationDate: initialData.creationDate || '',
               UpdatedBy: initialData.updatedBy || '',
@@ -1231,11 +1411,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               ApprovedBy: initialData.approvedBy || '',
               ApprovedDate: initialData.approvedDate || '',
               EndUse: initialData.endUse || '',
+              EndUseSubOptions: splitToArray(initialData.endUseSubOptions),
               Notes: initialData.notes || '',
               SelvegeThickness: initialData.selvegeThickness || '',
               DispatchLater: initialData.dispatchLater || '',
-              SellerCommission: splitToArray(initialData.sellerCommission),
-              BuyerCommission: splitToArray(initialData.buyerCommission),
+              FinishWidth: initialData.finishWidth || '',
             };
 
             reset(formattedData);
@@ -1258,26 +1438,116 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 })),
               );
             }
-            if (initialData.sampleDetails) {
-              setSampleDetails(
-                initialData.sampleDetails.map((detail) => ({
-                  Id: detail.id,
-                  SampleQty: detail.sampleQty || '',
-                  SampleReceivedDate: detail.sampleReceivedDate || '',
-                  SampleDeliveredDate: detail.sampleDeliveredDate || '',
-                  CreatedBy: detail.createdBy || '',
-                  CreationDate: detail.creationDate || '',
-                  UpdatedBy: detail.updatedBy || '',
-                  UpdateDate: detail.updateDate || '',
-                  AdditionalInfo: (detail.additionalInfo || []).map((info) => ({
-                    Id: info.id,
-                    EndUse: info.endUse || '',
-                    Count: info.count || '',
-                    Weight: info.weight || '',
-                    YarnBags: info.yarnBags || '',
-                    Labs: info.labs || '',
-                  })),
-                })),
+
+            // Initialize contract rows from API data
+            if (initialData.conversionContractRow && initialData.conversionContractRow.length > 0) {
+              setConversionContractRows(
+                initialData.conversionContractRow.map((row) => ({
+                  Width: row.width || '',
+                  Quantity: row.quantity || '1',
+                  PickRate: row.pickRate || '',
+                  FabRate: row.fabRate || '',
+                  Rate: row.rate || '0',
+                  Amounts: row.amounts || '',
+                  DeliveryDate: row.deliveryDate || '',
+                  Wrapwt: row.wrapwt || '',
+                  Weftwt: row.weftwt || '',
+                  WrapBag: row.wrapBag || '',
+                  WeftBag: row.weftBag || '',
+                  TotalAmountMultiple: row.totalAmountMultiple || '',
+                  Gst: row.gst || '',
+                  GstValue: row.gstValue || '',
+                  FabricValue: row.fabricValue || '',
+                  CommissionType: row.commissionType || '',
+                  CommissionPercentage: row.commissionPercentage || '',
+                  CommissionValue: row.commissionValue || '',
+                  TotalAmount: row.totalAmount || '',
+                  CommissionInfo: {
+                    PaymentTermsSeller: row.commisionInfo?.paymentTermsSeller || '',
+                    PaymentTermsBuyer: row.commisionInfo?.paymentTermsBuyer || '',
+                    DeliveryTerms: row.commisionInfo?.deliveryTerms || '',
+                    CommissionFrom: row.commisionInfo?.commissionFrom || '',
+                    DispatchAddress: row.commisionInfo?.dispatchAddress || '',
+                    SellerRemark: row.commisionInfo?.sellerRemark || '',
+                    BuyerRemark: row.commisionInfo?.buyerRemark || '',
+                    EndUse: row.commisionInfo?.endUse || '',
+                    EndUseSubOptions: row.commisionInfo?.endUseSubOptions || '',
+                    DispatchLater: row.commisionInfo?.dispatchLater || '',
+                    SellerCommission: row.commisionInfo?.sellerCommission || '',
+                    BuyerCommission: row.commisionInfo?.buyerCommission || '',
+                  },
+                }))
+              );
+            }
+
+            if (initialData.dietContractRow && initialData.dietContractRow.length > 0) {
+              setDietContractRows(
+                initialData.dietContractRow.map((row) => ({
+                  LabDispatchNo: row.labDispatchNo || '',
+                  LabDispatchDate: row.labDispatchDate || '',
+                  Color: row.color || '',
+                  Quantity: row.quantity || '1',
+                  Finish: row.finish || '',
+                  Rate: row.rate || '0',
+                  AmountTotal: row.amountTotal || '',
+                  DeliveryDate: row.deliveryDate || '',
+                  Gst: row.gst || '',
+                  GstValue: row.gstValue || '',
+                  FabricValue: row.fabricValue || '',
+                  CommissionType: row.commissionType || '',
+                  CommissionPercentage: row.commissionPercentage || '',
+                  CommissionValue: row.commissionValue || '',
+                  TotalAmount: row.totalAmount || '',
+                  Shrinkage: row.shrinkage || '',
+                  FinishWidth: row.finishWidth || '',
+                  Weight: row.weight || '',
+                  CommissionInfo: {
+                    PaymentTermsSeller: row.commisionInfo?.paymentTermsSeller || '',
+                    PaymentTermsBuyer: row.commisionInfo?.paymentTermsBuyer || '',
+                    DeliveryTerms: row.commisionInfo?.deliveryTerms || '',
+                    CommissionFrom: row.commisionInfo?.commissionFrom || '',
+                    DispatchAddress: row.commisionInfo?.dispatchAddress || '',
+                    SellerRemark: row.commisionInfo?.sellerRemark || '',
+                    BuyerRemark: row.commisionInfo?.buyerRemark || '',
+                    EndUse: row.commisionInfo?.endUse || '',
+                    EndUseSubOptions: row.commisionInfo?.endUseSubOptions || '',
+                    DispatchLater: row.commisionInfo?.dispatchLater || '',
+                    SellerCommission: row.commisionInfo?.sellerCommission || '',
+                    BuyerCommission: row.commisionInfo?.buyerCommission || '',
+                  },
+                }))
+              );
+            }
+
+            if (initialData.multiWidthContractRow && initialData.multiWidthContractRow.length > 0) {
+              setMultiWidthContractRows(
+                initialData.multiWidthContractRow.map((row) => ({
+                  Width: row.width || '',
+                  Quantity: row.quantity || '1',
+                  Rate: row.rate || '0',
+                  Amount: row.amount || '',
+                  Gst: row.gst || '',
+                  GstValue: row.gstValue || '',
+                  FabricValue: row.fabricValue || '',
+                  CommissionType: row.commissionType || '',
+                  CommissionPercentage: row.commissionPercentage || '',
+                  CommissionValue: row.commissionValue || '',
+                  TotalAmount: row.totalAmount || '',
+                  CommissionInfo: {
+                    PaymentTermsSeller: row.commisionInfo?.paymentTermsSeller || '',
+                    PaymentTermsBuyer: row.commisionInfo?.paymentTermsBuyer || '',
+                    DeliveryTerms: row.commisionInfo?.deliveryTerms || '',
+                    CommissionFrom: row.commisionInfo?.commissionFrom || '',
+                    DispatchAddress: row.commisionInfo?.dispatchAddress || '',
+                    SellerRemark: row.commisionInfo?.sellerRemark || '',
+                    BuyerRemark: row.commisionInfo?.buyerRemark || '',
+                    EndUse: row.commisionInfo?.endUse || '',
+                    EndUseSubOptions: row.commisionInfo?.endUseSubOptions || '',
+                    DispatchLater: row.commisionInfo?.dispatchLater || '',
+                    SellerCommission: row.commisionInfo?.sellerCommission || '',
+                    BuyerCommission: row.commisionInfo?.buyerCommission || '',
+                  },
+                }))
               );
             }
 
@@ -1418,6 +1688,20 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         CommissionPercentage: '',
         CommissionValue: '',
         TotalAmount: '',
+        CommissionInfo: {
+          PaymentTermsSeller: '',
+          PaymentTermsBuyer: '',
+          DeliveryTerms: '',
+          CommissionFrom: '',
+          DispatchAddress: '',
+          SellerRemark: '',
+          BuyerRemark: '',
+          EndUse: '',
+          EndUseSubOptions: '',
+          DispatchLater: '',
+          SellerCommission: '',
+          BuyerCommission: '',
+        },
       },
     ]);
   };
@@ -1441,6 +1725,23 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         CommissionPercentage: '',
         CommissionValue: '',
         TotalAmount: '',
+        Shrinkage: '',
+        FinishWidth: '',
+        Weight: '',
+        CommissionInfo: {
+          PaymentTermsSeller: '',
+          PaymentTermsBuyer: '',
+          DeliveryTerms: '',
+          CommissionFrom: '',
+          DispatchAddress: '',
+          SellerRemark: '',
+          BuyerRemark: '',
+          EndUse: '',
+          EndUseSubOptions: '',
+          DispatchLater: '',
+          SellerCommission: '',
+          BuyerCommission: '',
+        },
       },
     ]);
   };
@@ -1460,6 +1761,20 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         CommissionPercentage: '',
         CommissionValue: '',
         TotalAmount: '',
+        CommissionInfo: {
+          PaymentTermsSeller: '',
+          PaymentTermsBuyer: '',
+          DeliveryTerms: '',
+          CommissionFrom: '',
+          DispatchAddress: '',
+          SellerRemark: '',
+          BuyerRemark: '',
+          EndUse: '',
+          EndUseSubOptions: '',
+          DispatchLater: '',
+          SellerCommission: '',
+          BuyerCommission: '',
+        },
       },
     ]);
   };
@@ -1488,6 +1803,26 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     );
   };
 
+  const handleConversionCommissionInfoChange = (
+    index: number,
+    field: string,
+    value: string,
+  ) => {
+    setConversionContractRows((prev) =>
+      prev.map((row, i) =>
+        i === index 
+          ? { 
+              ...row, 
+              CommissionInfo: { 
+                ...row.CommissionInfo, 
+                [field]: value 
+              } 
+            } 
+          : row,
+      ),
+    );
+  };
+
   const handleDietContractChange = (
     index: number,
     field: keyof DietContractRow,
@@ -1498,6 +1833,26 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     );
   };
 
+  const handleDietCommissionInfoChange = (
+    index: number,
+    field: string,
+    value: string,
+  ) => {
+    setDietContractRows((prev) =>
+      prev.map((row, i) =>
+        i === index 
+          ? { 
+              ...row, 
+              CommissionInfo: { 
+                ...row.CommissionInfo, 
+                [field]: value 
+              } 
+            } 
+          : row,
+      ),
+    );
+  };
+
   const handleMultiWidthContractChange = (
     index: number,
     field: keyof MultiWidthContractRow,
@@ -1505,6 +1860,26 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   ) => {
     setMultiWidthContractRows((prev) =>
       prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)),
+    );
+  };
+
+  const handleMultiWidthCommissionInfoChange = (
+    index: number,
+    field: string,
+    value: string,
+  ) => {
+    setMultiWidthContractRows((prev) =>
+      prev.map((row, i) =>
+        i === index 
+          ? { 
+              ...row, 
+              CommissionInfo: { 
+                ...row.CommissionInfo, 
+                [field]: value 
+              } 
+            } 
+          : row,
+      ),
     );
   };
 
@@ -1611,7 +1986,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       setSubmissionErrors([]);
       const validBuyerBreakups = validateBreakups(buyerDeliveryBreakups);
       const validSellerBreakups = validateBreakups(sellerDeliveryBreakups);
-      const validSampleDetails = validateSampleDetails(sampleDetails);
 
       const buyerDeliveryBreakupsPayload = validBuyerBreakups.map((b) => ({
         id: b.Id,
@@ -1624,24 +1998,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         deliveryDate: b.DeliveryDate,
       }));
 
-      const sampleDetailsPayload = validSampleDetails.map((s) => ({
-        id: s.Id,
-        sampleQty: s.SampleQty,
-        sampleReceivedDate: s.SampleReceivedDate,
-        sampleDeliveredDate: s.SampleDeliveredDate,
-        createdBy: s.CreatedBy,
-        creationDate: s.CreationDate,
-        updatedBy: s.UpdatedBy,
-        updateDate: s.UpdateDate,
-        additionalInfo: (s.AdditionalInfo || []).map((a) => ({
-          id: a.Id,
-          endUse: a.EndUse,
-          count: a.Count,
-          weight: a.Weight,
-          yarnBags: a.YarnBags,
-          labs: a.Labs,
-        })),
-      }));
+      // Helper function to convert arrays to pipe-separated strings
+      const arrayToPipeString = (arr: string[] | undefined): string => {
+        return arr && arr.length > 0 ? arr.filter(v => v).join('|') : '';
+      };
 
       const payload = {
         id: id || undefined,
@@ -1654,28 +2014,37 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         seller: data.Seller,
         buyer: data.Buyer,
         referenceNumber: data.ReferenceNumber || '',
-        deliveryDate: data.DeliveryDate,
+        deliveryDate: data.DeliveryDate || '',
         refer: data.Refer || '',
         referdate: data.Referdate || '',
         fabricType: data.FabricType,
         description: data.Description,
+        descriptionSubOptions: arrayToPipeString(data.DescriptionSubOptions),
         stuff: data.Stuff,
+        stuffSubOptions: arrayToPipeString(data.StuffSubOptions),
         blendRatio: data.BlendRatio || '',
         blendType: data.BlendType || '',
         warpCount: data.WarpCount || '',
         warpYarnType: data.WarpYarnType || '',
+        warpYarnTypeSubOptions: arrayToPipeString(data.WarpYarnTypeSubOptions),
         weftCount: data.WeftCount || '',
         weftYarnType: data.WeftYarnType,
+        weftYarnTypeSubOptions: arrayToPipeString(data.WeftYarnTypeSubOptions),
         noOfEnds: data.NoOfEnds || '',
         noOfPicks: data.NoOfPicks || '',
         weaves: data.Weaves || '',
+        weavesSubOptions: arrayToPipeString(data.WeavesSubOptions),
         pickInsertion: data.PickInsertion || '',
+        pickInsertionSubOptions: arrayToPipeString(data.PickInsertionSubOptions),
         width: data.Width || '',
         final: data.Final || '',
         selvege: data.Selvedge || '',
+        selvegeSubOptions: arrayToPipeString(data.SelvedgeSubOptions),
         selvegeWeaves: data.SelvedgeWeave || '',
+        selvegeWeaveSubOptions: arrayToPipeString(data.SelvedgeWeaveSubOptions),
         selvegeWidth: data.SelvedgeWidth || '',
         inductionThread: data.InductionThread || '',
+        inductionThreadSubOptions: arrayToPipeString(data.InductionThreadSubOptions),
         gsm: data.GSM || '',
         quantity: data.Quantity || '',
         unitOfMeasure: data.UnitOfMeasure || '',
@@ -1687,97 +2056,124 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         gst: data.Gst || '',
         gstValue: data.GstValue || '',
         totalAmount: data.TotalAmount || '',
-        paymentTermsSeller: data.PaymentTermsSeller || '',
-        paymentTermsBuyer: data.PaymentTermsBuyer || '',
-        deliveryTerms: data.DeliveryTerms || '',
-        commissionFrom: data.CommissionFrom || '',
-        commissionType: data.CommissionType || '',
-        commissionPercentage: data.CommissionPercentage || '',
-        commissionValue: data.CommissionValue || '',
-        dispatchAddress: data.DispatchAddress || '',
-        sellerRemark: data.SellerRemark || '',
-        buyerRemark: data.BuyerRemark || '',
-        createdBy: data.CreatedBy || '',
+       // createdBy: data.CreatedBy || '',
         creationDate: data.CreationDate || '',
-        updatedBy: data.UpdatedBy || '',
+        // updatedBy: data.UpdatedBy || '',
         updationDate: data.UpdationDate || '',
         approvedBy: data.ApprovedBy || '',
         approvedDate: data.ApprovedDate || '',
         endUse: data.EndUse || '',
+        endUseSubOptions: arrayToPipeString(data.EndUseSubOptions),
         notes: data.Notes || '',
         selvegeThickness: data.SelvegeThickness || '',
+        selvegeThicknessSubOptions: '',
         dispatchLater: data.DispatchLater || '',
-        sellerCommission:
-          commissionFrom === 'Both'
-            ? (data.SellerCommission || []).filter((v) => v).join('|')
-            : '',
-        buyerCommission:
-          commissionFrom === 'Both'
-            ? (data.BuyerCommission || []).filter((v) => v).join('|')
-            : '',
+        status: 'Active',
+        finishWidth: data.FinishWidth || '',
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
-        sampleDetails: sampleDetailsPayload,
-        conversionContractRows:
-          activeContractType === 'Conversion'
-            ? conversionContractRows.map((row) => ({
-                width: row.Width,
-                quantity: row.Quantity,
-                pickRate: row.PickRate,
-                fabRate: row.FabRate,
-                rate: row.Rate,
-                amounts: row.Amounts,
-                deliveryDate: row.DeliveryDate,
-                wrapwt: row.Wrapwt,
-                weftwt: row.Weftwt,
-                wrapBag: row.WrapBag,
-                weftBag: row.WeftBag,
-                totalAmountMultiple: row.TotalAmountMultiple,
-                gst: row.Gst,
-                gstValue: row.GstValue,
-                fabricValue: row.FabricValue,
-                commissionType: row.CommissionType,
-                commissionPercentage: row.CommissionPercentage,
-                commissionValue: row.CommissionValue,
-                totalAmount: row.TotalAmount,
-              }))
-            : [],
-        dietContractRows:
-          activeContractType === 'Diet'
-            ? dietContractRows.map((row) => ({
-                labDispatchNo: row.LabDispatchNo,
-                labDispatchDate: row.LabDispatchDate,
-                color: row.Color,
-                quantity: row.Quantity,
-                finish: row.Finish,
-                rate: row.Rate,
-                amountTotal: row.AmountTotal,
-                deliveryDate: row.DeliveryDate,
-                gst: row.Gst,
-                gstValue: row.GstValue,
-                fabricValue: row.FabricValue,
-                commissionType: row.CommissionType,
-                commissionPercentage: row.CommissionPercentage,
-                commissionValue: row.CommissionValue,
-                totalAmount: row.TotalAmount,
-              }))
-            : [],
-        multiWidthContractRows:
-          activeContractType === 'MultiWidth'
-            ? multiWidthContractRows.map((row) => ({
-                width: row.Width,
-                quantity: row.Quantity,
-                rate: row.Rate,
-                amount: row.Amount,
-                gst: row.Gst,
-                gstValue: row.GstValue,
-                fabricValue: row.FabricValue,
-                commissionType: row.CommissionType,
-                commissionPercentage: row.CommissionPercentage,
-                commissionValue: row.CommissionValue,
-                totalAmount: row.TotalAmount,
-              }))
-            : [],
+        conversionContractRow: activeContractType === 'Conversion' ? conversionContractRows.map((row) => ({
+          width: row.Width,
+          quantity: row.Quantity,
+          pickRate: row.PickRate,
+          fabRate: row.FabRate,
+          rate: row.Rate,
+          amounts: row.Amounts,
+          deliveryDate: row.DeliveryDate ? new Date(row.DeliveryDate).toISOString() : '',
+          wrapwt: row.Wrapwt,
+          weftwt: row.Weftwt,
+          wrapBag: row.WrapBag,
+          weftBag: row.WeftBag,
+          totalAmountMultiple: row.TotalAmountMultiple,
+          gst: row.Gst,
+          gstValue: row.GstValue,
+          fabricValue: row.FabricValue,
+          commissionType: row.CommissionType,
+          commissionPercentage: row.CommissionPercentage,
+          commissionValue: row.CommissionValue,
+          totalAmount: row.TotalAmount,
+          commisionInfo: {
+            paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
+            paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
+            deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
+            commissionFrom: row.CommissionInfo?.CommissionFrom || '',
+            dispatchAddress: row.CommissionInfo?.DispatchAddress || '',
+            sellerRemark: row.CommissionInfo?.SellerRemark || '',
+            buyerRemark: row.CommissionInfo?.BuyerRemark || '',
+            endUse: row.CommissionInfo?.EndUse || '',
+            endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
+            dispatchLater: row.CommissionInfo?.DispatchLater || '',
+            sellerCommission: row.CommissionInfo?.SellerCommission || '',
+            buyerCommission: row.CommissionInfo?.BuyerCommission || '',
+          },
+          buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
+          sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
+        })) : [],
+        dietContractRow: activeContractType === 'Diet' ? dietContractRows.map((row) => ({
+          labDispatchNo: row.LabDispatchNo,
+          labDispatchDate: row.LabDispatchDate ? new Date(row.LabDispatchDate).toISOString() : '',
+          color: row.Color,
+          quantity: row.Quantity,
+          finish: row.Finish,
+          rate: row.Rate,
+          amountTotal: row.AmountTotal,
+          deliveryDate: row.DeliveryDate ? new Date(row.DeliveryDate).toISOString() : '',
+          gst: row.Gst,
+          gstValue: row.GstValue,
+          fabricValue: row.FabricValue,
+          commissionType: row.CommissionType,
+          commissionPercentage: row.CommissionPercentage,
+          commissionValue: row.CommissionValue,
+          totalAmount: row.TotalAmount,
+          shrinkage: row.Shrinkage,
+          finishWidth: row.FinishWidth,
+          weight: row.Weight,
+          commisionInfo: {
+            paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
+            paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
+            deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
+            commissionFrom: row.CommissionInfo?.CommissionFrom || '',
+            dispatchAddress: row.CommissionInfo?.DispatchAddress || '',
+            sellerRemark: row.CommissionInfo?.SellerRemark || '',
+            buyerRemark: row.CommissionInfo?.BuyerRemark || '',
+            endUse: row.CommissionInfo?.EndUse || '',
+            endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
+            dispatchLater: row.CommissionInfo?.DispatchLater || '',
+            sellerCommission: row.CommissionInfo?.SellerCommission || '',
+            buyerCommission: row.CommissionInfo?.BuyerCommission || '',
+          },
+          buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
+          sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
+        })) : [],
+        multiWidthContractRow: activeContractType === 'MultiWidth' ? multiWidthContractRows.map((row) => ({
+          width: row.Width,
+          quantity: row.Quantity,
+          rate: row.Rate,
+          amount: row.Amount,
+          gst: row.Gst,
+          gstValue: row.GstValue,
+          fabricValue: row.FabricValue,
+          commissionType: row.CommissionType,
+          commissionPercentage: row.CommissionPercentage,
+          commissionValue: row.CommissionValue,
+          totalAmount: row.TotalAmount,
+          commisionInfo: {
+            paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
+            paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
+            deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
+            commissionFrom: row.CommissionInfo?.CommissionFrom || '',
+            dispatchAddress: row.CommissionInfo?.DispatchAddress || '',
+            sellerRemark: row.CommissionInfo?.SellerRemark || '',
+            buyerRemark: row.CommissionInfo?.BuyerRemark || '',
+            endUse: row.CommissionInfo?.EndUse || '',
+            endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
+            dispatchLater: row.CommissionInfo?.DispatchLater || '',
+            sellerCommission: row.CommissionInfo?.SellerCommission || '',
+            buyerCommission: row.CommissionInfo?.BuyerCommission || '',
+          },
+          buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
+          sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
+        })) : [],
       };
 
       const cleanPayload = Object.fromEntries(
@@ -1806,11 +2202,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       toast(errorMessages.join(', '), { type: 'error' });
     }
   };
+
   useEffect(() => {
-  if (activeSection === 'DeliveryDetails') {
-    setActiveContractType('Conversion');
-  }
-}, [activeSection]);
+    if (activeSection === 'DeliveryDetails') {
+      setActiveContractType('Conversion');
+    }
+  }, [activeSection]);
 
   return (
     <div className="container mx-auto bg-white shadow-lg rounded-lg dark:bg-[#030630] p-6">
@@ -1822,30 +2219,29 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       </div>
 
       <div className="flex flex-col gap-6 p-6">
-      <div className="flex justify-center gap-4 border-b border-[#06b6d4] mb-4">
-  <button
-    onClick={() => setActiveSection('GeneralInfo')}
-    className={`px-6 py-2 text-gray-800 relative transition-colors duration-300 mb-2 hover:bg-transparent focus:outline-none
-      ${activeSection === 'GeneralInfo' ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#06b6d4] text-[#06b6d4]' : 'hover:text-[#06b6d4]'}`}
-  >
-    General Info
-  </button>
-  <button
-    onClick={() => setActiveSection('Items')}
-    className={`px-6 py-2 text-gray-800 relative transition-colors duration-300 mb-2 hover:bg-transparent focus:outline-none
-      ${activeSection === 'Items' ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#06b6d4] text-[#06b6d4]' : 'hover:text-[#06b6d4]'}`}
-  >
-    Items
-  </button>
-  <button
-    onClick={() => setActiveSection('DeliveryDetails')}
-    className={`px-6 py-2 text-gray-800 relative transition-colors duration-300 mb-2 hover:bg-transparent focus:outline-none
-      ${activeSection === 'DeliveryDetails' ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#06b6d4] text-[#06b6d4]' : 'hover:text-[#06b6d4]'}`}
-  >
-    Contracts
-  </button>
-</div>
-
+        <div className="flex justify-center gap-4 border-b border-[#06b6d4] mb-4">
+          <button
+            onClick={() => setActiveSection('GeneralInfo')}
+            className={`px-6 py-2 text-gray-800 relative transition-colors duration-300 mb-2 hover:bg-transparent focus:outline-none
+              ${activeSection === 'GeneralInfo' ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#06b6d4] text-[#06b6d4]' : 'hover:text-[#06b6d4]'}`}
+          >
+            General Info
+          </button>
+          <button
+            onClick={() => setActiveSection('Items')}
+            className={`px-6 py-2 text-gray-800 relative transition-colors duration-300 mb-2 hover:bg-transparent focus:outline-none
+              ${activeSection === 'Items' ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#06b6d4] text-[#06b6d4]' : 'hover:text-[#06b6d4]'}`}
+          >
+            Items
+          </button>
+          <button
+            onClick={() => setActiveSection('DeliveryDetails')}
+            className={`px-6 py-2 text-gray-800 relative transition-colors duration-300 mb-2 hover:bg-transparent focus:outline-none
+              ${activeSection === 'DeliveryDetails' ? 'after:absolute after:bottom-0 after:left-0 after:right-0 after:h-1 after:bg-[#06b6d4] text-[#06b6d4]' : 'hover:text-[#06b6d4]'}`}
+          >
+            Contracts
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit(onSubmit)}>
           {activeSection === 'GeneralInfo' && (
@@ -1965,1562 +2361,1665 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
             </div>
           )}
 
-        {activeSection === 'Items' && (
-  <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
-    <h2 className="text-2xl font-bold text-[#06b6d4] dark:text-white mb-6">Items</h2>
+          {activeSection === 'Items' && (
+            <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+              <h2 className="text-2xl font-bold text-[#06b6d4] dark:text-white mb-6">Items</h2>
+              
+              {/* Yarn and Blend Details Section */}
+              <div className="mb-8 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Yarn & Blend Details</h3>
+                <div className="grid grid-cols-5 gap-4">
+                  <DescriptionWithSubSelect
+                    label="Description"
+                    name="Description"
+                    subName="DescriptionSubOptions"
+                    options={descriptions}
+                    selectedOption={watch('Description') || ''}
+                    selectedSubOptions={
+                      Array.isArray(watch('DescriptionSubOptions'))
+                        ? ((watch('DescriptionSubOptions') || []) as unknown[]).slice().filter((v) => typeof v === 'string')
+                        : []
+                    }
+                    onChange={(value) => setValue('Description', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('DescriptionSubOptions', values, { shouldValidate: true })}
+                    error={errors.Description?.message}
+                    subError={errors.DescriptionSubOptions?.message}
+                    register={register}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Stuff"
+                    name="Stuff"
+                    subName="StuffSubOptions"
+                    options={stuffs}
+                    selectedOption={watch('Stuff') || ''}
+                    selectedSubOptions={watch('StuffSubOptions') || []}
+                    onChange={(value) => setValue('Stuff', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('StuffSubOptions', values, { shouldValidate: true })}
+                    error={errors.Stuff?.message}
+                    subError={errors.StuffSubOptions?.message}
+                    register={register}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Blend Ratio"
+                    name="BlendRatio"
+                    subName="BlendType"
+                    options={blendRatios}
+                    selectedOption={watch('BlendRatio') || ''}
+                    selectedSubOptions={watch('BlendType') ? [watch('BlendType')].filter((v): v is string => typeof v === 'string') : []}
+                    onChange={(value) => setValue('BlendRatio', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('BlendType', values[0] || '', { shouldValidate: true })}
+                    error={errors.BlendRatio?.message}
+                    subError={errors.BlendType?.message}
+                    register={register}
+                  />
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="Warp Count"
+                    id="WarpCount"
+                    {...register('WarpCount')}
+                    error={errors.WarpCount?.message}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Warp Yarn Type"
+                    name="WarpYarnType"
+                    subName="WarpYarnTypeSubOptions"
+                    options={warpYarnTypes}
+                    selectedOption={watch('WarpYarnType') || ''}
+                    selectedSubOptions={
+                      Array.isArray(watch('WarpYarnTypeSubOptions'))
+                        ? ((watch('WarpYarnTypeSubOptions') || []) as unknown[]).slice().filter((v) => typeof v === 'string')
+                        : []
+                    }
+                    onChange={(value) => setValue('WarpYarnType', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('WarpYarnTypeSubOptions', values, { shouldValidate: true })}
+                    error={errors.WarpYarnType?.message}
+                    subError={errors.WarpYarnTypeSubOptions?.message}
+                    register={register}
+                  />
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="Weft Count"
+                    id="WeftCount"
+                    {...register('WeftCount')}
+                    error={errors.WeftCount?.message}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Weft Yarn Type"
+                    name="WeftYarnType"
+                    subName="WeftYarnTypeSubOptions"
+                    options={weftYarnTypes}
+                    selectedOption={watch('WeftYarnType') || ''}
+                    selectedSubOptions={watch('WeftYarnTypeSubOptions') || []}
+                    onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('WeftYarnTypeSubOptions', values, { shouldValidate: true })}
+                    error={errors.WeftYarnType?.message}
+                    subError={errors.WarpYarnTypeSubOptions?.message}
+                    register={register}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Induction Thread"
+                    name="InductionThread"
+                    subName="InductionThreadSubOptions"
+                    options={inductionThreads}
+                    selectedOption={watch('InductionThread') || ''}
+                    selectedSubOptions={
+                      Array.isArray(watch('InductionThreadSubOptions'))
+                        ? (watch('InductionThreadSubOptions') ?? []).slice().filter((v) => typeof v === 'string')
+                        : []
+                    }
+                    onChange={(value) => setValue('InductionThread', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('InductionThreadSubOptions', values, { shouldValidate: true })}
+                    error={errors.InductionThread?.message}
+                    subError={errors.InductionThreadSubOptions?.message}
+                    register={register}
+                  />
+                </div>
+              </div>
+
+              {/* Fabric and Measurement Details Section */}
+              <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Fabric & Measurement Details</h3>
+                <div className="grid grid-cols-5 gap-4">
+                  <CustomInput
+                    type="number"
+                    variant="floating"
+                    borderThickness="2"
+                    label="No. of Ends"
+                    id="NoOfEnds"
+                    {...register('NoOfEnds')}
+                    error={errors.NoOfEnds?.message}
+                  />
+                  <CustomInput
+                    type="number"
+                    variant="floating"
+                    borderThickness="2"
+                    label="No. of Picks"
+                    id="NoOfPicks"
+                    {...register('NoOfPicks')}
+                    error={errors.NoOfPicks?.message}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Weaves"
+                    name="Weaves"
+                    subName="WeavesSubOptions"
+                    options={weaves}
+                    selectedOption={watch('Weaves') || ''}                    selectedSubOptions={
+                      Array.isArray(watch('WeavesSubOptions'))
+                        ? (watch('WeavesSubOptions') || []).filter((v) => typeof v === 'string')
+                        : []
+                    }
+                    onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('WeavesSubOptions', values, { shouldValidate: true })}
+                    error={errors.Weaves?.message}
+                    subError={errors.WeavesSubOptions?.message}
+                    register={register}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Pick Insertion"
+                    name="PickInsertion"
+                    subName="PickInsertionSubOptions"
+                    options={pickInsertions}
+                    selectedOption={watch('PickInsertion') || ''}
+                    selectedSubOptions={
+                      Array.isArray(watch('PickInsertionSubOptions'))
+                        ? (watch('PickInsertionSubOptions') ?? []).slice().filter((v) => typeof v === 'string')
+                        : []
+                    }
+                    onChange={(value) => setValue('PickInsertion', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('PickInsertionSubOptions', values, { shouldValidate: true })}
+                    error={errors.PickInsertion?.message}
+                    subError={errors.PickInsertionSubOptions?.message}
+                    register={register}
+                  />
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="Width"
+                    id="Width"
+                    {...register('Width')}
+                    error={errors.Width?.message}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Final"
+                    name="Final"
+                    subName="FinalSubOptions"
+                    options={finals}
+                    selectedOption={watch('Final') || ''}
+                    selectedSubOptions={
+                      Array.isArray(watch('FinalSubOptions'))
+                        ? (watch('FinalSubOptions') ?? []).slice().filter((v) => typeof v === 'string')
+                        : []
+                    }
+                    onChange={(value) => setValue('Final', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('FinalSubOptions', values, { shouldValidate: true })}
+                    error={errors.Final?.message}
+                    subError={errors.FinalSubOptions?.message}
+                    register={register}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Selvedge"
+                    name="Selvedge"
+                    subName="SelvedgeSubOptions"
+                    options={selvedges}
+                    selectedOption={watch('Selvedge') || ''}
+                    selectedSubOptions={
+                      Array.isArray(watch('SelvedgeSubOptions'))
+                        ? ((watch('SelvedgeSubOptions') || []) as unknown[]).slice().filter((v) => typeof v === 'string')
+                        : []
+                    }
+                    onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('SelvedgeSubOptions', values, { shouldValidate: true })}
+                    error={errors.Selvedge?.message}
+                    subError={errors.SelvedgeSubOptions?.message}
+                    register={register}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Selvedge Weave"
+                    name="SelvedgeWeave"
+                    subName="SelvedgeWeaveSubOptions"
+                    options={selvedgeWeaves}
+                    selectedOption={watch('SelvedgeWeave') || ''}                    selectedSubOptions={
+                      Array.isArray(watch('SelvedgeWeaveSubOptions'))
+                        ? (watch('SelvedgeWeaveSubOptions') || []).filter((v) => typeof v === 'string')
+                        : []
+                    }
+                    onChange={(value) => setValue('SelvedgeWeave', value, { shouldValidate: true })}
+                    onSubChange={(values) => setValue('SelvedgeWeaveSubOptions', values, { shouldValidate: true })}
+                    error={errors.SelvedgeWeave?.message}
+                    subError={errors.SelvedgeWeaveSubOptions?.message}
+                    register={register}
+                  />
+                  <DescriptionWithSubSelect
+                    label="Selvedge Width"
+                    name="SelvedgeWidth"
+                    subName="SelvedgeWidthSubOptions"
+                    options={selvedgeWidths}
+                    selectedOption={watch('SelvedgeWidth') || ''}
+                    selectedSubOptions={[]}
+                    onChange={(value) => setValue('SelvedgeWidth', value, { shouldValidate: true })}
+                    onSubChange={() => {}}
+                    error={errors.SelvedgeWidth?.message}
+                    subError={undefined}
+                    register={register}
+                  />
+                  <CustomInputDropdown
+                    label="Selvedge Thickness"
+                    options={selvegeThicknesses}
+                    selectedOption={watch('SelvegeThickness') || ''}
+                    onChange={(value) => setValue('SelvegeThickness', value, { shouldValidate: true })}
+                    error={errors.SelvegeThickness?.message}
+                    register={register}
+                  />
+                  <CustomInputDropdown
+                    label="GSM"
+                    options={gsms}
+                    selectedOption={watch('GSM') || ''}
+                    onChange={(value) => setValue('GSM', value, { shouldValidate: true })}
+                    error={errors.GSM?.message}
+                    register={register}
+                  />
+                  <CustomInput
+                    type="number"
+                    variant="floating"
+                    borderThickness="2"
+                    label="Quantity"
+                    id="Quantity"
+                    {...register('Quantity')}
+                    error={errors.Quantity?.message}
+                  />
+                  <CustomInputDropdown
+                    label="Unit of Measure"
+                    options={unitsOfMeasure}
+                    selectedOption={watch('UnitOfMeasure') || ''}
+                    onChange={(value) => setValue('UnitOfMeasure', value, { shouldValidate: true })}
+                    error={errors.UnitOfMeasure?.message}
+                    register={register}
+                  />
+                  <CustomInput
+                    variant="floating"
+                    borderThickness="2"
+                    label="Tolerance"
+                    id="Tolerance"
+                    {...register('Tolerance')}
+                    error={errors.Tolerance?.message}
+                  />
+                  <CustomInput
+                    type="number"
+                    variant="floating"
+                    borderThickness="2"
+                    label="Rate"
+                    id="Rate"
+                    {...register('Rate')}
+                    error={errors.Rate?.message}
+                  />
+                  <CustomInputDropdown
+                    label="Packing"
+                    options={packings}
+                    selectedOption={watch('Packing') || ''}
+                    onChange={(value) => setValue('Packing', value, { shouldValidate: true })}
+                    error={errors.Packing?.message}
+                    register={register}
+                  />
+                  <CustomInputDropdown
+                    label="Piece Length"
+                    options={pieceLengths}
+                    selectedOption={watch('PieceLength') || ''}
+                    onChange={(value) => setValue('PieceLength', value, { shouldValidate: true })}
+                    error={errors.PieceLength?.message}
+                    register={register}
+                  />
+                  <CustomInput
+                    type="number"
+                    variant="floating"
+                    borderThickness="2"
+                    label="Fabric Value"
+                    id="FabricValue"
+                    {...register('FabricValue')}
+                    error={errors.FabricValue?.message}
+                  />
+                  <CustomInputDropdown
+                    label="GST"
+                    options={gstTypes}
+                    selectedOption={watch('Gst') || ''}
+                    onChange={(value) => setValue('Gst', value, { shouldValidate: true })}
+                    error={errors.Gst?.message}
+                    register={register}
+                  />
+                  <CustomInput
+                    type="number"
+                    variant="floating"
+                    borderThickness="2"
+                    label="GST Value"
+                    id="GstValue"
+                    {...register('GstValue')}
+                    error={errors.GstValue?.message}
+                  />
+                  <CustomInput
+                    type="number"
+                    variant="floating"
+                    borderThickness="2"
+                    label="Total Amount"
+                    id="TotalAmount"
+                    {...register('TotalAmount')}
+                    error={errors.TotalAmount?.message}
+                  />
+                  <CustomInputDropdown
+                    label="End Use"
+                    options={endUses}
+                    selectedOption={watch('EndUse') || ''}
+                    onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
+                    error={errors.EndUse?.message}
+                    register={register}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between mt-8">
+                <Button
+                  type="button"
+                  onClick={handlePreviousSection}
+                  className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
+                >
+                  <MdArrowBack /> Previous
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleNextSection}
+                  className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
+                >
+                  Next <MdArrowForward />
+                </Button>
+              </div>
+            </div>
+          )}
     
-    {/* Yarn and Blend Details Section */}
-    <div className="mb-8 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900">
-      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Yarn & Blend Details</h3>
-      <div className="grid grid-cols-5 gap-4">
-        <DescriptionWithSubSelect
-          label="Description"
-          name="Description"
-          subName="DescriptionSubOptions"
-          options={descriptions}
-          selectedOption={watch('Description') || ''}
-          selectedSubOptions={
-            Array.isArray(watch('DescriptionSubOptions'))
-              ? ((watch('DescriptionSubOptions') || []) as unknown[]).slice().filter((v) => typeof v === 'string')
-              : []
-          }
-          onChange={(value) => setValue('Description', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('DescriptionSubOptions', values, { shouldValidate: true })}
-          error={errors.Description?.message}
-          subError={errors.DescriptionSubOptions?.message}
-          register={register}
-        />
-        <DescriptionWithSubSelect
-          label="Stuff"
-          name="Stuff"
-          subName="StuffSubOptions"
-          options={stuffs}
-          selectedOption={watch('Stuff') || ''}
-          selectedSubOptions={watch('StuffSubOptions') || []}
-          onChange={(value) => setValue('Stuff', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('StuffSubOptions', values, { shouldValidate: true })}
-          error={errors.Stuff?.message}
-          subError={errors.StuffSubOptions?.message}
-          register={register}
-        />
-        <DescriptionWithSubSelect
-          label="Blend Ratio"
-          name="BlendRatio"
-          subName="BlendType"
-          options={blendRatios}
-          selectedOption={watch('BlendRatio') || ''}
-          selectedSubOptions={watch('BlendType') ? [watch('BlendType')].filter((v): v is string => typeof v === 'string') : []}
-          onChange={(value) => setValue('BlendRatio', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('BlendType', values[0] || '', { shouldValidate: true })}
-          error={errors.BlendRatio?.message}
-          subError={errors.BlendType?.message}
-          register={register}
-        />
-        <CustomInput
-          variant="floating"
-          borderThickness="2"
-          label="Warp Count"
-          id="WarpCount"
-          {...register('WarpCount')}
-          error={errors.WarpCount?.message}
-        />
-        <DescriptionWithSubSelect
-          label="Warp Yarn Type"
-          name="WarpYarnType"
-          subName="WarpYarnTypeSubOptions"
-          options={warpYarnTypes}
-          selectedOption={watch('WarpYarnType') || ''}
-          selectedSubOptions={
-            Array.isArray(watch('WarpYarnTypeSubOptions'))
-              ? ((watch('WarpYarnTypeSubOptions') || []) as unknown[]).slice().filter((v) => typeof v === 'string')
-              : []
-          }
-          onChange={(value) => setValue('WarpYarnType', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('WarpYarnTypeSubOptions', values, { shouldValidate: true })}
-          error={errors.WarpYarnType?.message}
-          subError={errors.WarpYarnTypeSubOptions?.message}
-          register={register}
-        />
-        <CustomInput
-          variant="floating"
-          borderThickness="2"
-          label="Weft Count"
-          id="WeftCount"
-          {...register('WeftCount')}
-          error={errors.WeftCount?.message}
-        />
-        <DescriptionWithSubSelect
-          label="Weft Yarn Type"
-          name="WeftYarnType"
-          subName="WeftYarnTypeSubOptions"
-          options={weftYarnTypes}
-          selectedOption={watch('WeftYarnType') || ''}
-          selectedSubOptions={watch('WeftYarnTypeSubOptions') || []}
-          onChange={(value) => setValue('WeftYarnType', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('WeftYarnTypeSubOptions', values, { shouldValidate: true })}
-          error={errors.WeftYarnType?.message}
-          subError={errors.WarpYarnTypeSubOptions?.message}
-          register={register}
-        />
-        <DescriptionWithSubSelect
-          label="Induction Thread"
-          name="InductionThread"
-          subName="InductionThreadSubOptions"
-          options={inductionThreads}
-          selectedOption={watch('InductionThread') || ''}
-          selectedSubOptions={
-            Array.isArray(watch('InductionThreadSubOptions'))
-              ? (watch('InductionThreadSubOptions') ?? []).slice().filter((v) => typeof v === 'string')
-              : []
-          }
-          onChange={(value) => setValue('InductionThread', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('InductionThreadSubOptions', values, { shouldValidate: true })}
-          error={errors.InductionThread?.message}
-          subError={errors.InductionThreadSubOptions?.message}
-          register={register}
-        />
-      </div>
-    </div>
-
-    {/* Fabric and Measurement Details Section */}
-    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900">
-      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Fabric & Measurement Details</h3>
-      <div className="grid grid-cols-5 gap-4">
-        <CustomInput
-          type="number"
-          variant="floating"
-          borderThickness="2"
-          label="No. of Ends"
-          id="NoOfEnds"
-          {...register('NoOfEnds')}
-          error={errors.NoOfEnds?.message}
-        />
-        <CustomInput
-          type="number"
-          variant="floating"
-          borderThickness="2"
-          label="No. of Picks"
-          id="NoOfPicks"
-          {...register('NoOfPicks')}
-          error={errors.NoOfPicks?.message}
-        />
-        <DescriptionWithSubSelect
-          label="Weaves"
-          name="Weaves"
-          subName="WeavesSubOptions"
-          options={weaves}
-          selectedOption={watch('Weaves') || ''}
-          selectedSubOptions={
-            Array.isArray(watch('WeavesSubOptions'))
-              ? watch('WeavesSubOptions')?.slice().filter((v) => typeof v === 'string')
-              : []
-          }
-          onChange={(value) => setValue('Weaves', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('WeavesSubOptions', values, { shouldValidate: true })}
-          error={errors.Weaves?.message}
-          subError={errors.WeavesSubOptions?.message}
-          register={register}
-        />
-        <DescriptionWithSubSelect
-          label="Pick Insertion"
-          name="PickInsertion"
-          subName="PickInsertionSubOptions"
-          options={pickInsertions}
-          selectedOption={watch('PickInsertion') || ''}
-          selectedSubOptions={
-            Array.isArray(watch('PickInsertionSubOptions'))
-              ? (watch('PickInsertionSubOptions') ?? []).slice().filter((v) => typeof v === 'string')
-              : []
-          }
-          onChange={(value) => setValue('PickInsertion', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('PickInsertionSubOptions', values, { shouldValidate: true })}
-          error={errors.PickInsertion?.message}
-          subError={errors.PickInsertionSubOptions?.message}
-          register={register}
-        />
-        <CustomInput
-          variant="floating"
-          borderThickness="2"
-          label="Width"
-          id="Width"
-          {...register('Width')}
-          error={errors.Width?.message}
-        />
-        <DescriptionWithSubSelect
-          label="Final"
-          name="Final"
-          subName="FinalSubOptions"
-          options={finals}
-          selectedOption={watch('Final') || ''}
-          selectedSubOptions={
-            Array.isArray(watch('FinalSubOptions'))
-              ? (watch('FinalSubOptions') ?? []).slice().filter((v) => typeof v === 'string')
-              : []
-          }
-          onChange={(value) => setValue('Final', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('FinalSubOptions', values, { shouldValidate: true })}
-          error={errors.Final?.message}
-          subError={errors.FinalSubOptions?.message}
-          register={register}
-        />
-        <DescriptionWithSubSelect
-          label="Selvedge"
-          name="Selvedge"
-          subName="SelvedgeSubOptions"
-          options={selvedges}
-          selectedOption={watch('Selvedge') || ''}
-          selectedSubOptions={
-            Array.isArray(watch('SelvedgeSubOptions'))
-              ? ((watch('SelvedgeSubOptions') || []) as unknown[]).slice().filter((v) => typeof v === 'string')
-              : []
-          }
-          onChange={(value) => setValue('Selvedge', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('SelvedgeSubOptions', values, { shouldValidate: true })}
-          error={errors.Selvedge?.message}
-          subError={errors.SelvedgeSubOptions?.message}
-          register={register}
-        />
-        <DescriptionWithSubSelect
-          label="Selvedge Weave"
-          name="SelvedgeWeave"
-          subName="SelvedgeWeaveSubOptions"
-          options={selvedgeWeaves}
-          selectedOption={watch('SelvedgeWeave') || ''}
-          selectedSubOptions={
-            Array.isArray(watch('SelvedgeWeaveSubOptions'))
-              ? watch('SelvedgeWeaveSubOptions')?.slice().filter((v) => typeof v === 'string')
-              : []
-          }
-          onChange={(value) => setValue('SelvedgeWeave', value, { shouldValidate: true })}
-          onSubChange={(values) => setValue('SelvedgeWeaveSubOptions', values, { shouldValidate: true })}
-          error={errors.SelvedgeWeave?.message}
-          subError={errors.SelvedgeWeaveSubOptions?.message}
-          register={register}
-        />
-        <DescriptionWithSubSelect
-          label="Selvedge Width"
-          name="SelvedgeWidth"
-          subName="SelvedgeWidthSubOptions"
-          options={selvedgeWidths}
-          selectedOption={watch('SelvedgeWidth') || ''}
-          selectedSubOptions={[]}
-          onChange={(value) => setValue('SelvedgeWidth', value, { shouldValidate: true })}
-          onSubChange={() => {}}
-          error={errors.SelvedgeWidth?.message}
-          subError={undefined}
-          register={register}
-        />
-        <CustomInputDropdown
-          label="Selvedge Thickness"
-          options={selvegeThicknesses}
-          selectedOption={watch('SelvegeThickness') || ''}
-          onChange={(value) => setValue('SelvegeThickness', value, { shouldValidate: true })}
-          error={errors.SelvegeThickness?.message}
-          register={register}
-        />
-        <CustomInputDropdown
-          label="GSM"
-          options={gsms}
-          selectedOption={watch('GSM') || ''}
-          onChange={(value) => setValue('GSM', value, { shouldValidate: true })}
-          error={errors.GSM?.message}
-          register={register}
-        />
-        <CustomInput
-          type="number"
-          variant="floating"
-          borderThickness="2"
-          label="Quantity"
-          id="Quantity"
-          {...register('Quantity')}
-          error={errors.Quantity?.message}
-        />
-        <CustomInputDropdown
-          label="Unit of Measure"
-          options={unitsOfMeasure}
-          selectedOption={watch('UnitOfMeasure') || ''}
-          onChange={(value) => setValue('UnitOfMeasure', value, { shouldValidate: true })}
-          error={errors.UnitOfMeasure?.message}
-          register={register}
-        />
-        <CustomInput
-          variant="floating"
-          borderThickness="2"
-          label="Tolerance"
-          id="Tolerance"
-          {...register('Tolerance')}
-          error={errors.Tolerance?.message}
-        />
-        <CustomInput
-          type="number"
-          variant="floating"
-          borderThickness="2"
-          label="Rate"
-          id="Rate"
-          {...register('Rate')}
-          error={errors.Rate?.message}
-        />
-        <CustomInputDropdown
-          label="Packing"
-          options={packings}
-          selectedOption={watch('Packing') || ''}
-          onChange={(value) => setValue('Packing', value, { shouldValidate: true })}
-          error={errors.Packing?.message}
-          register={register}
-        />
-        <CustomInputDropdown
-          label="Piece Length"
-          options={pieceLengths}
-          selectedOption={watch('PieceLength') || ''}
-          onChange={(value) => setValue('PieceLength', value, { shouldValidate: true })}
-          error={errors.PieceLength?.message}
-          register={register}
-        />
-        <CustomInput
-          type="number"
-          variant="floating"
-          borderThickness="2"
-          label="Fabric Value"
-          id="FabricValue"
-          {...register('FabricValue')}
-          error={errors.FabricValue?.message}
-        />
-        <CustomInputDropdown
-          label="GST"
-          options={gstTypes}
-          selectedOption={watch('Gst') || ''}
-          onChange={(value) => setValue('Gst', value, { shouldValidate: true })}
-          error={errors.Gst?.message}
-          register={register}
-        />
-        <CustomInput
-          type="number"
-          variant="floating"
-          borderThickness="2"
-          label="GST Value"
-          id="GstValue"
-          {...register('GstValue')}
-          error={errors.GstValue?.message}
-        />
-        <CustomInput
-          type="number"
-          variant="floating"
-          borderThickness="2"
-          label="Total Amount"
-          id="TotalAmount"
-          {...register('TotalAmount')}
-          error={errors.TotalAmount?.message}
-        />
-        <CustomInputDropdown
-          label="End Use"
-          options={endUses}
-          selectedOption={watch('EndUse') || ''}
-          onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
-          error={errors.EndUse?.message}
-          register={register}
-        />
-      </div>
-    </div>
-
-    <div className="flex justify-between mt-8">
-      <Button
-        type="button"
-        onClick={handlePreviousSection}
-        className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
-      >
-        <MdArrowBack /> Previous
-      </Button>
-      <Button
-        type="button"
-        onClick={handleNextSection}
-        className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
-      >
-        Next <MdArrowForward />
-      </Button>
-    </div>
-  </div>
-)}
-    
-        {activeSection === 'DeliveryDetails' && (
-  <div className="border rounded-lg p-8 bg-gray-50 dark:bg-gray-900">
-    <h2 className="text-2xl font-bold text-[#06b6d4] dark:text-white mb-6">Delivery Details</h2>
-    <div className="flex justify-center gap-6 mb-6">
-      <Button
-        type="button"
-        onClick={() => setActiveContractType('Conversion')}
-        className={`px-6 py-2 text-gray-800 dark:text-gray-200 text-lg font-semibold border-b-2 ${
-          activeContractType === 'Conversion' ? 'border-[#06b6d4] text-[#06b6d4]' : 'border-transparent'
-        }  hover:text-white hover:bg-[#06b6d4] transition-colors bg-transparent`}
-      >
-        Conversion Contract
-      </Button>
-      <Button
-        type="button"
-        onClick={() => setActiveContractType('Diet')}
-        className={`px-6 py-2 text-gray-800 dark:text-gray-200 text-lg font-semibold border-b-2 ${
-          activeContractType === 'Diet' ? 'border-[#06b6d4] text-[#06b6d4]' : 'border-transparent'
-        }  hover:text-white hover:bg-[#06b6d4] transition-colors bg-transparent`}
-      >
-        Dyed Contract
-      </Button>
-      <Button
-        type="button"
-        onClick={() => setActiveContractType('MultiWidth')}
-        className={`px-6 py-2 text-gray-800 dark:text-gray-200 text-lg font-semibold border-b-2 ${
-          activeContractType === 'MultiWidth' ? 'border-[#06b6d4] text-[#06b6d4]' : 'border-transparent'
-        }  hover:text-white hover:bg-[#06b6d4] transition-colors bg-transparent`}
-      >
-        Multi Width Contract
-      </Button>
-    </div>
-
-    {activeContractType === 'Conversion' && (
-      <div className="mt-6">
-        <div className="overflow-x-auto rounded-lg shadow-md">
-          <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-            <thead>
-              <tr className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-                {[
-                  'Width', 'Quantity', 'Pick Rate', 'Fab Rate', 'Rate', 'Amounts', 'Delivery Date',
-                  'Wrap Wt', 'Weft Wt', 'Wrap Bag', 'Weft Bag', 'Total Amt', 'GST', 'GST Value',
-                  'Fabric Value', 'Commission Type', 'Commission %', 'Commission Value', 'Total Amount', 'Actions'
-                ].map((header, index) => (
-                  <th
-                    key={index}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200"
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {conversionContractRows.map((row, index) => (
-                <tr
-                  key={index}
-                  className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          {activeSection === 'DeliveryDetails' && (
+            <div className="border rounded-lg p-8 bg-gray-50 dark:bg-gray-900">
+              <h2 className="text-2xl font-bold text-[#06b6d4] dark:text-white mb-6">Delivery Details</h2>
+              <div className="flex justify-center gap-6 mb-6">
+                <Button
+                  type="button"
+                  onClick={() => setActiveContractType('Conversion')}
+                  className={`px-6 py-2 text-gray-800 dark:text-gray-200 text-lg font-semibold border-b-2 ${
+                    activeContractType === 'Conversion' ? 'border-[#06b6d4] text-[#06b6d4]' : 'border-transparent'
+                  }  hover:text-white hover:bg-[#06b6d4] transition-colors bg-transparent`}
                 >
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.Width}
-                      onChange={(e) => handleConversionContractChange(index, 'Width', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.Quantity}
-                      onChange={(e) => handleConversionContractChange(index, 'Quantity', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                      min="1"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.PickRate}
-                      onChange={(e) => handleConversionContractChange(index, 'PickRate', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.FabRate}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.Rate}
-                      onChange={(e) => handleConversionContractChange(index, 'Rate', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                      min="0"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.Amounts}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="date"
-                      value={row.DeliveryDate}
-                      onChange={(e) => handleConversionContractChange(index, 'DeliveryDate', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.Wrapwt}
-                      onChange={(e) => handleConversionContractChange(index, 'Wrapwt', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.Weftwt}
-                      onChange={(e) => handleConversionContractChange(index, 'Weftwt', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.WrapBag}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.WeftBag}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.TotalAmountMultiple}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={row.Gst}
-                      onChange={(e) => handleConversionContractChange(index, 'Gst', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    >
-                      <option value="">Select GST</option>
-                      {gstTypes.map((gst) => (
-                        <option key={gst.id} value={gst.id}>
-                          {gst.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.GstValue}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.FabricValue}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={row.CommissionType}
-                      onChange={(e) => handleConversionContractChange(index, 'CommissionType', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    >
-                      <option value="">Select Commission Type</option>
-                      {commissionTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                          {type.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.CommissionPercentage}
-                      onChange={(e) => handleConversionContractChange(index, 'CommissionPercentage', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                      min="0"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.CommissionValue}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.TotalAmount}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3 flex gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => removeConversionContractRow(index)}
-                      className="flex items-center justify-center bg-red-500 text-white hover:bg-red-600 p-2 rounded-lg transition-colors"
-                    >
-                      <MdDelete className="w-5 h-5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={addConversionContractRow}
-                      className="flex items-center justify-center bg-[#06b6d4] text-white hover:bg-[#0895b0] p-2 rounded-lg transition-colors"
-                    >
-                      <MdAdd className="w-5 h-5" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="grid grid-cols-2 gap-10 mt-6">
-          <div className="grid grid-cols-3 gap-4 border rounded-lg p-6 bg-white dark:bg-gray-800">
-            <CustomInputDropdown
-              label="Payment Terms (Seller)"
-              options={paymentTerms}
-              selectedOption={watch('PaymentTermsSeller') || ''}
-              onChange={(value) => setValue('PaymentTermsSeller', value, { shouldValidate: true })}
-              error={errors.PaymentTermsSeller?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Payment Terms (Buyer)"
-              options={paymentTerms}
-              selectedOption={watch('PaymentTermsBuyer') || ''}
-              onChange={(value) => setValue('PaymentTermsBuyer', value, { shouldValidate: true })}
-              error={errors.PaymentTermsBuyer?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Delivery Terms"
-              options={deliveryTerms}
-              selectedOption={watch('DeliveryTerms') || ''}
-              onChange={(value) => setValue('DeliveryTerms', value, { shouldValidate: true })}
-              error={errors.DeliveryTerms?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Commission From"
-              options={commissionFromOptions}
-              selectedOption={watch('CommissionFrom') || ''}
-              onChange={(value) => setValue('CommissionFrom', value, { shouldValidate: true })}
-              error={errors.CommissionFrom?.message}
-              register={register}
-            />
-            {commissionFrom === 'Both' && (
-              <>
-                <CustomInput
-                  variant="floating"
-                  borderThickness="2"
-                  label="Seller Commission"
-                  id="SellerCommission"
-                  {...register('SellerCommission')}
-                  error={errors.SellerCommission?.message}
-                />
-                <CustomInput
-                  variant="floating"
-                  borderThickness="2"
-                  label="Buyer Commission"
-                  id="BuyerCommission"
-                  {...register('BuyerCommission')}
-                  error={errors.BuyerCommission?.message}
-                />
-              </>
-            )}
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Dispatch Address"
-              id="DispatchAddress"
-              {...register('DispatchAddress')}
-              error={errors.DispatchAddress?.message}
-            />
-            <CustomInputDropdown
-              label="Dispatch Later"
-              options={dispatchLaterOptions}
-              selectedOption={watch('DispatchLater') || ''}
-              onChange={(value) => setValue('DispatchLater', value, { shouldValidate: true })}
-              error={errors.DispatchLater?.message}
-              register={register}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Seller Remark"
-              id="SellerRemark"
-              {...register('SellerRemark')}
-              error={errors.SellerRemark?.message}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Buyer Remark"
-              id="BuyerRemark"
-              {...register('BuyerRemark')}
-              error={errors.BuyerRemark?.message}
-            />
-            <DescriptionWithSubSelect
-              label="End Use"
-              name="EndUse"
-              subName="EndUseSubOptions"
-              options={endUses}
-              selectedOption={watch('EndUse') || ''}
-              selectedSubOptions={watch('EndUseSubOptions') || []}
-              onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
-              onSubChange={(values) => setValue('EndUseSubOptions', values, { shouldValidate: true })}
-              error={errors.EndUse?.message}
-              subError={errors.EndUseSubOptions?.message}
-              register={register}
-            />
-          </div>
-          <div className="space-y-6 border rounded-lg p-6 bg-white dark:bg-gray-800">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Seller Delivery Breakup</h3>
-              {sellerDeliveryBreakups.map((breakup, index) => (
-                <div key={index} className="flex gap-2 mb-4">
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Quantity"
-                    value={breakup.Qty}
-                    onChange={(e) => handleSellerDeliveryBreakupChange(index, 'Qty', e.target.value)}
-                    error={undefined}
-                  />
-                  <CustomInput
-                    type="date"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Delivery Date"
-                    value={breakup.DeliveryDate}
-                    onChange={(e) => handleSellerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)}
-                    error={undefined}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => removeSellerDeliveryBreakup(index)}
-                    className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                  >
-                    <MdDelete className="w-5 h-5" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                onClick={addSellerDeliveryBreakup}
-                className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-              >
-                Add
-              </Button>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Buyer Delivery Breakup</h3>
-              {buyerDeliveryBreakups.map((breakup, index) => (
-                <div key={index} className="flex gap-2 mb-4">
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Quantity"
-                    value={breakup.Qty}
-                    onChange={(e) => handleBuyerDeliveryBreakupChange(index, 'Qty', e.target.value)}
-                    error={undefined}
-                  />
-                  <CustomInput
-                    type="date"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Delivery Date"
-                    value={breakup.DeliveryDate}
-                    onChange={(e) => handleBuyerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)}
-                    error={undefined}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => removeBuyerDeliveryBreakup(index)}
-                    className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                  >
-                    <MdDelete className="w-5 h-5" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                onClick={addBuyerDeliveryBreakup}
-                className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-              >
-                Add
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {activeContractType === 'Diet' && (
-      <div className="mt-6">
-        <div className="overflow-x-auto rounded-lg shadow-md">
-          <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-            <thead>
-              <tr className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-                {[
-                  'Lab Dispatch No', 'Lab Dispatch Date', 'Color', 'Quantity', 'Finish', 'Rate',
-                  'Amount Total', 'Delivery Date', 'GST', 'GST Value', 'Fabric Value',
-                  'Commission Type', 'Commission %', 'Commission Value', 'Total Amount', 'Shrinkage', 'Finish Width','Weight', 'Actions'
-                ].map((header, index) => (
-                  <th
-                    key={index}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200"
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {dietContractRows.map((row, index) => (
-                <tr
-                  key={index}
-                  className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  Conversion Contract
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setActiveContractType('Diet')}
+                  className={`px-6 py-2 text-gray-800 dark:text-gray-200 text-lg font-semibold border-b-2 ${
+                    activeContractType === 'Diet' ? 'border-[#06b6d4] text-[#06b6d4]' : 'border-transparent'
+                  }  hover:text-white hover:bg-[#06b6d4] transition-colors bg-transparent`}
                 >
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.LabDispatchNo}
-                      onChange={(e) => handleDietContractChange(index, 'LabDispatchNo', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="date"
-                      value={row.LabDispatchDate}
-                      onChange={(e) => handleDietContractChange(index, 'LabDispatchDate', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.Color}
-                      onChange={(e) => handleDietContractChange(index, 'Color', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.Quantity}
-                      onChange={(e) => handleDietContractChange(index, 'Quantity', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                      min="1"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.Finish}
-                      onChange={(e) => handleDietContractChange(index, 'Finish', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.Rate}
-                      onChange={(e) => handleDietContractChange(index, 'Rate', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                      min="0"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.AmountTotal}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="date"
-                      value={row.DeliveryDate}
-                      onChange={(e) => handleDietContractChange(index, 'DeliveryDate', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={row.Gst}
-                      onChange={(e) => handleDietContractChange(index, 'Gst', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    >
-                      <option value="">Select GST</option>
-                      {gstTypes.map((gst) => (
-                        <option key={gst.id} value={gst.id}>
-                          {gst.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.GstValue}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.FabricValue}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={row.CommissionType}
-                      onChange={(e) => handleDietContractChange(index, 'CommissionType', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    >
-                      <option value="">Select Commission Type</option>
-                      {commissionTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                          {type.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.CommissionPercentage}
-                      onChange={(e) => handleDietContractChange(index, 'CommissionPercentage', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                      min="0"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.CommissionValue}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.TotalAmount}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td>
-                 <input
-                      type="text"
-                      value={row.Shrinkage}
-                      onChange={(e) => handleDietContractChange(index, 'LabDispatchNo', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                    </td>
-                    <td>
-                  <input
-                      type="text"
-                      value={row.FinishWidth}
-                      onChange={(e) => handleDietContractChange(index, 'LabDispatchNo', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                    </td>
-                    <td>
-                  <input
-                      type="text"
-                      value={row.Weight}
-                      onChange={(e) => handleDietContractChange(index, 'LabDispatchNo', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                    </td>
-                  <td className="px-4 py-3 flex gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => removeDietContractRow(index)}
-                      className="flex items-center justify-center bg-red-500 text-white hover:bg-red-600 p-2 rounded-lg transition-colors"
-                    >
-                      <MdDelete className="w-5 h-5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={addDietContractRow}
-                      className="flex items-center justify-center bg-[#06b6d4] text-white hover:bg-[#0895b0] p-2 rounded-lg transition-colors"
-                    >
-                      <MdAdd className="w-5 h-5" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="grid grid-cols-2 gap-10 mt-6">
-          <div className="grid grid-cols-3 gap-4 border rounded-lg p-6 bg-white dark:bg-gray-800">
-            <CustomInputDropdown
-              label="Payment Terms (Seller)"
-              options={paymentTerms}
-              selectedOption={watch('PaymentTermsSeller') || ''}
-              onChange={(value) => setValue('PaymentTermsSeller', value, { shouldValidate: true })}
-              error={errors.PaymentTermsSeller?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Payment Terms (Buyer)"
-              options={paymentTerms}
-              selectedOption={watch('PaymentTermsBuyer') || ''}
-              onChange={(value) => setValue('PaymentTermsBuyer', value, { shouldValidate: true })}
-              error={errors.PaymentTermsBuyer?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Delivery Terms"
-              options={deliveryTerms}
-              selectedOption={watch('DeliveryTerms') || ''}
-              onChange={(value) => setValue('DeliveryTerms', value, { shouldValidate: true })}
-              error={errors.DeliveryTerms?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Commission From"
-              options={commissionFromOptions}
-              selectedOption={watch('CommissionFrom') || ''}
-              onChange={(value) => setValue('CommissionFrom', value, { shouldValidate: true })}
-              error={errors.CommissionFrom?.message}
-              register={register}
-            />
-            {commissionFrom === 'Both' && (
-              <>
-                <CustomInput
-                  variant="floating"
-                  borderThickness="2"
-                  label="Seller Commission"
-                  id="SellerCommission"
-                  {...register('SellerCommission')}
-                  error={errors.SellerCommission?.message}
-                />
-                <CustomInput
-                  variant="floating"
-                  borderThickness="2"
-                  label="Buyer Commission"
-                  id="BuyerCommission"
-                  {...register('BuyerCommission')}
-                  error={errors.BuyerCommission?.message}
-                />
-              </>
-            )}
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Dispatch Address"
-              id="DispatchAddress"
-              {...register('DispatchAddress')}
-              error={errors.DispatchAddress?.message}
-            />
-            <CustomInputDropdown
-              label="Dispatch Later"
-              options={dispatchLaterOptions}
-              selectedOption={watch('DispatchLater') || ''}
-              onChange={(value) => setValue('DispatchLater', value, { shouldValidate: true })}
-              error={errors.DispatchLater?.message}
-              register={register}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Seller Remark"
-              id="SellerRemark"
-              {...register('SellerRemark')}
-              error={errors.SellerRemark?.message}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Buyer Remark"
-              id="BuyerRemark"
-              {...register('BuyerRemark')}
-              error={errors.BuyerRemark?.message}
-            />
-            <DescriptionWithSubSelect
-              label="End Use"
-              name="EndUse"
-              subName="EndUseSubOptions"
-              options={endUses}
-              selectedOption={watch('EndUse') || ''}
-              selectedSubOptions={watch('EndUseSubOptions') || []}
-              onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
-              onSubChange={(values) => setValue('EndUseSubOptions', values, { shouldValidate: true })}
-              error={errors.EndUse?.message}
-              subError={errors.EndUseSubOptions?.message}
-              register={register}
-            />
-          </div>
-          <div className="space-y-6 border rounded-lg p-6 bg-white dark:bg-gray-800">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Seller Delivery Breakup</h3>
-              {sellerDeliveryBreakups.map((breakup, index) => (
-                <div key={index} className="flex gap-2 mb-4">
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Quantity"
-                    value={breakup.Qty}
-                    onChange={(e) => handleSellerDeliveryBreakupChange(index, 'Qty', e.target.value)}
-                    error={undefined}
-                  />
-                  <CustomInput
-                    type="date"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Delivery Date"
-                    value={breakup.DeliveryDate}
-                    onChange={(e) => handleSellerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)}
-                    error={undefined}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => removeSellerDeliveryBreakup(index)}
-                    className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                  >
-                    <MdDelete className="w-5 h-5" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                onClick={addSellerDeliveryBreakup}
-                className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-              >
-                Add
-              </Button>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Buyer Delivery Breakup</h3>
-              {buyerDeliveryBreakups.map((breakup, index) => (
-                <div key={index} className="flex gap-2 mb-4">
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Quantity"
-                    value={breakup.Qty}
-                    onChange={(e) => handleBuyerDeliveryBreakupChange(index, 'Qty', e.target.value)}
-                    error={undefined}
-                  />
-                  <CustomInput
-                    type="date"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Delivery Date"
-                    value={breakup.DeliveryDate}
-                    onChange={(e) => handleBuyerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)}
-                    error={undefined}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => removeBuyerDeliveryBreakup(index)}
-                    className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                  >
-                    <MdDelete className="w-5 h-5" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                onClick={addBuyerDeliveryBreakup}
-                className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-              >
-                Add
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {activeContractType === 'MultiWidth' && (
-      <div className="mt-6">
-        <div className="overflow-x-auto rounded-lg shadow-md">
-          <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-            <thead>
-              <tr className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
-                {[
-                  'Width', 'Quantity', 'Rate', 'Amount', 'GST', 'GST Value',
-                  'Fabric Value', 'Commission Type', 'Commission %', 'Commission Value',
-                  'Total Amount', 'Actions'
-                ].map((header, index) => (
-                  <th
-                    key={index}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200"
-                  >
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {multiWidthContractRows.map((row, index) => (
-                <tr
-                  key={index}
-                  className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  Dyed Contract
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setActiveContractType('MultiWidth')}
+                  className={`px-6 py-2 text-gray-800 dark:text-gray-200 text-lg font-semibold border-b-2 ${
+                    activeContractType === 'MultiWidth' ? 'border-[#06b6d4] text-[#06b6d4]' : 'border-transparent'
+                  }  hover:text-white hover:bg-[#06b6d4] transition-colors bg-transparent`}
                 >
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.Width}
-                      onChange={(e) => handleMultiWidthContractChange(index, 'Width', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.Quantity}
-                      onChange={(e) => handleMultiWidthContractChange(index, 'Quantity', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                      min="1"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.Rate}
-                      onChange={(e) => handleMultiWidthContractChange(index, 'Rate', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                      min="0"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.Amount}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={row.Gst}
-                      onChange={(e) => handleMultiWidthContractChange(index, 'Gst', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    >
-                      <option value="">Select GST</option>
-                      {gstTypes.map((gst) => (
-                        <option key={gst.id} value={gst.id}>
-                          {gst.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.GstValue}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.FabricValue}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={row.CommissionType}
-                      onChange={(e) => handleMultiWidthContractChange(index, 'CommissionType', e.target.value)}
-                      className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                    >
-                      <option value="">Select Commission Type</option>
-                      {commissionTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                          {type.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="number"
-                      value={row.CommissionPercentage}
-                      onChange={(e) => handleMultiWidthContractChange(index, 'CommissionPercentage', e.target.value)}
-                      className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                      min="0"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.CommissionValue}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <input
-                      type="text"
-                      value={row.TotalAmount}
-                      readOnly
-                      className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                    />
-                  </td>
-                  <td className="px-4 py-3 flex gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => removeMultiWidthContractRow(index)}
-                      className="flex items-center justify-center bg-red-500 text-white hover:bg-red-600 p-2 rounded-lg transition-colors"
-                    >
-                      <MdDelete className="w-5 h-5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={addMultiWidthContractRow}
-                      className="flex items-center justify-center bg-[#06b6d4] text-white hover:bg-[#0895b0] p-2 rounded-lg transition-colors"
-                    >
-                      <MdAdd className="w-5 h-5" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="grid grid-cols-2 gap-10 mt-6">
-          <div className="grid grid-cols-3 gap-4 border rounded-lg p-6 bg-white dark:bg-gray-800">
-            <CustomInputDropdown
-              label="Payment Terms (Seller)"
-              options={paymentTerms}
-              selectedOption={watch('PaymentTermsSeller') || ''}
-              onChange={(value) => setValue('PaymentTermsSeller', value, { shouldValidate: true })}
-              error={errors.PaymentTermsSeller?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Payment Terms (Buyer)"
-              options={paymentTerms}
-              selectedOption={watch('PaymentTermsBuyer') || ''}
-              onChange={(value) => setValue('PaymentTermsBuyer', value, { shouldValidate: true })}
-              error={errors.PaymentTermsBuyer?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Delivery Terms"
-              options={deliveryTerms}
-              selectedOption={watch('DeliveryTerms') || ''}
-              onChange={(value) => setValue('DeliveryTerms', value, { shouldValidate: true })}
-              error={errors.DeliveryTerms?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Commission From"
-              options={commissionFromOptions}
-              selectedOption={watch('CommissionFrom') || ''}
-              onChange={(value) => setValue('CommissionFrom', value, { shouldValidate: true })}
-              error={errors.CommissionFrom?.message}
-              register={register}
-            />
-            {commissionFrom === 'Both' && (
-              <>
-                <CustomInput
-                  variant="floating"
-                  borderThickness="2"
-                  label="Seller Commission"
-                  id="SellerCommission"
-                  {...register('SellerCommission')}
-                  error={errors.SellerCommission?.message}
-                />
-                <CustomInput
-                  variant="floating"
-                  borderThickness="2"
-                  label="Buyer Commission"
-                  id="BuyerCommission"
-                  {...register('BuyerCommission')}
-                  error={errors.BuyerCommission?.message}
-                />
-              </>
-            )}
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Dispatch Address"
-              id="DispatchAddress"
-              {...register('DispatchAddress')}
-              error={errors.DispatchAddress?.message}
-            />
-            <CustomInputDropdown
-              label="Dispatch Later"
-              options={dispatchLaterOptions}
-              selectedOption={watch('DispatchLater') || ''}
-              onChange={(value) => setValue('DispatchLater', value, { shouldValidate: true })}
-              error={errors.DispatchLater?.message}
-              register={register}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Seller Remark"
-              id="SellerRemark"
-              {...register('SellerRemark')}
-              error={errors.SellerRemark?.message}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Buyer Remark"
-              id="BuyerRemark"
-              {...register('BuyerRemark')}
-              error={errors.BuyerRemark?.message}
-            />
-            <DescriptionWithSubSelect
-              label="End Use"
-              name="EndUse"
-              subName="EndUseSubOptions"
-              options={endUses}
-              selectedOption={watch('EndUse') || ''}
-              selectedSubOptions={watch('EndUseSubOptions') || []}
-              onChange={(value) => setValue('EndUse', value, { shouldValidate: true })}
-              onSubChange={(values) => setValue('EndUseSubOptions', values, { shouldValidate: true })}
-              error={errors.EndUse?.message}
-              subError={errors.EndUseSubOptions?.message}
-              register={register}
-            />
-          </div>
-          <div className="space-y-6 border rounded-lg p-6 bg-white dark:bg-gray-800">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Seller Delivery Breakup</h3>
-              {sellerDeliveryBreakups.map((breakup, index) => (
-                <div key={index} className="flex gap-2 mb-4">
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Quantity"
-                    value={breakup.Qty}
-                    onChange={(e) => handleSellerDeliveryBreakupChange(index, 'Qty', e.target.value)}
-                    error={undefined}
-                  />
-                  <CustomInput
-                    type="date"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Delivery Date"
-                    value={breakup.DeliveryDate}
-                    onChange={(e) => handleSellerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)}
-                    error={undefined}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => removeSellerDeliveryBreakup(index)}
-                    className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                  >
-                    <MdDelete className="w-5 h-5" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                onClick={addSellerDeliveryBreakup}
-                className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-              >
-                Add
-              </Button>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">Buyer Delivery Breakup</h3>
-              {buyerDeliveryBreakups.map((breakup, index) => (
-                <div key={index} className="flex gap-2 mb-4">
-                  <CustomInput
-                    type="number"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Quantity"
-                    value={breakup.Qty}
-                    onChange={(e) => handleBuyerDeliveryBreakupChange(index, 'Qty', e.target.value)}
-                    error={undefined}
-                  />
-                  <CustomInput
-                    type="date"
-                    variant="floating"
-                    borderThickness="2"
-                    label="Delivery Date"
-                    value={breakup.DeliveryDate}
-                    onChange={(e) => handleBuyerDeliveryBreakupChange(index, 'DeliveryDate', e.target.value)}
-                    error={undefined}
-                  />
-                  <Button
-                    type="button"
-                    onClick={() => removeBuyerDeliveryBreakup(index)}
-                    className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                  >
-                    <MdDelete className="w-5 h-5" />
-                  </Button>
-                </div>
-              ))}
-              <Button
-                type="button"
-                onClick={addBuyerDeliveryBreakup}
-                className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-              >
-                Add
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
+                  Multi Width Contract
+                </Button>
+              </div>
 
-    <div className="flex justify-between mt-8">
-      <Button
-        type="button"
-        onClick={handlePreviousSection}
-        className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
-      >
-        <MdArrowBack /> Previous
-      </Button>
-      <div className="flex gap-4">
-        <Button
-          type="submit"
-          disabled={loading}
-          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
-        >
-          <MdLibraryAddCheck /> {id ? 'Update Contract' : 'Create Contract'}
-        </Button>
-        <Link href="/contract">
-          <Button className="bg-gray-500 text-white hover:bg-gray-600 flex items-center gap-2 px-6 py-2 rounded-lg transition-colors">
-            Cancel
-          </Button>
-        </Link>
-      </div>
-    </div>
-  </div>
-)}
+              {activeContractType === 'Conversion' && (
+                <div className="mt-6">
+                  <div className="overflow-x-auto rounded-lg shadow-md">
+                    <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                      <thead>
+                        <tr className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                          {[
+                            'Width', 'Quantity', 'Pick Rate', 'Fab Rate', 'Rate', 'Amounts', 'Delivery Date',
+                            'Wrap Wt', 'Weft Wt', 'Wrap Bag', 'Weft Bag', 'Total Amt', 'GST', 'GST Value',
+                            'Fabric Value', 'Commission Type', 'Commission %', 'Commission Value', 'Total Amount', 'Actions'
+                          ].map((header, index) => (
+                            <th
+                              key={index}
+                              className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200"
+                            >
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {conversionContractRows.map((row, index) => (
+                          <tr
+                            key={index}
+                            className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.Width}
+                                onChange={(e) => handleConversionContractChange(index, 'Width', e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.Quantity}
+                                onChange={(e) => handleConversionContractChange(index, 'Quantity', e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                                min="1"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.PickRate}
+                                onChange={(e) => handleConversionContractChange(index, 'PickRate', e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.FabRate}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.Rate}
+                                onChange={(e) => handleConversionContractChange(index, 'Rate', e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                                min="0"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.Amounts}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="date"
+                                value={row.DeliveryDate}
+                                onChange={(e) => handleConversionContractChange(index, 'DeliveryDate', e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.Wrapwt}
+                                onChange={(e) => handleConversionContractChange(index, 'Wrapwt', e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.Weftwt}
+                                onChange={(e) => handleConversionContractChange(index, 'Weftwt', e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.WrapBag}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.WeftBag}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.TotalAmountMultiple}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={row.Gst}
+                                onChange={(e) => handleConversionContractChange(index, 'Gst', e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              >
+                                <option value="">Select GST</option>
+                                {gstTypes.map((gst) => (
+                                  <option key={gst.id} value={gst.id}>
+                                    {gst.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.GstValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.FabricValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={row.CommissionType}
+                                onChange={(e) => handleConversionContractChange(index, 'CommissionType', e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              >
+                                <option value="">Select Commission Type</option>
+                                {commissionTypes.map((type) => (
+                                  <option key={type.id} value={type.id}>
+                                    {type.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">                              <input
+                                type="number"
+                                value={row.CommissionPercentage}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                  handleConversionContractChange(index, "CommissionPercentage", e.target.value)
+                                }
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                                min="0"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.CommissionValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.TotalAmount}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3 flex gap-2">
+                              <Button
+                                type="button"
+                                onClick={() => removeConversionContractRow(index)}
+                                className="flex items-center justify-center bg-red-500 text-white hover:bg-red-600 p-2 rounded-lg transition-colors"
+                              >
+                                🗑️
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={addConversionContractRow}
+                                className="flex items-center justify-center bg-[#06b6d4] text-white hover:bg-[#0895b0] p-2 rounded-lg transition-colors"
+                              >
+                                ➕
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Commission Info for Conversion Contract */}
+                  <div className="mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
+                      Commission Information
+                    </h3>
+                    {conversionContractRows.map((row, index) => (
+                      <div key={index} className="mb-6 p-4 border border-gray-300 rounded-lg">
+                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">
+                          Row {index + 1} Commission Info
+                        </h4>
+                        <div className="grid grid-cols-3 gap-4">
+                          <CustomInputDropdown
+                            label="Payment Terms (Seller)"
+                            options={paymentTerms}
+                            selectedOption={row.CommissionInfo?.PaymentTermsSeller || ""}
+                            onChange={(value) =>
+                              handleConversionCommissionInfoChange(index, "PaymentTermsSeller", value)
+                            }
+                            error=""
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Payment Terms (Buyer)"
+                            options={paymentTerms}
+                            selectedOption={row.CommissionInfo?.PaymentTermsBuyer || ""}
+                            onChange={(value) =>
+                              handleConversionCommissionInfoChange(index, "PaymentTermsBuyer", value)
+                            }
+                            error=""
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Delivery Terms"
+                            options={deliveryTerms}
+                            selectedOption={row.CommissionInfo?.DeliveryTerms || ""}
+                            onChange={(value) => handleConversionCommissionInfoChange(index, "DeliveryTerms", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Commission From"
+                            options={commissionFromOptions}
+                            selectedOption={row.CommissionInfo?.CommissionFrom || ""}
+                            onChange={(value) => handleConversionCommissionInfoChange(index, "CommissionFrom", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Dispatch Address"
+                            value={row.CommissionInfo?.DispatchAddress || ""}
+                            onChange={(e) =>
+                              handleConversionCommissionInfoChange(index, "DispatchAddress", e.target.value)
+                            }
+                            error=""
+                          />
+                          <CustomInputDropdown
+                            label="Dispatch Later"
+                            options={dispatchLaterOptions}
+                            selectedOption={row.CommissionInfo?.DispatchLater || ""}
+                            onChange={(value) => handleConversionCommissionInfoChange(index, "DispatchLater", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Seller Remark"
+                            value={row.CommissionInfo?.SellerRemark || ""}
+                            onChange={(e) =>
+                              handleConversionCommissionInfoChange(index, "SellerRemark", e.target.value)
+                            }
+                            error=""
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Buyer Remark"
+                            value={row.CommissionInfo?.BuyerRemark || ""}
+                            onChange={(e) => handleConversionCommissionInfoChange(index, "BuyerRemark", e.target.value)}
+                            error=""
+                          />
+                          <CustomInputDropdown
+                            label="End Use"
+                            options={endUses}
+                            selectedOption={row.CommissionInfo?.EndUse || ""}
+                            onChange={(value) => handleConversionCommissionInfoChange(index, "EndUse", value)}
+                            error=""
+                            register={register}
+                          />
+                          {row.CommissionInfo?.CommissionFrom === "Both" && (
+                            <>
+                              <CustomInput
+                                variant="floating"
+                                borderThickness="2"
+                                label="Seller Commission"
+                                value={row.CommissionInfo?.SellerCommission || ""}
+                                onChange={(e) =>
+                                  handleConversionCommissionInfoChange(index, "SellerCommission", e.target.value)
+                                }
+                                error=""
+                              />
+                              <CustomInput
+                                variant="floating"
+                                borderThickness="2"
+                                label="Buyer Commission"
+                                value={row.CommissionInfo?.BuyerCommission || ""}
+                                onChange={(e) =>
+                                  handleConversionCommissionInfoChange(index, "BuyerCommission", e.target.value)
+                                }
+                                error=""
+                              />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-10 mt-6">
+                    <div className="space-y-6 border rounded-lg p-6 bg-white dark:bg-gray-800">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                          Seller Delivery Breakup
+                        </h3>
+                        {sellerDeliveryBreakups.map((breakup, index) => (
+                          <div key={index} className="flex gap-2 mb-4">
+                            <CustomInput
+                              type="number"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Quantity"
+                              value={breakup.Qty}
+                              onChange={(e) => handleSellerDeliveryBreakupChange(index, "Qty", e.target.value)}
+                              error={undefined}
+                            />
+                            <CustomInput
+                              type="date"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Delivery Date"
+                              value={breakup.DeliveryDate}
+                              onChange={(e) => handleSellerDeliveryBreakupChange(index, "DeliveryDate", e.target.value)}
+                              error={undefined}
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => removeSellerDeliveryBreakup(index)}
+                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
+                            >
+                              🗑️
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          onClick={addSellerDeliveryBreakup}
+                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                          Buyer Delivery Breakup
+                        </h3>
+                        {buyerDeliveryBreakups.map((breakup, index) => (
+                          <div key={index} className="flex gap-2 mb-4">
+                            <CustomInput
+                              type="number"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Quantity"
+                              value={breakup.Qty}
+                              onChange={(e) => handleBuyerDeliveryBreakupChange(index, "Qty", e.target.value)}
+                              error={undefined}
+                            />
+                            <CustomInput
+                              type="date"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Delivery Date"
+                              value={breakup.DeliveryDate}
+                              onChange={(e) => handleBuyerDeliveryBreakupChange(index, "DeliveryDate", e.target.value)}
+                              error={undefined}
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => removeBuyerDeliveryBreakup(index)}
+                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
+                            >
+                              🗑️
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          onClick={addBuyerDeliveryBreakup}
+                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeContractType === "Diet" && (
+                <div className="mt-6">
+                  <div className="overflow-x-auto rounded-lg shadow-md">
+                    <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                      <thead>
+                        <tr className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                          {[
+                            "Lab Dispatch No",
+                            "Lab Dispatch Date",
+                            "Color",
+                            "Quantity",
+                            "Finish",
+                            "Rate",
+                            "Amount Total",
+                            "Delivery Date",
+                            "GST",
+                            "GST Value",
+                            "Fabric Value",
+                            "Commission Type",
+                            "Commission %",
+                            "Commission Value",
+                            "Total Amount",
+                            "Shrinkage",
+                            "Finish Width",
+                            "Weight",
+                            "Actions",
+                          ].map((header, index) => (
+                            <th
+                              key={index}
+                              className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200"
+                            >
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dietContractRows.map((row, index) => (
+                          <tr
+                            key={index}
+                            className="border-t dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.LabDispatchNo}
+                                onChange={(e) => handleDietContractChange(index, "LabDispatchNo", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="date"
+                                value={row.LabDispatchDate}
+                                onChange={(e) => handleDietContractChange(index, "LabDispatchDate", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.Color}
+                                onChange={(e) => handleDietContractChange(index, "Color", e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.Quantity}
+                                onChange={(e) => handleDietContractChange(index, "Quantity", e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                                min="1"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.Finish}
+                                onChange={(e) => handleDietContractChange(index, "Finish", e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.Rate}
+                                onChange={(e) => handleDietContractChange(index, "Rate", e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                                min="0"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.AmountTotal}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="date"
+                                value={row.DeliveryDate}
+                                onChange={(e) => handleDietContractChange(index, "DeliveryDate", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={row.Gst}
+                                onChange={(e) => handleDietContractChange(index, "Gst", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              >
+                                <option value="">Select GST</option>
+                                {gstTypes.map((gst) => (
+                                  <option key={gst.id} value={gst.id}>
+                                    {gst.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.GstValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.FabricValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={row.CommissionType}
+                                onChange={(e) => handleDietContractChange(index, "CommissionType", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              >
+                                <option value="">Select Commission Type</option>
+                                {commissionTypes.map((type) => (
+                                  <option key={type.id} value={type.id}>
+                                    {type.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.CommissionPercentage}
+                                onChange={(e) =>
+                                  handleDietContractChange(index, "CommissionPercentage", e.target.value)
+                                }
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                                min="0"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.CommissionValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.TotalAmount}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.Shrinkage}
+                                onChange={(e) => handleDietContractChange(index, "Shrinkage", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.FinishWidth}
+                                onChange={(e) => handleDietContractChange(index, "FinishWidth", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.Weight}
+                                onChange={(e) => handleDietContractChange(index, "Weight", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3 flex gap-2">
+                              <Button
+                                type="button"
+                                onClick={() => removeDietContractRow(index)}
+                                className="flex items-center justify-center bg-red-500 text-white hover:bg-red-600 p-2 rounded-lg transition-colors"
+                              >
+                                🗑️
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={addDietContractRow}
+                                className="flex items-center justify-center bg-[#06b6d4] text-white hover:bg-[#0895b0] p-2 rounded-lg transition-colors"
+                              >
+                                ➕
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Commission Info for Diet Contract */}
+                  <div className="mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
+                      Commission Information
+                    </h3>
+                    {dietContractRows.map((row, index) => (
+                      <div key={index} className="mb-6 p-4 border border-gray-300 rounded-lg">
+                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">
+                          Row {index + 1} Commission Info
+                        </h4>
+                        <div className="grid grid-cols-3 gap-4">
+                          <CustomInputDropdown
+                            label="Payment Terms (Seller)"
+                            options={paymentTerms}
+                            selectedOption={row.CommissionInfo?.PaymentTermsSeller || ""}
+                            onChange={(value) => handleDietCommissionInfoChange(index, "PaymentTermsSeller", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Payment Terms (Buyer)"
+                            options={paymentTerms}
+                            selectedOption={row.CommissionInfo?.PaymentTermsBuyer || ""}
+                            onChange={(value) => handleDietCommissionInfoChange(index, "PaymentTermsBuyer", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Delivery Terms"
+                            options={deliveryTerms}
+                            selectedOption={row.CommissionInfo?.DeliveryTerms || ""}
+                            onChange={(value) => handleDietCommissionInfoChange(index, "DeliveryTerms", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Commission From"
+                            options={commissionFromOptions}
+                            selectedOption={row.CommissionInfo?.CommissionFrom || ""}
+                            onChange={(value) => handleDietCommissionInfoChange(index, "CommissionFrom", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Dispatch Address"
+                            value={row.CommissionInfo?.DispatchAddress || ""}
+                            onChange={(e) => handleDietCommissionInfoChange(index, "DispatchAddress", e.target.value)}
+                            error=""
+                          />
+                          <CustomInputDropdown
+                            label="Dispatch Later"
+                            options={dispatchLaterOptions}
+                            selectedOption={row.CommissionInfo?.DispatchLater || ""}
+                            onChange={(value) => handleDietCommissionInfoChange(index, "DispatchLater", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Seller Remark"
+                            value={row.CommissionInfo?.SellerRemark || ""}
+                            onChange={(e) => handleDietCommissionInfoChange(index, "SellerRemark", e.target.value)}
+                            error=""
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Buyer Remark"
+                            value={row.CommissionInfo?.BuyerRemark || ""}
+                            onChange={(e) => handleDietCommissionInfoChange(index, "BuyerRemark", e.target.value)}
+                            error=""
+                          />
+                          <CustomInputDropdown
+                            label="End Use"
+                            options={endUses}
+                            selectedOption={row.CommissionInfo?.EndUse || ""}
+                            onChange={(value) => handleDietCommissionInfoChange(index, "EndUse", value)}
+                            error=""
+                            register={register}
+                          />
+                          {row.CommissionInfo?.CommissionFrom === "Both" && (
+                            <>
+                              <CustomInput
+                                variant="floating"
+                                borderThickness="2"
+                                label="Seller Commission"
+                                value={row.CommissionInfo?.SellerCommission || ""}
+                                onChange={(e) =>
+                                  handleDietCommissionInfoChange(index, "SellerCommission", e.target.value)
+                                }
+                                error=""
+                              />
+                              <CustomInput
+                                variant="floating"
+                                borderThickness="2"
+                                label="Buyer Commission"
+                                value={row.CommissionInfo?.BuyerCommission || ""}
+                                onChange={(e) =>
+                                  handleDietCommissionInfoChange(index, "BuyerCommission", e.target.value)
+                                }
+                                error=""
+                              />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-10 mt-6">
+                    <div className="space-y-6 border rounded-lg p-6 bg-white dark:bg-gray-800">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                          Seller Delivery Breakup
+                        </h3>
+                        {sellerDeliveryBreakups.map((breakup, index) => (
+                          <div key={index} className="flex gap-2 mb-4">
+                            <CustomInput
+                              type="number"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Quantity"
+                              value={breakup.Qty}
+                              onChange={(e) => handleSellerDeliveryBreakupChange(index, "Qty", e.target.value)}
+                              error={undefined}
+                            />
+                            <CustomInput
+                              type="date"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Delivery Date"
+                              value={breakup.DeliveryDate}
+                              onChange={(e) => handleSellerDeliveryBreakupChange(index, "DeliveryDate", e.target.value)}
+                              error={undefined}
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => removeSellerDeliveryBreakup(index)}
+                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
+                            >
+                              🗑️
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          onClick={addSellerDeliveryBreakup}
+                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                          Buyer Delivery Breakup
+                        </h3>
+                        {buyerDeliveryBreakups.map((breakup, index) => (
+                          <div key={index} className="flex gap-2 mb-4">
+                            <CustomInput
+                              type="number"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Quantity"
+                              value={breakup.Qty}
+                              onChange={(e) => handleBuyerDeliveryBreakupChange(index, "Qty", e.target.value)}
+                              error={undefined}
+                            />
+                            <CustomInput
+                              type="date"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Delivery Date"
+                              value={breakup.DeliveryDate}
+                              onChange={(e) => handleBuyerDeliveryBreakupChange(index, "DeliveryDate", e.target.value)}
+                              error={undefined}
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => removeBuyerDeliveryBreakup(index)}
+                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
+                            >
+                              🗑️
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          onClick={addBuyerDeliveryBreakup}
+                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeContractType === "MultiWidth" && (
+                <div className="mt-6">
+                  <div className="overflow-x-auto rounded-lg shadow-md">
+                    <table className="min-w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                      <thead>
+                        <tr className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                          {[
+                            "Width",
+                            "Quantity",
+                            "Rate",
+                            "Amount",
+                            "GST",
+                            "GST Value",
+                            "Fabric Value",
+                            "Commission Type",
+                            "Commission %",
+                            "Commission Value",
+                            "Total Amount",
+                            "Actions",
+                          ].map((header, index) => (
+                            <th
+                              key={index}
+                              className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-200"
+                            >
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {multiWidthContractRows.map((row, index) => (
+                          <tr
+                            key={index}
+                            className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.Width}
+                                onChange={(e) => handleMultiWidthContractChange(index, "Width", e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.Quantity}
+                                onChange={(e) => handleMultiWidthContractChange(index, "Quantity", e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                                min="1"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.Rate}
+                                onChange={(e) => handleMultiWidthContractChange(index, "Rate", e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                                min="0"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.Amount}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={row.Gst}
+                                onChange={(e) => handleMultiWidthContractChange(index, "Gst", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              >
+                                <option value="">Select GST</option>
+                                {gstTypes.map((gst) => (
+                                  <option key={gst.id} value={gst.id}>
+                                    {gst.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.GstValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.FabricValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={row.CommissionType}
+                                onChange={(e) =>
+                                  handleMultiWidthContractChange(index, "CommissionType", e.target.value)
+                                }
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              >
+                                <option value="">Select Commission Type</option>
+                                {commissionTypes.map((type) => (
+                                  <option key={type.id} value={type.id}>
+                                    {type.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="number"
+                                value={row.CommissionPercentage}
+                                onChange={(e) =>
+                                  handleMultiWidthContractChange(index, "CommissionPercentage", e.target.value)
+                                }
+                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                                min="0"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.CommissionValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.TotalAmount}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3 flex gap-2">
+                              <Button
+                                type="button"
+                                onClick={() => removeMultiWidthContractRow(index)}
+                                className="flex items-center justify-center bg-red-500 text-white hover:bg-red-600 p-2 rounded-lg transition-colors"
+                              >
+                                🗑️
+                              </Button>
+                              <Button
+                                type="button"
+                                onClick={addMultiWidthContractRow}
+                                className="flex items-center justify-center bg-[#06b6d4] text-white hover:bg-[#0895b0] p-2 rounded-lg transition-colors"
+                              >
+                                ➕
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Commission Info for Multi Width Contract */}
+                  <div className="mt-6 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
+                      Commission Information
+                    </h3>
+                    {multiWidthContractRows.map((row, index) => (
+                      <div key={index} className="mb-6 p-4 border border-gray-300 rounded-lg">
+                        <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">
+                          Row {index + 1} Commission Info
+                        </h4>
+                        <div className="grid grid-cols-3 gap-4">
+                          <CustomInputDropdown
+                            label="Payment Terms (Seller)"
+                            options={paymentTerms}
+                            selectedOption={row.CommissionInfo?.PaymentTermsSeller || ""}
+                            onChange={(value) =>
+                              handleMultiWidthCommissionInfoChange(index, "PaymentTermsSeller", value)
+                            }
+                            error=""
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Payment Terms (Buyer)"
+                            options={paymentTerms}
+                            selectedOption={row.CommissionInfo?.PaymentTermsBuyer || ""}
+                            onChange={(value) =>
+                              handleMultiWidthCommissionInfoChange(index, "PaymentTermsBuyer", value)
+                            }
+                            error=""
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Delivery Terms"
+                            options={deliveryTerms}
+                            selectedOption={row.CommissionInfo?.DeliveryTerms || ""}
+                            onChange={(value) => handleMultiWidthCommissionInfoChange(index, "DeliveryTerms", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInputDropdown
+                            label="Commission From"
+                            options={commissionFromOptions}
+                            selectedOption={row.CommissionInfo?.CommissionFrom || ""}
+                            onChange={(value) => handleMultiWidthCommissionInfoChange(index, "CommissionFrom", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Dispatch Address"
+                            value={row.CommissionInfo?.DispatchAddress || ""}
+                            onChange={(e) =>
+                              handleMultiWidthCommissionInfoChange(index, "DispatchAddress", e.target.value)
+                            }
+                            error=""
+                          />
+                          <CustomInputDropdown
+                            label="Dispatch Later"
+                            options={dispatchLaterOptions}
+                            selectedOption={row.CommissionInfo?.DispatchLater || ""}
+                            onChange={(value) => handleMultiWidthCommissionInfoChange(index, "DispatchLater", value)}
+                            error=""
+                            register={register}
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Seller Remark"
+                            value={row.CommissionInfo?.SellerRemark || ""}
+                            onChange={(e) =>
+                              handleMultiWidthCommissionInfoChange(index, "SellerRemark", e.target.value)
+                            }
+                            error=""
+                          />
+                          <CustomInput
+                            variant="floating"
+                            borderThickness="2"
+                            label="Buyer Remark"
+                            value={row.CommissionInfo?.BuyerRemark || ""}
+                            onChange={(e) => handleMultiWidthCommissionInfoChange(index, "BuyerRemark", e.target.value)}
+                            error=""
+                          />
+                          <CustomInputDropdown
+                            label="End Use"
+                            options={endUses}
+                            selectedOption={row.CommissionInfo?.EndUse || ""}
+                            onChange={(value) => handleMultiWidthCommissionInfoChange(index, "EndUse", value)}
+                            error=""
+                            register={register}
+                          />
+                          {row.CommissionInfo?.CommissionFrom === "Both" && (
+                            <>
+                              <CustomInput
+                                variant="floating"
+                                borderThickness="2"
+                                label="Seller Commission"
+                                value={row.CommissionInfo?.SellerCommission || ""}
+                                onChange={(e) =>
+                                  handleMultiWidthCommissionInfoChange(index, "SellerCommission", e.target.value)
+                                }
+                                error=""
+                              />
+                              <CustomInput
+                                variant="floating"
+                                borderThickness="2"
+                                label="Buyer Commission"
+                                value={row.CommissionInfo?.BuyerCommission || ""}
+                                onChange={(e) =>
+                                  handleMultiWidthCommissionInfoChange(index, "BuyerCommission", e.target.value)
+                                }
+                                error=""
+                              />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-10 mt-6">
+                    <div className="space-y-6 border rounded-lg p-6 bg-white dark:bg-gray-800">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                          Seller Delivery Breakup
+                        </h3>
+                        {sellerDeliveryBreakups.map((breakup, index) => (
+                          <div key={index} className="flex gap-2 mb-4">
+                            <CustomInput
+                              type="number"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Quantity"
+                              value={breakup.Qty}
+                              onChange={(e) => handleSellerDeliveryBreakupChange(index, "Qty", e.target.value)}
+                              error={undefined}
+                            />
+                            <CustomInput
+                              type="date"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Delivery Date"
+                              value={breakup.DeliveryDate}
+                              onChange={(e) => handleSellerDeliveryBreakupChange(index, "DeliveryDate", e.target.value)}
+                              error={undefined}
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => removeSellerDeliveryBreakup(index)}
+                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
+                            >
+                              🗑️
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          onClick={addSellerDeliveryBreakup}
+                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                          Buyer Delivery Breakup
+                        </h3>
+                        {buyerDeliveryBreakups.map((breakup, index) => (
+                          <div key={index} className="flex gap-2 mb-4">
+                            <CustomInput
+                              type="number"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Quantity"
+                              value={breakup.Qty}
+                              onChange={(e) => handleBuyerDeliveryBreakupChange(index, "Qty", e.target.value)}
+                              error={undefined}
+                            />
+                            <CustomInput
+                              type="date"
+                              variant="floating"
+                              borderThickness="2"
+                              label="Delivery Date"
+                              value={breakup.DeliveryDate}
+                              onChange={(e) => handleBuyerDeliveryBreakupChange(index, "DeliveryDate", e.target.value)}
+                              error={undefined}
+                            />
+                            <Button
+                              type="button"
+                              onClick={() => removeBuyerDeliveryBreakup(index)}
+                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
+                            >
+                              🗑️
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          onClick={addBuyerDeliveryBreakup}
+                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-between mt-8">
+                <Button
+                  type="button"
+                  onClick={handlePreviousSection}
+                  className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
+                >
+                  <MdArrowBack /> Previous
+                </Button>
+                <div className="flex gap-4">
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
+                  >
+                    📋 {id ? "Update Contract" : "Create Contract"}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => router.push("/contract")}
+                    className="bg-gray-500 text-white hover:bg-gray-600 flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {submissionErrors.length > 0 && (
             <div className="mt-4 text-red-500">
               <ul>
@@ -3533,7 +4032,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         </form>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ContractForm;
+export default ContractForm
