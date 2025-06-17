@@ -130,7 +130,7 @@ const DietPDFExport = {
       const selvedgeMatch = selvedgeData.data.find(
         (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.selvege
       );
-      selvedgeSub = selvedgeMatch ? selvedgeSub : '-';
+      selvedgeSub = selvedgeMatch ? selvedgeMatch.subDescription : '-';
     } catch (error) {
       console.error('Error fetching subDescriptions:', error);
       toast('Failed to fetch subDescriptions', { type: 'warning' });
@@ -234,7 +234,7 @@ const DietPDFExport = {
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
     let sellerName = contract.seller || '-';
-    let sellerAddressText = sellerAddress || contract.dietContractRow?.[0]?.commisionInfo?.dispatchAddress || GetSellerAddress || '-';
+    let sellerAddressText = sellerAddress || GetSellerAddress || '-';
     const maxSellerWidth = 65;
     if (doc.getTextWidth(sellerName) > maxSellerWidth) {
       while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
@@ -285,6 +285,7 @@ const DietPDFExport = {
     yPos += 12;
 
     // Fields
+    const dietRow = contract.dietContractRow && contract.dietContractRow.length > 0 ? contract.dietContractRow[0] : null;
     const fields = [
       { label: 'Description:', value: `${contract.description || '-'}, ${contract.stuff || '-'}` },
       { label: 'Blend Ratio:', value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}` },
@@ -292,9 +293,9 @@ const DietPDFExport = {
         label: 'Construction:',
         value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.finishWidth || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
-      { label: 'Finish Width:', value: `${contract.dietContractRow?.[0]?.finishWidth || contract.finishWidth || '-'}` },
-      { label: 'Weight:', value: `${contract.dietContractRow?.[0]?.weight ||  '-'}` },
-      { label: 'Shrinkage:', value: `${contract.dietContractRow?.[0]?.shrinkage  || '-'}` },
+      { label: 'Finish Width:', value: dietRow?.finishWidth || contract.finishWidth || '-' },
+      { label: 'Weight:', value: dietRow?.weight || '-' },
+      { label: 'Shrinkage:', value: dietRow?.shrinkage || '-' },
       { label: 'Reference Number:', value: contract.referenceNumber || '-' },
       { label: 'Fabric Type:', value: contract.fabricType || '-' },
     ];
@@ -429,7 +430,7 @@ const DietPDFExport = {
     }
 
     // Calculate GST amount and total with GST
-    const gstPercentage = parseFloat(contract.dietContractRow?.[0]?.gst || contract.gst || '0');
+    const gstPercentage = dietRow?.gst ? parseFloat(dietRow.gst) : parseFloat(contract.gst || '0');
     const gstAmount = (totalAmount * gstPercentage) / 100;
     const totalWithGST = totalAmount + gstAmount;
 
@@ -493,23 +494,23 @@ const DietPDFExport = {
       { 
         label: 'Payment:', 
         value: type === 'purchase' 
-          ? contract.dietContractRow?.[0]?.commisionInfo?.paymentTermsSeller || '-' 
-          : contract.dietContractRow?.[0]?.commisionInfo?.paymentTermsBuyer || '-' 
+          ? dietRow?.commisionInfo?.paymentTermsSeller || '-' 
+          : dietRow?.commisionInfo?.paymentTermsBuyer || '-' 
       },
       { label: 'Packing:', value: contract.packing || '-' },
       { label: 'Total:', value: `Rs. ${formatCurrency(totalWithGST)}` },
       ...(type === 'purchase'
         ? [
-            { label: 'Commission:', value: `${contract.dietContractRow?.[0]?.commissionPercentage || '-'}%` },
-            { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.dietContractRow?.[0]?.commissionValue)}` },
+            { label: 'Commission:', value: `${dietRow?.commissionPercentage || '-'}%` },
+            { label: 'Commission Value:', value: `Rs. ${formatCurrency(dietRow?.commissionValue)}` },
           ]
         : []),
       { label: 'Delivery Destination:', value: contract.buyer || '-' },
       { 
         label: 'Remarks:', 
         value: type === 'purchase' 
-          ? contract.dietContractRow?.[0]?.commisionInfo?.sellerRemark || '-' 
-          : contract.dietContractRow?.[0]?.commisionInfo?.buyerRemark || '-' 
+          ? dietRow?.commisionInfo?.sellerRemark || '-' 
+          : dietRow?.commisionInfo?.buyerRemark || '-' 
       },
     ];
 
@@ -537,7 +538,7 @@ const DietPDFExport = {
     doc.setTextColor(...labelStyle.color);
     doc.text('Delivery Schedule:', rightColumnX, rightColumnYPos);
     rightColumnYPos += 4;
-    const deliveryBreakups = contract.dietContractRow?.[0]?.buyerDeliveryBreakups || [];
+    const deliveryBreakups = dietRow?.buyerDeliveryBreakups || [];
     if (Array.isArray(deliveryBreakups) && deliveryBreakups.length > 0) {
       autoTable(doc, {
         startY: rightColumnYPos,

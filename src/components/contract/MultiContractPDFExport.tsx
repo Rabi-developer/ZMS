@@ -126,7 +126,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       const selvedgeMatch = selvedgeData.data.find(
         (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.selvege
       );
-      selvedgeSub = selvedgeMatch ? selvedgeSub : '-';
+      selvedgeSub = selvedgeMatch ? selvedgeMatch.subDescription : '-';
     } catch (error) {
       console.error('Error fetching subDescriptions:', error);
       toast('Failed to fetch subDescriptions', { type: 'warning' });
@@ -228,7 +228,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
     let sellerName = contract.seller || '-';
-    let sellerAddressText = sellerAddress || contract.multiWidthContractRow?.[0]?.commisionInfo?.dispatchAddress || GetSellerAddress || '-';
+    let sellerAddressText = sellerAddress || GetSellerAddress || '-';
     const maxSellerWidth = 70;
     if (doc.getTextWidth(sellerName) > maxSellerWidth) {
       while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
@@ -323,6 +323,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     const tableBody: (string | number)[][] = [];
     let totalQty = 0;
     let totalAmount = 0;
+    const multiRow = contract.multiWidthContractRow && contract.multiWidthContractRow.length > 0 ? contract.multiWidthContractRow[0] : null;
     const rowCount = contract.multiWidthContractRow?.length || 1;
 
     // Dynamic table styling based on row count
@@ -383,7 +384,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     }
 
     // Calculate GST and total with GST
-    const gstPercentage = parseFloat(contract.multiWidthContractRow?.[0]?.gst || contract.gst || '0');
+    const gstPercentage = multiRow?.gst ? parseFloat(multiRow.gst) : parseFloat(contract.gst || '0');
     const gstAmount = (totalAmount * gstPercentage) / 100;
     const totalWithGST = totalAmount + gstAmount;
 
@@ -434,23 +435,25 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     const additionalFields = [
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
       { label: 'Packing:', value: contract.packing || '-' },
-      { label: 'Payment:', 
+      { 
+        label: 'Payment:', 
         value: type === 'purchase' 
-          ? contract.multiWidthContractRow?.[0]?.commisionInfo?.paymentTermsSeller || '-' 
-          : contract.multiWidthContractRow?.[0]?.commisionInfo?.paymentTermsBuyer || '-' 
+          ? multiRow?.commisionInfo?.paymentTermsSeller || '-' 
+          : multiRow?.commisionInfo?.paymentTermsBuyer || '-' 
       },
       { label: 'Total:', value: `Rs. ${formatCurrency(totalWithGST)}` },
       ...(type === 'purchase'
         ? [
-            { label: 'Commission:', value: `${contract.multiWidthContractRow?.[0]?.commissionPercentage || '-'}%` },
-            { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.multiWidthContractRow?.[0]?.commissionValue)}` },
+            { label: 'Commission:', value: `${multiRow?.commissionPercentage || '-'}%` },
+            { label: 'Commission Value:', value: `Rs. ${formatCurrency(multiRow?.commissionValue)}` },
           ]
         : []),
       { label: 'Delivery Destination:', value: contract.buyer || '-' },
-      { label: 'Remarks:', 
+      { 
+        label: 'Remarks:', 
         value: type === 'purchase' 
-          ? contract.multiWidthContractRow?.[0]?.commisionInfo?.sellerRemark || '-' 
-          : contract.multiWidthContractRow?.[0]?.commisionInfo?.buyerRemark || '-' 
+          ? multiRow?.commisionInfo?.sellerRemark || '-' 
+          : multiRow?.commisionInfo?.buyerRemark || '-' 
       },
     ];
 

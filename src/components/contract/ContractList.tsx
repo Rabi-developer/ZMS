@@ -207,7 +207,45 @@ const ContractList = () => {
 
     XLSX.writeFile(workbook, `Contract_${contract.contractNumber}.xlsx`);
   };
-
+const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
+  if (selectedContractIds.length === 0) {
+    toast('Please select at least one contract', { type: 'warning' });
+    return;
+  }
+  for (const id of selectedContractIds) {
+    const contract = contracts.find((c) => c.id === id);
+    if (contract) {
+      try {
+        // Fallback to empty string if dietContractRow is null/undefined or empty
+        const sellerAddress = contract.dietContractRow && contract.dietContractRow.length > 0 
+          ? contract.dietContractRow[0]?.commisionInfo?.dispatchAddress || ''
+          : '';
+        
+        await ConversionPDFExport.exportToPDF({
+          contract,
+          zmsSignature: zmsSignature || '',
+          sellerSignature: undefined,
+          buyerSignature: undefined,
+          sellerAddress,
+          buyerAddress: undefined,
+          type,
+        });
+        toast(`Generated ${type} conversion PDF successfully`, { type: 'success' });
+      } catch (error) {
+        console.error(`Failed to generate ${type} conversion PDF:`, error);
+        const errorMessage = (error instanceof Error && error.message) ? error.message : 'Unknown error';
+        toast(`Failed to generate ${type} conversion PDF: ${errorMessage}`, { type: 'error' });
+      }
+    } else {
+      toast(`Contract with ID ${id} not found`, { type: 'warning' });
+    }
+  }
+  setOpenPDFModal(false);
+  setShowSinglePDFOptions(false);
+  setShowMultiPDFOptions(false);
+  setShowConversionPDFOptions(false);
+  setDietMultiPDFOptions(false);
+};
   const handleExportToPDF = async (type: 'purchase' | 'sale' | 'diet' | 'multiwidth' | 'single' | 'conversion') => {
     if (selectedContractIds.length === 0) {
       toast('Please select at least one contract', { type: 'warning' });
@@ -598,128 +636,125 @@ const ContractList = () => {
   };
 
   const handleExportDietPDF = async (type: 'sale' | 'purchase') => {
-    if (selectedContractIds.length === 0) {
-      toast('Please select at least one contract', { type: 'warning' });
-      return;
-    }
-    for (const id of selectedContractIds) {
-      const contract = contracts.find((c) => c.id === id);
-      if (contract) {
-        try {
-          await DietPDFExport.exportToPDF({
-            contract,
-            zmsSignature: zmsSignature || '',
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
-            buyerAddress: undefined,
-            type,
-          });
-        } catch (error) {
-          console.error(`Failed to generate ${type} PDF:`, error);
-          toast(`Failed to generate ${type} PDF`, { type: 'error' });
-        }
+  if (selectedContractIds.length === 0) {
+    toast('Please select at least one contract', { type: 'warning' });
+    return;
+  }
+  for (const id of selectedContractIds) {
+    const contract = contracts.find((c) => c.id === id);
+    if (contract) {
+      try {
+        // Fallback to empty string if dietContractRow is null/undefined or empty
+        const sellerAddress = contract.dietContractRow && contract.dietContractRow.length > 0 
+          ? contract.dietContractRow[0]?.commisionInfo?.dispatchAddress || ''
+          : '';
+        
+        await DietPDFExport.exportToPDF({
+          contract,
+          zmsSignature: zmsSignature || '',
+          sellerSignature: undefined,
+          buyerSignature: undefined,
+          sellerAddress,
+          buyerAddress: undefined,
+          type,
+        });
+        toast(`Generated ${type} diet PDF successfully`, { type: 'success' });
+      } catch (error) {
+        console.error(`Failed to generate ${type} diet PDF:`, error);
+        const errorMessage = (error instanceof Error && error.message) ? error.message : 'Unknown error';
+        toast(`Failed to generate ${type} diet PDF: ${errorMessage}`, { type: 'error' });
       }
+    } else {
+      toast(`Contract with ID ${id} not found`, { type: 'warning' });
     }
-    setOpenPDFModal(false);
-    setShowSinglePDFOptions(false);
-    setShowMultiPDFOptions(false);
-    setShowConversionPDFOptions(false);
-    setDietMultiPDFOptions(false);
-  };
+  }
+  setOpenPDFModal(false);
+  setShowSinglePDFOptions(false);
+  setShowMultiPDFOptions(false);
+  setShowConversionPDFOptions(false);
+  setDietMultiPDFOptions(false);
+};
+ const handleSingleMultiPDF = async (type: 'sale' | 'purchase') => {
+  if (selectedContractIds.length === 0) {
+    toast('Please select at least one contract', { type: 'warning' });
+    return;
+  }
+  for (const id of selectedContractIds) {
+    const contract = contracts.find((c) => c.id === id);
+    if (contract) {
+      try {
+        // Fallback to empty string if dietContractRow is null/undefined or empty
+        const sellerAddress = contract.dietContractRow && contract.dietContractRow.length > 0 
+          ? contract.dietContractRow[0]?.commisionInfo?.dispatchAddress || ''
+          : '';
+        
+        await ContractPDFExport.exportToPDF({
+          contract,
+          zmsSignature: zmsSignature || '',
+          sellerSignature: undefined,
+          buyerSignature: undefined,
+          sellerAddress,
+          buyerAddress: undefined,
+          type,
+        });
+        toast(`Generated ${type} single PDF successfully`, { type: 'success' });
+      } catch (error) {
+        console.error(`Failed to generate ${type} single PDF:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        toast(`Failed to generate ${type} single PDF: ${errorMessage}`, { type: 'error' });
+      }
+    } else {
+      toast(`Contract with ID ${id} not found`, { type: 'warning' });
+    }
+  }
+  setOpenPDFModal(false);
+  setShowSinglePDFOptions(false);
+  setShowMultiPDFOptions(false);
+  setShowConversionPDFOptions(false);
+  setDietMultiPDFOptions(false);
+};
 
-  const handleSingleMultiPDF = async (type: 'sale' | 'purchase') => {
-    if (selectedContractIds.length === 0) {
-      toast('Please select at least one contract', { type: 'warning' });
-      return;
-    }
-    for (const id of selectedContractIds) {
-      const contract = contracts.find((c) => c.id === id);
-      if (contract) {
-        try {
-          await ContractPDFExport.exportToPDF({
-            contract,
-            zmsSignature: zmsSignature || '',
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
-            buyerAddress: undefined,
-            type,
-          });
-        } catch (error) {
-          console.error(`Failed to generate ${type} PDF:`, error);
-          toast(`Failed to generate ${type} PDF`, { type: 'error' });
-        }
+ const handleExportMultiPDF = async (type: 'sale' | 'purchase') => {
+  if (selectedContractIds.length === 0) {
+    toast('Please select at least one contract', { type: 'warning' });
+    return;
+  }
+  for (const id of selectedContractIds) {
+    const contract = contracts.find((c) => c.id === id);
+    if (contract) {
+      try {
+        // Fallback to empty string if multiWidthContractRow is null/undefined or empty
+        const sellerAddress = contract.multiWidthContractRow && contract.multiWidthContractRow.length > 0 
+          ? contract.multiWidthContractRow[0]?.commisionInfo?.dispatchAddress || ''
+          : '';
+        
+        await MultiContractPDFExport.exportToPDF({
+          contract,
+          zmsSignature: zmsSignature || '',
+          sellerSignature: undefined,
+          buyerSignature: undefined,
+          sellerAddress,
+          buyerAddress: undefined,
+          type,
+        });
+        toast(`Generated ${type} multiwidth PDF successfully`, { type: 'success' });
+      } catch (error) {
+        console.error(`Failed to generate ${type} multiwidth PDF:`, error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        toast(`Failed to generate ${type} multiwidth PDF: ${errorMessage}`, { type: 'error' });
       }
+    } else {
+      toast(`Contract with ID ${id} not found`, { type: 'warning' });
     }
-    setOpenPDFModal(false);
-    setShowSinglePDFOptions(false);
-    setShowMultiPDFOptions(false);
-    setShowConversionPDFOptions(false);
-    setDietMultiPDFOptions(false);
-  };
+  }
+  setOpenPDFModal(false);
+  setShowSinglePDFOptions(false);
+  setShowMultiPDFOptions(false);
+  setShowConversionPDFOptions(false);
+  setDietMultiPDFOptions(false);
+};
 
-  const handleExportMultiPDF = async (type: 'sale' | 'purchase') => {
-    if (selectedContractIds.length === 0) {
-      toast('Please select at least one contract', { type: 'warning' });
-      return;
-    }
-    for (const id of selectedContractIds) {
-      const contract = contracts.find((c) => c.id === id);
-      if (contract) {
-        try {
-          await MultiContractPDFExport.exportToPDF({
-            contract,
-            zmsSignature: zmsSignature || '',
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
-            buyerAddress: undefined,
-            type,
-          });
-        } catch (error) {
-          console.error(`Failed to generate ${type} PDF:`, error);
-          toast(`Failed to generate ${type} PDF`, { type: 'error' });
-        }
-      }
-    }
-    setOpenPDFModal(false);
-    setShowSinglePDFOptions(false);
-    setShowMultiPDFOptions(false);
-    setShowConversionPDFOptions(false);
-    setDietMultiPDFOptions(false);
-  };
-
-  const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
-    if (selectedContractIds.length === 0) {
-      toast('Please select at least one contract', { type: 'warning' });
-      return;
-    }
-    for (const id of selectedContractIds) {
-      const contract = contracts.find((c) => c.id === id);
-      if (contract) {
-        try {
-          await ConversionPDFExport.exportToPDF({
-            contract,
-            zmsSignature: zmsSignature || '',
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
-            buyerAddress: undefined,
-            type,
-          });
-        } catch (error) {
-          console.error(`Failed to generate ${type} conversion PDF:`, error);
-          toast(`Failed to generate ${type} conversion PDF`, { type: 'error' });
-        }
-      }
-    }
-    setOpenPDFModal(false);
-    setShowSinglePDFOptions(false);
-    setShowMultiPDFOptions(false);
-    setShowConversionPDFOptions(false);
-    setDietMultiPDFOptions(false);
-  };
+ 
 
   return (
     <div className="container bg-white rounded-md p-6 h-[110vh]">
