@@ -39,7 +39,7 @@ import { getAllSelvegeThicknesss } from "@/apis/selvegethickness"
 import { getAllInductionThreads } from "@/apis/Inductionthread"
 import { getAllGSMs } from "@/apis/gsm"
 
-// Schema definitions
+// Schema definitions  scema for validation
 const DeliveryBreakupSchema = z.object({
   Id: z.string().optional(),
   Qty: z.string().min(1, "Quantity is required"),
