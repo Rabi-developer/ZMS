@@ -180,6 +180,8 @@ export interface Contract {
     }[];
   }[];
   multiWidthContractRow: {
+    deliveryDate: string | number | Date;
+    deliveryDates: any;
     id: string;
     contractId: string;
     width: string;
