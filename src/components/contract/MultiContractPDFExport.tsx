@@ -1,3 +1,4 @@
+'use client';
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -22,9 +23,9 @@ const isDarkMode = typeof window !== 'undefined' && window.matchMedia('(prefers-
 
 // Style constants
 const styles = {
-  label: { size: 11, color: [0, 0, 0] as [number, number, number] },
-  value: { size: 10, color: [0, 0, 0] as [number, number, number] },
-  margins: { left: 12, right: 12 },
+  label: { size: 8, color: [0, 0, 0] as [number, number, number] },
+  value: { size: 7, color: [0, 0, 0] as [number, number, number] },
+  margins: { left: 10, right: 10 },
 };
 
 // Utility function to format numbers with commas
@@ -42,8 +43,6 @@ interface ExportToPDFProps {
   zmsSignature?: string;
   sellerAddress?: string;
   buyerAddress?: string;
-  buyerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
-  sellerDeliveryBreakups?: { Qty: string; DeliveryDate: string }[];
   type: 'sale' | 'purchase' | 'multiwidth';
 }
 
@@ -59,8 +58,6 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     zmsSignature,
     sellerAddress,
     buyerAddress,
-    buyerDeliveryBreakups = [],
-    sellerDeliveryBreakups = [],
     type,
   }: ExportToPDFProps) => {
     if (!contract) {
@@ -137,33 +134,32 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
 
     const doc = new jsPDF();
 
-    doc.setFillColor(6, 182, 212);
-    doc.rect(0, 0, 210, 32, 'F');
-
     // Header
+    doc.setFillColor(6, 182, 212);
+    doc.rect(0, 0, 210, 28, 'F');
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(30);
+    doc.setFontSize(26);
     doc.setTextColor(0, 0, 0);
     doc.text('ZM SOURCING', 105, 10, { align: 'center' });
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7);
+    doc.setFontSize(6);
     doc.text('Suit No. 108, SP Chamber, Main Estate Avenue, SITE Karachi', 105, 16, { align: 'center' });
     doc.text('Phone: +92 21 32550917-18', 105, 22, { align: 'center' });
 
     // Logo
     try {
-      doc.addImage(ZMS_LOGO, 'PNG', 12, 6, 22, 16);
+      doc.addImage(ZMS_LOGO, 'PNG', 10, 6, 20, 14);
     } catch (error) {
       console.error('Failed to load logo:', error);
-      doc.setFontSize(15);
+      doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
-      doc.text('[ZMS Logo]', 12, 16);
+      doc.text('[ZMS Logo]', 10, 14);
     }
 
     // Subheading: ZMS/ContractNo/Month/Year
-    let yPos = 46;
+    let yPos = 38;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
     let monthYear = '-';
     if (contract.date) {
@@ -179,65 +175,61 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     const contractSubheading = `${contract.contractNumber || '-'}`;
     doc.text(contractSubheading, 10, yPos, { align: 'left' });
 
-    yPos = 40;
+    // Heading
+    yPos = 34;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    // Set heading based on type
-    const heading = type === 'sale' ? 'SALE CONTRACT' : type === 'purchase' ? 'PURCHASE CONTRACT' : 'MULTIWIDTH CONTRACT';
+    const heading = type === 'sale' ? 'MULTIWIDTH SALE CONTRACT' : type === 'purchase' ? 'MULTIWIDTH PURCHASE CONTRACT' : 'MULTIWIDTH CONTRACT';
     doc.text(heading, 105, yPos, { align: 'center' });
 
-    yPos = 46;
+    // Date
+    yPos = 38;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
-
-    // Format date
     const formattedDate = contract.date
       ? new Date(contract.date).toLocaleDateString('en-GB', {
           day: '2-digit',
           month: '2-digit',
           year: 'numeric',
-        })
-          .split('/')
-          .join('-')
+        }).split('/').join('-')
       : '-';
-
     doc.text(`Date: ${formattedDate}`, 200, yPos, { align: 'right' });
-    yPos += 15;
+    yPos += 10;
 
+    // Seller and Buyer Info
     const leftColX = 10;
-    const rightColX = 110;
+    const rightColX = 105;
     const labelStyle = {
       font: 'helvetica' as const,
       style: 'bold' as const,
-      size: 9,
+      size: 8,
       color: [0, 0, 0] as [number, number, number],
     };
     const valueStyle = {
       font: 'helvetica' as const,
       style: 'normal' as const,
-      size: 9,
+      size: 7,
       color: [0, 0, 0] as [number, number, number],
     };
 
     // Seller Info
-    const sellerBoxY = yPos - 5;
-    const sellerBoxHeight = 14;
-    doc.setLineWidth(0.5);
+    const sellerBoxY = yPos - 4;
+    const sellerBoxHeight = 12;
+    doc.setLineWidth(0.4);
     doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
-    doc.rect(leftColX - 2, sellerBoxY, 90, sellerBoxHeight, 'S');
-
+    doc.rect(leftColX - 2, sellerBoxY, 85, sellerBoxHeight, 'S');
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.setTextColor(...labelStyle.color);
     doc.text('Seller:', leftColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
     let sellerName = contract.seller || '-';
-    let sellerAddressText = GetSellerAddress || '';
-    const maxSellerWidth = 75;
+    let sellerAddressText = sellerAddress || contract.multiWidthContractRow?.[0]?.commisionInfo?.dispatchAddress || GetSellerAddress || '-';
+    const maxSellerWidth = 70;
     if (doc.getTextWidth(sellerName) > maxSellerWidth) {
       while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
         sellerName = sellerName.slice(0, -1);
@@ -250,26 +242,25 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       }
       sellerAddressText += '...';
     }
-    doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 6, yPos);
-    doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 6, yPos + 6);
+    doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 5, yPos);
+    doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 5, yPos + 5);
 
     // Buyer Info
-    const buyerBoxY = yPos - 5;
-    const buyerBoxHeight = 14;
-    doc.setLineWidth(0.5);
+    const buyerBoxY = yPos - 4;
+    const buyerBoxHeight = 12;
+    doc.setLineWidth(0.4);
     doc.setDrawColor(isDarkMode ? 0 : 0, isDarkMode ? 0 : 0, isDarkMode ? 0 : 0);
-    doc.rect(rightColX - 2, buyerBoxY, 90, buyerBoxHeight, 'S');
-
+    doc.rect(rightColX - 2, buyerBoxY, 85, buyerBoxHeight, 'S');
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...(labelStyle.color as [number, number, number]));
+    doc.setTextColor(...labelStyle.color);
     doc.text('Buyer:', rightColX, yPos);
     doc.setFont(valueStyle.font, valueStyle.style);
     doc.setFontSize(valueStyle.size);
     doc.setTextColor(...valueStyle.color);
     let buyerName = contract.buyer || '-';
-    let buyerAddressText = GetBuyerAddress || '';
-    const maxBuyerWidth = 75;
+    let buyerAddressText = buyerAddress || GetBuyerAddress || '-';
+    const maxBuyerWidth = 70;
     if (doc.getTextWidth(buyerName) > maxBuyerWidth) {
       while (doc.getTextWidth(buyerName + '...') > maxBuyerWidth && buyerName.length > 0) {
         buyerName = buyerName.slice(0, -1);
@@ -282,22 +273,21 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       }
       buyerAddressText += '...';
     }
-    doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 6, yPos);
-    doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 6, yPos + 6);
+    doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 5, yPos);
+    doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 5, yPos + 5);
 
-    yPos += 25;
+    yPos += 15;
 
     // Fields
     const fields = [
       { label: 'Description:', value: `${contract.description || '-'}, ${contract.stuff || '-'}` },
-      {
-        label: 'Blend Ratio:',
-        value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}`,
-      },
+      { label: 'Blend Ratio:', value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}` },
       {
         label: 'Construction:',
         value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.width || '-'} ${contract.final || '-'}${contract.selvege || 'selvedge'}`,
       },
+      { label: 'Reference Number:', value: contract.referenceNumber || '-' },
+      { label: 'Fabric Type:', value: contract.fabricType || '-' },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
@@ -305,7 +295,7 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     const maxLabelWidth = Math.max(...fields.map((field) => doc.getTextWidth(field.label)));
 
     fields.forEach((field) => {
-      const maxWidth = 190;
+      const maxWidth = 180;
       let value = field.value;
       if (doc.getTextWidth(value) > maxWidth) {
         while (doc.getTextWidth(value + '...') > maxWidth && value.length > 0) {
@@ -316,253 +306,173 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
 
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...(labelStyle.color as [number, number, number]));
+      doc.setTextColor(...labelStyle.color);
       doc.text(field.label, leftColX, yPos);
 
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
+      doc.text(value, leftColX + maxLabelWidth + 5, yPos);
 
-      // Split value by newlines and print each line
-      const lines = value.split('\n');
-      lines.forEach((line, index) => {
-        const lineY = yPos + (index * 5); // Add 5 units of space between lines
-        doc.text(line, leftColX + maxLabelWidth + 6, lineY);
-      });
-
-      // Update yPos based on number of lines
-      yPos += (lines.length * 5) + 2; // Add extra space after each field
+      yPos += 4;
     });
 
-    // Financial Table (Sel.Length, Sel.Weaves, etc.)
-    autoTable(doc, {
-      startY: yPos,
-      head: [['Sel.Length', 'Sel.Weaves', 'Sel.Thick', 'Ind.Thread', 'GSM']],
-      body: [
-        [
-          contract.selvegeWidth || '-',
-          contract.selvegeWeaves || '-',
-          contract.selvegeThickness || '',
-          contract.inductionThread || '-',
-          contract.gsm || '-',
-        ],
-      ],
-      styles: {
-        fontSize: 9,
-        cellPadding: 2,
-        lineColor: [0, 0, 0],
-        lineWidth: 0.4,
-        textColor: [0, 0, 0],
-        fontStyle: 'bold',
-      },
-      headStyles: {
-        fillColor: [6, 182, 212],
-        textColor: [0, 0, 0],
-        lineColor: [0, 0, 0],
-        fontSize: 10,
-        cellPadding: 2,
-        lineWidth: 0.4,
-        fontStyle: 'bold',
-      },
-      columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 34 }, 2: { cellWidth: 34 }, 3: { cellWidth: 34 }, 4: { cellWidth: 34 } },
-      margin: { left: 12, right: 12 },
-      theme: 'grid',
-    });
+    yPos += 3;
 
-    yPos = (doc as any).lastAutoTable.finalY + 5;
-
-    // New Delivery Details Table
+    // Financial Table
     const tableBody: (string | number)[][] = [];
     let totalQty = 0;
     let totalAmount = 0;
+    const rowCount = contract.multiWidthContractRow?.length || 1;
 
-    if (Array.isArray(contract.deliveryDetails) && contract.deliveryDetails.length > 0) {
-      contract.deliveryDetails.forEach((delivery) => {
-        const qty = parseFloat(delivery.quantity || '0');
-        const rate = parseFloat(delivery.rate || '0');
-        const amount = qty * rate;
+    // Dynamic table styling based on row count
+    const tableStyles = rowCount > 10
+      ? { fontSize: 6, cellPadding: 0.5, lineWidth: 0.1 }
+      : rowCount > 5
+        ? { fontSize: 7, cellPadding: 0.7, lineWidth: 0.15 }
+        : { fontSize: 8, cellPadding: 1, lineWidth: 0.2 };
+
+    if (Array.isArray(contract.multiWidthContractRow) && contract.multiWidthContractRow.length > 0) {
+      contract.multiWidthContractRow.forEach((row) => {
+        const qty = parseFloat(row.quantity || '0');
+        const amount = parseFloat(row.amount || '0');
 
         if (!isNaN(qty)) totalQty += qty;
         if (!isNaN(amount)) totalAmount += amount;
 
-        // Split color values and create multiple rows if needed
-        const contract = delivery.color ? delivery.color.split('|') : ['-'];
-        contract.forEach((color, colorIndex) => {
-          tableBody.push([
-            colorIndex === 0 ? delivery.labDispNo || '-' : '',
-            colorIndex === 0 ? delivery.labDispDate
-              ? new Date(delivery.labDispDate).toLocaleDateString('en-GB', {
+        tableBody.push([
+          row.width || '-',
+          row.quantity || '-',
+          `PKR ${formatCurrency(row.rate)}`,
+          formatCurrency(amount),
+          row.buyerDeliveryBreakups?.[0]?.deliveryDate
+            ? new Date(row.buyerDeliveryBreakups[0].deliveryDate).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              }).split('/').join('-')
+            : row.deliveryDate
+              ? new Date(row.deliveryDate).toLocaleDateString('en-GB', {
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',
-                })
-                  .split('/')
-                  .join('-')
-              : '-' : '',
-            color,
-            colorIndex === 0 ? delivery.quantity?.toString() || '-' : '',
-            colorIndex === 0 ? `PKR ${delivery.rate || '-'}` : '',
-            colorIndex === 0 ? formatCurrency(amount) : '',
-            colorIndex === 0 ? delivery.deliveryDate
-              ? new Date(delivery.deliveryDate).toLocaleDateString('en-GB', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                })
-                  .split('/')
-                  .join('-')
-              : '-' : '',
-          ]);
-        });
-      });
-    } else if (Array.isArray(buyerDeliveryBreakups) && buyerDeliveryBreakups.length > 0) {
-      buyerDeliveryBreakups.forEach((breakup, index) => {
-        const qty = parseFloat(breakup.Qty || '0');
-        const rate = parseFloat(contract.rate || '0');
-        const amount = qty * rate;
-
-        if (!isNaN(qty)) totalQty += qty;
-        if (!isNaN(amount) && index === 0) totalAmount += amount;
-
-        // Split color values and create multiple rows if needed
-        const deliveryDate = contract.deliveryDate ? contract.deliveryDate.split('|') : ['-'];
-        deliveryDate.forEach((color, colorIndex) => {
-          tableBody.push([
-            colorIndex === 0 && index === 0 ? contract.width || '-' : '',
-            colorIndex === 0 ? breakup.Qty?.toString() || '-' : '',
-            colorIndex === 0 && index === 0 ? `PKR ${contract.rate || '-'}` : '',
-            colorIndex === 0 && index === 0 ? formatCurrency(amount) : '',
-            color,
-            colorIndex === 0 ? breakup.DeliveryDate
-              ? new Date(breakup.DeliveryDate).toLocaleDateString('en-GB', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                })
-                  .split('/')
-                  .join('-')
-              : '-' : '',
-          ]);
-        });
+                }).split('/').join('-')
+              : '-',
+        ]);
       });
     } else {
       const qty = parseFloat(contract.quantity || '0');
-      const rate = parseFloat(contract.rate || '0');
-      const amount = qty * rate;
+      const amount = parseFloat(contract.totalAmount || '0');
 
       if (!isNaN(qty)) totalQty += qty;
       if (!isNaN(amount)) totalAmount += amount;
 
-      // Split color values and create multiple rows if needed
-      const colors = contract.deliveryDate ? contract.deliveryDate.split('|') : ['-'];
-      colors.forEach((deliveryDate, colorIndex) => {
-        tableBody.push([
-          colorIndex === 0 ? contract.width || '-' : '',
-          colorIndex === 0 ? contract.quantity?.toString() || '-' : '',
-          colorIndex === 0 ? `PKR ${contract.rate || '-'}` : '',
-          colorIndex === 0 ? formatCurrency(amount) : '',
-          deliveryDate,
-          colorIndex === 0 ? contract.deliveryDate
-            ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-              })
-                .split('/')
-                .join('-')
-            : '-' : '',
-        ]);
-      });
+      tableBody.push([
+        contract.width || '-',
+        contract.quantity || '-',
+        `PKR ${formatCurrency(contract.rate)}`,
+        formatCurrency(amount),
+        contract.deliveryDate
+          ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            }).split('/').join('-')
+          : '-',
+      ]);
     }
 
-    // Calculate GST amount and total with GST
-    const gstPercentage = parseFloat(contract.gst as any) || 0;
+    // Calculate GST and total with GST
+    const gstPercentage = parseFloat(contract.multiWidthContractRow?.[0]?.gst || contract.gst || '0');
     const gstAmount = (totalAmount * gstPercentage) / 100;
     const totalWithGST = totalAmount + gstAmount;
 
-    // Add total quantity row (subtotal before GST)
-    tableBody.push(['', '', 'Subtotal:', formatCurrency(totalQty), '', formatCurrency(totalAmount), '']);
-
-    // Add GST row
-    tableBody.push(['', '', `GST (${gstPercentage}%):`, '', '', formatCurrency(gstAmount), '']);
-
-    // Add total with GST row
-    tableBody.push(['', '', `Total (with ${gstPercentage}% GST):`, '', '', formatCurrency(totalWithGST), '']);
+    // Add total rows
+    tableBody.push(['', 'Subtotal:', '', formatCurrency(totalQty), formatCurrency(totalAmount), '']);
+    tableBody.push(['', `GST (${gstPercentage}%):`, '', '', formatCurrency(gstAmount), '']);
+    tableBody.push(['', `Total (with ${gstPercentage}% GST):`, '', '', formatCurrency(totalWithGST), '']);
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Width', 'Greige Qty', 'PKR/ MTr', 'Amount', 'Delivery']],
+      head: [['Width', 'Quantity', 'Rate', 'Amount', 'Delivery Date']],
       body: tableBody,
       styles: {
-        fontSize: 8,
-        cellPadding: 1.5,
+        fontSize: tableStyles.fontSize,
+        cellPadding: tableStyles.cellPadding,
         lineColor: [0, 0, 0],
-        lineWidth: 0.3,
+        lineWidth: tableStyles.lineWidth,
         textColor: [0, 0, 0],
-        fontStyle: 'bold',
+        fontStyle: 'normal',
       },
       headStyles: {
         fillColor: [6, 182, 212],
         textColor: [0, 0, 0],
         lineColor: [0, 0, 0],
-        fontSize: 8,
-        cellPadding: 1.5,
-        lineWidth: 0.3,
+        fontSize: tableStyles.fontSize,
+        cellPadding: tableStyles.cellPadding,
+        lineWidth: tableStyles.lineWidth,
         fontStyle: 'bold',
       },
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 25 },
-        5: { cellWidth: 30 },
-        6: { cellWidth: 25 },
+        0: { cellWidth: 25 }, // Width
+        1: { cellWidth: 20 }, // Quantity
+        2: { cellWidth: 25 }, // Rate
+        3: { cellWidth: 30 }, // Amount
+        4: { cellWidth: 30 }, // Delivery Date
       },
       margin: { left: 10, right: 10 },
       theme: 'grid',
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 5;
+    yPos = (doc as any).lastAutoTable.finalY + 3;
 
     // Additional Fields
-    const leftColumnX = 12;
-    const leftColumnWidth = 186; // Increased to use full page width (210 - 12 left - 12 right)
+    const leftColumnX = 10;
+    const leftColumnWidth = 180;
     let leftColumnYPos = yPos;
 
     const additionalFields = [
       { label: 'Piece Length:', value: contract.pieceLength || '-' },
-      { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
-      { label: 'Total:', value: `Rs. ${formatCurrency(contract.totalAmount)}` },
+      { label: 'Packing:', value: contract.packing || '-' },
+      { label: 'Payment:', 
+        value: type === 'purchase' 
+          ? contract.multiWidthContractRow?.[0]?.commisionInfo?.paymentTermsSeller || '-' 
+          : contract.multiWidthContractRow?.[0]?.commisionInfo?.paymentTermsBuyer || '-' 
+      },
+      { label: 'Total:', value: `Rs. ${formatCurrency(totalWithGST)}` },
       ...(type === 'purchase'
         ? [
-            { label: 'Commission:', value: `${contract.commissionPercentage || '-'}%` },
-            { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.commissionValue)}` },
+            { label: 'Commission:', value: `${contract.multiWidthContractRow?.[0]?.commissionPercentage || '-'}%` },
+            { label: 'Commission Value:', value: `Rs. ${formatCurrency(contract.multiWidthContractRow?.[0]?.commissionValue)}` },
           ]
         : []),
-      { label: 'Delivery Destination:', value: `${contract.buyer || ''}` },
-      { label: 'Remarks:', value: `${contract.buyerRemark || ''}` },
+      { label: 'Delivery Destination:', value: contract.buyer || '-' },
+      { label: 'Remarks:', 
+        value: type === 'purchase' 
+          ? contract.multiWidthContractRow?.[0]?.commisionInfo?.sellerRemark || '-' 
+          : contract.multiWidthContractRow?.[0]?.commisionInfo?.buyerRemark || '-' 
+      },
     ];
 
     doc.setFont(labelStyle.font, labelStyle.style);
     doc.setFontSize(labelStyle.size);
     const maxAdditionalLabelWidth = Math.max(...additionalFields.map((field) => doc.getTextWidth(field.label)));
     additionalFields.forEach((field) => {
-      const wrappedText = doc.splitTextToSize(field.value, leftColumnWidth - maxAdditionalLabelWidth - 6);
+      const wrappedText = doc.splitTextToSize(field.value, leftColumnWidth - maxAdditionalLabelWidth - 5);
       doc.setFont(labelStyle.font, labelStyle.style);
       doc.setFontSize(labelStyle.size);
-      doc.setTextColor(...(labelStyle.color as [number, number, number]));
+      doc.setTextColor(...labelStyle.color);
       doc.text(field.label, leftColumnX, leftColumnYPos);
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
       wrappedText.forEach((line: string, i: number) => {
-        doc.text(line, leftColumnX + maxAdditionalLabelWidth + 6, leftColumnYPos + i * 6);
+        doc.text(line, leftColumnX + maxAdditionalLabelWidth + 5, leftColumnYPos + i * 4);
       });
-      leftColumnYPos += wrappedText.length * 6;
+      leftColumnYPos += wrappedText.length * 4;
     });
 
-    yPos = leftColumnYPos + 8;
+    yPos = leftColumnYPos + 5;
 
     // Terms and Conditions
     autoTable(doc, {
@@ -574,88 +484,89 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
       theme: 'plain',
       styles: {
         font: 'helvetica',
-        fontSize: 9,
-        cellPadding: { top: 2, bottom: 2, left: 3, right: 8 },
+        fontSize: 7,
+        cellPadding: { top: 1, bottom: 1, left: 2, right: 5 },
         textColor: [0, 0, 0],
-        lineWidth: 0,
         halign: 'left',
       },
-      columnStyles: { 0: { cellWidth: 15, fontStyle: 'bold' }, 1: { cellWidth: 165 } },
-      margin: { left: 12, right: 12 },
+      columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 160 } },
+      margin: { left: 10, right: 10 },
       didDrawCell: (data) => {
         if (data.section === 'body' && data.row.index === 0) {
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(11);
-          doc.setTextColor(...(labelStyle.color as [number, number, number]));
-          doc.text('Terms and Conditions', 12, data.cell.y - 4);
+          doc.setFontSize(8);
+          doc.setTextColor(...labelStyle.color);
+          doc.text('Terms and Conditions', 10, data.cell.y - 3);
         }
       },
     });
 
-    yPos = (doc as any).lastAutoTable.finalY + 8;
+    yPos = (doc as any).lastAutoTable.finalY + 5;
 
     // Signatures
     const signatureY = yPos;
-    const signatureWidth = 40;
-    const startX = 12;
-    const sellerMargin = 10;
+    const signatureWidth = 35;
+    const startX = 10;
+    const sellerMargin = 8;
     const centerX = startX + signatureWidth + sellerMargin;
-    const buyerMargin = 10;
-    const endX = centerX + signatureWidth + buyerMargin;
+    const pageWidth = 210;
+    const margin = 10;
+    const availableWidth = pageWidth - margin - (centerX + signatureWidth);
+    const gap = availableWidth / 2;
+    const endX = centerX + signatureWidth + gap;
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(8);
+    doc.setTextColor(...labelStyle.color);
     if (zmsSignature) {
-      doc.addImage(zmsSignature, 'PNG', startX, signatureY, signatureWidth, 14);
+      doc.addImage(zmsSignature, 'PNG', startX, signatureY, signatureWidth, 12);
     }
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(15);
-    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.setTextColor(...valueStyle.color);
     const zmsText = 'Z.M. SOURCING';
     const zmsTextWidth = doc.getTextWidth(zmsText);
-    doc.text(zmsText, startX, signatureY + 16);
-    doc.setLineWidth(0.3);
-    doc.setDrawColor(0, 0, 0);
-    doc.line(startX, signatureY + 17, startX + zmsTextWidth, signatureY + 17);
+    doc.text(zmsText, startX, signatureY + 14);
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(...valueStyle.color);
+    doc.line(startX, signatureY + 15, startX + zmsTextWidth, signatureY + 15);
 
     if (sellerSignature) {
-      doc.addImage(sellerSignature, 'PNG', centerX, signatureY, signatureWidth, 14);
+      doc.addImage(sellerSignature, 'PNG', centerX, signatureY, signatureWidth, 12);
     }
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.setTextColor(...valueStyle.color);
     const sellerText = `${contract.seller || '-'}`;
     const sellerTextWidth = doc.getTextWidth(sellerText);
-    doc.text(sellerText, centerX, signatureY + 16);
-    doc.setLineWidth(0.3);
-    doc.setDrawColor(0, 0, 0);
-    doc.line(centerX, signatureY + 17, centerX + sellerTextWidth, signatureY + 17);
+    doc.text(sellerText, centerX, signatureY + 14);
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(...valueStyle.color);
+    doc.line(centerX, signatureY + 15, centerX + sellerTextWidth, signatureY + 15);
 
     if (buyerSignature) {
-      doc.addImage(buyerSignature, 'PNG', endX, signatureY, signatureWidth, 14);
+      doc.addImage(buyerSignature, 'PNG', endX, signatureY, signatureWidth, 12);
     }
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.setTextColor(...valueStyle.color);
     const buyerText = `${contract.buyer || '-'}`;
     const buyerTextWidth = doc.getTextWidth(buyerText);
-    doc.text(buyerText, endX, signatureY + 16);
-    doc.setLineWidth(0.3);
-    doc.setDrawColor(0, 0, 0);
-    doc.line(endX, signatureY + 17, endX + buyerTextWidth, signatureY + 17);
+    doc.text(buyerText, endX, signatureY + 14);
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(...valueStyle.color);
+    doc.line(endX, signatureY + 15, endX + buyerTextWidth, signatureY + 15);
 
-    yPos = signatureY + 26;
+    yPos = signatureY + 20;
 
     // Footer
     doc.setLineWidth(0.2);
     doc.setFillColor(6, 182, 212);
-    doc.rect(0, yPos, 210, 18, 'F');
-    doc.rect(0, yPos, 210, 14, 'F');
+    doc.rect(0, yPos, 210, 12, 'F');
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(6);
     doc.setTextColor(0, 0, 0);
-    doc.text('Page 1 of 1', 198, yPos + 6, { align: 'right' });
+    doc.text('Page 1 of 1', 200, yPos + 5, { align: 'right' });
     doc.text(
       `Generated on ${new Date().toLocaleString('en-US', {
         timeZone: 'Asia/Karachi',
@@ -663,15 +574,15 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
         month: 'short',
         day: 'numeric',
       })}`,
-      12,
-      yPos + 6
+      10,
+      yPos + 5
     );
-    doc.text('Confidential - ZMS Textiles Ltd.', 105, yPos + 6, { align: 'center' });
+    doc.text('Confidential - ZMS Textiles Ltd.', 105, yPos + 5, { align: 'center' });
 
-    // Update document name to reflect the heading
-     const filename = type === 'purchase'
-      ? `ZMS Sourcing Purchase MultWidth  Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`
-      : `ZMS Sourcing Sale MultiWidth Contract: (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`;
+    // Save PDF
+    const filename = type === 'purchase'
+      ? `ZMS Sourcing MultiWidth Purchase Contract (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`
+      : `ZMS Sourcing MultiWidth Sale Contract (${contract.seller || '-'})-(${contract.buyer || '-'}).pdf`;
     doc.save(filename);
   },
 };
