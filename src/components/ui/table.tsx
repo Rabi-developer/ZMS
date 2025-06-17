@@ -374,7 +374,7 @@ export function DataTable<TData, TValue>({
                     whileTap={{ scale: 0.95 }}
                     className={`px-3 py-1 text-sm rounded-md ${
                       pageNumber === pageIndex
-                        ? "bg-[#0e61e7] text-white"
+                        ? "bg-[#5ebbd2] text-white"
                         : "bg-white dark:bg-[#0a0f3d] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#124ebb]"
                     }`}
                   >
