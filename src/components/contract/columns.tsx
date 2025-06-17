@@ -270,6 +270,11 @@ export const columns = (
     accessorKey: "buyer",
     header: "Buyer",
   },
+  
+  {
+    accessorKey: "name",
+    header: "",
+  },
   {
     accessorKey: "referenceNumber",
     header: "Reference Number",
