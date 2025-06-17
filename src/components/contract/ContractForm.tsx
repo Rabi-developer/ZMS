@@ -38,6 +38,7 @@ import { getAllGeneralSaleTextTypes } from "@/apis/generalSaleTextType"
 import { getAllSelvegeThicknesss } from "@/apis/selvegethickness"
 import { getAllInductionThreads } from "@/apis/Inductionthread"
 import { getAllGSMs } from "@/apis/gsm"
+import Link from 'next/link';
 
 // Schema definitions
 const DeliveryBreakupSchema = z.object({
@@ -3996,26 +3997,26 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 <Button
                   type="button"
                   onClick={handlePreviousSection}
-                  className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
+                  className="bg-[#06b6d4]  mt-6 text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
                 >
                   <MdArrowBack /> Previous
                 </Button>
-                <div className="flex gap-4">
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
-                  >
-                    📋 {id ? "Update Contract" : "Create Contract"}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => router.push("/contract")}
-                    className="bg-gray-500 text-white hover:bg-gray-600 flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </Button>
-                </div>
+                 <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">
+          <Button
+            type="submit"
+            className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+          >
+            {id ? "Update" : "Submit"}
+          </Button>
+          <Link href="/contract">
+            <Button
+              type="button"
+              className="w-[160] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+            >
+              Cancel
+            </Button>
+          </Link>
+        </div>
               </div>
             </div>
           )}
