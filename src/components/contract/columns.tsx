@@ -182,8 +182,6 @@ export interface Contract {
     }[];
   }[];
   multiWidthContractRow: {
-    deliveryDate: string | number | Date;
-    deliveryDates: any;
     id: string;
     contractId: string;
     width: string;
@@ -197,6 +195,7 @@ export interface Contract {
     commissionPercentage: string;
     commissionValue: string;
     totalAmount: string;
+    date: string;
     commisionInfo: {
       id: string;
       paymentTermsSeller: string;

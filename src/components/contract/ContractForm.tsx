@@ -139,7 +139,9 @@ const MultiWidthContractRowSchema = z.object({
   CommissionPercentage: z.string().optional(),
   CommissionValue: z.string().optional(),
   TotalAmount: z.string().optional(),
+  Date: z.string().optional(),
   CommissionInfo: CommissionInfoSchema.optional(),
+  
 })
 
 const ContractSchema = z.object({
@@ -414,6 +416,7 @@ type ContractApiResponse = {
     commissionPercentage: string
     commissionValue: string
     totalAmount: string
+    Date: string
     commisionInfo: {
       id?: string
       paymentTermsSeller: string
@@ -603,6 +606,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       CommissionPercentage: '',
       CommissionValue: '',
       TotalAmount: '',
+      Date: '',
       CommissionInfo: {
         PaymentTermsSeller: '',
         PaymentTermsBuyer: '',
@@ -1533,6 +1537,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   CommissionPercentage: row.commissionPercentage || '',
                   CommissionValue: row.commissionValue || '',
                   TotalAmount: row.totalAmount || '',
+                  Date: row.Date || '',
                   CommissionInfo: {
                     PaymentTermsSeller: row.commisionInfo?.paymentTermsSeller || '',
                     PaymentTermsBuyer: row.commisionInfo?.paymentTermsBuyer || '',
@@ -1761,6 +1766,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         CommissionPercentage: '',
         CommissionValue: '',
         TotalAmount: '',
+        Date: '',
         CommissionInfo: {
           PaymentTermsSeller: '',
           PaymentTermsBuyer: '',
@@ -2155,6 +2161,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         commissionPercentage: row.CommissionPercentage || '',
         commissionValue: row.CommissionValue || '',
         totalAmount: row.TotalAmount || '',
+        deliveryDate: row.Date ? new Date(row.Date).toISOString() : '',
         commisionInfo: {
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
@@ -2802,7 +2809,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.Quantity}
                                 onChange={(e) => handleConversionContractChange(index, 'Quantity', e.target.value)}
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -2811,7 +2818,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.PickRate}
                                 onChange={(e) => handleConversionContractChange(index, 'PickRate', e.target.value)}
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -2872,7 +2879,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">                             
                                <input
-                                type="number"
+                                type="text"
                                 value={row.CommissionPercentage}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                   handleConversionContractChange(index, "CommissionPercentage", e.target.value)
@@ -2915,7 +2922,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.Wrapwt}
                                 onChange={(e) => handleConversionContractChange(index, 'Wrapwt', e.target.value)}
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -2923,7 +2930,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.Weftwt}
                                 onChange={(e) => handleConversionContractChange(index, 'Weftwt', e.target.value)}
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -3235,7 +3242,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="date"
+                                type="text"
                                 value={row.LabDispatchDate}
                                 onChange={(e) => handleDietContractChange(index, "LabDispatchDate", e.target.value)}
                                 className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -3251,7 +3258,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.Quantity}
                                 onChange={(e) => handleDietContractChange(index, "Quantity", e.target.value)}
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -3268,7 +3275,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td> */}
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.Rate}
                                 onChange={(e) => handleDietContractChange(index, "Rate", e.target.value)}
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -3321,7 +3328,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.CommissionPercentage}
                                 onChange={(e) =>
                                   handleDietContractChange(index, "CommissionPercentage", e.target.value)
@@ -3529,7 +3536,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         {sellerDeliveryBreakups.map((breakup, index) => (
                           <div key={index} className="flex gap-2 mb-4">
                             <CustomInput
-                              type="number"
+                              type="text"
                               variant="floating"
                               borderThickness="2"
                               label="Quantity"
@@ -3570,7 +3577,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         {buyerDeliveryBreakups.map((breakup, index) => (
                           <div key={index} className="flex gap-2 mb-4">
                             <CustomInput
-                              type="number"
+                              type="text"
                               variant="floating"
                               borderThickness="2"
                               label="Quantity"
@@ -3627,6 +3634,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             "Commission %",
                             "Commission Value",
                             "Total Amount",
+                            "Date:",
                             "Actions",
                           ].map((header, index) => (
                             <th
@@ -3654,7 +3662,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.Quantity}
                                 onChange={(e) => handleMultiWidthContractChange(index, "Quantity", e.target.value)}
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -3663,7 +3671,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.Rate}
                                 onChange={(e) => handleMultiWidthContractChange(index, "Rate", e.target.value)}
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -3727,7 +3735,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="number"
+                                type="text"
                                 value={row.CommissionPercentage}
                                 onChange={(e) =>
                                   handleMultiWidthContractChange(index, "CommissionPercentage", e.target.value)
@@ -3750,6 +3758,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                                 value={row.TotalAmount}
                                 readOnly
                                 className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="date"
+                                value={row.Date}
+                                onChange={(e) => handleDietContractChange(index, "DeliveryDate", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
                               />
                             </td>
                             <td className="px-4 py-3 flex gap-2">

@@ -317,13 +317,26 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
 
     yPos += 5;
 
-   // Financial Table
-const tableBody: (string | number)[][] = [];
+   // Utility function to format dates
+const formatDate = (dateStr: string | undefined) => {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  return isNaN(date.getTime())
+    ? '-'
+    : date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).split('/').join('-');
+};
+
+// Financial Table
+const tableBody = [];
 let totalQty = 0;
-let totalRate = 0; // Track sum of Rate
+let totalRate = 0;
 let totalAmount = 0;
-let totalCommissionPercentage = 0; // Track sum of Comm. %
-let totalCommissionValue = 0; // Track sum of Comm. Value
+let totalCommissionPercentage = 0;
+let totalCommissionValue = 0;
 const multiRow = contract.multiWidthContractRow && contract.multiWidthContractRow.length > 0 ? contract.multiWidthContractRow[0] : null;
 const rowCount = contract.multiWidthContractRow?.length || 1;
 
@@ -344,6 +357,7 @@ const tableHeaders = [
   ...(type === 'purchase' ? ['Comm. %', 'Comm. Value'] : []),
 ];
 
+// Handle multi-row contracts
 if (Array.isArray(contract.multiWidthContractRow) && contract.multiWidthContractRow.length > 0) {
   contract.multiWidthContractRow.forEach((row, index) => {
     const qty = parseFloat(row.quantity || '0');
@@ -363,19 +377,7 @@ if (Array.isArray(contract.multiWidthContractRow) && contract.multiWidthContract
       row.quantity || '-',
       `PKR ${formatCurrency(row.rate)}`,
       formatCurrency(amount),
-      row.buyerDeliveryBreakups?.[0]?.deliveryDate
-        ? new Date(row.buyerDeliveryBreakups[0].deliveryDate).toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-          }).split('/').join('-')
-        : row.deliveryDate
-          ? new Date(row.deliveryDate).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            }).split('/').join('-')
-          : '-',
+      formatDate(row.buyerDeliveryBreakups?.[index]?.deliveryDate),
       ...(type === 'purchase'
         ? [
             formatCurrency(commissionPercentage),
@@ -385,6 +387,7 @@ if (Array.isArray(contract.multiWidthContractRow) && contract.multiWidthContract
     ]);
   });
 } else {
+  // Handle single-row contract
   const qty = parseFloat(contract.quantity || '0');
   const rate = parseFloat(contract.rate || '0');
   const amount = parseFloat(contract.totalAmount || '0');
@@ -402,13 +405,7 @@ if (Array.isArray(contract.multiWidthContractRow) && contract.multiWidthContract
     contract.quantity || '-',
     `PKR ${formatCurrency(contract.rate)}`,
     formatCurrency(amount),
-    contract.deliveryDate
-      ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        }).split('/').join('-')
-      : '-',
+    formatDate(contract.deliveryDate),
     ...(type === 'purchase'
       ? [
           formatCurrency(commissionPercentage),
@@ -426,16 +423,17 @@ tableBody.push([
 
 // Add Sub Total row for numeric columns
 tableBody.push([
-  'Sub Total', // Width
-  formatCurrency(totalQty), // Quantity
-  `PKR ${formatCurrency(totalRate)}`, // Rate
-  formatCurrency(totalAmount), // Amount
-  '', // Delivery Date
+  'Sub Total',
+  formatCurrency(totalQty),
+  `PKR ${formatCurrency(totalRate)}`,
+  formatCurrency(totalAmount),
+  '',
   ...(type === 'purchase'
-    ? [`${formatCurrency(totalCommissionPercentage)}%`, formatCurrency(totalCommissionValue)] // Comm. %, Comm. Value
+    ? [`${formatCurrency(totalCommissionPercentage)}%`, formatCurrency(totalCommissionValue)]
     : []),
 ]);
 
+// Generate the table using autoTable
 autoTable(doc, {
   startY: yPos,
   head: [tableHeaders],
@@ -474,6 +472,7 @@ autoTable(doc, {
   theme: 'grid',
 });
 
+// Update yPos for subsequent content
 yPos = (doc as any).lastAutoTable.finalY + 9;
 
     // Two-Column Layout
