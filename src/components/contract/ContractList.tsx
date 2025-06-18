@@ -46,7 +46,7 @@ const ContractList = () => {
 
   const zmsSigCanvas = React.useRef<SignatureCanvas | null>(null);
 
-  const statusOptions = ['All', 'Pending', 'Approved', 'Canceled', 'Closed Dispatch', 'Closed Payment', 'Complete Closed'];
+  const statusOptions = ['All', 'Pending', 'Approved', 'Canceled', 'Closed Dispatch', 'Closed Payment', 'Complete Closed', 'Conversion', 'Dyed', 'MultiWidth'];
 
   const statusOptionsConfig = [
     { id: 1, name: 'Pending', color: '#eab308' },
@@ -55,7 +55,11 @@ const ContractList = () => {
     { id: 4, name: 'Closed Dispatch', color: '#3b82f6' },
     { id: 5, name: 'Closed Payment', color: '#8b5cf6' },
     { id: 6, name: 'Complete Closed', color: '#ec4899' },
+    { id: 7, name: 'Conversion', color: '#6b7280' }, 
+    { id: 8, name: 'Dyed', color: '#f97316' },
+    { id: 9, name: 'MultiWidth', color: '#0ea5e9' }
   ];
+ 
 
   const getStatusStyles = (status: string) => {
     switch (status) {
@@ -1272,13 +1276,13 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
                 {!showSinglePDFOptions && !showMultiPDFOptions && 
                  !showConversionPDFOptions && !showDietPDFOptions ? (
                   <>
-                    <button
+                    {/* <button
                       onClick={() => setShowSinglePDFOptions(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-all duration-200"
                     >
                       <FaFilePdf size={18} />
                       SINGLE PDF
-                    </button>
+                    </button> */}
                     <button
                       onClick={() => setShowMultiPDFOptions(true)}
                       className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-md transition-all duration-200"
@@ -1298,7 +1302,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
                       className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-700 text-white rounded-md transition-all duration-200"
                     >
                       <FaFilePdf size={18} />
-                      DIET PDF
+                      MATERIAL PROCESSING  PDF
                     </button>
                   </>
                 ) : showSinglePDFOptions ? (

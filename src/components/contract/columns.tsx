@@ -8,6 +8,8 @@ import Link from 'next/link';
 
 
 export interface Contract {
+  paymenterm: string;
+  paymenterms: string;
   id: string;
   contractNumber: string;
   date: string;

@@ -1139,72 +1139,72 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   }, [selectedBlendRatio, blendRatios, setValue]);
 
   // Calculations for Conversion Contract Rows
-  useEffect(() => {
-    const noOfPicks = Number.parseFloat(watch('NoOfPicks') || '0');
-    setConversionContractRows((prevRows) =>
-      prevRows.map((row) => {
-        const pickRate = Number.parseFloat(row.PickRate || '0');
-        const fabRate = (pickRate * noOfPicks).toFixed(2);
-        const qty = Number.parseFloat(row.Quantity || '0');
-        const amounts = (qty * Number.parseFloat(fabRate || '0')).toFixed(2);
-        const wrapwt = Number.parseFloat(row.Wrapwt || '0');
-        const wrapBag = ((qty * wrapwt) / 100).toFixed(2);
-        const weftwt = Number.parseFloat(row.Weftwt || '0');
-        const weftBag = ((qty * weftwt) / 100).toFixed(2);
-        const totalAmountMultiple = (
-          Number.parseFloat(wrapBag || '0') + Number.parseFloat(weftBag || '0')
-        ).toFixed(2);
-        const fabRates = Number.parseFloat(row.FabRate || '0');
-        const fabricValue = (qty * fabRates).toFixed(2);
-        const selectedGst = gstTypes.find((g) => g.id === row.Gst);
-        let gstValue = '0.00';
-        if (selectedGst) {
-          const percentage = Number.parseFloat(selectedGst.name.replace('% GST', '')) || 0;
-          gstValue = ((Number.parseFloat(fabricValue) * percentage) / 100).toFixed(2);
+ useEffect(() => {
+  const noOfPicks = Number.parseFloat(watch('NoOfPicks') || '0');
+  setConversionContractRows((prevRows) =>
+    prevRows.map((row) => {
+      const pickRate = Number.parseFloat(row.PickRate || '0');
+      const fabRate = (pickRate * noOfPicks).toFixed(2);
+      const qty = Number.parseFloat(row.Quantity || '0');
+      const amounts = (qty * Number.parseFloat(fabRate || '0')).toFixed(2);
+      const wrapwt = Number.parseFloat(row.Wrapwt || '0');
+      const wrapBag = ((qty * wrapwt) / 100).toFixed(2);
+      const weftwt = Number.parseFloat(row.Weftwt || '0');
+      const weftBag = ((qty * weftwt) / 100).toFixed(2);
+      const totalAmountMultiple = (
+        Number.parseFloat(wrapBag || '0') + Number.parseFloat(weftBag || '0')
+      ).toFixed(2);
+      const fabRates = Number.parseFloat(row.FabRate || '0');
+      const fabricValue = (qty * fabRates).toFixed(2);
+      const selectedGst = gstTypes.find((g) => g.id === row.Gst);
+      let gstValue = '0.00';
+      if (selectedGst) {
+        const percentage = Number.parseFloat(selectedGst.name.replace('% GST', '')) || 0;
+        gstValue = ((Number.parseFloat(fabricValue) * percentage) / 100).toFixed(2);
+      }
+      const totalAmount = (Number.parseFloat(fabricValue) + Number.parseFloat(gstValue)).toFixed(2);
+      let commissionValue = '0.00';
+      const commissionPercentage = Number.parseFloat(row.CommissionPercentage || '0');
+      if (row.CommissionType) {
+        const commissionTypeName = commissionTypes.find(
+          (type) => type.id === row.CommissionType,
+        )?.name.toLowerCase();
+        if (
+          commissionTypeName === 'on value' &&
+          commissionPercentage > 0 &&
+          Number.parseFloat(fabricValue) > 0 // Changed from totalAmount to fabricValue
+        ) {
+          commissionValue = (
+            (Number.parseFloat(fabricValue) * commissionPercentage) / 100
+          ).toFixed(2); // Changed from totalAmount to fabricValue
+        } else if (
+          commissionTypeName === 'on qty' &&
+          commissionPercentage > 0 &&
+          qty > 0
+        ) {
+          commissionValue = (qty * commissionPercentage).toFixed(2);
         }
-        const totalAmount = (Number.parseFloat(fabricValue) + Number.parseFloat(gstValue)).toFixed(2);
-        let commissionValue = '0.00';
-        const commissionPercentage = Number.parseFloat(row.CommissionPercentage || '0');
-        if (row.CommissionType) {
-          const commissionTypeName = commissionTypes.find(
-            (type) => type.id === row.CommissionType,
-          )?.name.toLowerCase();
-          if (
-            commissionTypeName === 'on value' &&
-            commissionPercentage > 0 &&
-            Number.parseFloat(totalAmount) > 0
-          ) {
-            commissionValue = (
-              (Number.parseFloat(totalAmount) * commissionPercentage) / 100
-            ).toFixed(2);
-          } else if (
-            commissionTypeName === 'on qty' &&
-            commissionPercentage > 0 &&
-            qty > 0
-          ) {
-            commissionValue = (qty * commissionPercentage).toFixed(2);
-          }
-        }
-        return {
-          ...row,
-          FabRate: fabRate,
-          Amounts: amounts,
-          WrapBag: wrapBag,
-          WeftBag: weftBag,
-          TotalAmountMultiple: totalAmountMultiple,
-          FabricValue: fabricValue,
-          GstValue: gstValue,
-          TotalAmount: totalAmount,
-          CommissionValue: commissionValue,
-        };
-      }),
-    );
-  }, [
-    conversionContractRows,
-    watch('NoOfEnds'),
-    gstTypes,
-    commissionTypes,
-  ]);
+      }
+      return {
+        ...row,
+        FabRate: fabRate,
+        Amounts: amounts,
+        WrapBag: wrapBag,
+        WeftBag: weftBag,
+        TotalAmountMultiple: totalAmountMultiple,
+        FabricValue: fabricValue,
+        GstValue: gstValue,
+        TotalAmount: totalAmount,
+        CommissionValue: commissionValue,
+      };
+    }),
+  );
+}, [
+  conversionContractRows,
+  watch('NoOfPicks'), // Changed from NoOfEnds to NoOfPicks to match dependency
+  gstTypes,
+  commissionTypes,
+]);
 
   // Calculations for Diet Contract Rows
   useEffect(() => {
@@ -1230,11 +1230,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           if (
             commissionTypeName === 'on value' &&
             commissionPercentage > 0 &&
-            Number.parseFloat(totalAmount) > 0
+           Number.parseFloat(fabricValue) > 0 // Changed from totalAmount to fabricValue
           ) {
             commissionValue = (
-              (Number.parseFloat(totalAmount) * commissionPercentage) / 100
-            ).toFixed(2);
+              (Number.parseFloat(fabricValue) * commissionPercentage) / 100
+          ).toFixed(2); // Changed from totalAmount to fabricValue
           } else if (
             commissionTypeName === 'on qty' &&
             commissionPercentage > 0 &&
@@ -1279,11 +1279,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           if (
             commissionTypeName === 'on value' &&
             commissionPercentage > 0 &&
-            Number.parseFloat(totalAmount) > 0
+          Number.parseFloat(fabricValue) > 0 // Changed from totalAmount to fabricValue
           ) {
             commissionValue = (
-              (Number.parseFloat(totalAmount) * commissionPercentage) / 100
-            ).toFixed(2);
+              (Number.parseFloat(fabricValue) * commissionPercentage) / 100
+          ).toFixed(2); // Changed from totalAmount to fabricValue
           } else if (
             commissionTypeName === 'on qty' &&
             commissionPercentage > 0 &&
@@ -2177,17 +2177,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     // Avoid filtering out empty arrays
     let response;
     if (id) {
-       router.push("/contract");
-      response = await updateContract(id, payload);
+        window.location.href= '/contract';      
+        response = await updateContract(id, payload);
       toast('Contract Updated Successfully', { type: 'success' });
      
     } else {
       response = await createContract(payload);
       toast('Contract Created Successfully', { type: 'success' });
-      router.push("/contract");
+      window.location.href= '/contract';      
+
     }
     reset();
-    router.push('/contract');
+    window.location.href= '/contract';      
+
   } catch (error: any) {
     console.error('Error submitting form:', error);
     const errorMessages = error?.response?.data?.errors || ['Error submitting contract'];
@@ -2751,7 +2753,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     activeContractType === 'Diet' ? 'border-[#06b6d4] text-[#06b6d4]' : 'border-transparent'
                   }  hover:text-white hover:bg-[#06b6d4] transition-colors bg-transparent`}
                 >
-                  Dyed Contract
+                  Material Processing Contract
                 </Button>
                 <Button
                   type="button"
@@ -2771,9 +2773,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                       <thead>
                         <tr className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                           {[
-                            'Width', 'Quantity', 'Pick Rate', 'Fab Rate', 'Rate', 'Amounts', 'Delivery Date',
-                            'Wrap Wt', 'Weft Wt', 'Wrap Bag', 'Weft Bag', 'Total Amt', 'GST', 'GST Value',
-                            'Fabric Value', 'Commission Type', 'Commission %', 'Commission Value', 'Total Amount', 'Actions'
+                            'Width', 'Quantity', 'Pick Rate', 'Fab Rate','GST', 'GST Value',
+                            'Fabric Value/ Amounts', 'Commission Type', 'Commission %', 'Commission Value', 'Total Amount', 'Delivery Date',
+                            'Wrap Wt', 'Weft Wt', 'Wrap Bag', 'Weft Bag', 'Total Amt',  'Actions'
                           ].map((header, index) => (
                             <th
                               key={index}
@@ -2820,14 +2822,61 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                                 type="text"
                                 value={row.FabRate}
                                 readOnly
+                                  onChange={(e) => handleConversionContractChange(index, 'FabRate', e.target.value)}
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={row.Gst}
+                                onChange={(e) => handleConversionContractChange(index, 'Gst', e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              >
+                                <option value="">Select GST</option>
+                                {gstTypes.map((gst) => (
+                                  <option key={gst.id} value={gst.id}>
+                                    {gst.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.GstValue}
+                                readOnly
                                 className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                               />
                             </td>
                             <td className="px-4 py-3">
                               <input
+                                type="text"
+                                value={row.FabricValue}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={row.CommissionType}
+                                onChange={(e) => handleConversionContractChange(index, 'CommissionType', e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                              >
+                                <option value="">Select Commission Type</option>
+                                {commissionTypes.map((type) => (
+                                  <option key={type.id} value={type.id}>
+                                    {type.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">                             
+                               <input
                                 type="number"
-                                value={row.Rate}
-                                onChange={(e) => handleConversionContractChange(index, 'Rate', e.target.value)}
+                                value={row.CommissionPercentage}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                  handleConversionContractChange(index, "CommissionPercentage", e.target.value)
+                                }
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
                                 min="0"
                               />
@@ -2835,11 +2884,27 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             <td className="px-4 py-3">
                               <input
                                 type="text"
-                                value={row.Amounts}
+                                value={row.CommissionValue}
                                 readOnly
                                 className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                               />
                             </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.TotalAmount}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            {/* <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.Amounts}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td> */}
                             <td className="px-4 py-3">
                               <input
                                 type="date"
@@ -2888,76 +2953,6 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                                 className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                               />
                             </td>
-                            <td className="px-4 py-3">
-                              <select
-                                value={row.Gst}
-                                onChange={(e) => handleConversionContractChange(index, 'Gst', e.target.value)}
-                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                              >
-                                <option value="">Select GST</option>
-                                {gstTypes.map((gst) => (
-                                  <option key={gst.id} value={gst.id}>
-                                    {gst.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="text"
-                                value={row.GstValue}
-                                readOnly
-                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="text"
-                                value={row.FabricValue}
-                                readOnly
-                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <select
-                                value={row.CommissionType}
-                                onChange={(e) => handleConversionContractChange(index, 'CommissionType', e.target.value)}
-                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                              >
-                                <option value="">Select Commission Type</option>
-                                {commissionTypes.map((type) => (
-                                  <option key={type.id} value={type.id}>
-                                    {type.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="px-4 py-3">                              <input
-                                type="number"
-                                value={row.CommissionPercentage}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                  handleConversionContractChange(index, "CommissionPercentage", e.target.value)
-                                }
-                                className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                                min="0"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="text"
-                                value={row.CommissionValue}
-                                readOnly
-                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="text"
-                                value={row.TotalAmount}
-                                readOnly
-                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                              />
-                            </td>
                             <td className="px-4 py-3 flex gap-2">
                               <Button
                                 type="button"
@@ -2990,7 +2985,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         <h4 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-3">
                           Row {index + 1} Commission Info
                         </h4>
-                        <div className="grid grid-cols-9 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                           <CustomInputDropdown
                             label="Payment Terms (Seller)"
                             options={paymentTerms}
@@ -3199,11 +3194,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             "Lab Dispatch No",
                             "Lab Dispatch Date",
                             "Color",
-                            "Quantity",
-                            "Finish",
-                            "Rate",
-                            "Amount Total",
-                            "Delivery Date",
+                            "Finish Qty",
+                            "PKR / Mtr",
                             "GST",
                             "GST Value",
                             "Fabric Value",
@@ -3211,6 +3203,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             "Commission %",
                             "Commission Value",
                             "Total Amount",
+                            "Amount Total",
+                            "Delivery Date",                            
                             "Shrinkage",
                             "Finish Width",
                             "Weight",
@@ -3264,14 +3258,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                                 min="1"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            {/* <td className="px-4 py-3">
                               <input
                                 type="text"
                                 value={row.Finish}
                                 onChange={(e) => handleDietContractChange(index, "Finish", e.target.value)}
                                 className="w-full min-w-[120px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
                               />
-                            </td>
+                            </td> */}
                             <td className="px-4 py-3">
                               <input
                                 type="number"
@@ -3281,23 +3275,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                                 min="0"
                               />
                             </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="text"
-                                value={row.AmountTotal}
-                                readOnly
-                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="date"
-                                value={row.DeliveryDate}
-                                onChange={(e) => handleDietContractChange(index, "DeliveryDate", e.target.value)}
-                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
-                              />
-                            </td>
-                            <td className="px-4 py-3">
+                             <td className="px-4 py-3">
                               <select
                                 value={row.Gst}
                                 onChange={(e) => handleDietContractChange(index, "Gst", e.target.value)}
@@ -3366,6 +3344,22 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                                 value={row.TotalAmount}
                                 readOnly
                                 className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.AmountTotal}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <input
+                                type="date"
+                                value={row.DeliveryDate}
+                                onChange={(e) => handleDietContractChange(index, "DeliveryDate", e.target.value)}
+                                className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
                               />
                             </td>
                             <td className="px-4 py-3">
@@ -3623,12 +3617,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                         <tr className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
                           {[
                             "Width",
-                            "Quantity",
-                            "Rate",
-                            "Amount",
+                            "Greige Qty",
+                            "PKR / Mtr",
+                           // "Amount",
+                           "Fabric Value / Amount",
                             "GST",
-                            "GST Value",
-                            "Fabric Value",
+                            "GST Value",      
                             "Commission Type",
                             "Commission %",
                             "Commission Value",
@@ -3676,10 +3670,18 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                                 min="0"
                               />
                             </td>
-                            <td className="px-4 py-3">
+                            {/* <td className="px-4 py-3">
                               <input
                                 type="text"
                                 value={row.Amount}
+                                readOnly
+                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                              />
+                            </td> */}
+                            <td className="px-4 py-3">
+                              <input
+                                type="text"
+                                value={row.FabricValue}
                                 readOnly
                                 className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                               />
@@ -3706,14 +3708,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                                 className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                               />
                             </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="text"
-                                value={row.FabricValue}
-                                readOnly
-                                className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-                              />
-                            </td>
+                            
                             <td className="px-4 py-3">
                               <select
                                 value={row.CommissionType}
@@ -4000,14 +3995,16 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="bg-[#06b6d4] text-white hover:bg-[#0895b0] flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
+                               className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+
                   >
-                    ✔️ {id ? "Update Contract" : "Create Contract"}
+                    {id ? "Update Contract" : "Create Contract"}
                   </Button>
                   <Button
                     type="button"
-                    onClick={() => router.push("/contract")}
-                    className="bg-gray-500 text-white hover:bg-gray-600 flex items-center gap-2 px-6 py-2 rounded-lg transition-colors"
+                    onClick={() => window.location.href= '/contract '}
+                                  className="w-[160] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+
                   >
                     Cancel
                   </Button>
