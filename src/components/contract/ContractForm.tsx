@@ -42,8 +42,8 @@ import { getAllGSMs } from "@/apis/gsm"
 // Schema definitions  scema for validation
 const DeliveryBreakupSchema = z.object({
   Id: z.string().optional(),
-  Qty: z.string().min(1, "Quantity is required"),
-  DeliveryDate: z.string().min(1, "Delivery Date is required"),
+  Qty: z.string().optional(),
+  DeliveryDate: z.string().optional(),
 })
 
 const AdditionalInfoSchema = z.object({
@@ -84,18 +84,18 @@ const CommissionInfoSchema = z.object({
 
 const ConversionContractRowSchema = z.object({
   Width: z.string().optional(),
-  Quantity: z.string().min(1, "Quantity is required"),
+  Quantity:z.string().optional(),
   PickRate: z.string().optional(),
   FabRate: z.string().optional(),
-  Rate: z.string().min(1, "Rate is required"),
+  Rate: z.string().optional(),
   Amounts: z.string().optional(),
-  DeliveryDate: z.string().min(1, "Delivery Date is required"),
+  DeliveryDate: z.string().optional(),
   Wrapwt: z.string().optional(),
   Weftwt: z.string().optional(),
   WrapBag: z.string().optional(),
   WeftBag: z.string().optional(),
   TotalAmountMultiple: z.string().optional(),
-  Gst: z.string().min(1, "GST is required"),
+  Gst: z.string().optional(),
   GstValue: z.string().optional(),
   FabricValue: z.string().optional(),
   CommissionType: z.string().optional(),
@@ -109,12 +109,12 @@ const DietContractRowSchema = z.object({
   LabDispatchNo: z.string().optional(),
   LabDispatchDate: z.string().optional(),
   Color: z.string().optional(),
-  Quantity: z.string().min(1, "Quantity is required"),
+  Quantity: z.string().optional(),
   Finish: z.string().optional(),
-  Rate: z.string().min(1, "Rate is required"),
+  Rate:z.string().optional(),
   AmountTotal: z.string().optional(),
-  DeliveryDate: z.string().min(1, "Delivery Date is required"),
-  Gst: z.string().min(1, "GST is required"),
+  DeliveryDate: z.string().optional(),
+  Gst:z.string().optional(),
   GstValue: z.string().optional(),
   FabricValue: z.string().optional(),
   CommissionType: z.string().optional(),
@@ -129,10 +129,10 @@ const DietContractRowSchema = z.object({
 
 const MultiWidthContractRowSchema = z.object({
   Width: z.string().optional(),
-  Quantity: z.string().min(1, "Quantity is required"),
-  Rate: z.string().min(1, "Rate is required"),
+  Quantity:z.string().optional(),
+  Rate: z.string().optional(),
   Amount: z.string().optional(),
-  Gst: z.string().min(1, "GST is required"),
+  Gst: z.string().optional(),
   GstValue: z.string().optional(),
   FabricValue: z.string().optional(),
   CommissionType: z.string().optional(),
@@ -1140,11 +1140,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 
   // Calculations for Conversion Contract Rows
   useEffect(() => {
-    const noOfEnds = Number.parseFloat(watch('NoOfEnds') || '0');
+    const noOfPicks = Number.parseFloat(watch('NoOfPicks') || '0');
     setConversionContractRows((prevRows) =>
       prevRows.map((row) => {
         const pickRate = Number.parseFloat(row.PickRate || '0');
-        const fabRate = (pickRate * noOfEnds).toFixed(2);
+        const fabRate = (pickRate * noOfPicks).toFixed(2);
         const qty = Number.parseFloat(row.Quantity || '0');
         const amounts = (qty * Number.parseFloat(fabRate || '0')).toFixed(2);
         const wrapwt = Number.parseFloat(row.Wrapwt || '0');
@@ -1154,8 +1154,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         const totalAmountMultiple = (
           Number.parseFloat(wrapBag || '0') + Number.parseFloat(weftBag || '0')
         ).toFixed(2);
-        const rate = Number.parseFloat(row.Rate || '0');
-        const fabricValue = (qty * rate).toFixed(2);
+        const fabRates = Number.parseFloat(row.FabRate || '0');
+        const fabricValue = (qty * fabRates).toFixed(2);
         const selectedGst = gstTypes.find((g) => g.id === row.Gst);
         let gstValue = '0.00';
         if (selectedGst) {
@@ -2177,11 +2177,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     // Avoid filtering out empty arrays
     let response;
     if (id) {
+       router.push("/contract");
       response = await updateContract(id, payload);
       toast('Contract Updated Successfully', { type: 'success' });
+     
     } else {
       response = await createContract(payload);
       toast('Contract Created Successfully', { type: 'success' });
+      router.push("/contract");
     }
     reset();
     router.push('/contract');
