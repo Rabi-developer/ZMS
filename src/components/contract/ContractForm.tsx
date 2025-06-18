@@ -3759,12 +3759,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                                 readOnly
                                 className="w-full min-w-[120px] p-2 border rounded-lg bg-gray-100 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                               />
-                            </td>
-                            <td className="px-4 py-3">
+                            </td>                            <td className="px-4 py-3">
                               <input
                                 type="date"
                                 value={row.Date}
-                                onChange={(e) => handleDietContractChange(index, "DeliveryDate", e.target.value)}
+                                onChange={(e) => handleMultiWidthContractChange(index, "Date", e.target.value)}
                                 className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
                               />
                             </td>
