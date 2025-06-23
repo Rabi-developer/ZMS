@@ -211,7 +211,7 @@ autoTable(doc, {
 yPos = (doc as any).lastAutoTable.finalY + 10;
 
      // Define margins with left: 7
-const margins = {
+const margins2 = {
   top: styles.margins.top || 10,
   bottom: styles.margins.bottom || 10,
   left: 7, // Set left margin to 7px
@@ -280,11 +280,10 @@ autoTable(doc, {
     0: { cellWidth: 32 },
     1: { cellWidth: 15},
     2: { cellWidth: 84 },
-    3: { cellWidth: 19 },
-    4: { cellWidth: 18},
+    3: { cellWidth: 19 },    4: { cellWidth: 18},
     5: { cellWidth: 25 },
   },
-  margin: margins, // Use updated margins object
+  margin: margins2, // Use updated margins object
   theme: 'grid',
 });
 

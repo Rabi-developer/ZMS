@@ -15,7 +15,7 @@ import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
 import { getAllTransporterCompanys } from '@/apis/transportercompany';
-import { createDispatchNote, updateDispatchNote } from '@/apis/dispatchnote';
+import { createDispatchNote, updateDispatchNote, getDispatchNoteHistory } from '@/apis/dispatchnote';
 import { Contract } from '../contract/columns';
 
 // Schema for form validation
@@ -114,8 +114,10 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
   const [fetchingSellers, setFetchingSellers] = useState(false);
   const [fetchingBuyers, setFetchingBuyers] = useState(false);
   const [fetchingTransporters, setFetchingTransporters] = useState(false);
-  const [idFocused, setIdFocused] = useState(false);
-  const [selectedContractInfo, setSelectedContractInfo] = useState<{ contractType: string; contractNumber: string } | null>(null);
+  const [idFocused, setIdFocused] = useState(false);  const [selectedContractInfo, setSelectedContractInfo] = useState<{ contractType: string; contractNumber: string } | null>(null);
+  const [historyData, setHistoryData] = useState<any>(null);
+  const [fetchingHistory, setFetchingHistory] = useState(false);
+  const [lastFetchedPair, setLastFetchedPair] = useState<string>('');
 
   // Static options for Vehicle Type
   const vehicleTypes = [
@@ -226,8 +228,30 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
     } finally {
       setFetchingTransporters(false);
     }
+  };  // Fetch Dispatch Note History
+  const fetchDispatchHistory = async (sellerName: string, buyerName: string) => {
+    try {
+      if (!sellerName || !buyerName || fetchingHistory) return;
+      
+      const fetchPair = `${sellerName}-${buyerName}`;
+      if (fetchPair === lastFetchedPair) return; // Avoid duplicate calls
+      
+      setFetchingHistory(true);
+      setLastFetchedPair(fetchPair);
+      
+      const response = await getDispatchNoteHistory(sellerName, buyerName);
+      if (response && response.data) {
+        setHistoryData(response.data);
+      } else {
+        setHistoryData(null);
+      }
+    } catch (error) {
+      console.error('Error fetching dispatch history:', error);
+      setHistoryData(null);
+    } finally {
+      setFetchingHistory(false);
+    }
   };
-
   const fetchContracts = async () => {
     try {
       setLoading(true);
@@ -374,6 +398,24 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 const quantity = row.quantity || '0';
                 const rate = row.fabRate || row.rate || contract.rate || '0';
 
+                // Check for history data to populate fields
+                let historyBase = '';
+                let historyDispatchQty = '0';
+                let historyBalanceQty = quantity;
+
+                if (historyData && historyData.relatedContracts) {
+                  const historyContract = historyData.relatedContracts.find(
+                    (hc: any) => 
+                      hc.contractNumber === contract.contractNumber && 
+                      hc.contractType === 'Conversion'
+                  );
+                  if (historyContract) {
+                    historyBase = historyContract.base || '';
+                    historyDispatchQty = historyContract.totalDispatchQuantity || '0';
+                    historyBalanceQty = historyContract.balanceQuantity || quantity;
+                  }
+                }
+
                 contractRows.push({
                   rowId,
                   contractId: contract.id,
@@ -384,10 +426,10 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   date: contract.date || '',
                   quantity,
                   rate,
-                  base: '',
-                  dispatchQty: '0',
+                  base: historyBase,
+                  dispatchQty: '0', // Keep this as 0 for new dispatch
                   addQuantity: '0',
-                  balanceQuantity: quantity,
+                  balanceQuantity: historyBalanceQty,
                   isSelected: false,
                   fabricDetails: contract,
                   contractType: 'Conversion',
@@ -403,6 +445,24 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 const quantity = row.quantity || '0';
                 const rate = row.rate || contract.rate || '0';
 
+                // Check for history data to populate fields
+                let historyBase = '';
+                let historyDispatchQty = '0';
+                let historyBalanceQty = quantity;
+
+                if (historyData && historyData.relatedContracts) {
+                  const historyContract = historyData.relatedContracts.find(
+                    (hc: any) => 
+                      hc.contractNumber === contract.contractNumber && 
+                      hc.contractType === 'Diet'
+                  );
+                  if (historyContract) {
+                    historyBase = historyContract.base || '';
+                    historyDispatchQty = historyContract.totalDispatchQuantity || '0';
+                    historyBalanceQty = historyContract.balanceQuantity || quantity;
+                  }
+                }
+
                 contractRows.push({
                   rowId,
                   contractId: contract.id,
@@ -413,10 +473,10 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   date: contract.date || '',
                   quantity,
                   rate,
-                  base: '',
-                  dispatchQty: '0',
+                  base: historyBase,
+                  dispatchQty: '0', // Keep this as 0 for new dispatch
                   addQuantity: '0',
-                  balanceQuantity: quantity,
+                  balanceQuantity: historyBalanceQty,
                   isSelected: false,
                   fabricDetails: contract,
                   contractType: 'Diet',
@@ -432,6 +492,24 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 const quantity = row.quantity || '0';
                 const rate = row.rate || contract.rate || '0';
 
+                // Check for history data to populate fields
+                let historyBase = '';
+                let historyDispatchQty = '0';
+                let historyBalanceQty = quantity;
+
+                if (historyData && historyData.relatedContracts) {
+                  const historyContract = historyData.relatedContracts.find(
+                    (hc: any) => 
+                      hc.contractNumber === contract.contractNumber && 
+                      hc.contractType === 'MultiWidth'
+                  );
+                  if (historyContract) {
+                    historyBase = historyContract.base || '';
+                    historyDispatchQty = historyContract.totalDispatchQuantity || '0';
+                    historyBalanceQty = historyContract.balanceQuantity || quantity;
+                  }
+                }
+
                 contractRows.push({
                   rowId,
                   contractId: contract.id,
@@ -442,10 +520,10 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   date: contract.date || '',
                   quantity,
                   rate,
-                  base: '',
-                  dispatchQty: '0',
+                  base: historyBase,
+                  dispatchQty: '0', // Keep this as 0 for new dispatch
                   addQuantity: '0',
-                  balanceQuantity: quantity,
+                  balanceQuantity: historyBalanceQty,
                   isSelected: false,
                   fabricDetails: contract,
                   contractType: 'MultiWidth',
@@ -511,7 +589,34 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
       );
       setValue('Destination', initialData.destination || '');
     }
-  }, [isEdit, initialData, sellers, buyers, transporters, setValue, router]);
+  }, [isEdit, initialData, sellers, buyers, transporters, setValue, router]);  // Fetch history when seller and buyer change (separate effect)
+  useEffect(() => {
+    // Reset history data when seller or buyer changes
+    if (!isEdit) {
+      setHistoryData(null);
+      setLastFetchedPair('');
+    }
+    
+    if (!isEdit && selectedSeller && selectedBuyer && sellers.length > 0 && buyers.length > 0) {
+      const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
+      const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
+      
+      if (selectedSellerObj && selectedBuyerObj) {
+        // Add a small delay to debounce rapid changes
+        const timeoutId = setTimeout(() => {
+          fetchDispatchHistory(selectedSellerObj.name, selectedBuyerObj.name);
+        }, 300);
+        
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [selectedSeller, selectedBuyer, sellers, buyers, isEdit]);
+  // Refetch contracts when history data changes
+  useEffect(() => {
+    if (historyData && !isEdit && !loading) {
+      fetchContracts();
+    }
+  }, [historyData, isEdit]);
 
   // Filter contract rows by Seller and Buyer
   useEffect(() => {
@@ -561,7 +666,6 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
       }))
     );
   };
-
   // Handle Base and Dispatch Qty input changes
   const handleContractInputChange = (
     rowId: string,
@@ -575,10 +679,23 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
           if (row.rowId === rowId) {
             const updatedRow = { ...row, [field]: value };
             if (field === 'dispatchQty') {
-              const rowQty = parseFloat(updatedRow.quantity || '0');
               const dispatchQty = parseFloat(value || '0');
               updatedRow.addQuantity = dispatchQty.toString();
-              updatedRow.balanceQuantity = (rowQty - dispatchQty).toString();
+              
+              // Calculate balance quantity considering history
+              let currentBalance = parseFloat(row.quantity || '0');
+              if (historyData && historyData.relatedContracts) {
+                const historyContract = historyData.relatedContracts.find(
+                  (hc: any) => 
+                    hc.contractNumber === row.contractNumber && 
+                    hc.contractType === row.contractType
+                );
+                if (historyContract) {
+                  currentBalance = parseFloat(historyContract.balanceQuantity || row.quantity);
+                }
+              }
+              
+              updatedRow.balanceQuantity = (currentBalance - dispatchQty).toString();
             }
             return updatedRow;
           }
@@ -832,7 +949,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 filteredContractRows.length > 0 ? (
                   <div className="relative overflow-x-auto max-h-[500px] overflow-y-auto">
                     <table className="w-full text-left border-collapse">
-                      <thead className="fixed sticky top-0 bg-white dark:bg-gray-900 z-10">
+                      <thead className="sticky top-0 bg-white dark:bg-gray-900 z-10">
                         <tr className="bg-[#06b6d4] sticky bottom-0 text-sm font-extrabold uppercase text-white">
                           <th className="p-4 font-medium">Select</th>
                           <th className="p-4 font-medium">Contract#</th>
@@ -950,20 +1067,34 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                                     className="w-full p-2 border border-gray-300 rounded bg-white"
                                     onClick={(e) => e.stopPropagation()}
                                   />
-                                </td>
-                                <td className="p-4">
+                                </td>                                <td className="p-4">
                                   <input
                                     type="text"
-                                    value={row.addQuantity || '0'}
+                                    value={
+                                      historyData && historyData.relatedContracts 
+                                        ? historyData.relatedContracts.find(
+                                            (hc: any) => 
+                                              hc.contractNumber === row.contractNumber && 
+                                              hc.contractType === row.contractType
+                                          )?.totalDispatchQuantity || '0'
+                                        : '0'
+                                    }
                                     disabled
                                     className="w-full p-2 border border-gray-300 rounded bg-gray-100"
                                     onClick={(e) => e.stopPropagation()}
                                   />
-                                </td>
-                                <td className="p-4">
+                                </td>                                <td className="p-4">
                                   <input
                                     type="text"
-                                    value={row.dispatchQty ? row.balanceQuantity : row.quantity}
+                                    value={
+                                      historyData && historyData.relatedContracts 
+                                        ? historyData.relatedContracts.find(
+                                            (hc: any) => 
+                                              hc.contractNumber === row.contractNumber && 
+                                              hc.contractType === row.contractType
+                                          )?.balanceQuantity || row.quantity
+                                        : row.balanceQuantity
+                                    }
                                     disabled
                                     className="w-full p-2 border border-gray-300 rounded bg-gray-100"
                                     onClick={(e) => e.stopPropagation()}
@@ -988,14 +1119,14 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
           <div className="w-full h-[8vh] flex justify-end gap-4 mt-4 px-4 bg-white border-t-2 border-[#e0e0e0]">
             <Button
               type="submit"
-              className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+              className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
             >
               Save
             </Button>
             <Link href="/dispatchnote">
               <Button
                 type="button"
-                className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+                className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
               >
                 Cancel
               </Button>
