@@ -88,8 +88,13 @@ const DispatchNoteList = () => {
       for (const id of selectedDispatchNoteIds) {
         const dispatchNote = dispatchNotes.find((dn) => dn.id === id);
         if (dispatchNote) {
+          // Ensure 'destination' is always a string
+          const safeDispatchNote = {
+            ...dispatchNote,
+            destination: dispatchNote.destination ?? '',
+          };
           await DispatchPDFExport.exportToPDF({
-            dispatchNote,
+            dispatchNote: safeDispatchNote,
             sellerSignature: undefined, // Add actual signature if available
             buyerSignature: undefined, // Add actual signature if available
             zmsSignature: undefined, // Add actual signature if available
@@ -108,8 +113,8 @@ const DispatchNoteList = () => {
   // Define all columns for related contracts
   const relatedContractColumns = [
     { header: 'Contract #', accessor: 'contractNumber' },
-    { header: 'Seller', accessor: 'seller' },
-    { header: 'Buyer#', accessor: 'buyerRefer' },
+    //{ header: 'Seller', accessor: 'seller' },
+  //  { header: 'Buyer#', accessor: 'buyerRefer' },
     { header: 'Width/Color', accessor: 'widthOrColor' },
     { header: 'Buyer Refer', accessor: 'buyerRefer' },
     { header: 'Fabric Details', accessor: 'fabricDetails' },

@@ -10,14 +10,11 @@ const ZMS_LOGO = '/ZMS-logo.png';
 let GetSellerAddress = '';
 let GetBuyerAddress = '';
 
-// Determine dark mode
-const isDarkMode = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-
 // Style constants
 const styles = {
-  label: { size: 8, color: [0, 0, 0] as [number, number, number] },
-  value: { size: 7, color: [0, 0, 0] as [number, number, number] },
-  margins: { left: 10, right: 10 },
+  label: { size: 9, color: [33, 33, 33] as [number, number, number] },
+  value: { size: 8, color: [33, 33, 33] as [number, number, number] },
+  margins: { left: 15, right: 15, top: 15, bottom: 15 },
 };
 
 interface Contract {
@@ -37,6 +34,7 @@ interface DispatchNote {
   transporter?: string;
   remarks?: string;
   relatedContracts?: Contract[];
+  destination: string;
 }
 
 interface ExportToPDFProps {
@@ -91,60 +89,45 @@ const DispatchPDFExport = {
       const doc = new jsPDF();
 
       // Header
-      doc.setFillColor(6, 182, 212);
-      doc.rect(0, 0, 210, 28, 'F');
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(15, 25, 195, 25); // Horizontal line below header
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(24);
-      doc.setTextColor(0, 0, 0);
-      doc.text('ZM SOURCING', 105, 10, { align: 'center' });
+      doc.setFontSize(20);
+      doc.setTextColor(33, 33, 33);
+      doc.text('ZM SOURCING', 105, 20, { align: 'center' });
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6);
-      doc.text('Suit No. 108, SP Chamber, Main Estate Avenue, SITE Karachi', 105, 15, { align: 'center' });
-      doc.text('Phone: +92 21 32550917-18', 105, 20, { align: 'center' });
+      doc.setFontSize(8);
+      doc.setTextColor(69, 69, 69);
+      doc.text('Suit No. 108, SP Chamber, Main Estate Avenue, SITE Karachi', 105, 28, { align: 'center' });
+      doc.text('Phone: +92 21 32550917-18', 105, 34, { align: 'center' });
 
       // Logo
       try {
-        doc.addImage(ZMS_LOGO, 'PNG', 10, 6, 18, 12);
+        doc.addImage(ZMS_LOGO, 'PNG', 15, 10, 20, 15);
       } catch (error) {
         console.warn('Failed to load logo, using placeholder text:', error);
         doc.setFontSize(10);
-        doc.setTextColor(0, 0, 0);
-        doc.text('[ZMS Logo]', 10, 14);
+        doc.setTextColor(33, 33, 33);
+        doc.text('[ZMS Logo]', 15, 20);
       }
 
       // Subheading: ZMS/DispatchNo/Month/Year
-      let yPos = 39;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.setTextColor(0, 0, 0);
-      let monthYear = '-';
-      if (dispatchNote.date) {
-        try {
-          const dateObj = new Date(dispatchNote.date);
-          if (!isNaN(dateObj.getTime())) {
-            monthYear = `${dateObj.getMonth() + 1}/${dateObj.getFullYear()}`;
-          } else {
-            console.warn('Invalid date provided:', dispatchNote.date);
-          }
-        } catch (error) {
-          console.error('Error parsing dispatch note date:', error);
-        }
-      }
-      const dispatchSubheading = `ZMS/${dispatchNote.bilty || '-'}/${monthYear}`;
-      doc.text(dispatchSubheading, 10, yPos, { align: 'left' });
+      let yPos = 47;
+      
 
       // Title
-      yPos = 34;
+      yPos = 43
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(14);
+      doc.setTextColor(33, 33, 33);
       doc.text('DISPATCH NOTE', 105, yPos, { align: 'center' });
 
       // Date
-      yPos = 39;
+      yPos = 47;
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      doc.setTextColor(33, 33, 33);
       const formattedDate = dispatchNote.date
         ? (() => {
             try {
@@ -164,320 +147,169 @@ const DispatchPDFExport = {
             }
           })()
         : '-';
-      doc.text(`Date: ${formattedDate}`, 200, yPos, { align: 'right' });
-      yPos += 8;
+      doc.text(`Date: ${formattedDate}`, 117, yPos, { align: 'right' });
+      yPos += 5;
 
-      // First Table: Date, Seller, Buyer, etc.
-      const tableBody: (string | number)[][] = [];
 
-      // 1st Row: Date
-      tableBody.push(['', '', '', '', 'Date:', ` ${formattedDate}`]);
+     // Define margins with left: 5
+const margins = {
+  top: styles.margins.top || 10,
+  bottom: styles.margins.bottom || 10,
+  left: 8, // Set left margin to 5px
+  right: styles.margins.right || 10,
+};
 
-      // 2nd Row: Seller and Transporter
-      tableBody.push([
-        `Seller:`,
-        `${dispatchNote.seller || '-'}`,
-        '',
-        '',
-        'Transporter:',
-        ` ${dispatchNote.transporter || '-'}`,
-      ]);
+// First Table: Date, Seller, Buyer, etc.
+const tableBody: (string | number)[][] = [
+  ['', '', '', '', 'Date:', formattedDate],
+  ['Seller:', dispatchNote.seller || '-', '', '', 'Transporter:', dispatchNote.transporter || '-'],
+  ['Buyer:', dispatchNote.buyer || '-', '', '', 'Vehicle#:', dispatchNote.remarks || '-'],
+];
 
-      // 3rd Row: Buyer and Vehicle#
-      tableBody.push([
-        'Buyer:',
-        `${dispatchNote.buyer || '-'}`,
-        '',
-        '',
-        'Vehicle#',
-        ` ${dispatchNote.remarks || '-'}`,
-      ]);
+autoTable(doc, {
+  startY: yPos,
+  body: tableBody,
+  styles: {
+    font: 'OpenSans',
+    fontSize: 8,
+    cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+    lineColor: [200, 200, 200],
+    lineWidth: 0.5,
+    textColor: [72, 72, 72],
+    fontStyle: 'bold',
+    fillColor: [255, 255, 255],
+  },
+  columnStyles: {
+    0: { cellWidth: 30, fontStyle: 'bold', textColor: [33, 33, 33] },
+    1: { cellWidth: 65 },
+    2: { cellWidth: 10 },
+    3: { cellWidth: 10 },
+    4: { cellWidth: 30, fontStyle: 'bold', textColor: [33, 33, 33] },
+    5: { cellWidth: 48 },
+  },
+  margin: margins, // Use updated margins object
+  theme: 'grid',
+  didDrawCell: (data) => {
+    const { row, cell, section } = data;
+    if (section === 'body') {
+      if (cell.text[0] === '') {
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(1);
+        doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
+        doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
+      }
+    }
+    if (data.column.index === 0) {
+      doc.setDrawColor(200, 200, 200); // Border color
+      doc.setLineWidth(0.5); // Border width
+      doc.line(cell.x, cell.y, cell.x, cell.y + cell.height); // Draw left border
+    }
+  },
+});
 
-      // 4th Row: Gap (Empty Row)
-      tableBody.push(['', '', '', '', '', '']);
+// Update yPos after first table
+yPos = (doc as any).lastAutoTable.finalY + 10;
 
-      autoTable(doc, {
-        startY: yPos,
-        body: tableBody,
-        styles: {
-          fontSize: 8,
-          cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
-          lineColor: [0, 0, 0],
-          lineWidth: 0.1,
-          textColor: [0, 0, 0],
-          fontStyle: 'normal',
-        },        columnStyles: {
-          0: { cellWidth: 30 },
-          1: { cellWidth: 60 },
-          2: { cellWidth: 10 },
-          3: { cellWidth: 10 },
-          4: { cellWidth: 30 },
-          5: { cellWidth: 60 },
-        },
-        margin: { left: 10, right: 10 },
-        theme: 'grid',        didDrawCell: (data) => {
-          const { row, cell, section } = data;
-          if (section === 'body') {
-            
-            if (row.index === 0) {
-              // Date row
-              if (cell.colSpan === -1) {
-                doc.setFillColor(255, 255, 255);
-                doc.rect(cell.x, cell.y, 190, cell.height, 'F');
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8);
-                doc.setTextColor(0, 0, 0);
-                if (data.column.index === 4 || data.column.index === 5) {
-                  doc.text(cell.text[0], cell.x + 2, cell.y + cell.height / 2 + 1, { align: 'left' });
-                }
-                doc.setLineWidth(0.2);
-                doc.setDrawColor(0, 0, 0);
-                doc.line(cell.x, cell.y, cell.x + 190, cell.y);
-              }
-            } else if (row.index === 1) {
-              // Seller/Transporter row
-              if (cell.colSpan === -1) {
-                const isSeller = data.column.index === 0 || data.column.index === 1;
-                const width = isSeller ? 90 : 100;
-                const text = isSeller
-                  ? data.column.index === 0
-                    ? `Seller:`
-                    : `${dispatchNote.seller || '-'}`
-                  : data.column.index === 4
-                  ? `Transporter:`
-                  : data.column.index === 5
-                  ? ` ${dispatchNote.transporter || '-'}`
-                  : '';
-                doc.setFillColor(255, 255, 255);
-                doc.rect(cell.x, cell.y, width, cell.height, 'F');
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8);
-                doc.setTextColor(0, 0, 0);
-                if (text) {
-                  doc.text(text, cell.x + 2, cell.y + cell.height / 2 + 1, { align: 'left' });
-                }
-                doc.setLineWidth(0.2);
-                doc.setDrawColor(0, 0, 0);
-                doc.line(cell.x, cell.y, cell.x + width, cell.y);
-              }
-            } else if (row.index === 2) {
-              // Buyer/Vehicle# row
-              if (cell.colSpan === -1) {
-                const isBuyer = data.column.index === 0 || data.column.index === 1;
-                const width = isBuyer ? 90 : 100;
-                const text = isBuyer
-                  ? data.column.index === 0
-                    ? `Buyer:`
-                    : `${dispatchNote.buyer || '-'}`
-                  : data.column.index === 4
-                  ? `Vehicle#`
-                  : data.column.index === 5
-                  ? ` ${dispatchNote.remarks || '-'}`
-                  : '';
-                doc.setFillColor(255, 255, 255);
-                doc.rect(cell.x, cell.y, width, cell.height, 'F');
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8);
-                doc.setTextColor(0, 0, 0);
-                if (text) {
-                  doc.text(text, cell.x + 2, cell.y + cell.height / 2 + 1, { align: 'left' });
-                }
-                doc.setLineWidth(0.2);
-                doc.setDrawColor(0, 0, 0);
-                doc.line(cell.x, cell.y, cell.x + width, cell.y);
-              }
-            } else if (row.index === 3) {
-              // Gap row
-              doc.setFillColor(255, 255, 255);
-              doc.rect(cell.x, cell.y, 190, cell.height, 'F');
-            }
+     // Define margins with left: 7
+const margins = {
+  top: styles.margins.top || 10,
+  bottom: styles.margins.bottom || 10,
+  left: 7, // Set left margin to 7px
+  right: styles.margins.right || 10,
+};
 
-            // Hide vertical borders for empty cells based on requirements
-            // This must come AFTER the custom drawing to override any borders drawn above
-            if (cell.text[0] === '') {
-              doc.setDrawColor(255, 255, 255);
-              doc.setLineWidth(0.5);
-              
-              if (data.column.index === 0) {
-                // For first column: hide only RIGHT border, keep left border visible
-                doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
-              } else if (data.column.index === 2 || data.column.index === 3) {
-                // For columns 2 and 3: hide both left and right borders
-                doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
-                doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
-              }
-            }
+// Second Table: Contract Details
+const tableHead = [
+  ['ContractNo#.', 'BuyerNo#.', 'Quantity', 'Dispatch Qty', 'Bale / Role', 'Destination'],
+];
 
-            // ALWAYS draw bottom borders for all cells to ensure they are visible
-            doc.setLineWidth(0.4);
-            doc.setDrawColor(0, 0, 0);
-            doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
-          }
-        },
-      });
+const contractTableBody: (string | number)[][] = [];
+let totalDispatchQty = 0;
+let totalBaleRole = 0;
 
-      // Update yPos after first table
-      yPos = (doc as any).lastAutoTable.finalY + 0;
-     // yPos += 1;
+if (dispatchNote.relatedContracts && dispatchNote.relatedContracts.length > 0) {
+  dispatchNote.relatedContracts.forEach((contract) => {
+    const fabricDetails = formatFabricDetails(contract);
+    const dispatchQty = Number(contract.totalDispatchQuantity) || 0;
+    const baleRole = Number(contract.base) || 0;
+    totalDispatchQty += dispatchQty;
+    totalBaleRole += baleRole;
+    contractTableBody.push([
+      contract.contractNumber || '-',
+      contract.buyerRefer || '-',
+      fabricDetails,
+      dispatchQty || '-',
+      baleRole || '-',
+      dispatchNote.destination || '-',
+    ]);
+  });
+} else {
+  contractTableBody.push(['-', '-', '-', '-', '-', '-']);
+}
 
-      // Second Table: Contract Details
-      const tableHead = [
-        ['Contract Number', 'Buyer Refer', 'Fabric Detail', 'Dispatch Qty', 'Base', 'Destination'],
-      ];
+autoTable(doc, {
+  startY: yPos,
+  head: tableHead,
+  body: contractTableBody,
+  foot: [['', '', 'Total:', totalDispatchQty || '-', totalBaleRole || '-', '']],
+  styles: {
+    font: 'OpenSans', 
+    fontSize: 8,
+    cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }, 
+    lineColor: [210, 210, 210], 
+    lineWidth: 0.4,
+    textColor: [50, 50, 50], 
+    fontStyle: 'normal', 
+    fillColor: [248, 248, 248], 
+  },
+  headStyles: {
+    fillColor: [240, 240, 240],
+    textColor: [33, 33, 33],
+    fontSize: 7,
+    fontStyle: 'bold',
+    lineWidth: 0.5,
+  },
+  footStyles: {
+    fillColor: [240, 240, 240],
+    textColor: [33, 33, 33],
+    fontSize: 9,
+    fontStyle: 'bold',
+    lineWidth: 0.5,
+  },
+  columnStyles: {
+    0: { cellWidth: 32 },
+    1: { cellWidth: 15},
+    2: { cellWidth: 84 },
+    3: { cellWidth: 19 },
+    4: { cellWidth: 18},
+    5: { cellWidth: 25 },
+  },
+  margin: margins, // Use updated margins object
+  theme: 'grid',
+});
 
-      const contractTableBody: (string | number)[][] = [];
-
-      // Contract Details
-      if (dispatchNote.relatedContracts && dispatchNote.relatedContracts.length > 0) {
-        dispatchNote.relatedContracts.forEach((contract) => {
-          const fabricDetails = formatFabricDetails(contract);
-          contractTableBody.push([
-            contract.contractNumber || '-',
-            contract.buyerRefer || '-',
-            fabricDetails,
-            contract.totalDispatchQuantity || '-',
-            contract.base || '-',
-            dispatchNote.buyer || '-',
-          ]);
-        });
-      } else {
-        contractTableBody.push(['-', '-', '-', '-', '-', '-']);
-      }      autoTable(doc, {
-        startY: yPos,
-        head: tableHead,
-        body: contractTableBody,
-        styles: {
-          fontSize: 8,
-          cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
-          lineColor: [0, 0, 0],
-          lineWidth: 0.1,
-          textColor: [0, 0, 0],
-          fontStyle: 'normal',
-        },
-        headStyles: {
-          fillColor: [6, 182, 212],
-          textColor: [0, 0, 0],
-          fontSize: 8,
-          cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
-          lineWidth: 0.1,
-          fontStyle: 'bold',
-        },
-        columnStyles: {
-          0: { cellWidth: 30 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 50 },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 25 },
-          5: { cellWidth: 30 },
-        },
-        margin: { left: 10, right: 10 },
-        theme: 'grid',
-      });
-
-      yPos = (doc as any).lastAutoTable.finalY + 10;
-
-    
-
-      const leftColumnX = 12;
-      const leftColumnWidth = 125;
-      let leftColumnYPos = yPos;
-
-      const labelStyle = {
-        font: 'helvetica' as const,
-        style: 'bold' as const,
-        size: 8,
-        color: [0, 0, 0] as [number, number, number],
-      };
-      const valueStyle = {
-        font: 'helvetica' as const,
-        style: 'normal' as const,
-        size: 9,
-        color: [0, 0, 0] as [number, number, number],
-      };
-
-      doc.setFont(labelStyle.font, labelStyle.style);
-      doc.setFontSize(labelStyle.size);
-      
-      yPos = leftColumnYPos + 12;
-
-      // Reserve space for footer and signatures
-      const pageHeight = 297;
-      const footerHeight = 12;
-      const signatureHeight = 18;
-      const footerY = pageHeight - footerHeight;
-      const signatureY = footerY - signatureHeight - 3;
+// Update yPos after second table
+yPos = (doc as any).lastAutoTable.finalY + 20;
 
       // Signatures
-      const signatureWidth = 30;
-      const startX = 10;
-      const sellerMargin = 6;
-      const centerX = startX + signatureWidth + sellerMargin;
-      const pageWidth = 210;
-      const margin = 10;
-      const availableWidth = pageWidth - margin - (centerX + signatureWidth);
-      const gap = availableWidth / 2;
+      const signatureWidth = 40;
+      const startX = 15;
+      const gap = 40;
+      const centerX = startX + signatureWidth + gap;
       const endX = centerX + signatureWidth + gap;
 
-      const labelColor: [number, number, number] = [0, 0, 0];
-      const textColor: [number, number, number] = [0, 0, 0];
-
-      const addSignature = (signature: string | undefined, x: number, y: number, placeholder: string) => {
-        if (signature) {
-          try {
-            doc.addImage(signature, 'PNG', x, y, signatureWidth, 10);
-          } catch (error) {
-            console.warn(`Failed to add ${placeholder.toLowerCase()}:`, error);
-            doc.text(`[${placeholder}]`, x, y + 5);
-          }
-        } else {
-          doc.text(`[${placeholder}]`, x, y + 5);
-        }
-      };
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7);
-      doc.setTextColor(...labelColor);
-      addSignature(zmsSignature, startX, signatureY, 'ZMS Signature');
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(...textColor);
-      const zmsText = 'Z.M. SOURCING';
-      const zmsTextWidth = doc.getTextWidth(zmsText);
-      doc.text(zmsText, startX, signatureY + 12);
-      doc.setLineWidth(0.1);
-      doc.setDrawColor(...textColor);
-      doc.line(startX, signatureY + 13, startX + zmsTextWidth, signatureY + 13);
-
-      addSignature(sellerSignature, centerX, signatureY, 'Seller Signature');
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(...textColor);
-      const sellerText = `${dispatchNote.seller || '-'}`;
-      const sellerTextWidth = doc.getTextWidth(sellerText);
-      doc.text(sellerText, centerX, signatureY + 12);
-      doc.setLineWidth(0.1);
-      doc.setDrawColor(...textColor);
-      doc.line(centerX, signatureY + 13, centerX + sellerTextWidth, signatureY + 13);
-
-      addSignature(buyerSignature, endX, signatureY, 'Buyer Signature');
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(...textColor);
-      const buyerText = `${dispatchNote.buyer || '-'}`;
-      const buyerTextWidth = doc.getTextWidth(buyerText);
-      doc.text(buyerText, endX, signatureY + 12);
-      doc.setLineWidth(0.1);
-      doc.setDrawColor(...textColor);
-      doc.line(endX, signatureY + 13, endX + buyerTextWidth, signatureY + 13);
+      const pageHeight = 297;
+      const footerHeight = 15;
+      const footerY = pageHeight - footerHeight;
 
       // Footer
-      doc.setLineWidth(0.1);
-      doc.setFillColor(6, 182, 212);
-      doc.rect(0, footerY, 210, footerHeight, 'F');
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(15, footerY - 5, 195, footerY - 5);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6);
-      doc.setTextColor(0, 0, 0);
-      doc.text('Page 1 of 1', 200, footerY + 4, { align: 'right' });
+      doc.setFontSize(8);
+      doc.setTextColor(66, 66, 66);
+      doc.text('Page 1 of 1', 195, footerY, { align: 'right' });
       doc.text(
         `Generated on ${new Date().toLocaleString('en-US', {
           timeZone: 'Asia/Karachi',
@@ -485,10 +317,10 @@ const DispatchPDFExport = {
           month: 'short',
           day: 'numeric',
         })}`,
-         10,
-         footerY + 4
-       );
-       doc.text('Confidential - ZMS Textiles Ltd.', 105, footerY + 4, { align: 'center' });
+        15,
+        footerY
+      );
+      doc.text('Confidential - ZMS Textiles Ltd.', 105, footerY, { align: 'center' });
 
       // Save PDF
       const filename = `ZMS Sourcing Dispatch Note (${dispatchNote.seller || '-'})-(${dispatchNote.buyer || '-'}).pdf`;
