@@ -292,18 +292,26 @@ const DispatchPDFExport = {
               doc.rect(cell.x, cell.y, 190, cell.height, 'F');
             }
 
-            // Hide ONLY left and right borders for empty cells in columns 0, 2 and 3 (including first row)
+            // Hide vertical borders for empty cells based on requirements
             // This must come AFTER the custom drawing to override any borders drawn above
-            if ((data.column.index === 0 || data.column.index === 2 || data.column.index === 3) && cell.text[0] === '') {
-              // Draw thicker white lines only over left and right borders to hide them
+            if (cell.text[0] === '') {
               doc.setDrawColor(255, 255, 255);
-              doc.setLineWidth(0.3);
-              // Hide left border
-              doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
-              // Hide right border - extend slightly to ensure coverage
-              doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
-              // Keep top and bottom borders intact - don't draw over them
+              doc.setLineWidth(0.5);
+              
+              if (data.column.index === 0) {
+                // For first column: hide only RIGHT border, keep left border visible
+                doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
+              } else if (data.column.index === 2 || data.column.index === 3) {
+                // For columns 2 and 3: hide both left and right borders
+                doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
+                doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
+              }
             }
+
+            // ALWAYS draw bottom borders for all cells to ensure they are visible
+            doc.setLineWidth(0.4);
+            doc.setDrawColor(0, 0, 0);
+            doc.line(cell.x, cell.y + cell.height, cell.x + cell.width, cell.y + cell.height);
           }
         },
       });
