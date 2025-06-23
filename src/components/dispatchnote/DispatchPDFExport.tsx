@@ -205,13 +205,13 @@ const DispatchPDFExport = {
       // Update yPos after first table
       yPos = (doc as any).lastAutoTable.finalY + 10;
 
-      // Define margins for second table with left: 7
-      const secondTableMargins = {
-        top: styles.margins.top || 10,
-        bottom: styles.margins.bottom || 10,
-        left: 8, // Set left margin to 7px
-        right: styles.margins.right || 10,
-      };
+     // Define margins with left: 7
+const margins = {
+  top: styles.margins.top || 10,
+  bottom: styles.margins.bottom || 10,
+  left: 7, // Set left margin to 7px
+  right: styles.margins.right || 10,
+};
 
       // Second Table: Contract Details
       const tableHead = [
@@ -242,45 +242,46 @@ const DispatchPDFExport = {
         contractTableBody.push(['-', '-', '-', '-', '-', '-']);
       }
 
-      autoTable(doc, {
-        startY: yPos,
-        head: tableHead,
-        body: contractTableBody,
-        foot: [['', '', 'Total:', totalDispatchQty || '-', totalBaleRole || '-', '']],
-        styles: {
-          font: 'OpenSans', 
-          fontSize: 8,
-          cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }, 
-          lineColor: [210, 210, 210], 
-          lineWidth: 0.4,
-          textColor: [50, 50, 50], 
-          fontStyle: 'normal', 
-          fillColor: [248, 248, 248], 
-        },
-        headStyles: {
-          fillColor: [240, 240, 240],
-          textColor: [33, 33, 33],
-          fontSize: 7,
-          fontStyle: 'bold',
-          lineWidth: 0.5,
-        },
-        footStyles: {
-          fillColor: [240, 240, 240],
-          textColor: [33, 33, 33],
-          fontSize: 9,
-          fontStyle: 'bold',
-          lineWidth: 0.5,
-        },
-        columnStyles: {
-          0: { cellWidth: 32 },
-          1: { cellWidth: 15},
-          2: { cellWidth: 84 },
-          3: { cellWidth: 19 },
-          4: { cellWidth: 18},
-          5: { cellWidth: 25 },
-        },
-        margin: secondTableMargins,
-      });
+autoTable(doc, {
+  startY: yPos,
+  head: tableHead,
+  body: contractTableBody,
+  foot: [['', '', 'Total:', totalDispatchQty || '-', totalBaleRole || '-', '']],
+  styles: {
+    font: 'OpenSans', 
+    fontSize: 8,
+    cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }, 
+    lineColor: [210, 210, 210], 
+    lineWidth: 0.4,
+    textColor: [50, 50, 50], 
+    fontStyle: 'normal', 
+    fillColor: [248, 248, 248], 
+  },
+  headStyles: {
+    fillColor: [240, 240, 240],
+    textColor: [33, 33, 33],
+    fontSize: 7,
+    fontStyle: 'bold',
+    lineWidth: 0.5,
+  },
+  footStyles: {
+    fillColor: [240, 240, 240],
+    textColor: [33, 33, 33],
+    fontSize: 9,
+    fontStyle: 'bold',
+    lineWidth: 0.5,
+  },
+  columnStyles: {
+    0: { cellWidth: 32 },
+    1: { cellWidth: 15},
+    2: { cellWidth: 84 },
+    3: { cellWidth: 19 },
+    4: { cellWidth: 18},
+    5: { cellWidth: 25 },
+  },
+  margin: margins, // Use updated margins object
+  theme: 'grid',
+});
 
       // Update yPos after second table
       yPos = (doc as any).lastAutoTable.finalY + 20;

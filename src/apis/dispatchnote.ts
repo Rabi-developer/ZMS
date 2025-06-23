@@ -42,6 +42,25 @@ const getSingleDispatchNote = async (id: string) => {
   }
 };
 
+// Get DispatchNote History by Seller and Buyer
+const getDispatchNoteHistory = async (seller: string, buyer: string) => {
+  try {
+    const response = await apiFetch('DispatchNote/History', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        seller: seller,
+        buyer: buyer
+      }),
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
 // Update DispatchNote
 const updateDispatchNote = async ( DispatchNote: any) => {
   try {
@@ -77,4 +96,5 @@ export {
   getSingleDispatchNote,
   updateDispatchNote,
   deleteDispatchNote,
+  getDispatchNoteHistory
 };
