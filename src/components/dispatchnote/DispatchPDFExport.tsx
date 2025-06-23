@@ -91,7 +91,7 @@ const DispatchPDFExport = {
       // Header
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.5);
-      doc.line(15, 25, 195, 25); // Horizontal line below header
+      doc.line(15, 25, 195, 25); 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(20);
       doc.setTextColor(33, 33, 33);
@@ -112,12 +112,8 @@ const DispatchPDFExport = {
         doc.text('[ZMS Logo]', 15, 20);
       }
 
-      // Subheading: ZMS/DispatchNo/Month/Year
-      let yPos = 47;
-      
-
       // Title
-      yPos = 43
+      let yPos = 43;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(14);
       doc.setTextColor(33, 33, 33);
@@ -150,146 +146,144 @@ const DispatchPDFExport = {
       doc.text(`Date: ${formattedDate}`, 117, yPos, { align: 'right' });
       yPos += 5;
 
+      // Define margins for first table with left: 5
+      const firstTableMargins = {
+        top: styles.margins.top || 10,
+        bottom: styles.margins.bottom || 10,
+        left: 8, // Set left margin to 5px
+        right: styles.margins.right || 10,
+      };
 
-     // Define margins with left: 5
-const margins = {
-  top: styles.margins.top || 10,
-  bottom: styles.margins.bottom || 10,
-  left: 8, // Set left margin to 5px
-  right: styles.margins.right || 10,
-};
+      // First Table: Date, Seller, Buyer, etc.
+      const tableBody: (string | number)[][] = [
+        ['', '', '', '', 'Dispatched Date:', formattedDate],
+        ['Seller:', dispatchNote.seller || '-', '', '', 'Transporter:', dispatchNote.transporter || '-'],
+        ['Buyer:', dispatchNote.buyer || '-', '', '', 'Vehicle#:', dispatchNote.remarks || '-'],
+      ];
 
-// First Table: Date, Seller, Buyer, etc.
-const tableBody: (string | number)[][] = [
-  ['', '', '', '', 'Date:', formattedDate],
-  ['Seller:', dispatchNote.seller || '-', '', '', 'Transporter:', dispatchNote.transporter || '-'],
-  ['Buyer:', dispatchNote.buyer || '-', '', '', 'Vehicle#:', dispatchNote.remarks || '-'],
-];
+      autoTable(doc, {
+        startY: yPos,
+        body: tableBody,
+        styles: {
+          font: 'OpenSans',
+          fontSize: 8,
+          cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+          lineColor: [200, 200, 200],
+          lineWidth: 0.5,
+          textColor: [72, 72, 72],
+          fontStyle: 'bold',
+          fillColor: [255, 255, 255],
+        },
+        columnStyles: {
+          0: { cellWidth: 30, fontStyle: 'bold', textColor: [33, 33, 33] },
+          1: { cellWidth: 65 },
+          2: { cellWidth: 10 },
+          3: { cellWidth: 10 },
+          4: { cellWidth: 30, fontStyle: 'bold', textColor: [33, 33, 33] },
+          5: { cellWidth: 48 },
+        },
+        margin: firstTableMargins, // Use margins with left: 5
+        theme: 'grid',
+        didDrawCell: (data) => {
+          const { row, cell, section } = data;
+          if (section === 'body') {
+            if (cell.text[0] === '') {
+              doc.setDrawColor(255, 255, 255);
+              doc.setLineWidth(1);
+              doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
+              doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
+            }
+          }
+          if (data.column.index === 0) {
+            doc.setDrawColor(200, 200, 200); // Border color
+            doc.setLineWidth(0.5); // Border width
+            doc.line(cell.x, cell.y, cell.x, cell.y + cell.height); // Draw left border
+          }
+        },
+      });
 
-autoTable(doc, {
-  startY: yPos,
-  body: tableBody,
-  styles: {
-    font: 'OpenSans',
-    fontSize: 8,
-    cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
-    lineColor: [200, 200, 200],
-    lineWidth: 0.5,
-    textColor: [72, 72, 72],
-    fontStyle: 'bold',
-    fillColor: [255, 255, 255],
-  },
-  columnStyles: {
-    0: { cellWidth: 30, fontStyle: 'bold', textColor: [33, 33, 33] },
-    1: { cellWidth: 65 },
-    2: { cellWidth: 10 },
-    3: { cellWidth: 10 },
-    4: { cellWidth: 30, fontStyle: 'bold', textColor: [33, 33, 33] },
-    5: { cellWidth: 48 },
-  },
-  margin: margins, // Use updated margins object
-  theme: 'grid',
-  didDrawCell: (data) => {
-    const { row, cell, section } = data;
-    if (section === 'body') {
-      if (cell.text[0] === '') {
-        doc.setDrawColor(255, 255, 255);
-        doc.setLineWidth(1);
-        doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
-        doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
+      // Update yPos after first table
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+
+      // Define margins for second table with left: 7
+      const secondTableMargins = {
+        top: styles.margins.top || 10,
+        bottom: styles.margins.bottom || 10,
+        left: 8, // Set left margin to 7px
+        right: styles.margins.right || 10,
+      };
+
+      // Second Table: Contract Details
+      const tableHead = [
+        ['ContractNo#.', 'BuyerNo#.', 'Quantity', 'Dispatch Qty', 'Bale / Role', 'Destination'],
+      ];
+
+      const contractTableBody: (string | number)[][] = [];
+      let totalDispatchQty = 0;
+      let totalBaleRole = 0;
+
+      if (dispatchNote.relatedContracts && dispatchNote.relatedContracts.length > 0) {
+        dispatchNote.relatedContracts.forEach((contract) => {
+          const fabricDetails = formatFabricDetails(contract);
+          const dispatchQty = Number(contract.totalDispatchQuantity) || 0;
+          const baleRole = Number(contract.base) || 0;
+          totalDispatchQty += dispatchQty;
+          totalBaleRole += baleRole;
+          contractTableBody.push([
+            contract.contractNumber || '-',
+            contract.buyerRefer || '-',
+            fabricDetails,
+            dispatchQty || '-',
+            baleRole || '-',
+            dispatchNote.destination || '-',
+          ]);
+        });
+      } else {
+        contractTableBody.push(['-', '-', '-', '-', '-', '-']);
       }
-    }
-    if (data.column.index === 0) {
-      doc.setDrawColor(200, 200, 200); // Border color
-      doc.setLineWidth(0.5); // Border width
-      doc.line(cell.x, cell.y, cell.x, cell.y + cell.height); // Draw left border
-    }
-  },
-});
 
-// Update yPos after first table
-yPos = (doc as any).lastAutoTable.finalY + 10;
+      autoTable(doc, {
+        startY: yPos,
+        head: tableHead,
+        body: contractTableBody,
+        foot: [['', '', 'Total:', totalDispatchQty || '-', totalBaleRole || '-', '']],
+        styles: {
+          font: 'OpenSans', 
+          fontSize: 8,
+          cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }, 
+          lineColor: [210, 210, 210], 
+          lineWidth: 0.4,
+          textColor: [50, 50, 50], 
+          fontStyle: 'normal', 
+          fillColor: [248, 248, 248], 
+        },
+        headStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [33, 33, 33],
+          fontSize: 7,
+          fontStyle: 'bold',
+          lineWidth: 0.5,
+        },
+        footStyles: {
+          fillColor: [240, 240, 240],
+          textColor: [33, 33, 33],
+          fontSize: 9,
+          fontStyle: 'bold',
+          lineWidth: 0.5,
+        },
+        columnStyles: {
+          0: { cellWidth: 32 },
+          1: { cellWidth: 15},
+          2: { cellWidth: 84 },
+          3: { cellWidth: 19 },
+          4: { cellWidth: 18},
+          5: { cellWidth: 25 },
+        },
+        margin: secondTableMargins,
+      });
 
-     // Define margins with left: 7
-const margins = {
-  top: styles.margins.top || 10,
-  bottom: styles.margins.bottom || 10,
-  left: 7, // Set left margin to 7px
-  right: styles.margins.right || 10,
-};
-
-// Second Table: Contract Details
-const tableHead = [
-  ['ContractNo#.', 'BuyerNo#.', 'Quantity', 'Dispatch Qty', 'Bale / Role', 'Destination'],
-];
-
-const contractTableBody: (string | number)[][] = [];
-let totalDispatchQty = 0;
-let totalBaleRole = 0;
-
-if (dispatchNote.relatedContracts && dispatchNote.relatedContracts.length > 0) {
-  dispatchNote.relatedContracts.forEach((contract) => {
-    const fabricDetails = formatFabricDetails(contract);
-    const dispatchQty = Number(contract.totalDispatchQuantity) || 0;
-    const baleRole = Number(contract.base) || 0;
-    totalDispatchQty += dispatchQty;
-    totalBaleRole += baleRole;
-    contractTableBody.push([
-      contract.contractNumber || '-',
-      contract.buyerRefer || '-',
-      fabricDetails,
-      dispatchQty || '-',
-      baleRole || '-',
-      dispatchNote.destination || '-',
-    ]);
-  });
-} else {
-  contractTableBody.push(['-', '-', '-', '-', '-', '-']);
-}
-
-autoTable(doc, {
-  startY: yPos,
-  head: tableHead,
-  body: contractTableBody,
-  foot: [['', '', 'Total:', totalDispatchQty || '-', totalBaleRole || '-', '']],
-  styles: {
-    font: 'OpenSans', 
-    fontSize: 8,
-    cellPadding: { top: 3.5, bottom: 3.5, left: 4, right: 4 }, 
-    lineColor: [210, 210, 210], 
-    lineWidth: 0.4,
-    textColor: [50, 50, 50], 
-    fontStyle: 'normal', 
-    fillColor: [248, 248, 248], 
-  },
-  headStyles: {
-    fillColor: [240, 240, 240],
-    textColor: [33, 33, 33],
-    fontSize: 7,
-    fontStyle: 'bold',
-    lineWidth: 0.5,
-  },
-  footStyles: {
-    fillColor: [240, 240, 240],
-    textColor: [33, 33, 33],
-    fontSize: 9,
-    fontStyle: 'bold',
-    lineWidth: 0.5,
-  },
-  columnStyles: {
-    0: { cellWidth: 32 },
-    1: { cellWidth: 15},
-    2: { cellWidth: 84 },
-    3: { cellWidth: 19 },
-    4: { cellWidth: 18},
-    5: { cellWidth: 25 },
-  },
-  margin: margins, // Use updated margins object
-  theme: 'grid',
-});
-
-// Update yPos after second table
-yPos = (doc as any).lastAutoTable.finalY + 20;
+      // Update yPos after second table
+      yPos = (doc as any).lastAutoTable.finalY + 20;
 
       // Signatures
       const signatureWidth = 40;
