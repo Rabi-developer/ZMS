@@ -206,8 +206,7 @@ const DispatchPDFExport = {
           lineWidth: 0.1,
           textColor: [0, 0, 0],
           fontStyle: 'normal',
-        },
-        columnStyles: {
+        },        columnStyles: {
           0: { cellWidth: 30 },
           1: { cellWidth: 60 },
           2: { cellWidth: 10 },
@@ -216,10 +215,10 @@ const DispatchPDFExport = {
           5: { cellWidth: 60 },
         },
         margin: { left: 10, right: 10 },
-        theme: 'grid',
-        didDrawCell: (data) => {
+        theme: 'grid',        didDrawCell: (data) => {
           const { row, cell, section } = data;
           if (section === 'body') {
+            
             if (row.index === 0) {
               // Date row
               if (cell.colSpan === -1) {
@@ -234,11 +233,6 @@ const DispatchPDFExport = {
                 doc.setLineWidth(0.2);
                 doc.setDrawColor(0, 0, 0);
                 doc.line(cell.x, cell.y, cell.x + 190, cell.y);
-                if (data.column.index < 4 && cell.text[0] === '') {
-                  doc.setLineWidth(0);
-                  doc.setDrawColor(255, 255, 255);
-                  doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
-                }
               }
             } else if (row.index === 1) {
               // Seller/Transporter row
@@ -265,11 +259,6 @@ const DispatchPDFExport = {
                 doc.setLineWidth(0.2);
                 doc.setDrawColor(0, 0, 0);
                 doc.line(cell.x, cell.y, cell.x + width, cell.y);
-                if ((data.column.index === 2 || data.column.index === 3) && cell.text[0] === '') {
-                  doc.setLineWidth(0);
-                  doc.setDrawColor(255, 255, 255);
-                  doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
-                }
               }
             } else if (row.index === 2) {
               // Buyer/Vehicle# row
@@ -296,16 +285,24 @@ const DispatchPDFExport = {
                 doc.setLineWidth(0.2);
                 doc.setDrawColor(0, 0, 0);
                 doc.line(cell.x, cell.y, cell.x + width, cell.y);
-                if ((data.column.index === 2 || data.column.index === 3) && cell.text[0] === '') {
-                  doc.setLineWidth(0);
-                  doc.setDrawColor(255, 255, 255);
-                  doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
-                }
               }
             } else if (row.index === 3) {
               // Gap row
               doc.setFillColor(255, 255, 255);
               doc.rect(cell.x, cell.y, 190, cell.height, 'F');
+            }
+
+            // Hide ONLY left and right borders for empty cells in columns 0, 2 and 3 (including first row)
+            // This must come AFTER the custom drawing to override any borders drawn above
+            if ((data.column.index === 0 || data.column.index === 2 || data.column.index === 3) && cell.text[0] === '') {
+              // Draw thicker white lines only over left and right borders to hide them
+              doc.setDrawColor(255, 255, 255);
+              doc.setLineWidth(0.3);
+              // Hide left border
+              doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
+              // Hide right border - extend slightly to ensure coverage
+              doc.line(cell.x + cell.width, cell.y, cell.x + cell.width, cell.y + cell.height);
+              // Keep top and bottom borders intact - don't draw over them
             }
           }
         },
@@ -337,9 +334,7 @@ const DispatchPDFExport = {
         });
       } else {
         contractTableBody.push(['-', '-', '-', '-', '-', '-']);
-      }
-
-      autoTable(doc, {
+      }      autoTable(doc, {
         startY: yPos,
         head: tableHead,
         body: contractTableBody,
