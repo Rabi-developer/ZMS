@@ -8,7 +8,7 @@ import { toast } from "react-toastify"
 import CustomInput from "@/components/ui/CustomInput"
 import CustomInputDropdown from "@/components/ui/CustomeInputDropdown"
 import DescriptionWithSubSelect from "@/components/ui/DescriptionWithSubSelect"
-import { MdAddBusiness, MdArrowForward, MdArrowBack } from "react-icons/md"
+import { MdAddBusiness, MdArrowForward, MdArrowBack, MdDelete, MdAdd } from "react-icons/md"
 import { Button } from "@/components/ui/button"
 import { getAllOrganization } from "@/apis/organization"
 import { getAllBranch } from "@/apis/branchs"
@@ -1283,7 +1283,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           if (
             commissionTypeName === 'on value' &&
             commissionPercentage > 0 &&
-          Number.parseFloat(fabricValue) > 0 // Changed from totalAmount to fabricValue
+           Number.parseFloat(fabricValue) > 0 // Changed from totalAmount to fabricValue
           ) {
             commissionValue = (
               (Number.parseFloat(fabricValue) * commissionPercentage) / 100
@@ -2161,7 +2161,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         commissionPercentage: row.CommissionPercentage || '',
         commissionValue: row.CommissionValue || '',
         totalAmount: row.TotalAmount || '',
-        deliveryDate: row.Date ? new Date(row.Date).toISOString() : '',
+        Date: row.Date ? new Date(row.Date).toISOString() : '',
         commisionInfo: {
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
@@ -2320,7 +2320,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 <CustomInput
                   variant="floating"
                   borderThickness="2"
-                  label="Reference #"
+                  label=" Seller Refer #"
                   id="ReferenceNumber"
                   {...register('ReferenceNumber')}
                   error={errors.ReferenceNumber?.message}
@@ -2337,7 +2337,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 <CustomInput
                   variant="floating"
                   borderThickness="2"
-                  label="Refer.#"
+                  label="Buyer Refer.#"
                   id="Refer"
                   {...register('Refer')}
                   error={errors.Refer?.message}
@@ -2577,6 +2577,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                     subError={errors.SelvedgeSubOptions?.message}
                     register={register}
                   />
+                  {/*  */}
                   <DescriptionWithSubSelect
                     label="Selvedge Weave"
                     name="SelvedgeWeave"
@@ -2964,16 +2965,16 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                               <Button
                                 type="button"
                                 onClick={() => removeConversionContractRow(index)}
-                                className="flex items-center justify-center bg-red-500 text-white hover:bg-red-600 p-2 rounded-lg transition-colors"
+                                className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
                               >
-                                🗑️
+                                <MdDelete className="text-lg" />
                               </Button>
                               <Button
                                 type="button"
                                 onClick={addConversionContractRow}
-                                className="flex items-center justify-center bg-[#06b6d4] text-white hover:bg-[#0895b0] p-2 rounded-lg transition-colors"
+                               className="bg-[#06b6d4] hover:bg-[#0899b2] text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
                               >
-                                ➕
+                                <MdAdd className="text-lg" />
                               </Button>
                             </td>
                           </tr>
@@ -3131,19 +3132,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             <Button
                               type="button"
                               onClick={() => removeSellerDeliveryBreakup(index)}
-                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                            >
-                              🗑️
-                            </Button>
+                           className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdDelete className="text-lg" />
+                              </Button>
                           </div>
                         ))}
                         <Button
                           type="button"
                           onClick={addSellerDeliveryBreakup}
-                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-                        >
-                          Add
-                        </Button>
+                           className="bg-[#06b6d4] hover:bg-[#0899b2] text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdAdd className="text-lg" />
+                              </Button>
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
@@ -3172,19 +3173,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             <Button
                               type="button"
                               onClick={() => removeBuyerDeliveryBreakup(index)}
-                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                            >
-                              🗑️
-                            </Button>
+                             className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdDelete className="text-lg" />
+                              </Button>
                           </div>
                         ))}
                         <Button
                           type="button"
                           onClick={addBuyerDeliveryBreakup}
-                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-                        >
-                          Add
-                        </Button>
+                          className="bg-[#06b6d4] hover:bg-[#0899b2] text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdAdd className="text-lg" />
+                              </Button>
                       </div>
                     </div>
                   </div>
@@ -3242,7 +3243,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             </td>
                             <td className="px-4 py-3">
                               <input
-                                type="text"
+                                type="date"
                                 value={row.LabDispatchDate}
                                 onChange={(e) => handleDietContractChange(index, "LabDispatchDate", e.target.value)}
                                 className="w-full min-w-[150px] p-2 border rounded-lg focus:ring-2 focus:ring-[#06b6d4] dark:bg-gray-900 dark:text-white dark:border-gray-600"
@@ -3397,16 +3398,16 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                               <Button
                                 type="button"
                                 onClick={() => removeDietContractRow(index)}
-                                className="flex items-center justify-center bg-red-500 text-white hover:bg-red-600 p-2 rounded-lg transition-colors"
+                                className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
                               >
-                                🗑️
+                                <MdDelete className="text-lg" />
                               </Button>
                               <Button
                                 type="button"
                                 onClick={addDietContractRow}
-                                className="flex items-center justify-center bg-[#06b6d4] text-white hover:bg-[#0895b0] p-2 rounded-lg transition-colors"
+                                className="bg-[#06b6d4] hover:bg-[#0899b2] text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
                               >
-                                ➕
+                                <MdAdd className="text-lg" />
                               </Button>
                             </td>
                           </tr>
@@ -3556,19 +3557,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             <Button
                               type="button"
                               onClick={() => removeSellerDeliveryBreakup(index)}
-                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                            >
-                              🗑️
-                            </Button>
+                             className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdDelete className="text-lg" />
+                              </Button>
                           </div>
                         ))}
                         <Button
                           type="button"
                           onClick={addSellerDeliveryBreakup}
-                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-                        >
-                          Add
-                        </Button>
+                           className="bg-[#06b6d4] hover:bg-[#0899b2] text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdAdd className="text-lg" />
+                              </Button>
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
@@ -3597,19 +3598,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             <Button
                               type="button"
                               onClick={() => removeBuyerDeliveryBreakup(index)}
-                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                            >
-                              🗑️
-                            </Button>
+                             className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdDelete className="text-lg" />
+                              </Button>
                           </div>
                         ))}
                         <Button
                           type="button"
                           onClick={addBuyerDeliveryBreakup}
-                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-                        >
-                          Add
-                        </Button>
+                          className="bg-[#06b6d4] hover:bg-[#0899b2] text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdAdd className="text-lg" />
+                              </Button>
                       </div>
                     </div>
                   </div>
@@ -3771,16 +3772,16 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                               <Button
                                 type="button"
                                 onClick={() => removeMultiWidthContractRow(index)}
-                                className="flex items-center justify-center bg-red-500 text-white hover:bg-red-600 p-2 rounded-lg transition-colors"
+                                className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
                               >
-                                🗑️
+                                <MdDelete className="text-lg" />
                               </Button>
                               <Button
                                 type="button"
                                 onClick={addMultiWidthContractRow}
-                                className="flex items-center justify-center bg-[#06b6d4] text-white hover:bg-[#0895b0] p-2 rounded-lg transition-colors"
+                                className="bg-[#06b6d4] hover:bg-[#0899b2] text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
                               >
-                                ➕
+                                <MdAdd className="text-lg" />
                               </Button>
                             </td>
                           </tr>
@@ -3938,19 +3939,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             <Button
                               type="button"
                               onClick={() => removeSellerDeliveryBreakup(index)}
-                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                            >
-                              🗑️
-                            </Button>
+                             className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdDelete className="text-lg" />
+                              </Button>
                           </div>
                         ))}
                         <Button
                           type="button"
                           onClick={addSellerDeliveryBreakup}
-                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-                        >
-                          Add
-                        </Button>
+                          className="bg-[#06b6d4] hover:bg-[#0899b2] text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdAdd className="text-lg" />
+                              </Button>
                       </div>
                       <div>
                         <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-2">
@@ -3979,19 +3980,19 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                             <Button
                               type="button"
                               onClick={() => removeBuyerDeliveryBreakup(index)}
-                              className="bg-red-500 text-white hover:bg-red-600 mt-2 p-2 rounded-lg"
-                            >
-                              🗑️
-                            </Button>
+                              className="bg-red-500 hover:bg-red-600 text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdDelete className="text-lg" />
+                              </Button>
                           </div>
                         ))}
                         <Button
                           type="button"
                           onClick={addBuyerDeliveryBreakup}
-                          className="bg-[#06b6d4] text-white hover:bg-[#0895b0] px-4 py-2 rounded-lg"
-                        >
-                          Add
-                        </Button>
+                           className="bg-[#06b6d4] hover:bg-[#0899b2] text-white p-2.5 rounded-full h-10 w-10 flex items-center justify-center"
+                              >
+                                <MdAdd className="text-lg" />
+                              </Button>
                       </div>
                     </div>
                   </div>

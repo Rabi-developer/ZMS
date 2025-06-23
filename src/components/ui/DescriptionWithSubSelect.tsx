@@ -10,9 +10,9 @@ interface DescriptionWithSubSelectProps<T extends FieldValues = DefaultFormData>
   subName: string;
   options: { id: string; name: string; subDescription?: string }[];
   selectedOption: string;
-  selectedSubOptions: string[];
+  selectedSubOptions: string[]; // Stores sub-description names (text)
   onChange: (value: string) => void;
-  onSubChange: (values: string[]) => void;
+  onSubChange: (values: string[]) => void; // Receives sub-description names (text)
   error?: string;
   subError?: string;
   register: UseFormRegister<T>;
@@ -41,15 +41,15 @@ const DescriptionWithSubSelect = <T extends FieldValues = DefaultFormData>(
         .split('|')
         .filter((s) => s)
         .map((subDesc, index) => ({
-          id: `${index}`,
-          name: subDesc.trim(),
+          id: `${index}`, // Used for rendering (keys, DOM IDs)
+          name: subDesc.trim(), // Used for state and saving
         }))
     : [];
 
-  const handleSubChange = (subId: string) => {
-    const newSubOptions = selectedSubOptions.includes(subId)
-      ? selectedSubOptions.filter((id) => id !== subId)
-      : [...selectedSubOptions, subId];
+  const handleSubChange = (subName: string) => {
+    const newSubOptions = selectedSubOptions.includes(subName)
+      ? selectedSubOptions.filter((name) => name !== subName)
+      : [...selectedSubOptions, subName];
     onSubChange(newSubOptions);
   };
 
@@ -84,7 +84,6 @@ const DescriptionWithSubSelect = <T extends FieldValues = DefaultFormData>(
       </div>
       {subOptions.length > 0 && (
         <div className="mt-4">
-          
           <div
             className={`w-full bg-white rounded-b-lg shadow-xl border-2 border-[#06b6d4] transition-all duration-300 ${
               subError ? 'border-red-500' : ''
@@ -94,14 +93,14 @@ const DescriptionWithSubSelect = <T extends FieldValues = DefaultFormData>(
               <div
                 key={subOption.id}
                 className={`px-4 py-2 text-gray-800 hover:bg-[#ecfcff] hover:text-[#06b6d4] cursor-pointer transition-colors duration-200 flex items-center ${
-                  selectedSubOptions.includes(subOption.id) ? 'bg-[#06b6d4] text-white' : ''
+                  selectedSubOptions.includes(subOption.name) ? 'bg-[#06b6d4] text-white' : ''
                 }`}
               >
                 <input
                   type="checkbox"
                   id={`${subName}-${subOption.id}`}
-                  checked={selectedSubOptions.includes(subOption.id)}
-                  onChange={() => handleSubChange(subOption.id)}
+                  checked={selectedSubOptions.includes(subOption.name)}
+                  onChange={() => handleSubChange(subOption.name)}
                   className="mr-2 text-[#06b6d4] focus:ring-[#06b6d4] border-gray-300 rounded"
                 />
                 <label

@@ -6,6 +6,8 @@ import { FiList, FiPlus, FiArrowLeft } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GiPayMoney} from 'react-icons/gi';
 import { FaBoxesPacking } from "react-icons/fa6";
+import { FaMoneyBillTransfer } from "react-icons/fa6";
+
 
 
 
@@ -39,11 +41,11 @@ const forms = [
     icon: GiPayMoney,
   },
   {
-    name: 'Vehicle Type',
-    listRoute: '/vehicletype',
-    createRoute: '/vehicletype/create',
-    description: 'Vehicle Type',
-    icon: GiPayMoney,
+    name: 'Transporter Company',
+    listRoute: '/transportercompany',
+    createRoute: '/transportercompany/create',
+    description: 'Transporter Company',
+    icon: FaMoneyBillTransfer,
   },
 
 

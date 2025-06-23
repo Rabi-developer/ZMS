@@ -86,7 +86,7 @@ export interface Contract {
     qty: string;
     deliveryDate: string;
   }[];
-  conversionContractRow: {
+ conversionContractRow : {
     id: string;
     contractId: string;
     width: string;
@@ -182,6 +182,11 @@ export interface Contract {
     }[];
   }[];
   multiWidthContractRow: {
+    totalAmountMultiple: string;
+    wrapBag: string;
+    weftBag: string;
+    weftwt: string;
+    wrapwt: string;
     id: string;
     contractId: string;
     width: string;

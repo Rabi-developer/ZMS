@@ -6,6 +6,8 @@ import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllDispatchNotes, deleteDispatchNote } from '@/apis/dispatchnote';
 import { MdLocalShipping } from 'react-icons/md';
+import DispatchPDFExport from './DispatchPDFExport'; // Import the PDF export module
+import { FiDownload } from 'react-icons/fi'; // Optional: Icon for the button
 
 const DispatchNoteList = () => {
   const [dispatchNotes, setDispatchNotes] = React.useState<DispatchNote[]>([]);
@@ -75,8 +77,67 @@ const DispatchNoteList = () => {
     );
   };
 
+  // Handle PDF download for selected dispatch notes
+  const handleDownloadPDF = async () => {
+    if (selectedDispatchNoteIds.length === 0) {
+      toast('No dispatch notes selected', { type: 'warning' });
+      return;
+    }
+
+    try {
+      for (const id of selectedDispatchNoteIds) {
+        const dispatchNote = dispatchNotes.find((dn) => dn.id === id);
+        if (dispatchNote) {
+          await DispatchPDFExport.exportToPDF({
+            dispatchNote,
+            sellerSignature: undefined, // Add actual signature if available
+            buyerSignature: undefined, // Add actual signature if available
+            zmsSignature: undefined, // Add actual signature if available
+            sellerAddress: undefined, // Will be fetched in exportToPDF
+            buyerAddress: undefined, // Will be fetched in exportToPDF
+          });
+        }
+      }
+      toast('PDFs generated successfully', { type: 'success' });
+    } catch (error) {
+      console.error('Error generating PDFs:', error);
+      toast('Failed to generate PDFs', { type: 'error' });
+    }
+  };
+
+  // Define all columns for related contracts
+  const relatedContractColumns = [
+    { header: 'Contract #', accessor: 'contractNumber' },
+    { header: 'Seller', accessor: 'seller' },
+    { header: 'Buyer#', accessor: 'buyerRefer' },
+    { header: 'Width/Color', accessor: 'widthOrColor' },
+    { header: 'Buyer Refer', accessor: 'buyerRefer' },
+    { header: 'Fabric Details', accessor: 'fabricDetails' },
+    { header: 'Date', accessor: 'date' },
+    { header: 'Base', accessor: 'base' },
+    { header: 'Quantity', accessor: 'quantity' },
+    { header: 'Dispatch Quantity', accessor: 'totalDispatchQuantity' },
+    { header: 'Total Dispatch Quantity', accessor: 'totalDispatchQuantity' },
+    { header: 'Balance Quantity', accessor: 'balanceQuantity' },
+    { header: 'Contract Type', accessor: 'contractType' },
+  ];
+
   return (
     <div className="container bg-white rounded-md p-6">
+      {/* Download PDF Button */}
+      {selectedDispatchNoteIds.length > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={handleDownloadPDF}
+            className="flex items-center px-4 py-2 bg-[#06b6d4] text-white rounded-md hover:bg-cyan-700 transition-colors duration-200"
+            disabled={loading}
+          >
+            <FiDownload className="mr-2" />
+            Download PDF{selectedDispatchNoteIds.length > 1 ? 's' : ''} ({selectedDispatchNoteIds.length})
+          </button>
+        </div>
+      )}
+
       <DataTable
         columns={columns(handleDeleteOpen, handleViewOpen, handleCheckboxChange)}
         data={dispatchNotes}
@@ -106,24 +167,20 @@ const DispatchNoteList = () => {
                   <h3 className="text-lg font-semibold">Dispatch Note: {dispatchNote.bilty}</h3>
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#06b6d4] text-white">
-                        <th className="p-3 font-medium">Contract #</th>
-                        <th className="p-3 font-medium">Contract Date</th>
-                        <th className="p-3 font-medium">Quantity</th>
-                        <th className="p-3 font-medium">Total Amount</th>
-                        <th className="p-3 font-medium">Base</th>
-                        <th className="p-3 font-medium">Dispatch Qty</th>
+                      <tr className="bg-[#06b6d4] font-extrabold text-white">
+                        {relatedContractColumns.map((col) => (
+                          <th key={col.accessor} className="p-3 font-bold uppercase">{col.header}</th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
                       {dispatchNote.relatedContracts.map((contract) => (
                         <tr key={contract.id} className="border-b hover:bg-gray-100">
-                          <td className="p-3">{contract.contractNumber || '-'}</td>
-                          <td className="p-3">{contract.date || '-'}</td>
-                          <td className="p-3">{contract.quantity || '-'}</td>
-                          <td className="p-3">{contract.totalAmount || '-'}</td>
-                          <td className="p-3">{contract.base || '-'}</td>
-                          <td className="p-3">{contract.dispatchQty || '-'}</td>
+                          {relatedContractColumns.map((col) => (
+                            <td key={col.accessor} className="p-3 font-bold">
+                              {contract[col.accessor as keyof typeof contract] || '-'}
+                            </td>
+                          ))}
                         </tr>
                       ))}
                     </tbody>
@@ -248,28 +305,20 @@ const DispatchNoteList = () => {
                     {selectedDispatchNote.relatedContracts && selectedDispatchNote.relatedContracts.length > 0 ? (
                       <table className="w-full text-left border-collapse">
                         <thead>
-                          <tr className="bg-[#06b6d4] text-white">
-                            <th className="p-3 font-medium">Contract #</th>
-                            <th className="p-3 font-medium">Seller</th>
-                            <th className="p-3 font-medium">Buyer</th>
-                            <th className="p-3 font-medium">Date</th>
-                            <th className="p-3 font-medium">Quantity</th>
-                            <th className="p-3 font-medium">Total Amount</th>
-                            <th className="p-3 font-medium">Base</th>
-                            <th className="p-3 font-medium">Dispatch Qty</th>
+                          <tr className="bg-[#06b6d4] font-bold text-white">
+                            {relatedContractColumns.map((col) => (
+                              <th key={col.accessor} className="p-3 font-extrabold font-medium">{col.header}</th>
+                            ))}
                           </tr>
                         </thead>
                         <tbody>
                           {selectedDispatchNote.relatedContracts.map((contract) => (
                             <tr key={contract.id} className="border-b hover:bg-gray-100">
-                              <td className="p-3">{contract.contractNumber || '-'}</td>
-                              <td className="p-3">{contract.seller || '-'}</td>
-                              <td className="p-3">{contract.buyer || '-'}</td>
-                              <td className="p-3">{contract.date || '-'}</td>
-                              <td className="p-3">{contract.quantity || '-'}</td>
-                              <td className="p-3">{contract.totalAmount || '-'}</td>
-                              <td className="p-3">{contract.base || '-'}</td>
-                              <td className="p-3">{contract.dispatchQty || '-'}</td>
+                              {relatedContractColumns.map((col) => (
+                                <td key={col.accessor} className="p-3">
+                                  {contract[col.accessor as keyof typeof contract] || '-'}
+                                </td>
+                              ))}
                             </tr>
                           ))}
                         </tbody>

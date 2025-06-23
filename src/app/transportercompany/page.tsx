@@ -1,12 +1,12 @@
 "use client";
 import MainLayout from '@/components/MainLayout/MainLayout'
-import VehicleType from '@/components/valuemanagement/transportercompany/TransporterCompany';
+import TransporterCompanyList from '@/components/valuemanagement/transportercompany/TransporterCompanyList';
 
 const UnitOfMeasure = () => {
 
     return (
         <MainLayout>
-           <VehicleType/>
+           <TransporterCompanyList/>
         </MainLayout>
     )
 }

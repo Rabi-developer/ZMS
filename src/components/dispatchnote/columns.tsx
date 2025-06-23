@@ -1,3 +1,4 @@
+'use client';
 import { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,20 +16,32 @@ export type DispatchNote = {
   contractNumber: string;
   remarks?: string;
   driverName: string;
-  createdBy?: string;
+  driverNumber?: string;
+  transporter?: string;
+  destination?: string;
+  createdBy?: string | null;
   creationDate?: string;
-  updatedBy?: string;
+  updatedBy?: string | null;
   updationDate?: string;
   relatedContracts?: {
     id: string;
     contractNumber: string;
     seller: string;
     buyer: string;
+    fabricDetails: string;
+    rate: string;
+    contractQuantity?: string | null;
     date: string;
     quantity: string;
     totalAmount: string;
+    dispatchQuantity?: string | null;
+    totalDispatchQuantity: string;
+    balanceQuantity: string;
+    contractType: string;
     base: string;
-    dispatchQty: string;
+    buyerRefer?: string;
+    widthOrColor?: string;
+    rowId?: string | null;
   }[];
 };
 
@@ -78,7 +91,7 @@ export const columns = (
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-       Dispatch Date
+        Dispatch Date
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
@@ -96,13 +109,17 @@ export const columns = (
     header: 'Buyer',
   },
   {
+    accessorKey: 'remarks',
+    header: 'Vechile#',
+  },
+  {
     accessorKey: 'vehicleType',
     header: 'Vehicle Type',
   },
-  {
-    accessorKey: 'vehicle',
-    header: 'Vehicle',
-  },
+  // {
+  //   accessorKey: 'vehicle',
+  //   header: 'Vehicle',
+  // },
   {
     accessorKey: 'contractNumber',
     header: 'Contract Number',
@@ -110,10 +127,6 @@ export const columns = (
   {
     accessorKey: 'driverName',
     header: 'Driver Name',
-  },
-  {
-    accessorKey: 'remarks',
-    header: 'Remarks',
   },
   {
     accessorKey: 'name',

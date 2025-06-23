@@ -294,7 +294,7 @@ const ConversionPDFExport = {
         { label: 'Blend Ratio:', value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}` },
         {
           label: 'Construction:',
-          value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${contract.weaves} ${pickInsertionSub} ${contract.selvege || 'selvedge'}`,
+          value: `${contract.warpCount || '-'} ${contract.warpYarnTypeSubOptions} × ${contract.weftCount || '-'} ${contract.weftYarnTypeSubOptions} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.selvege || 'selvedge'}`,
         },
       ];
 
@@ -327,247 +327,310 @@ const ConversionPDFExport = {
 
       yPos += 5;
 
-    // Financial Table
-const tableBody: (string | number)[][] = [];
-let totalQty = 0;
-let totalPickRate = 0; // Track sum of Pick Rate
-let totalFabRate = 0; // Track sum of Fab. Rate
-let totalAmount = 0;
-let totalCommissionPercentage = 0; // Track sum of Comm. %
-let totalCommissionValue = 0; // Track sum of Comm. Value
-let totalWrapWt = 0; // Track sum of Wrap Wt
-let totalWeftWt = 0; // Track sum of Weft Wt
-let totalWrapBags = 0; // Track sum of Wrap Bags
-let totalWeftBags = 0; // Track sum of Weft Bags
-let totalBags = 0; // Track sum of Total Bags
+      // Financial Table
+      const tableBody: (string | number)[][] = [];
+      let totalAmount = 0;
+      let totalWrapWt = 0;
+      let totalWeftWt = 0;
+      let totalWrapBags = 0;
+      let totalWeftBags = 0;
+      let totalBags = 0;
+      let totalCommissionValue = 0;
 
-// Helper function to get the maximum length of split values
-const getMaxSplitLength = (values: string[][]): number => {
-  return Math.max(...values.map((v) => v.length));
-};
+      // Define table headers based on contract type
+      const tableHeaders = type === 'purchase'
+        ? [
+            'Width',
+            'Qty',
+            'Pick Rate',
+            'Fab. Rate',
+            'Amount',
+            'Delivery',
+            'Comm. %',
+            'Comm. Value',
+            'Wrap Wt',
+            'Weft Wt',
+            'Wrap Bags',
+            'Weft Bags',
+            'Total Bags',
+          ]
+        : [
+            'Width',
+            'Qty',
+            'Pick Rate',
+            'Fab. Rate',
+            'Amount',
+            'Delivery',
+            'Wrap Wt',
+            'Weft Wt',
+            'Wrap Bags',
+            'Weft Bags',
+            'Total Bags',
+          ];
 
-// Define table headers based on contract type
-const tableHeaders = [
-  'Width',
-  'Qty',
-  'Pick Rate',
-  'Fab. Rate',
-  'Amount',
-  'Delivery',
-  ...(type === 'purchase' ? ['Comm. %', 'Comm. Value'] : []),
-  'Wrap Wt',
-  'Weft Wt',
-  'Wrap Bags',
-  'Weft Bags',
-  'Total Bags',
-];
+      // Helper function to get the maximum length of split values
+      const getMaxSplitLength = (values: string[][]): number => {
+        return Math.max(...values.map((v) => v.length));
+      };
 
-if (Array.isArray(contract.conversionContractRow) && contract.conversionContractRow.length > 0) {
-  contract.conversionContractRow.forEach((row, index) => {
-    const qty = parseFloat(row.quantity || '0');
-    const pickRate = parseFloat(row.pickRate || '0');
-    const fabRate = parseFloat(row.fabRate || '0');
-    const amount = parseFloat(row.amounts || '0');
-    const commissionPercentage = parseFloat(row.commissionPercentage || '0');
-    const commissionValue = parseFloat(row.commissionValue || '0');
-    const wrapWt = parseFloat(row.wrapwt || '0');
-    const weftWt = parseFloat(row.weftBag || '0');
-    const wrapBags = parseFloat(row.wrapBag || '0');
-    const weftBags = parseFloat(row.weftBag || '0');
-    const totalBagsValue = parseFloat(row.totalAmountMultiple || '0');
+      if (Array.isArray(contract.conversionContractRow) && contract.conversionContractRow.length > 0) {
+        contract.conversionContractRow.forEach((row, index) => {
+          // Calculate Fab. Rate as noOfPicks * Pick Rate
+          const noOfPicks = parseFloat(contract.noOfPicks || '0');
+          const pickRate = parseFloat(row.pickRate || '0');
+          const fabRate = noOfPicks * pickRate; // Calculate Fab. Rate
+          const quantity = parseFloat(row.quantity || '0');
+          const amount = fabRate * quantity; // Calculate Amount as Fab. Rate * Quantity
+          const commissionPercentage = parseFloat(row.commissionPercentage || '0');
+          const commissionValue = parseFloat(row.commissionValue || '0');
 
-    if (!isNaN(qty)) totalQty += qty;
-    if (!isNaN(pickRate)) totalPickRate += pickRate;
-    if (!isNaN(fabRate)) totalFabRate += fabRate;
-    if (!isNaN(amount)) totalAmount += amount;
-    if (type === 'purchase' && !isNaN(commissionPercentage)) totalCommissionPercentage += commissionPercentage;
-    if (type === 'purchase' && !isNaN(commissionValue)) totalCommissionValue += commissionValue;
-    if (!isNaN(wrapWt)) totalWrapWt += wrapWt;
-    if (!isNaN(weftWt)) totalWeftWt += weftWt;
-    if (!isNaN(wrapBags)) totalWrapBags += wrapBags;
-    if (!isNaN(weftBags)) totalWeftBags += weftBags;
-    if (!isNaN(totalBagsValue)) totalBags += totalBagsValue;
+          // Accumulate totals for specified columns
+          if (!isNaN(amount)) totalAmount += amount;
+          totalWrapWt += parseFloat(row.wrapwt || '0');
+          totalWeftWt += parseFloat(row.weftwt || '0');
+          totalWrapBags += parseFloat(row.wrapBag || '0');
+          totalWeftBags += parseFloat(row.weftBag || '0');
+          totalBags += parseFloat(row.totalAmountMultiple || '0');
+          if (type === 'purchase') totalCommissionValue += commissionValue;
 
-    // Split all relevant fields
-    const widthValues = splitMultiValue(row.width);
-    const wrapWtValues = splitMultiValue(row.wrapwt);
-    const weftWtValues = splitMultiValue(row.weftBag);
-    const wrapBagValues = splitMultiValue(row.wrapBag);
-    const weftBagValues = splitMultiValue(row.weftBag);
-    const totalBagValues = splitMultiValue(row.totalAmountMultiple);
-    const commissionPercentageValues = splitMultiValue(row.commissionPercentage);
-    const commissionValueValues = splitMultiValue(row.commissionValue);
+          // Split all relevant fields
+          const widthValues = splitMultiValue(row.width);
+          const wrapWtValues = splitMultiValue(row.wrapwt);
+          const weftWtValues = splitMultiValue(row.weftwt);
+          const wrapBagValues = splitMultiValue(row.wrapBag);
+          const weftBagValues = splitMultiValue(row.weftBag);
+          const totalBagValues = splitMultiValue(row.totalAmountMultiple);
+          const commissionPercentageValues = type === 'purchase' ? splitMultiValue(row.commissionPercentage) : [];
+          const commissionValueValues = type === 'purchase' ? splitMultiValue(row.commissionValue) : [];
 
-    // Get the maximum number of rows needed
-    const maxRows = getMaxSplitLength([
-      widthValues,
-      wrapWtValues,
-      weftWtValues,
-      wrapBagValues,
-      weftBagValues,
-      totalBagValues,
-      ...(type === 'purchase' ? [commissionPercentageValues, commissionValueValues] : []),
-    ]);
+          // Get the maximum number of rows needed
+          const maxRows = getMaxSplitLength([
+            widthValues,
+            wrapWtValues,
+            weftWtValues,
+            wrapBagValues,
+            weftBagValues,
+            totalBagValues,
+            ...(type === 'purchase' ? [commissionPercentageValues, commissionValueValues] : []),
+          ]);
 
-    // Create a row for each split value
-    for (let i = 0; i < maxRows; i++) {
-      tableBody.push([
-        widthValues[i] || (i === 0 ? widthValues[0] || '-' : '-'),
-        i === 0 ? row.quantity || '-' : '-',
-        i === 0 ? formatCurrency(pickRate) : '-',
-        i === 0 ? formatCurrency(fabRate) : '-',
-        i === 0 ? formatCurrency(amount) : '-',
-        i === 0 && contract.buyerDeliveryBreakups?.[index]?.deliveryDate
-          ? new Date(contract.buyerDeliveryBreakups[index].deliveryDate).toLocaleDateString('en-GB', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            }).split('/').join('-')
-          : i === 0
-          ? contract.deliveryDate
+          // Create a row for each split value
+          for (let i = 0; i < maxRows; i++) {
+            const baseRow = [
+              widthValues[i] || (i === 0 ? widthValues[0] || '-' : '-'),
+              i === 0 ? row.quantity || '-' : '-',
+              i === 0 ? formatCurrency(parseFloat(row.pickRate || '0')) : '-',
+              i === 0 ? formatCurrency(fabRate) : '-', // Use calculated Fab. Rate
+              i === 0 ? formatCurrency(amount.toFixed(2)) : '-', // Use calculated Amount
+              i === 0 && row.deliveryDate
+                ? new Date(row.deliveryDate).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  }).split('/').join('-')
+                : i === 0
+                ? contract.deliveryDate
+                  ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    }).split('/').join('-')
+                  : '-'
+                : '-',
+            ];
+
+            const additionalRow = type === 'purchase'
+              ? [
+                  commissionPercentageValues[i] || (i === 0 ? formatCurrency(commissionPercentage) : '-'),
+                  commissionValueValues[i] || (i === 0 ? formatCurrency(commissionValue) : '-'),
+                  wrapWtValues[i] || (i === 0 ? wrapWtValues[0] || '-' : '-'),
+                  weftWtValues[i] || (i === 0 ? weftWtValues[0] || '-' : '-'),
+                  wrapBagValues[i] || (i === 0 ? wrapBagValues[0] || '-' : '-'),
+                  weftBagValues[i] || (i === 0 ? weftBagValues[0] || '-' : '-'),
+                  totalBagValues[i] || (i === 0 ? totalBagValues[0] || '-' : '-'),
+                ]
+              : [
+                  wrapWtValues[i] || (i === 0 ? wrapWtValues[0] || '-' : '-'),
+                  weftWtValues[i] || (i === 0 ? weftWtValues[0] || '-' : '-'),
+                  wrapBagValues[i] || (i === 0 ? wrapBagValues[0] || '-' : '-'),
+                  weftBagValues[i] || (i === 0 ? weftBagValues[0] || '-' : '-'),
+                  totalBagValues[i] || (i === 0 ? totalBagValues[0] || '-' : '-'),
+                ];
+
+            tableBody.push([...baseRow, ...additionalRow]);
+          }
+        });
+      } else {
+        // Handle single row case
+        const row = Array.isArray(contract.conversionContractRow)
+          ? contract.conversionContractRow[0]
+          : contract.conversionContractRow;
+        // Calculate Fab. Rate as noOfPicks * Pick Rate
+        const noOfPicks = parseFloat(contract.noOfPicks || '0');
+        const pickRate = parseFloat(row?.pickRate || '0');
+        const fabRate = noOfPicks * pickRate; // Calculate Fab. Rate
+        const quantity = parseFloat(row?.quantity || contract.quantity || '0');
+        const amount = fabRate * quantity; // Calculate Amount as Fab. Rate * Quantity
+        const commissionPercentage = parseFloat(row?.commissionPercentage || '0');
+        const commissionValue = parseFloat(row?.commissionValue || '0');
+
+        // Accumulate totals for specified columns
+        if (!isNaN(amount)) totalAmount += amount;
+        totalWrapWt += parseFloat(row?.wrapwt || '0');
+        totalWeftWt += parseFloat(row?.weftwt || '0');
+        totalWrapBags += parseFloat(row?.wrapBag || '0');
+        totalWeftBags += parseFloat(row?.weftBag || '0');
+        totalBags += parseFloat(row?.totalAmountMultiple || '0');
+        if (type === 'purchase') totalCommissionValue += commissionValue;
+
+        const baseRow = [
+          contract.width || '-',
+          contract.quantity || '-',
+          formatCurrency(parseFloat(row?.pickRate || '0')),
+          formatCurrency(fabRate), // Use calculated Fab. Rate
+          formatCurrency(amount.toFixed(2)), // Use calculated Amount
+          contract.deliveryDate
             ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: '2-digit',
                 year: 'numeric',
               }).split('/').join('-')
-            : '-'
-          : '-',
-        ...(type === 'purchase'
+            : '-',
+        ];
+
+        const additionalRow = type === 'purchase'
           ? [
-              commissionPercentageValues[i] || (i === 0 ? formatCurrency(commissionPercentage) : '-'),
-              commissionValueValues[i] || (i === 0 ? formatCurrency(commissionValue) : '-'),
+              formatCurrency(commissionPercentage),
+              formatCurrency(commissionValue),
+              row?.wrapwt || '-',
+              row?.weftwt || '-',
+              row?.wrapBag || '-',
+              row?.weftBag || '-',
+              row?.totalAmountMultiple || '-',
             ]
-          : []),
-        wrapWtValues[i] || (i === 0 ? wrapWtValues[0] || '-' : '-'),
-        weftWtValues[i] || (i === 0 ? weftWtValues[0] || '-' : '-'),
-        wrapBagValues[i] || (i === 0 ? wrapBagValues[0] || '-' : '-'),
-        weftBagValues[i] || (i === 0 ? weftBagValues[0] || '-' : '-'),
-        totalBagValues[i] || (i === 0 ? totalBagValues[0] || '-' : '-'),
-      ]);
-    }
-  });
-} else {
-  const qty = parseFloat(contract.quantity || '0');
-  const rate = parseFloat(contract.rate || '0');
-  const amount = qty * rate;
-  const commissionPercentage = parseFloat(contract.conversionContractRow?.[0]?.commissionPercentage || '0');
-  const commissionValue = parseFloat(contract.conversionContractRow?.[0]?.commissionType || '0');
-  const wrapWt = parseFloat(contract.conversionContractRow?.[0]?.wrapwt || '0');
-  const weftWt = parseFloat(contract.conversionContractRow?.[0]?.weftBag || '0');
-  const wrapBags = parseFloat(contract.conversionContractRow?.[0]?.wrapBag || '0');
-  const weftBags = parseFloat(contract.conversionContractRow?.[0]?.weftBag || '0');
-  const totalBagsValue = parseFloat(contract.conversionContractRow?.[0]?.totalAmountMultiple || '0');
+          : [
+              row?.wrapwt || '-',
+              row?.weftwt || '-',
+              row?.wrapBag || '-',
+              row?.weftBag || '-',
+              row?.totalAmountMultiple || '-',
+            ];
 
-  if (!isNaN(qty)) totalQty += qty;
-  if (!isNaN(rate)) totalPickRate += rate; // Assuming rate corresponds to Pick Rate
-  if (!isNaN(rate)) totalFabRate += rate; // Assuming rate corresponds to Fab. Rate
-  if (!isNaN(amount)) totalAmount += amount;
-  if (type === 'purchase' && !isNaN(commissionPercentage)) totalCommissionPercentage += commissionPercentage;
-  if (type === 'purchase' && !isNaN(commissionValue)) totalCommissionValue += commissionValue;
-  if (!isNaN(wrapWt)) totalWrapWt += wrapWt;
-  if (!isNaN(weftWt)) totalWeftWt += weftWt;
-  if (!isNaN(wrapBags)) totalWrapBags += wrapBags;
-  if (!isNaN(weftBags)) totalWeftBags += weftBags;
-  if (!isNaN(totalBagsValue)) totalBags += totalBagsValue;
+        tableBody.push([...baseRow, ...additionalRow]);
+      }
 
-  tableBody.push([
-    contract.finishWidth || '-',
-    contract.quantity || '-',
-    formatCurrency(rate),
-    formatCurrency(rate),
-    formatCurrency(amount),
-    contract.deliveryDate
-      ? new Date(contract.deliveryDate).toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        }).split('/').join('-')
-      : '-',
-    ...(type === 'purchase' ? [formatCurrency(commissionPercentage), formatCurrency(commissionValue)] : []),
-    wrapWt || '-',
-    weftWt || '-',
-    wrapBags || '-',
-    weftBags || '-',
-    totalBagsValue || '-',
-  ]);
-}
+      // Calculate GST and total with GST
+      const gstPercentage = 18; // Hardcoded to 18% as per request
+      const gstAmount = (totalAmount * gstPercentage) / 100;
+      const totalWithGST = totalAmount + gstAmount;
 
-// Add blank row after data rows
-tableBody.push([
-  '', '', '', '', '', '',
-  ...(type === 'purchase' ? ['', ''] : []),
-  '', '', '', '', '',
-]);
+        // Add GST row
+      const blankrow = type === 'purchase'
+        ? ['', '', '', '', '', '', '', '', '', '', '', '', '']
+        : ['', '', '', '', '', '', '', '', '', '', ''];
+      tableBody.push(blankrow);
 
-// Add Sub Total row for numeric columns
-tableBody.push([
-  'Sub Total:', // Width
-  formatCurrency(totalQty), // Qty
-  formatCurrency(totalPickRate), // Pick Rate
-  formatCurrency(totalFabRate), // Fab. Rate
-  formatCurrency(totalAmount), // Amount
-  '', // Delivery
-  ...(type === 'purchase'
-    ? [`${formatCurrency(totalCommissionPercentage)}%`, formatCurrency(totalCommissionValue)] // Comm. %, Comm. Value
-    : []),
-  formatCurrency(totalWrapWt), // Wrap Wt
-  formatCurrency(totalWeftWt), // Weft Wt
-  formatCurrency(totalWrapBags), // Wrap Bags
-  formatCurrency(totalWeftBags), // Weft Bags
-  formatCurrency(totalBags), // Total Bags
-]);
+      // Add subtotal row with totals for specified columns
+      const subtotalRow = type === 'purchase'
+        ? [
+            'TOTAL:',
+            '',
+            '',
+            '',
+            formatCurrency(totalAmount.toFixed(2)),
+            '',
+            '',
+            formatCurrency(totalCommissionValue),
+            '',
+            '',
+            formatCurrency(totalWrapBags),
+            formatCurrency(totalWeftBags),
+            formatCurrency(totalBags),
+          ]
+        : [
+            '',
+            '',
+            '',
+            '',
+            formatCurrency(totalAmount.toFixed(2)),
+            '',
+            '',
+            '',
+            formatCurrency(totalWrapBags),
+            formatCurrency(totalWeftBags),
+            formatCurrency(totalBags),
+          ];
+      tableBody.push(subtotalRow);
 
-autoTable(doc, {
-  startY: yPos,
-  head: [tableHeaders],
-  body: tableBody,
-  styles: {
-    fontSize: 7,
-    cellPadding: { top: 1, bottom: 1.5, left: 0.1, right: 0.1 },
-    lineColor: [0, 0, 0],
-    lineWidth: 0.1,
-    textColor: [0, 0, 0],
-    fontStyle: 'normal',
-  },
-  headStyles: {
-    fillColor: [6, 182, 212],
-    textColor: [0, 0, 0],
-    lineColor: [0, 0, 0],
-    fontSize: 7,
-    cellPadding: { top: 1.2, bottom: 1, left: 0.1, right: 0.1 },
-    lineWidth: 0.1,
-    fontStyle: 'bold',
-  },
-  columnStyles: {
-    0: { cellWidth: 15 }, // Width
-    1: { cellWidth: 15 }, // Qty
-    2: { cellWidth: 15 }, // Pick Rate
-    3: { cellWidth: 15 }, // Fab. Rate
-    4: { cellWidth: 18 }, // Amount
-    5: { cellWidth: 15 }, // Delivery
-    ...(type === 'purchase'
-      ? {
-          6: { cellWidth: 15 }, // Comm. %
-          7: { cellWidth: 15 }, // Comm. Value
-          8: { cellWidth: 15 }, // Wrap Wt
-          9: { cellWidth: 15 }, // Weft Wt
-          10: { cellWidth: 15 }, // Wrap Bags
-          11: { cellWidth: 15 }, // Weft Bags
-          12: { cellWidth: 15 }, // Total Bags
-        }
-      : {
-          6: { cellWidth: 18 }, // Wrap Wt
-          7: { cellWidth: 18 }, // Weft Wt
-          8: { cellWidth: 18 }, // Wrap Bags
-          9: { cellWidth: 18 }, // Weft Bags
-          10: { cellWidth: 18 }, // Total Bags
-        }),
-  },
-  margin: { left: 10, right: 10 },
-  theme: 'grid',
-});
+      // Add GST row
+      const gstRow = type === 'purchase'
+        ? ['', '', '', 'GST (18%):', formatCurrency(gstAmount.toFixed(2)), '', '', '', '', '', '', '', '']
+        : ['', '', '', 'GST (18%):', formatCurrency(gstAmount.toFixed(2)), '', '', '', '', '', ''];
+      tableBody.push(gstRow);
 
-yPos = (doc as any).lastAutoTable.finalY + 9;
+      // Add total with GST row
+      const totalWithGSTRow = type === 'purchase'
+        ? ['', '', '', 'Total (with 18%):', formatCurrency(totalWithGST.toFixed(2)), '', '', '', '', '', '', '', '']
+        : ['', '', '', 'Total (with 18%):', formatCurrency(totalWithGST.toFixed(2)), '', '', '', '', '', ''];
+      tableBody.push(totalWithGSTRow);
+
+      // Define column widths
+      const columnStyles: { [key: string]: Partial<import('jspdf-autotable').Styles> } = type === 'purchase'
+        ? {
+            0: { cellWidth: 12 }, // Width
+            1: { cellWidth: 15 }, // Qty
+            2: { cellWidth: 15 }, // Pick Rate
+            3: { cellWidth: 15 }, // Fab. Rate
+            4: { cellWidth: 18 }, // Amount
+            5: { cellWidth: 15 }, // Delivery
+            6: { cellWidth: 12 }, // Comm. %
+            7: { cellWidth: 18 }, // Comm. Value
+            8: { cellWidth: 15 }, // Wrap Wt
+            9: { cellWidth: 15 }, // Weft Wt
+            10: { cellWidth: 15 }, // Wrap Bags
+            11: { cellWidth: 15 }, // Weft Bags
+            12: { cellWidth: 15 }, // Total Bags
+          }
+        : {
+            0: { cellWidth: 14 }, // Width
+            1: { cellWidth: 18 }, // Qty
+            2: { cellWidth: 18 }, // Pick Rate
+            3: { cellWidth: 18 }, // Fab. Rate
+            4: { cellWidth: 22 }, // Amount
+            5: { cellWidth: 18 }, // Delivery
+            6: { cellWidth: 18 }, // Wrap Wt
+            7: { cellWidth: 18 }, // Weft Wt
+            8: { cellWidth: 18 }, // Wrap Bags
+            9: { cellWidth: 18 }, // Weft Bags
+            10: { cellWidth: 18 }, // Total Bags
+          };
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [tableHeaders],
+        body: tableBody,
+        styles: {
+          fontSize: 7,
+          cellPadding: { top: 1.2, bottom: 1, left: 1, right: 0.1 },
+          lineColor: [0, 0, 0],
+          lineWidth: 0.1,
+          textColor: [0, 0, 0],
+          fontStyle: 'normal',
+        },
+        headStyles: {
+          fillColor: [6, 182, 212],
+          textColor: [0, 0, 0],
+          lineColor: [0, 0, 0],
+          fontSize: 7,
+          cellPadding: { top: 1.2, bottom: 1, left: 1, right: 0.1 },
+          lineWidth: 0.1,
+          fontStyle: 'bold',
+        },
+        columnStyles,
+        margin: { left: 10, right: 10 },
+        theme: 'grid',
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 9;
 
       // Two-Column Layout
       const leftColumnX = 12;
@@ -580,19 +643,19 @@ yPos = (doc as any).lastAutoTable.finalY + 9;
       // Left Column: Additional Fields
       const additionalFields = [
         { label: 'Piece Length:', value: contract.pieceLength || '-' },
-        { 
-          label: 'Payment Term:', 
-          value: type === 'purchase' 
-            ? contract.paymenterm || '45 days PDC before dispatch' 
-            : contract.paymenterm || '45 days PDC before dispatch' 
+        {
+          label: 'Payment Term:',
+          value: type === 'purchase'
+            ? contract.paymenterm || '45 days PDC before dispatch'
+            : contract.paymenterm || '45 days PDC before dispatch',
         },
         { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
         { label: 'Delivery Destination:', value: contract.buyer || '-' },
-        { 
-          label: 'Remarks:', 
-          value: type === 'purchase' 
-            ? contract.conversionContractRow?.[0]?.commisionInfo?.sellerRemark || '-' 
-            : contract.conversionContractRow?.[0]?.commisionInfo?.buyerRemark || '-' 
+        {
+          label: 'Remarks:',
+          value: type === 'purchase'
+            ? contract.conversionContractRow?.[0]?.commisionInfo?.sellerRemark || '-'
+            : contract.conversionContractRow?.[0]?.commisionInfo?.buyerRemark || '-',
         },
       ];
 

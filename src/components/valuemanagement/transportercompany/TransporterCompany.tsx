@@ -5,30 +5,30 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import CustomInput from '@/components/ui/CustomInput';
-import { createVehicleType, updateVehicleType, getAllVehicleTypes } from '@/apis/vehicletype';
+import { createTransporterCompany, updateTransporterCompany, getAllTransporterCompanys } from '@/apis/transportercompany';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdAddBusiness, MdAdd, MdDelete } from 'react-icons/md';
 import Link from 'next/link';
 import { BiSolidErrorAlt } from 'react-icons/bi';
 
-const VehicleTypeSchema = z.object({
+const TransporterCompanySchema = z.object({
   listid: z.string().optional(),
-  descriptions: z.string().min(1, 'Description is required'),
-  segment: z.string().min(1, 'At least one segment is required'),
+  descriptions: z.string().min(1, 'Transporter Company Name Requried'),
+  segment: z.string().optional(),
 });
 
-type VehicleTypeData = z.infer<typeof VehicleTypeSchema>;
+type TransporterCompanyData = z.infer<typeof TransporterCompanySchema>;
 
-const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
+const TransporterCompany = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
   const {
     control,
     handleSubmit,
     formState: { errors },
     setValue,
-  } = useForm<VehicleTypeData>({
-    resolver: zodResolver(VehicleTypeSchema),
+  } = useForm<TransporterCompanyData>({
+    resolver: zodResolver(TransporterCompanySchema),
     defaultValues: {
       listid: '',
       descriptions: '',
@@ -41,21 +41,21 @@ const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   React.useEffect(() => {
     if (isEdit) {
-      const fetchVehicleType = async () => {
-        const listid = window.location.pathname.split('/vehicletype/').pop();
+      const fetchTransporterCompany = async () => {
+        const listid = window.location.pathname.split('/TransporterCompany/').pop();
         if (listid) {
           try {
-            const response = await getAllVehicleTypes();
-            const foundVehicleType = response.data.find((item: any) => item.listid === listid);
-            if (foundVehicleType) {
-              setValue('listid', foundVehicleType.listid || '');
-              setValue('descriptions', foundVehicleType.descriptions || '');
-              const subDescArray = foundVehicleType.subDescription?.split('|')?.filter((s: string) => s) || [''];
+            const response = await getAllTransporterCompanys();
+            const foundTransporterCompany = response.data.find((item: any) => item.listid === listid);
+            if (foundTransporterCompany) {
+              setValue('listid', foundTransporterCompany.listid || '');
+              setValue('descriptions', foundTransporterCompany.descriptions || '');
+              const subDescArray = foundTransporterCompany.subDescription?.split('|')?.filter((s: string) => s) || [''];
               setSubDescriptions(subDescArray);
-              setValue('segment', foundVehicleType.subDescription || '');
+              setValue('segment', foundTransporterCompany.subDescription || '');
             } else {
               toast.error('vehicle Type not found');
-              router.push('/vehicletype');
+              router.push('/transportercompany');
             }
           } catch (error) {
             console.error('Error fetching  Vehicle Type:', error);
@@ -63,7 +63,7 @@ const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
           }
         }
       };
-      fetchVehicleType();
+      fetchTransporterCompany();
     }
   }, [isEdit, setValue, router]);
 
@@ -86,22 +86,22 @@ const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
     setValue('segment', newSubDescriptions.join('|'));
   };
 
-  const onSubmit = async (data: VehicleTypeData) => {
+  const onSubmit = async (data: TransporterCompanyData) => {
     try {
       if (isEdit) {
-        await updateVehicleType(data.listid!, {
+        await updateTransporterCompany(data.listid!, {
           ...data,
           subDescription: subDescriptions.filter(s => s).join('|'), 
         });
         toast.success('Unit of Measure updated successfully!');
       } else {
-        await createVehicleType({
+        await createTransporterCompany({
           ...data,
           subDescription: subDescriptions.filter(s => s).join('|'), 
         });
         toast.success('Unit of Measure created successfully!');
       }
-      router.push('/vehicletype');
+      router.push('/transportercompany');
     } catch (error) {
       toast.error('An error occurred while saving the Unit of Measure');
     }
@@ -155,10 +155,10 @@ const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
             render={({ field }) => (
               <CustomInput
                 {...field}
-                label="Description"
+                label="Transporter Company"
                 type="text"
                 error={errors.descriptions?.message}
-                placeholder="Enter description"
+                placeholder=""
                 value={field.value || ''}
                 onChange={field.onChange}
               />
@@ -166,7 +166,7 @@ const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
           />
 
           <div className="col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Segment</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Additional Info</label>
             {subDescriptions.map((subDesc, index) => (
               <div
                 key={index}
@@ -175,7 +175,7 @@ const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
                 <CustomInput
                   label=""
                   type="text"
-                  placeholder="Enter Segment"
+                  placeholder=" Additional Information Transporter Company"
                   value={subDesc}
                   onChange={(e) => handleSubDescriptionChange(index, e.target.value)}
                   error={index === 0 ? errors.segment?.message : undefined}
@@ -197,7 +197,7 @@ const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
               className="mt-3 bg-[#06b6d4] hover:bg-[#0891b2] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all duration-200"
             >
               <MdAdd className="text-lg" />
-              Add More Segment
+              Add More Info
             </Button>
           </div>
         </div>
@@ -208,7 +208,7 @@ const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
           >
             {isEdit ? 'Update Measure' : 'Create Measure'}
           </Button>
-          <Link href="/vehicletype">
+          <Link href="/transportercompany">
             <Button
               type="button"
               className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
@@ -222,4 +222,4 @@ const VehicleType = ({ isEdit = false }: { isEdit?: boolean }) => {
   );
 };
 
-export default VehicleType;
+export default TransporterCompany;

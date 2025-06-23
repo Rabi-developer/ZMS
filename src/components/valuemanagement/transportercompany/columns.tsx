@@ -4,7 +4,7 @@ import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export type VehicleTypeType = {
+export type TransporterCompany = {
   id: string;
   listid: string;
   descriptions: string;
@@ -15,7 +15,7 @@ export type VehicleTypeType = {
 export const columns = (
   handleDeleteOpen: (id: string) => void,
   handleViewOpen: (listid: string) => void
-): ColumnDef<VehicleTypeType>[] => [
+): ColumnDef<TransporterCompany>[] => [
   {
     accessorKey: 'listid',
     header: ({ column }: any) => {

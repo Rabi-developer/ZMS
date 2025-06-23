@@ -180,11 +180,11 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    const heading = type === 'sale' ? ' SALE CONTRACT' : type === 'purchase' ? 'PURCHASE CONTRACT' : 'MULTIWIDTH CONTRACT';
+    const heading = type === 'sale' ? 'SALE CONTRACT' : type === 'purchase' ? 'PURCHASE CONTRACT' : 'MULTIWIDTH CONTRACT';
     doc.text(heading, 105, yPos, { align: 'center' });
 
     // Date
-    yPos = 38;  
+    yPos = 38;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
     doc.setTextColor(0, 0, 0);
@@ -198,93 +198,105 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
     doc.text(`Date: ${formattedDate}`, 200, yPos, { align: 'right' });
     yPos += 8;
 
-    // Seller and Buyer Info
-    const leftColX = 10;
-    const rightColX = 125;
-    const labelStyle = {
-      font: 'helvetica' as const,
-      style: 'bold' as const,
-      size: 8,
-      color: [0, 0, 0] as [number, number, number],
-    };
-    const valueStyle = {
-      font: 'helvetica' as const,
-      style: 'normal' as const,
-      size: 9,
-      color: [0, 0, 0] as [number, number, number],
-    };
+    /// Seller and Buyer Info
+const leftColX = 10;
+const rightColX = 125;
+const labelStyle = {
+  font: 'helvetica' as const,
+  style: 'bold' as const,
+  size: 8,
+  color: [0, 0, 0] as [number, number, number],
+};
+const valueStyle = {
+  font: 'helvetica' as const,
+  style: 'normal' as const,
+  size: 9,
+  color: [0, 0, 0] as [number, number, number],
+};
 
-    // Seller Info
-    const sellerBoxY = yPos - 3;
-    const sellerBoxHeight = 10;
-    doc.setLineWidth(0.3);
-    doc.setDrawColor(isDarkMode ? 255 : 0, isDarkMode ? 255 : 0, isDarkMode ? 255 : 0);
-    doc.rect(leftColX - 2, sellerBoxY, 80, sellerBoxHeight, 'S');
-    doc.setFont(labelStyle.font, labelStyle.style);
-    doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...labelStyle.color);
-    doc.text('Seller:', leftColX, yPos);
-    doc.setFont(valueStyle.font, valueStyle.style);
-    doc.setFontSize(valueStyle.size);
-    doc.setTextColor(...valueStyle.color);
-    let sellerName = contract.seller || '-';
-    let sellerAddressText = sellerAddress || GetSellerAddress || '-';
-    const maxSellerWidth = 65;
-    if (doc.getTextWidth(sellerName) > maxSellerWidth) {
-      while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
-        sellerName = sellerName.slice(0, -1);
-      }
-      sellerName += '...';
-    }
-    if (doc.getTextWidth(sellerAddressText) > maxSellerWidth) {
-      while (doc.getTextWidth(sellerAddressText + '...') > maxSellerWidth && sellerAddressText.length > 0) {
-        sellerAddressText = sellerAddressText.slice(0, -1);
-      }
-      sellerAddressText += '...';
-    }
-    doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 4, yPos);
-    doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 4, yPos + 4);
+// Set font for text width calculations
+doc.setFont(valueStyle.font, valueStyle.style);
+doc.setFontSize(valueStyle.size);
 
-    // Buyer Info
-    const buyerBoxY = yPos - 3;
-    const buyerBoxHeight = 10;
-    doc.setLineWidth(0.3);
-    doc.setDrawColor(isDarkMode ? 255 : 0, isDarkMode ? 255 : 0, isDarkMode ? 255 : 0);
-    doc.rect(rightColX - 2, buyerBoxY, 80, buyerBoxHeight, 'S');
-    doc.setFont(labelStyle.font, labelStyle.style);
-    doc.setFontSize(labelStyle.size);
-    doc.setTextColor(...labelStyle.color);
-    doc.text('Buyer:', rightColX, yPos);
-    doc.setFont(valueStyle.font, valueStyle.style);
-    doc.setFontSize(valueStyle.size);
-    doc.setTextColor(...valueStyle.color);
-    let buyerName = contract.buyer || '-';
-    let buyerAddressText = buyerAddress || GetBuyerAddress || '-';
-    const maxBuyerWidth = 65;
-    if (doc.getTextWidth(buyerName) > maxBuyerWidth) {
-      while (doc.getTextWidth(buyerName + '...') > maxBuyerWidth && buyerName.length > 0) {
-        buyerName = buyerName.slice(0, -1);
-      }
-      buyerName += '...';
-    }
-    if (doc.getTextWidth(buyerAddressText) > maxBuyerWidth) {
-      while (doc.getTextWidth(buyerAddressText + '...') > maxBuyerWidth && buyerAddressText.length > 0) {
-        buyerAddressText = buyerAddressText.slice(0, -1);
-      }
-      buyerAddressText += '...';
-    }
-    doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 4, yPos);
-    doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 4, yPos + 4);
+// Seller Info
+let sellerName = contract.seller || '-';
+let sellerAddressText = sellerAddress || GetSellerAddress || '-';
+const maxSellerWidth = 65;
+// Truncate sellerName if too wide
+if (doc.getTextWidth(sellerName) > maxSellerWidth) {
+  while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
+    sellerName = sellerName.slice(0, -1);
+  }
+  sellerName += '...';
+}
+// Split sellerAddressText into lines
+const sellerAddressLines = doc.splitTextToSize(sellerAddressText, maxSellerWidth);
 
-    yPos += 15;
+// Buyer Info
+let buyerName = contract.buyer || '-';
+let buyerAddressText = buyerAddress || GetBuyerAddress || '-';
+const maxBuyerWidth = 65;
+// Truncate buyerName if too wide
+if (doc.getTextWidth(buyerName) > maxBuyerWidth) {
+  while (doc.getTextWidth(buyerName + '...') > maxBuyerWidth && buyerName.length > 0) {
+    buyerName = buyerName.slice(0, -1);
+  }
+  buyerName += '...';
+}
+// Split buyerAddressText into lines
+const buyerAddressLines = doc.splitTextToSize(buyerAddressText, maxBuyerWidth);
+
+// Calculate box height based on maximum line count
+const maxLineCount = Math.max(sellerAddressLines.length, buyerAddressLines.length);
+const boxHeight = 10 + (maxLineCount - 1) * 4; // Base height + 4 per additional line
+const boxY = yPos - 3;
+
+// Draw Seller Box
+doc.setLineWidth(0.3);
+doc.setDrawColor(isDarkMode ? 255 : 0, isDarkMode ? 255 : 0, isDarkMode ? 255 : 0);
+doc.rect(leftColX - 2, boxY, 80, boxHeight, 'S');
+// Render Seller Label and Name
+doc.setFont(labelStyle.font, labelStyle.style);
+doc.setFontSize(labelStyle.size);
+doc.setTextColor(...labelStyle.color);
+doc.text('Seller:', leftColX, yPos);
+doc.setFont(valueStyle.font, valueStyle.style);
+doc.setFontSize(valueStyle.size);
+doc.setTextColor(...valueStyle.color);
+doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 4, yPos);
+// Render Seller Address Lines
+sellerAddressLines.forEach((line: string, index: number) => {
+  doc.text(line, leftColX + doc.getTextWidth('Seller:') + 4, yPos + 4 + index * 4);
+});
+
+// Draw Buyer Box
+doc.setLineWidth(0.3);
+doc.setDrawColor(isDarkMode ? 255 : 0, isDarkMode ? 255 : 0, isDarkMode ? 255 : 0);
+doc.rect(rightColX - 2, boxY, 80, boxHeight, 'S');
+// Render Buyer Label and Name
+doc.setFont(labelStyle.font, labelStyle.style);
+doc.setFontSize(labelStyle.size);
+doc.setTextColor(...labelStyle.color);
+doc.text('Buyer:', rightColX, yPos);
+doc.setFont(valueStyle.font, valueStyle.style);
+doc.setFontSize(valueStyle.size);
+doc.setTextColor(...valueStyle.color);
+doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 4, yPos);
+// Render Buyer Address Lines
+buyerAddressLines.forEach((line: string, index: number) => {
+  doc.text(line, rightColX + doc.getTextWidth('Buyer:') + 4, yPos + 4 + index * 4);
+});
+
+// Update yPos based on the maximum number of lines
+yPos += 15 + (maxLineCount - 1) * 4; // Base offset + 4 per additional line    yPos += 15;
 
     // Fields
     const fields = [
       { label: 'Description:', value: `${contract.description || '-'}, ${contract.stuff || '-'}` },
       { label: 'Blend Ratio:', value: `${contract.blendRatio || '-'}, ${contract.warpYarnType || '-'}` },
-      {
+       {
         label: 'Construction:',
-        value: `${contract.warpCount || '-'} ${warpYarnTypeSub} × ${contract.weftCount || '-'} ${weftYarnTypeSub} / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.selvege || 'selvedge'}`,
+        value: `${contract.warpCount || '-'} CD × ${contract.weftCount || '-'} CD / ${contract.noOfEnds || '-'} × ${contract.noOfPicks || '-'} ${weavesSub} ${pickInsertionSub} ${contract.selvege || 'selvedge'}`,
       },
     ];
 
@@ -317,25 +329,10 @@ const MultiContractPDFExport: MultiContractPDFExportType = {
 
     yPos += 5;
 
-   // Utility function to format dates
-const formatDate = (dateStr: string | undefined) => {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  return isNaN(date.getTime())
-    ? '-'
-    : date.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }).split('/').join('-');
-};
-
-// Financial Table
-const tableBody = [];
+    // Financial Table
+const tableBody: (string | number)[][] = [];
 let totalQty = 0;
-let totalRate = 0;
 let totalAmount = 0;
-let totalCommissionPercentage = 0;
 let totalCommissionValue = 0;
 const multiRow = contract.multiWidthContractRow && contract.multiWidthContractRow.length > 0 ? contract.multiWidthContractRow[0] : null;
 const rowCount = contract.multiWidthContractRow?.length || 1;
@@ -357,90 +354,129 @@ const tableHeaders = [
   ...(type === 'purchase' ? ['Comm. %', 'Comm. Value'] : []),
 ];
 
-// Handle multi-row contracts
+// Helper function to format date or return default
+const formatDate = (date: string | undefined): string => {
+  if (date) {
+    const parsedDate = new Date(date);
+    if (!isNaN(parsedDate.getTime())) {
+      return parsedDate.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).split('/').join('-');
+    }
+  }
+  // Default to current date (June 19, 2025)
+  return new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).split('/').join('-');
+};
+
 if (Array.isArray(contract.multiWidthContractRow) && contract.multiWidthContractRow.length > 0) {
   contract.multiWidthContractRow.forEach((row, index) => {
     const qty = parseFloat(row.quantity || '0');
     const rate = parseFloat(row.rate || '0');
-    const amount = parseFloat(row.amount || '0');
+    const amount = qty * rate; // Calculate amount as quantity * rate
     const commissionPercentage = parseFloat(row.commissionPercentage || '0');
-    const commissionValue = parseFloat(row.commissionValue || '0');
+    // Calculate Commission Value as (quantity * rate * commissionPercentage) / 100
+    const commissionValue = (qty * rate * commissionPercentage) / 100;
 
     if (!isNaN(qty)) totalQty += qty;
-    if (!isNaN(rate)) totalRate += rate;
     if (!isNaN(amount)) totalAmount += amount;
-    if (type === 'purchase' && !isNaN(commissionPercentage)) totalCommissionPercentage += commissionPercentage;
     if (type === 'purchase' && !isNaN(commissionValue)) totalCommissionValue += commissionValue;
 
     tableBody.push([
       row.width || '-',
       row.quantity || '-',
       `PKR ${formatCurrency(row.rate)}`,
-      formatCurrency(amount),
-      formatDate(row.buyerDeliveryBreakups?.[index]?.deliveryDate),
+      formatCurrency(amount.toFixed(2)),
+      formatDate(row.buyerDeliveryBreakups?.[0]?.deliveryDate || contract.multiWidthContractRow[0].date || contract.multiWidthContractRow?.[0]?.date),
       ...(type === 'purchase'
         ? [
             formatCurrency(commissionPercentage),
-            formatCurrency(commissionValue),
+            formatCurrency(commissionValue.toFixed(2)),
           ]
         : []),
     ]);
   });
 } else {
-  // Handle single-row contract
   const qty = parseFloat(contract.quantity || '0');
   const rate = parseFloat(contract.rate || '0');
-  const amount = parseFloat(contract.totalAmount || '0');
+  const amount = qty * rate; // Calculate amount as quantity * rate
   const commissionPercentage = parseFloat(multiRow?.commissionPercentage || '0');
-  const commissionValue = parseFloat(multiRow?.commissionValue || '0');
+  // Calculate Commission Value as (quantity * rate * commissionPercentage) / 100
+  const commissionValue = (qty * rate * commissionPercentage) / 100;
 
   if (!isNaN(qty)) totalQty += qty;
-  if (!isNaN(rate)) totalRate += rate;
   if (!isNaN(amount)) totalAmount += amount;
-  if (type === 'purchase' && !isNaN(commissionPercentage)) totalCommissionPercentage += commissionPercentage;
   if (type === 'purchase' && !isNaN(commissionValue)) totalCommissionValue += commissionValue;
 
   tableBody.push([
     contract.width || '-',
     contract.quantity || '-',
     `PKR ${formatCurrency(contract.rate)}`,
-    formatCurrency(amount),
+    formatCurrency(amount.toFixed(2)),
     formatDate(contract.deliveryDate),
     ...(type === 'purchase'
       ? [
-          formatCurrency(commissionPercentage),
-          formatCurrency(commissionValue),
+          formatCurrency(commissionPercentage), 
+          formatCurrency(commissionValue.toFixed(2)),
         ]
       : []),
   ]);
 }
 
-// Add blank row after data rows
+// Calculate GST and total with GST
+const gstPercentage = 18; // Hardcoded to 18% as per request
+const gstAmount = (totalAmount * gstPercentage) / 100;
+const totalWithGST = totalAmount + gstAmount;
+
+
+   // Add GST row
+      const blankrow = type === 'purchase'
+        ? ['', '', '', '', '', '', '', ]
+        : ['', '', '', '', ''];
+      tableBody.push(blankrow);
+
+// Add total rows
 tableBody.push([
-  '', '', '', '', '',
+  'TOTAL:',
+  formatCurrency(totalQty),
+  '',
+  formatCurrency(totalAmount.toFixed(2)),
+  '',
+  ...(type === 'purchase' ? ['', formatCurrency(totalCommissionValue.toFixed(2))] : []),
+]);
+
+// Add GST row
+tableBody.push([
+  '',
+  '',
+  'GST (18%):',
+  formatCurrency(gstAmount.toFixed(2)),
+  '',
   ...(type === 'purchase' ? ['', ''] : []),
 ]);
 
-// Add Sub Total row for numeric columns
+// Add total with GST row
 tableBody.push([
-  'Sub Total',
-  formatCurrency(totalQty),
-  `PKR ${formatCurrency(totalRate)}`,
-  formatCurrency(totalAmount),
   '',
-  ...(type === 'purchase'
-    ? [`${formatCurrency(totalCommissionPercentage)}%`, formatCurrency(totalCommissionValue)]
-    : []),
+  '',
+  'Total (with 18% GST):',
+  formatCurrency(totalWithGST.toFixed(2)),
+  '',
+  ...(type === 'purchase' ? ['', ''] : []),
 ]);
 
-// Generate the table using autoTable
 autoTable(doc, {
   startY: yPos,
   head: [tableHeaders],
   body: tableBody,
   styles: {
     fontSize: tableStyles.fontSize,
-    cellPadding: tableStyles.cellPadding,
+    cellPadding: { top: 1.2, bottom: 1, left: 1, right: 0.1 },
     lineColor: [0, 0, 0],
     lineWidth: tableStyles.lineWidth,
     textColor: [0, 0, 0],
@@ -451,7 +487,7 @@ autoTable(doc, {
     textColor: [0, 0, 0],
     lineColor: [0, 0, 0],
     fontSize: tableStyles.fontSize,
-    cellPadding: tableStyles.cellPadding,
+    cellPadding: { top: 1.2, bottom: 1, left: 1, right: 0.1 },
     lineWidth: tableStyles.lineWidth,
     fontStyle: 'bold',
   },
@@ -463,8 +499,18 @@ autoTable(doc, {
     4: { cellWidth: 30 }, // Delivery Date
     ...(type === 'purchase'
       ? {
-          5: { cellWidth: 15 }, // Comm. %
-          6: { cellWidth: 20 }, // Comm. Value
+          1: { cellWidth: 25 }, // Quantity
+          5: { cellWidth: 25 }, // Comm. %
+          6: { cellWidth: 25 }, // Comm. Value
+        }
+      : {}),
+      ...(type === 'sale'
+      ? {
+          0: { cellWidth: 32 }, // Width
+          1: { cellWidth: 32 }, // Quantity
+          2: { cellWidth: 32 }, // Rate
+          3: { cellWidth: 39 }, // Amount
+          4: { cellWidth: 37 }, // Delivery Date
         }
       : {}),
   },
@@ -472,7 +518,6 @@ autoTable(doc, {
   theme: 'grid',
 });
 
-// Update yPos for subsequent content
 yPos = (doc as any).lastAutoTable.finalY + 9;
 
     // Two-Column Layout

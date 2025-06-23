@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
+import { getAllTransporterCompanys } from '@/apis/transportercompany';
 import { createDispatchNote, updateDispatchNote } from '@/apis/dispatchnote';
 import { Contract } from '../contract/columns';
 
@@ -25,23 +26,45 @@ const DispatchNoteSchema = z.object({
   Seller: z.string().min(1, 'Seller is required'),
   Buyer: z.string().min(1, 'Buyer is required'),
   VehicleType: z.string().optional(),
-  Vehicle: z.string().optional(),
-  ContractNumber: z.string().min(1, 'Contract number is required'),
   Remarks: z.string().optional(),
   DriverName: z.string().min(1, 'Driver name is required'),
+  DriverNumber: z.string().min(1, 'Driver number is required'),
+  Transporter: z.string().optional(),
+  Destination: z.string().min(1, 'Destination is required'),
 });
 
 type FormData = z.infer<typeof DispatchNoteSchema>;
 
-interface ExtendedContract extends Contract {
-  status?: 'Pending' | 'Approved' | 'Canceled' | 'Closed Dispatch' | 'Closed Payment' | 'Complete Closed';
-  base?: string;
+interface ContractRow {
+  rowId: string;
+  contractId: string;
+  contractNumber: string;
+  seller: string;
+  buyer: string;
+  refer: string;
+  date: string;
+  quantity: string;
+  rate: string;
+  base: string;
   dispatchQty: string;
-  isSelected?: boolean;
+  addQuantity: string;
+  balanceQuantity: string;
+  isSelected: boolean;
+  fabricDetails: Partial<Contract>;
+  contractType: 'Conversion' | 'Diet' | 'MultiWidth';
+  isFirstRow: boolean;
+  width?: string;
+  color?: string;
+  rowIndex: number;
 }
 
-// Interface for dispatch note data
+interface ExtendedContract extends Contract {
+  contractRows: ContractRow[];
+  rowCount: number;
+}
+
 interface DispatchNoteData {
+  contractNumber: string | undefined;
   id?: string;
   listid?: string;
   date?: string;
@@ -50,23 +73,28 @@ interface DispatchNoteData {
   buyer?: string;
   vehicleType?: string;
   vehicle?: string;
-  contractNumber?: string;
   remarks?: string;
   driverName?: string;
+  driverNumber?: string;
+  transporter?: string;
+  destination?: string;
   createdBy?: string;
   creationDate?: string;
   updatedBy?: string;
   updationDate?: string;
   relatedContracts?: {
-    id?: string;
-    contractNumber?: string;
-    seller?: string;
-    buyer?: string;
-    date?: string;
-    quantity?: string;
-    totalAmount?: string;
-    base?: string;
-    dispatchQty?: string;
+    id: string;
+    contractId: string;
+    contractNumber: string;
+    seller: string;
+    buyer: string;
+    date: string;
+    quantity: string;
+    rate: string;
+    totalAmount: string;
+    base: string;
+    dispatchQty: string;
+    contractType: 'Conversion' | 'Diet' | 'MultiWidth';
   }[];
 }
 
@@ -80,22 +108,27 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
   const [sellers, setSellers] = useState<{ id: string; name: string }[]>([]);
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
   const [contracts, setContracts] = useState<ExtendedContract[]>([]);
-  const [filteredContracts, setFilteredContracts] = useState<ExtendedContract[]>([]);
+  const [filteredContractRows, setFilteredContractRows] = useState<ContractRow[]>([]);
+  const [transporters, setTransporters] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingSellers, setFetchingSellers] = useState(false);
   const [fetchingBuyers, setFetchingBuyers] = useState(false);
+  const [fetchingTransporters, setFetchingTransporters] = useState(false);
   const [idFocused, setIdFocused] = useState(false);
+  const [selectedContractInfo, setSelectedContractInfo] = useState<{ contractType: string; contractNumber: string } | null>(null);
 
-  // Static options for Vehicle Type and Vehicle
+  // Static options for Vehicle Type
   const vehicleTypes = [
     { id: '1', name: 'Truck' },
     { id: '2', name: 'Van' },
     { id: '3', name: 'Car' },
-  ];
-  const vehicles = [
-    { id: '1', name: 'Vehicle A' },
-    { id: '2', name: 'Vehicle B' },
-    { id: '3', name: 'Vehicle C' },
+    { id: '4', name: 'Motor Cycle' },
+    { id: '5', name: 'Pickup' },
+    { id: '6', name: 'Trolly' },
+    { id: '7', name: 'Shehzore' },
+    { id: '8', name: 'Auto / Rickshaw' },
+    { id: '9', name: 'Bike' },
+    { id: '10', name: 'Bus' },
   ];
 
   const {
@@ -115,10 +148,11 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
       Seller: '',
       Buyer: '',
       VehicleType: '',
-      Vehicle: '',
-      ContractNumber: '',
       Remarks: '',
       DriverName: '',
+      DriverNumber: '',
+      Transporter: '',
+      Destination: '',
     },
   });
 
@@ -133,7 +167,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
       if (response && response.data) {
         const sellerData = response.data.map((seller: any) => ({
           id: String(seller.id),
-          name: seller.sellerName,
+          name: seller.sellerName || '',
         }));
         setSellers(sellerData);
       } else {
@@ -156,7 +190,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
       if (response && response.data) {
         const buyerData = response.data.map((buyer: any) => ({
           id: String(buyer.id),
-          name: buyer.buyerName,
+          name: buyer.buyerName || '',
         }));
         setBuyers(buyerData);
       } else {
@@ -171,7 +205,29 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
     }
   };
 
-  // Fetch Contracts
+  // Fetch Transporters
+  const fetchTransporters = async () => {
+    try {
+      setFetchingTransporters(true);
+      const response = await getAllTransporterCompanys();
+      if (response && response.data) {
+        const transporterData = response.data.map((transporter: any) => ({
+          id: String(transporter.id),
+          name: transporter.descriptions || '',
+        }));
+        setTransporters(transporterData);
+      } else {
+        setTransporters([]);
+        toast('No transporters found', { type: 'warning' });
+      }
+    } catch (error) {
+      setTransporters([]);
+      toast('Failed to fetch transporters', { type: 'error' });
+    } finally {
+      setFetchingTransporters(false);
+    }
+  };
+
   const fetchContracts = async () => {
     try {
       setLoading(true);
@@ -180,38 +236,237 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
         let updatedContracts: ExtendedContract[] = [];
 
         if (isEdit && initialData?.relatedContracts) {
-          const relatedContractNumbers = initialData.relatedContracts.map((rc) => rc.contractNumber);
+          const relatedContractMap = new Map(
+            initialData.relatedContracts.map((rc) => [`${rc.contractId}:${rc.id}`, rc])
+          );
+
           updatedContracts = response.data
-            .filter((contract: Contract) => relatedContractNumbers.includes(contract.contractNumber))
             .map((contract: Contract) => {
-              const relatedContract = initialData.relatedContracts!.find(
-                (rc) => rc.contractNumber === contract.contractNumber && rc.id
-              );
+              const contractRows: ContractRow[] = [];
+              let rowIndex = 1;
+
+              // Conversion Contract Rows
+              contract.conversionContractRow?.forEach((row, index) => {
+                const rowId = `${contract.id}:${row.id}`;
+                const relatedContract = relatedContractMap.get(rowId);
+                const quantity = row.quantity || '0';
+                const rate = row.fabRate || row.rate || contract.rate || '0';
+                const dispatchQty = relatedContract?.dispatchQty || '0';
+                const addQuantity = dispatchQty;
+                const balanceQuantity = (
+                  parseFloat(quantity) - parseFloat(dispatchQty)
+                ).toString();
+
+                contractRows.push({
+                  rowId,
+                  contractId: contract.id,
+                  contractNumber: contract.contractNumber || '',
+                  seller: contract.seller || '',
+                  buyer: contract.buyer || '',
+                  refer: contract.refer || '',
+                  date: contract.date || '',
+                  quantity,
+                  rate,
+                  base: relatedContract?.base || '',
+                  dispatchQty,
+                  addQuantity,
+                  balanceQuantity,
+                  isSelected: relatedContract?.contractNumber === initialData.contractNumber,
+                  fabricDetails: contract,
+                  contractType: 'Conversion',
+                  isFirstRow: index === 0,
+                  width: row.width || contract.width || '0',
+                  rowIndex: rowIndex++,
+                });
+              });
+
+              // Diet Contract Rows
+              contract.dietContractRow?.forEach((row, index) => {
+                const rowId = `${contract.id}:${row.id}`;
+                const relatedContract = relatedContractMap.get(rowId);
+                const quantity = row.quantity || '0';
+                const rate = row.rate || contract.rate || '0';
+                const dispatchQty = relatedContract?.dispatchQty || '0';
+                const addQuantity = dispatchQty;
+                const balanceQuantity = (
+                  parseFloat(quantity) - parseFloat(dispatchQty)
+                ).toString();
+
+                contractRows.push({
+                  rowId,
+                  contractId: contract.id,
+                  contractNumber: contract.contractNumber || '',
+                  seller: contract.seller || '',
+                  buyer: contract.buyer || '',
+                  refer: contract.refer || '',
+                  date: contract.date || '',
+                  quantity,
+                  rate,
+                  base: relatedContract?.base || '',
+                  dispatchQty,
+                  addQuantity,
+                  balanceQuantity,
+                  isSelected: relatedContract?.contractNumber === initialData.contractNumber,
+                  fabricDetails: contract,
+                  contractType: 'Diet',
+                  isFirstRow: index === 0 && contract.conversionContractRow.length === 0,
+                  color: row.color || 'N/A',
+                  rowIndex: rowIndex++,
+                });
+              });
+
+              // MultiWidth Contract Rows
+              contract.multiWidthContractRow?.forEach((row, index) => {
+                const rowId = `${contract.id}:${row.id}`;
+                const relatedContract = relatedContractMap.get(rowId);
+                const quantity = row.quantity || '0';
+                const rate = row.rate || contract.rate || '0';
+                const dispatchQty = relatedContract?.dispatchQty || '0';
+                const addQuantity = dispatchQty;
+                const balanceQuantity = (
+                  parseFloat(quantity) - parseFloat(dispatchQty)
+                ).toString();
+
+                contractRows.push({
+                  rowId,
+                  contractId: contract.id,
+                  contractNumber: contract.contractNumber || '',
+                  seller: contract.seller || '',
+                  buyer: contract.buyer || '',
+                  refer: contract.refer || '',
+                  date: contract.date || '',
+                  quantity,
+                  rate,
+                  base: relatedContract?.base || '',
+                  dispatchQty,
+                  addQuantity,
+                  balanceQuantity,
+                  isSelected: relatedContract?.contractNumber === initialData.contractNumber,
+                  fabricDetails: contract,
+                  contractType: 'MultiWidth',
+                  isFirstRow:
+                    index === 0 &&
+                    contract.conversionContractRow.length === 0 &&
+                    contract.dietContractRow.length === 0,
+                  width: row.width || contract.width || '0',
+                  rowIndex: rowIndex++,
+                });
+              });
+
+              if (contractRows.length === 0) return null;
+
               return {
                 ...contract,
-                isSelected: relatedContract?.contractNumber === initialData.contractNumber,
-                base: relatedContract?.base || '',
-                dispatchQty: relatedContract?.dispatchQty || '',
+                contractRows,
+                rowCount: contractRows.length,
               };
-            });
-
-          const contractMap = new Map<string, ExtendedContract>();
-          initialData.relatedContracts.forEach((rc) => {
-            const contract = updatedContracts.find(
-              (c) => c.contractNumber === rc.contractNumber && !contractMap.has(rc.id!)
-            );
-            if (contract && rc.id) {
-              contractMap.set(rc.id, { ...contract, id: rc.id });
-            }
-          });
-          updatedContracts = Array.from(contractMap.values());
+            })
+            .filter((contract: any): contract is ExtendedContract => contract !== null);
         } else {
-          updatedContracts = response.data.map((contract: Contract) => ({
-            ...contract,
-            isSelected: false,
-            base: '',
-            dispatchQty: '',
-          }));
+          updatedContracts = response.data
+            .map((contract: Contract) => {
+              const contractRows: ContractRow[] = [];
+              let rowIndex = 1;
+
+              // Conversion Contract Rows
+              contract.conversionContractRow?.forEach((row, index) => {
+                const rowId = `${contract.id}:${row.id}`;
+                const quantity = row.quantity || '0';
+                const rate = row.fabRate || row.rate || contract.rate || '0';
+
+                contractRows.push({
+                  rowId,
+                  contractId: contract.id,
+                  contractNumber: contract.contractNumber || '',
+                  seller: contract.seller || '',
+                  buyer: contract.buyer || '',
+                  refer: contract.refer || '',
+                  date: contract.date || '',
+                  quantity,
+                  rate,
+                  base: '',
+                  dispatchQty: '0',
+                  addQuantity: '0',
+                  balanceQuantity: quantity,
+                  isSelected: false,
+                  fabricDetails: contract,
+                  contractType: 'Conversion',
+                  isFirstRow: index === 0,
+                  width: row.width || contract.width || '0',
+                  rowIndex: rowIndex++,
+                });
+              });
+
+              // Diet Contract Rows
+              contract.dietContractRow?.forEach((row, index) => {
+                const rowId = `${contract.id}:${row.id}`;
+                const quantity = row.quantity || '0';
+                const rate = row.rate || contract.rate || '0';
+
+                contractRows.push({
+                  rowId,
+                  contractId: contract.id,
+                  contractNumber: contract.contractNumber || '',
+                  seller: contract.seller || '',
+                  buyer: contract.buyer || '',
+                  refer: contract.refer || '',
+                  date: contract.date || '',
+                  quantity,
+                  rate,
+                  base: '',
+                  dispatchQty: '0',
+                  addQuantity: '0',
+                  balanceQuantity: quantity,
+                  isSelected: false,
+                  fabricDetails: contract,
+                  contractType: 'Diet',
+                  isFirstRow: index === 0 && contract.conversionContractRow.length === 0,
+                  color: row.color || 'N/A',
+                  rowIndex: rowIndex++,
+                });
+              });
+
+              // MultiWidth Contract Rows
+              contract.multiWidthContractRow?.forEach((row, index) => {
+                const rowId = `${contract.id}:${row.id}`;
+                const quantity = row.quantity || '0';
+                const rate = row.rate || contract.rate || '0';
+
+                contractRows.push({
+                  rowId,
+                  contractId: contract.id,
+                  contractNumber: contract.contractNumber || '',
+                  seller: contract.seller || '',
+                  buyer: contract.buyer || '',
+                  refer: contract.refer || '',
+                  date: contract.date || '',
+                  quantity,
+                  rate,
+                  base: '',
+                  dispatchQty: '0',
+                  addQuantity: '0',
+                  balanceQuantity: quantity,
+                  isSelected: false,
+                  fabricDetails: contract,
+                  contractType: 'MultiWidth',
+                  isFirstRow:
+                    index === 0 &&
+                    contract.conversionContractRow.length === 0 &&
+                    contract.dietContractRow.length === 0,
+                  width: row.width || contract.width || '0',
+                  rowIndex: rowIndex++,
+                });
+              });
+
+              if (contractRows.length === 0) return null;
+
+              return {
+                ...contract,
+                contractRows,
+                rowCount: contractRows.length,
+              };
+            })
+            .filter((contract: any): contract is ExtendedContract => contract !== null);
         }
 
         setContracts(updatedContracts);
@@ -221,7 +476,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
       }
     } catch (error) {
       setContracts([]);
-      toast('Failed to fetch contracts', { type: 'error' });
+      toast('Error fetching contracts', { type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -247,131 +502,150 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
         buyers.find((b) => b.name === initialData.buyer)?.id || initialData.buyer || ''
       );
       setValue('VehicleType', initialData.vehicleType || '');
-      setValue('Vehicle', initialData.vehicle || '');
-      setValue('ContractNumber', initialData.contractNumber || '');
       setValue('Remarks', initialData.remarks || '');
       setValue('DriverName', initialData.driverName || '');
+      setValue('DriverNumber', initialData.driverNumber || '');
+      setValue(
+        'Transporter',
+        transporters.find((t) => t.name === initialData.transporter)?.id || initialData.transporter || ''
+      );
+      setValue('Destination', initialData.destination || '');
     }
-  }, [isEdit, initialData, sellers, buyers, setValue, router]);
+  }, [isEdit, initialData, sellers, buyers, transporters, setValue, router]);
 
-  // Filter contracts by Seller and Buyer
+  // Filter contract rows by Seller and Buyer
   useEffect(() => {
-    let filtered: ExtendedContract[] = [];
+    let filteredRows: ContractRow[] = [];
 
     if (isEdit && initialData?.relatedContracts) {
-      filtered = contracts.filter((contract) =>
-        initialData.relatedContracts!.some(
-          (rc) => rc.contractNumber === contract.contractNumber && rc.id === contract.id
-        )
-      );
+      filteredRows = contracts
+        .flatMap((contract) => contract.contractRows)
+        .filter((row) =>
+          initialData.relatedContracts!.some(
+            (rc) => rc.contractNumber === row.contractNumber && rc.id === row.rowId
+          )
+        );
     } else {
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
       const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
 
-      filtered = contracts.filter((contract) => {
-        if (
-          (String(contract.seller) === String(selectedSeller) ||
-            contract.seller === selectedSellerObj?.name) &&
-          (String(contract.buyer) === String(selectedBuyer) ||
-            contract.buyer === selectedBuyerObj?.name)
-        ) {
-          return true;
-        }
-        return false;
-      });
+      filteredRows = contracts
+        .flatMap((contract) => contract.contractRows)
+        .filter((row) =>
+          (String(row.seller) === String(selectedSeller) ||
+            row.seller === selectedSellerObj?.name) &&
+          (String(row.buyer) === String(selectedBuyer) ||
+            row.buyer === selectedBuyerObj?.name)
+        );
     }
 
-    setFilteredContracts(filtered);
+    setFilteredContractRows(filteredRows);
   }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers]);
 
   // Fetch data on mount
   useEffect(() => {
     fetchSellers();
     fetchBuyers();
+    fetchTransporters();
     fetchContracts();
   }, []);
 
   // Handle contract row selection
-  const handleContractSelect = (contractId: string, checked: boolean) => {
+  const handleContractSelect = (rowId: string, checked: boolean) => {
     setContracts((prev) =>
-      prev.map((contract) =>
-        contract.id === contractId
-          ? { ...contract, isSelected: checked }
-          : { ...contract, isSelected: false }
-      )
+      prev.map((contract) => ({
+        ...contract,
+        contractRows: contract.contractRows.map((row) =>
+          row.rowId === rowId ? { ...row, isSelected: checked } : { ...row, isSelected: false }
+        ),
+      }))
     );
-    const selectedContract = contracts.find((c) => c.id === contractId);
-    if (selectedContract && checked) {
-      setValue('ContractNumber', selectedContract.contractNumber, { shouldValidate: true });
-    } else {
-      setValue('ContractNumber', '', { shouldValidate: true });
-    }
   };
 
   // Handle Base and Dispatch Qty input changes
   const handleContractInputChange = (
-    contractId: string,
+    rowId: string,
     field: 'base' | 'dispatchQty',
     value: string
   ) => {
     setContracts((prev) =>
-      prev.map((contract) =>
-        contract.id === contractId ? { ...contract, [field]: value } : contract
-      )
+      prev.map((contract) => ({
+        ...contract,
+        contractRows: contract.contractRows.map((row) => {
+          if (row.rowId === rowId) {
+            const updatedRow = { ...row, [field]: value };
+            if (field === 'dispatchQty') {
+              const rowQty = parseFloat(updatedRow.quantity || '0');
+              const dispatchQty = parseFloat(value || '0');
+              updatedRow.addQuantity = dispatchQty.toString();
+              updatedRow.balanceQuantity = (rowQty - dispatchQty).toString();
+            }
+            return updatedRow;
+          }
+          return row;
+        }),
+      }))
     );
   };
 
-  // Format Fabric Details
-  const getFabricDetails = (contract: ExtendedContract) => {
+  // Handle row click to update selected contract info
+  const handleRowClick = (rowId: string, isSelected: boolean, contractType: string, contractNumber: string, rowIndex: number) => {
+    handleContractSelect(rowId, isSelected);
+    setSelectedContractInfo(
+      isSelected
+        ? {
+            contractType,
+            contractNumber: rowIndex === 0 ? contractNumber : `${contractNumber}-${rowIndex}`,
+          }
+        : null
+    );
+  };
+
+  // Format Fabric Details with Rate
+  const getFabricDetails = (row: ContractRow) => {
+    const contract = row.fabricDetails;
     const fabricDetails = [
       `${contract.warpCount || ''}${contract.warpYarnType || ''}`,
       `${contract.weftCount || ''}${contract.weftYarnType || ''}`,
       `${contract.noOfEnds || ''} * ${contract.noOfPicks || ''}`,
       contract.weaves || '',
-      contract.width || '',
+      row.contractType === 'Diet' ? row.color || 'N/A' : row.width || 'N/A',
       contract.final || '',
-      contract.selvedge || '',
+      contract.selvege || '',
     ]
       .filter((item) => item.trim() !== '')
       .join(' / ');
-    return fabricDetails || 'N/A';
+    const rate = row.rate || 'N/A';
+    return fabricDetails ? `${fabricDetails} @ ${rate}` : `N/A @ ${rate}`;
   };
 
   const onSubmit = async (data: FormData) => {
     try {
       const relatedContracts = contracts
-        .filter((contract) => contract.base || contract.dispatchQty)
-        .map((contract) => {
-          if (isEdit) {
-            const relatedContract = initialData?.relatedContracts?.find(
-              (rc) => rc.contractNumber === contract.contractNumber && rc.id === contract.id
-            );
-            return {
-              id: relatedContract?.id || contract.id,
-              contractNumber: contract.contractNumber || '',
-              seller: contract.seller || '',
-              buyer: contract.buyer || '',
-              date: contract.date || '',
-              quantity: contract.quantity || '',
-              totalAmount: contract.totalAmount || '',
-              base: contract.base || '',
-              dispatchQty: contract.dispatchQty || '',
-            };
-          }
-          return {
-            contractNumber: contract.contractNumber || '',
-            seller: contract.seller || '',
-            buyer: contract.buyer || '',
-            date: contract.date || '',
-            quantity: contract.quantity || '',
-            totalAmount: contract.totalAmount || '',
-            base: contract.base || '',
-            dispatchQty: contract.dispatchQty || '',
-          };
-        });
+        .flatMap((contract) => contract.contractRows)
+        .filter((row) => row.dispatchQty != '0')
+        .map((row) => ({
+          // id: row.rowId,
+         // contractId: row.contractId,
+          contractNumber: row.contractNumber,
+          seller: row.seller,
+          buyer: row.buyer,
+          fabricDetails: getFabricDetails(row),
+          date: row.date,
+          quantity: row.quantity,
+          widthOrColor : row.width || row.color,
+          buyerRefer: row.refer,
+          rate: row.rate,
+          totalAmount: (parseFloat(row.quantity) * parseFloat(row.rate || '0')).toString(),
+          base: row.base,
+          TotalDispatchQuantity : row.dispatchQty,
+          balanceQuantity: row.balanceQuantity,
+          dispatchQty: row.dispatchQty,
+          contractType: row.contractType,
+        }));
 
       if (relatedContracts.length === 0) {
-        toast('Please fill at least one contract with Base or Dispatch Quantity', { type: 'error' });
+        toast('Please fill at least one contract row with Base or Dispatch Quantity', { type: 'error' });
         return;
       }
 
@@ -383,13 +657,17 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
         seller: sellers.find((s) => s.id === data.Seller)?.name || data.Seller,
         buyer: buyers.find((b) => b.id === data.Buyer)?.name || data.Buyer,
         vehicleType: data.VehicleType,
-        vehicle: data.Vehicle,
-        contractNumber: data.ContractNumber,
         remarks: data.Remarks,
         driverName: data.DriverName,
+        driverNumber: data.DriverNumber,
+        transporter: transporters.find((t) => t.id === data.Transporter)?.name || data.Transporter,
+        destination: data.Destination,
+        contractNumber: relatedContracts[0]?.contractNumber || '',
+       // createdBy: initialData?.createdBy || 'user',
         creationDate: isEdit
           ? initialData?.creationDate || new Date().toISOString()
           : new Date().toISOString(),
+        //updatedBy: 'user',
         updationDate: new Date().toISOString(),
         relatedContracts,
       };
@@ -423,38 +701,38 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="p-2 w-full">
           <div className="p-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-5 gap-4">
               <div
                 className="relative group"
                 onMouseEnter={() => setIdFocused(true)}
                 onMouseLeave={() => setIdFocused(false)}
               >
-              <Controller
-              name="listid"
-              control={control}
-              render={({ field }) => (
-                <>
-                  <CustomInput
-                    {...field}
-                    label="Dispatch#"
-                    type="text"
-                    disabled
-                    placeholder=""
-                    value={field.value || ''}
-                  />
-                  {idFocused && (
+                <Controller
+                  name="listid"
+                  control={control}
+                  render={({ field }) => (
                     <>
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        <BiSolidErrorAlt className="text-red-500 text-xl cursor-pointer" />
-                      </div>
-                      <div className="absolute bottom-full right-0 h-8 w-max text-large text-black bg-[#d5e4ff] rounded px-3 py-1 shadow-lg z-10 animate-fade-in">
-                        ID is auto-generated by the system
-                      </div>
+                      <CustomInput
+                        {...field}
+                        label="Dispatch#"
+                        type="text"
+                        disabled
+                        placeholder=""
+                        value={field.value || ''}
+                      />
+                      {idFocused && (
+                        <>
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <BiSolidErrorAlt className="text-red-500 text-xl cursor-pointer" />
+                          </div>
+                          <div className="absolute bottom-full right-0 h-8 w-max text-large text-black bg-[#d5e4ff] rounded px-3 py-1 shadow-lg z-10 animate-fade-in">
+                            ID is auto-generated by the system
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
-                </>
-              )}
-            />
+                />
               </div>
               <CustomInput
                 type="date"
@@ -497,22 +775,6 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 error={errors.VehicleType?.message}
                 register={register}
               />
-              <CustomInputDropdown
-                label="Vehicle"
-                options={vehicles}
-                selectedOption={watch('Vehicle') || ''}
-                onChange={(value) => setValue('Vehicle', value, { shouldValidate: true })}
-                error={errors.Vehicle?.message}
-                register={register}
-              />
-              <CustomInput
-                variant="floating"
-                borderThickness="2"
-                label="Contract #"
-                id="ContractNumber"
-                {...register('ContractNumber')}
-                error={errors.ContractNumber?.message}
-              />
               <CustomInput
                 variant="floating"
                 borderThickness="2"
@@ -521,120 +783,224 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 {...register('DriverName')}
                 error={errors.DriverName?.message}
               />
-            </div>
-            <div className="mt-4">
-              <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Remarks</h2>
-              <textarea
-                className="w-full p-2 border rounded text-base"
-                rows={4}
-                {...register('Remarks')}
-                placeholder="Enter any remarks"
+              <CustomInput
+                variant="floating"
+                borderThickness="2"
+                label="Driver Number"
+                id="DriverNumber"
+                {...register('DriverNumber')}
+                error={errors.DriverNumber?.message}
               />
-              {errors.Remarks && <p className="text-red-500">{errors.Remarks.message}</p>}
+              <CustomInputDropdown
+                label="Transporter"
+                options={transporters}
+                selectedOption={watch('Transporter') || ''}
+                onChange={(value) => setValue('Transporter', value, { shouldValidate: true })}
+                error={errors.Transporter?.message}
+                register={register}
+              />
+              <CustomInput
+                variant="floating"
+                borderThickness="2"
+                label="Destination"
+                id="Destination"
+                {...register('Destination')}
+                error={errors.Destination?.message}
+              />
+              <CustomInput
+                variant="floating"
+                borderThickness="2"
+                label="Vehicle"
+                id="Remark"
+                {...register('Remarks')}
+                error={errors.Remarks?.message}
+              />
             </div>
           </div>
 
           <div className="p-4">
-            <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
-            <div className="border rounded p-4 mt-2">
-              {(loading || fetchingSellers || fetchingBuyers) ? (
-                <p className="text-gray-500">Loading contracts, sellers, or buyers...</p>
+            <h2 className="text-xl text-[#06b6d4] font-bold dark:text-white ml-4">Related Contracts</h2>
+            {selectedContractInfo && (
+              <p className="text-gray-700 font-bold dark:text-gray-300 ml-4 mb-2">
+                Selected: {selectedContractInfo.contractType} Contract (Contract #{selectedContractInfo.contractNumber})
+              </p>
+            )}
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden">
+              {(loading || fetchingSellers || fetchingBuyers || fetchingTransporters) ? (
+                <p className="text-gray-500">Loading contracts, sellers, buyers, or transporters...</p>
               ) : selectedSeller && selectedBuyer ? (
-                filteredContracts.length > 0 ? (
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#06b6d4] text-white">
-                        <th className="p-3 font-medium">Select</th>
-                        <th className="p-3 font-medium">Contract #</th>
-                        <th className="p-3 font-medium">Fabric Details</th>
-                        <th className="p-3 font-medium">Contract Date</th>
-                        <th className="p-3 font-medium">Quantity</th>
-                        <th className="p-3 font-medium">Total Amount</th>
-                        <th className="p-3 font-medium">Base</th>
-                        <th className="p-3 font-medium">Dispatch Qty</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredContracts.map((contract) => {
-                        const seller = sellers.find(
-                          (s) => String(s.id) === String(contract.seller) || s.name === contract.seller
-                        );
-                        const buyer = buyers.find(
-                          (b) => String(b.id) === String(contract.buyer) || b.name === contract.buyer
-                        );
-                        return (
-                          <tr
-                            key={contract.id}
-                            className={`border-b hover:bg-gray-100 cursor-pointer ${
-                              contract.isSelected ? 'bg-blue-100' : ''
-                            }`}
-                            onClick={() => handleContractSelect(contract.id, !contract.isSelected)}
-                          >
-                            <td className="p-3">
-                              <input
-                                type="checkbox"
-                                checked={contract.isSelected || false}
-                                onChange={(e) => handleContractSelect(contract.id, e.target.checked)}
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </td>
-                            <td className="p-3">{contract.contractNumber || '-'}</td>
-                            <td className="p-3">{getFabricDetails(contract)}</td>
-                            <td className="p-3">{contract.date || '-'}</td>
-                            <td className="p-3">{contract.quantity || '-'}</td>
-                            <td className="p-3">{contract.totalAmount || '-'}</td>
-                            <td className="p-3">
-                              <input
-                                type="text"
-                                value={contract.base || ''}
-                                onChange={(e) =>
-                                  handleContractInputChange(contract.id, 'base', e.target.value)
-                                }
-                                className="w-full p-2 border border-gray-300 rounded"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </td>
-                            <td className="p-3">
-                              <input
-                                type="text"
-                                value={contract.dispatchQty || ''}
-                                onChange={(e) =>
-                                  handleContractInputChange(contract.id, 'dispatchQty', e.target.value)
-                                }
-                                className="w-full p-2 border border-gray-300 rounded"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                filteredContractRows.length > 0 ? (
+                  <div className="relative overflow-x-auto max-h-[500px] overflow-y-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="fixed sticky top-0 bg-white dark:bg-gray-900 z-10">
+                        <tr className="bg-[#06b6d4] sticky bottom-0 text-sm font-extrabold uppercase text-white">
+                          <th className="p-4 font-medium">Select</th>
+                          <th className="p-4 font-medium">Contract#</th>
+                          <th className="p-4 font-medium">Width / Color</th>
+                          <th className="p-4 font-medium">Buyer#</th>
+                          <th className="p-4 font-medium">Fabric Details</th>
+                          <th className="p-4 font-medium">Contract Date</th>
+                          <th className="p-4 font-medium">Contract Qty</th>
+                          <th className="p-4 font-medium">Bale / Role</th>
+                          <th className="p-4 font-medium">Dispatch Qty</th>
+                          <th className="p-4 font-medium">Total Dispatch Quantity</th>
+                          <th className="p-4 font-medium">Balance Qty</th>
+                        </tr>
+                      </thead>
+                      <tbody className={filteredContractRows.length >= 5 ? " " : ""}>
+                        {filteredContractRows.map((row, index) => {
+                          const parentContract = contracts.find((c) => c.id === row.contractId);
+                          const isMultiRow = parentContract ? parentContract.rowCount > 1 : false;
+
+                          let rowStyle = {
+                            backgroundColor: '',
+                            borderColor: '',
+                            fontWeight: 'normal',
+                            fontFamily: 'inherit',
+                          };
+
+                          if (isMultiRow) {
+                            switch (row.contractType) {
+                              case 'MultiWidth':
+                                rowStyle = {
+                                  backgroundColor: '#dcdcdc', // gray-150
+                                  borderColor: '#5aa796',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'sans-serif',
+                                };
+                                break;
+                              case 'Diet':
+                                rowStyle = {
+                                  backgroundColor: '#efefef', // gray-50
+                                  borderColor: '#c1a8a8',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'inherit',
+                                };
+                                break;
+                              case 'Conversion':
+                                rowStyle = {
+                                  backgroundColor: '#f3eded', // gray-100
+                                  borderColor: '#7197bf',
+                                  fontWeight: 'bold',
+                                  fontFamily: 'inherit',
+                                };
+                                break;
+                            }
+                          }
+
+                          const isNewContract = index === 0 || row.contractId !== filteredContractRows[index - 1]?.contractId;
+                          const contractIndex = contracts.findIndex((c) => c.id === row.contractId);
+                          const contractBorderColor = contractIndex % 2 === 0 ? '' : '';
+                          const displayContractNumber = row.rowIndex === 0 ? row.contractNumber : `${row.contractNumber}-${row.rowIndex}`;
+
+                          return (
+                            <>
+                              {isNewContract && index > 0 && (
+                                <tr className="h-2">
+                                  <td colSpan={11} className="border-none bg-transparent"></td>
+                                </tr>
+                              )}
+                              <tr
+                                key={row.rowId}
+                                className={`w-full cursor-pointer transition-colors ${
+                                  filteredContractRows.length >= 5 ? 'table-row' : ''
+                                } ${row.isSelected ? '!bg-[#ecfcff] !text-[#0e7d90] !border-[#0a0a0a] rounded-lg' : 'border-r-2 border-l-2'} ${
+                                  isNewContract ? `rounded ${contractBorderColor}` : ' rounded-2xl'
+                                }`}
+                                style={{
+                                  backgroundColor: row.isSelected ? undefined : rowStyle.backgroundColor,
+                                  borderColor: row.isSelected ? undefined : rowStyle.borderColor,
+                                  fontWeight: rowStyle.fontWeight,
+                                  fontFamily: rowStyle.fontFamily,
+                                }}
+                                onClick={() => handleRowClick(row.rowId, !row.isSelected, row.contractType, row.contractNumber, row.rowIndex)}
+                              >
+                                <td className="p-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={row.isSelected}
+                                    onChange={(e) => handleRowClick(row.rowId, e.target.checked, row.contractType, row.contractNumber, row.rowIndex)}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </td>
+                                <td className="p-4">{displayContractNumber || '-'}</td>
+                                <td className="p-4">{row.contractType === 'Diet' ? row.color || 'N/A' : row.width || '0'}</td>
+                                <td className="p-4">{row.isFirstRow ? row.refer || '-' : ''}</td>
+                                <td className="p-4">{getFabricDetails(row)}</td>
+                                <td className="p-4">{row.isFirstRow ? row.date || '-' : ''}</td>
+                                <td className="p-4">{row.quantity || '0'}</td>
+                                <td className="p-4">
+                                  <input
+                                    type="text"
+                                    value={row.base || ''}
+                                    onChange={(e) =>
+                                      handleContractInputChange(row.rowId, 'base', e.target.value)
+                                    }
+                                    className="w-full p-2 border border-gray-300 rounded bg-white"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </td>
+                                <td className="p-4">
+                                  <input
+                                    type="text"
+                                    value={row.dispatchQty || ''}
+                                    onChange={(e) =>
+                                      handleContractInputChange(row.rowId, 'dispatchQty', e.target.value)
+                                    }
+                                    className="w-full p-2 border border-gray-300 rounded bg-white"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </td>
+                                <td className="p-4">
+                                  <input
+                                    type="text"
+                                    value={row.addQuantity || '0'}
+                                    disabled
+                                    className="w-full p-2 border border-gray-300 rounded bg-gray-100"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </td>
+                                <td className="p-4">
+                                  <input
+                                    type="text"
+                                    value={row.dispatchQty ? row.balanceQuantity : row.quantity}
+                                    disabled
+                                    className="w-full p-2 border border-gray-300 rounded bg-gray-100"
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </td>
+                              </tr>
+                            </>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
-                  <p className="text-gray-500">No contracts found for the selected Seller and Buyer.</p>
+                  <p className="text-gray-500 ml-5">No contracts found for the selected Seller and Buyer.</p>
                 )
               ) : (
-                <p className="text-gray-500">Please select both Seller and Buyer to view contracts.</p>
+                <p className="text-gray-500 ml-5">Please select both Seller and Buyer to view contracts.</p>
               )}
             </div>
           </div>
-        </div>
 
-        <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">
-          <Button
-            type="submit"
-            className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
-          >
-            Save
-          </Button>
-          <Link href="/dispatchnote">
+          <div className="w-full h-[8vh] flex justify-end gap-4 mt-4 px-4 bg-white border-t-2 border-[#e0e0e0]">
             <Button
-              type="button"
-              className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+              type="submit"
+              className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
             >
-              Cancel
+              Save
             </Button>
-          </Link>
+            <Link href="/dispatchnote">
+              <Button
+                type="button"
+                className="w-[160px] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+              >
+                Cancel
+              </Button>
+            </Link>
+          </div>
         </div>
       </form>
     </div>

@@ -1,26 +1,26 @@
 'use client';
 import React from 'react';
-import { getAllVehicleTypes, deleteVehicleType } from '@/apis/vehicletype';
-import { columns, VehicleTypeType } from '@/components/valuemanagement/vehicletype/columns';
+import { getAllTransporterCompanys, deleteTransporterCompany } from '@/apis/transportercompany';
+import { columns,TransporterCompany } from '@/components/valuemanagement/transportercompany/columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
 
-const VehicleTypeList = () => {
-  const [VehicleTypes, setVehicleTypes] = React.useState<VehicleTypeType[]>([]);
+const TransporterCompanyList = () => {
+  const [TransporterCompanys, setTransporterCompanys] = React.useState<TransporterCompany[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [openDelete, setOpenDelete] = React.useState(false);
   const [openView, setOpenView] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [selectedVehicleType, setSelectedVehicleType] = React.useState<VehicleTypeType | null>(null);
+  const [selectedTransporterCompany, setSelectedTransporterCompany] = React.useState<TransporterCompany | null>(null);
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
 
-  const fetchVehicleTypes = async () => {
+  const fetchTransporterCompanys = async () => {
     try {
       setLoading(true);
-      const response = await getAllVehicleTypes(pageIndex === 0 ? 1 : pageIndex, pageSize);
-      setVehicleTypes(response.data || []);
+      const response = await getAllTransporterCompanys(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      setTransporterCompanys(response.data || []);
     } catch (error) {
       console.error(error);
     } finally {
@@ -29,15 +29,15 @@ const VehicleTypeList = () => {
   };
 
   React.useEffect(() => {
-    fetchVehicleTypes();
+    fetchTransporterCompanys();
   }, [pageIndex, pageSize]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
 
     try {
-      await deleteVehicleType(deleteId);
-      setVehicleTypes((prev) => prev.filter((item) => item.id !== deleteId));
+      await deleteTransporterCompany(deleteId);
+      setTransporterCompanys((prev) => prev.filter((item) => item.id !== deleteId));
       setOpenDelete(false);
       setDeleteId(null);
       toast.success('Deleted Successfully');
@@ -58,23 +58,23 @@ const VehicleTypeList = () => {
   };
 
   const handleViewOpen = (listId: string) => {
-    const item = VehicleTypes.find((item) => item.listid === listId);
-    setSelectedVehicleType(item || null);
+    const item = TransporterCompanys.find((item) => item.listid === listId);
+    setSelectedTransporterCompany(item || null);
     setOpenView(true);
   };
 
   const handleViewClose = () => {
     setOpenView(false);
-    setSelectedVehicleType(null);
+    setSelectedTransporterCompany(null);
   };
 
   return (
     <div className="container bg-white rounded-md">
       <DataTable
         columns={columns(handleDeleteOpen, handleViewOpen)}
-        data={VehicleTypes}
+        data={TransporterCompanys}
         loading={loading}
-        link={'/vehicletype/create'}
+        link={'/transportercompany/create'}
         setPageIndex={setPageIndex}
         pageIndex={pageIndex}
         pageSize={pageSize}
@@ -102,7 +102,7 @@ const VehicleTypeList = () => {
               </button>
             </div>
             <div className="p-6 bg-gray-50">
-              {selectedVehicleType && (
+              {selectedTransporterCompany && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 gap-5">
                     <div className="group">
@@ -110,7 +110,7 @@ const VehicleTypeList = () => {
                         ID
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedVehicleType.listid}
+                        {selectedTransporterCompany.listid}
                       </div>
                     </div>
                     <div className="group">
@@ -118,7 +118,7 @@ const VehicleTypeList = () => {
                         Name
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedVehicleType.descriptions}
+                        {selectedTransporterCompany.descriptions}
                       </div>
                     </div>
                     <div className="group">
@@ -126,7 +126,7 @@ const VehicleTypeList = () => {
                         Details
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedVehicleType.segment}
+                        {selectedTransporterCompany.segment}
                       </div>
                     </div>
                   </div>
@@ -142,4 +142,4 @@ const VehicleTypeList = () => {
   );
 };
 
-export default VehicleTypeList;
+export default TransporterCompanyList;
