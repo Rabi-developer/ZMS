@@ -216,7 +216,7 @@ export function DataTable<TData, TValue>({
             onChange={(e) => setPageSize(Number(e.target.value))}
             className="border border-gray-300 rounded-full p-2 text-sm cursor-pointer focus:ring-2 focus:ring-blue-600"
           >
-            {[5, 10, 20, 50, 100].map((option) => (
+            {[20, 30, 40, 50, 100].map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
