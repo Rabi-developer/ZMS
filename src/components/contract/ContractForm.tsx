@@ -36,7 +36,7 @@ import { getAllPaymentTerms } from "@/apis/paymentterm"
 import { getAllUnitOfMeasures } from "@/apis/unitofmeasure"
 import { getAllGeneralSaleTextTypes } from "@/apis/generalSaleTextType"
 import { getAllSelvegeThicknesss } from "@/apis/selvegethickness"
-import { getAllInductionThreads } from "@/apis/Inductionthread"
+import { getAllInductionThreads } from "@/apis/inductionthread"
 import { getAllGSMs } from "@/apis/gsm"
 
 // Schema definitions  scema for validation
@@ -68,6 +68,7 @@ const SampleDetailSchema = z.object({
 })
 
 const CommissionInfoSchema = z.object({
+  Id: z.string().optional(),
   PaymentTermsSeller: z.string().optional(),
   PaymentTermsBuyer: z.string().optional(),
   DeliveryTerms: z.string().optional(),
@@ -83,6 +84,7 @@ const CommissionInfoSchema = z.object({
 })
 
 const ConversionContractRowSchema = z.object({
+  Id: z.string().optional(),
   Width: z.string().optional(),
   Quantity:z.string().optional(),
   PickRate: z.string().optional(),
@@ -106,6 +108,7 @@ const ConversionContractRowSchema = z.object({
 })
 
 const DietContractRowSchema = z.object({
+  Id: z.string().optional(),
   LabDispatchNo: z.string().optional(),
   LabDispatchDate: z.string().optional(),
   Color: z.string().optional(),
@@ -128,6 +131,7 @@ const DietContractRowSchema = z.object({
 })
 
 const MultiWidthContractRowSchema = z.object({
+  Id: z.string().optional(),
   Width: z.string().optional(),
   Quantity:z.string().optional(),
   Rate: z.string().optional(),
@@ -519,9 +523,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     }>;
   }>>([]);
   const [submissionErrors, setSubmissionErrors] = useState<string[]>([]);
-  const [activeContractType, setActiveContractType] = useState<'Conversion' | 'Diet' | 'MultiWidth' | null>(null);
-  const [conversionContractRows, setConversionContractRows] = useState<ConversionContractRow[]>([
+  const [activeContractType, setActiveContractType] = useState<'Conversion' | 'Diet' | 'MultiWidth' | null>(null);  const [conversionContractRows, setConversionContractRows] = useState<ConversionContractRow[]>([
     {
+      Id: undefined,
       Width: '',
       Quantity: '1',
       PickRate: '',
@@ -542,6 +546,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       CommissionValue: '',
       TotalAmount: '',
       CommissionInfo: {
+        Id: undefined,
         PaymentTermsSeller: '',
         PaymentTermsBuyer: '',
         DeliveryTerms: '',
@@ -556,9 +561,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         BuyerCommission: '',
       },
     },
-  ]);
-  const [dietContractRows, setDietContractRows] = useState<DietContractRow[]>([
+  ]);  const [dietContractRows, setDietContractRows] = useState<DietContractRow[]>([
     {
+      Id: undefined,
       LabDispatchNo: '',
       LabDispatchDate: '',
       Color: '',
@@ -578,6 +583,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       FinishWidth: '',
       Weight: '',
       CommissionInfo: {
+        Id: undefined,
         PaymentTermsSeller: '',
         PaymentTermsBuyer: '',
         DeliveryTerms: '',
@@ -592,9 +598,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         BuyerCommission: '',
       },
     },
-  ]);
-  const [multiWidthContractRows, setMultiWidthContractRows] = useState<MultiWidthContractRow[]>([
+  ]);  const [multiWidthContractRows, setMultiWidthContractRows] = useState<MultiWidthContractRow[]>([
     {
+      Id: undefined,
       Width: '',
       Quantity: '1',
       Rate: '0',
@@ -608,6 +614,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       TotalAmount: '',
       Date: '',
       CommissionInfo: {
+        Id: undefined,
         PaymentTermsSeller: '',
         PaymentTermsBuyer: '',
         DeliveryTerms: '',
@@ -1441,12 +1448,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   DeliveryDate: breakup.deliveryDate,
                 })),
               );
-            }
-
-            // Initialize contract rows from API data
+            }            // Initialize contract rows from API data
             if (initialData.conversionContractRow && initialData.conversionContractRow.length > 0) {
               setConversionContractRows(
                 initialData.conversionContractRow.map((row) => ({
+                  Id: row.id || undefined,
                   Width: row.width || '',
                   Quantity: row.quantity || '1',
                   PickRate: row.pickRate || '',
@@ -1467,6 +1473,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   CommissionValue: row.commissionValue || '',
                   TotalAmount: row.totalAmount || '',
                   CommissionInfo: {
+                    Id: row.commisionInfo?.id || undefined,
                     PaymentTermsSeller: row.commisionInfo?.paymentTermsSeller || '',
                     PaymentTermsBuyer: row.commisionInfo?.paymentTermsBuyer || '',
                     DeliveryTerms: row.commisionInfo?.deliveryTerms || '',
@@ -1482,11 +1489,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   },
                 }))
               );
-            }
-
-            if (initialData.dietContractRow && initialData.dietContractRow.length > 0) {
+            }            if (initialData.dietContractRow && initialData.dietContractRow.length > 0) {
               setDietContractRows(
                 initialData.dietContractRow.map((row) => ({
+                  Id: row.id || undefined,
                   LabDispatchNo: row.labDispatchNo || '',
                   LabDispatchDate: row.labDispatchDate || '',
                   Color: row.color || '',
@@ -1506,6 +1512,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   FinishWidth: row.finishWidth || '',
                   Weight: row.weight || '',
                   CommissionInfo: {
+                    Id: row.commisionInfo?.id || undefined,
                     PaymentTermsSeller: row.commisionInfo?.paymentTermsSeller || '',
                     PaymentTermsBuyer: row.commisionInfo?.paymentTermsBuyer || '',
                     DeliveryTerms: row.commisionInfo?.deliveryTerms || '',
@@ -1521,11 +1528,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   },
                 }))
               );
-            }
-
-            if (initialData.multiWidthContractRow && initialData.multiWidthContractRow.length > 0) {
+            }            if (initialData.multiWidthContractRow && initialData.multiWidthContractRow.length > 0) {
               setMultiWidthContractRows(
                 initialData.multiWidthContractRow.map((row) => ({
+                  Id: row.id || undefined,
                   Width: row.width || '',
                   Quantity: row.quantity || '1',
                   Rate: row.rate || '0',
@@ -1539,6 +1545,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   TotalAmount: row.totalAmount || '',
                   Date: row.Date || '',
                   CommissionInfo: {
+                    Id: row.commisionInfo?.id || undefined,
                     PaymentTermsSeller: row.commisionInfo?.paymentTermsSeller || '',
                     PaymentTermsBuyer: row.commisionInfo?.paymentTermsBuyer || '',
                     DeliveryTerms: row.commisionInfo?.deliveryTerms || '',
@@ -1669,11 +1676,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     ].AdditionalInfo.filter((_, i) => i !== infoIndex);
     setSampleDetails(updatedSampleDetails);
   };
-
   const addConversionContractRow = () => {
     setConversionContractRows([
       ...conversionContractRows,
       {
+        Id: undefined,
         Width: '',
         Quantity: '1',
         PickRate: '',
@@ -1694,6 +1701,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         CommissionValue: '',
         TotalAmount: '',
         CommissionInfo: {
+          Id: undefined,
           PaymentTermsSeller: '',
           PaymentTermsBuyer: '',
           DeliveryTerms: '',
@@ -1710,11 +1718,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       },
     ]);
   };
-
   const addDietContractRow = () => {
     setDietContractRows([
       ...dietContractRows,
       {
+        Id: undefined,
         LabDispatchNo: '',
         LabDispatchDate: '',
         Color: '',
@@ -1734,6 +1742,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         FinishWidth: '',
         Weight: '',
         CommissionInfo: {
+          Id: undefined,
           PaymentTermsSeller: '',
           PaymentTermsBuyer: '',
           DeliveryTerms: '',
@@ -1750,11 +1759,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       },
     ]);
   };
-
   const addMultiWidthContractRow = () => {
     setMultiWidthContractRows([
       ...multiWidthContractRows,
       {
+        Id: undefined,
         Width: '',
         Quantity: '1',
         Rate: '0',
@@ -1768,6 +1777,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         TotalAmount: '',
         Date: '',
         CommissionInfo: {
+          Id: undefined,
           PaymentTermsSeller: '',
           PaymentTermsBuyer: '',
           DeliveryTerms: '',
@@ -2074,9 +2084,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       status: 'Active',
       finishWidth: data.FinishWidth || '',
       buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
-      sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
-      // Explicitly include all contract row arrays
+      sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,      // Explicitly include all contract row arrays
       conversionContractRow: conversionContractRows.map((row) => ({
+        id: id && row.Id ? row.Id : undefined,
         width: row.Width || '',
         quantity: row.Quantity || '1',
         pickRate: row.PickRate || '',
@@ -2097,6 +2107,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         commissionValue: row.CommissionValue || '',
         totalAmount: row.TotalAmount || '',
         commisionInfo: {
+          id: id && row.CommissionInfo?.Id ? row.CommissionInfo.Id : undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2112,8 +2123,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         },
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
-      })),
-      dietContractRow: dietContractRows.map((row) => ({
+      })),      dietContractRow: dietContractRows.map((row) => ({
+        id: id && row.Id ? row.Id : undefined,
         labDispatchNo: row.LabDispatchNo || '',
         labDispatchDate: row.LabDispatchDate ? new Date(row.LabDispatchDate).toISOString() : '',
         color: row.Color || '',
@@ -2133,6 +2144,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         finishWidth: row.FinishWidth || '',
         weight: row.Weight || '',
         commisionInfo: {
+          id: id && row.CommissionInfo?.Id ? row.CommissionInfo.Id : undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2148,8 +2160,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         },
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
-      })),
-      multiWidthContractRow: multiWidthContractRows.map((row) => ({
+      })),      multiWidthContractRow: multiWidthContractRows.map((row) => ({
+        id: id && row.Id ? row.Id : undefined,
         width: row.Width || '',
         quantity: row.Quantity || '1',
         rate: row.Rate || '0',
@@ -2163,6 +2175,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         totalAmount: row.TotalAmount || '',
         Date: row.Date ? new Date(row.Date).toISOString() : '',
         commisionInfo: {
+          id: id && row.CommissionInfo?.Id ? row.CommissionInfo.Id : undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
