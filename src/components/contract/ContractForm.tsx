@@ -521,9 +521,15 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       YarnBags: string;
       Labs: string;
     }>;
-  }>>([]);
-  const [submissionErrors, setSubmissionErrors] = useState<string[]>([]);
-  const [activeContractType, setActiveContractType] = useState<'Conversion' | 'Diet' | 'MultiWidth' | null>(null);  const [conversionContractRows, setConversionContractRows] = useState<ConversionContractRow[]>([
+  }>>([]);  const [submissionErrors, setSubmissionErrors] = useState<string[]>([]);
+  const [activeContractType, setActiveContractType] = useState<'Conversion' | 'Diet' | 'MultiWidth' | null>(null);
+  
+  // Track deleted row IDs for proper deletion on backend
+  const [deletedConversionRowIds, setDeletedConversionRowIds] = useState<string[]>([]);
+  const [deletedDietRowIds, setDeletedDietRowIds] = useState<string[]>([]);
+  const [deletedMultiWidthRowIds, setDeletedMultiWidthRowIds] = useState<string[]>([]);
+  const [deletedBuyerBreakupIds, setDeletedBuyerBreakupIds] = useState<string[]>([]);
+  const [deletedSellerBreakupIds, setDeletedSellerBreakupIds] = useState<string[]>([]);const [conversionContractRows, setConversionContractRows] = useState<ConversionContractRow[]>([
     {
       Id: undefined,
       Width: '',
@@ -1640,13 +1646,20 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       },
     ]);
   };
-
   const removeBuyerDeliveryBreakup = (index: number) => {
+    const breakupToDelete = buyerDeliveryBreakups[index];
+    if (breakupToDelete.Id) {
+      setDeletedBuyerBreakupIds(prev => [...prev, breakupToDelete.Id!]);
+    }
     const updatedBreakups = buyerDeliveryBreakups.filter((_, i) => i !== index);
     setBuyerDeliveryBreakups(updatedBreakups);
   };
 
   const removeSellerDeliveryBreakup = (index: number) => {
+    const breakupToDelete = sellerDeliveryBreakups[index];
+    if (breakupToDelete.Id) {
+      setDeletedSellerBreakupIds(prev => [...prev, breakupToDelete.Id!]);
+    }
     const updatedBreakups = sellerDeliveryBreakups.filter((_, i) => i !== index);
     setSellerDeliveryBreakups(updatedBreakups);
   };
@@ -1794,16 +1807,27 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       },
     ]);
   };
-
   const removeConversionContractRow = (index: number) => {
+    const rowToDelete = conversionContractRows[index];
+    if (rowToDelete.Id) {
+      setDeletedConversionRowIds(prev => [...prev, rowToDelete.Id!]);
+    }
     setConversionContractRows(conversionContractRows.filter((_, i) => i !== index));
   };
 
   const removeDietContractRow = (index: number) => {
+    const rowToDelete = dietContractRows[index];
+    if (rowToDelete.Id) {
+      setDeletedDietRowIds(prev => [...prev, rowToDelete.Id!]);
+    }
     setDietContractRows(dietContractRows.filter((_, i) => i !== index));
   };
 
   const removeMultiWidthContractRow = (index: number) => {
+    const rowToDelete = multiWidthContractRows[index];
+    if (rowToDelete.Id) {
+      setDeletedMultiWidthRowIds(prev => [...prev, rowToDelete.Id!]);
+    }
     setMultiWidthContractRows(multiWidthContractRows.filter((_, i) => i !== index));
   };
 
@@ -2001,15 +2025,15 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   try {
     setSubmissionErrors([]);
     const validBuyerBreakups = validateBreakups(buyerDeliveryBreakups);
-    const validSellerBreakups = validateBreakups(sellerDeliveryBreakups);
-
-    const buyerDeliveryBreakupsPayload = validBuyerBreakups.map((b) => ({
+    const validSellerBreakups = validateBreakups(sellerDeliveryBreakups);    const buyerDeliveryBreakupsPayload = validBuyerBreakups.map((b) => ({
       id: b.Id,
+      contractId: id || undefined,
       qty: b.Qty,
       deliveryDate: b.DeliveryDate,
     }));
     const sellerDeliveryBreakupsPayload = validSellerBreakups.map((b) => ({
       id: b.Id,
+      contractId: id || undefined,
       qty: b.Qty,
       deliveryDate: b.DeliveryDate,
     }));
@@ -2086,7 +2110,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
       sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,      // Explicitly include all contract row arrays
       conversionContractRow: conversionContractRows.map((row) => ({
-        id: id && row.Id ? row.Id : undefined,
+        id: row.Id || undefined,
+        contractId: id || undefined,
         width: row.Width || '',
         quantity: row.Quantity || '1',
         pickRate: row.PickRate || '',
@@ -2107,7 +2132,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         commissionValue: row.CommissionValue || '',
         totalAmount: row.TotalAmount || '',
         commisionInfo: {
-          id: id && row.CommissionInfo?.Id ? row.CommissionInfo.Id : undefined,
+          id: row.CommissionInfo?.Id || undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2117,14 +2142,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           buyerRemark: row.CommissionInfo?.BuyerRemark || '',
           endUse: row.CommissionInfo?.EndUse || '',
           endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
-          dispatchLater: row.CommissionInfo?.DispatchLater || '',
-          sellerCommission: row.CommissionInfo?.SellerCommission || '',
+          dispatchLater: row.CommissionInfo?.DispatchLater || '',          sellerCommission: row.CommissionInfo?.SellerCommission || '',
           buyerCommission: row.CommissionInfo?.BuyerCommission || '',
         },
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
       })),      dietContractRow: dietContractRows.map((row) => ({
-        id: id && row.Id ? row.Id : undefined,
+        id: row.Id || undefined,
+        contractId: id || undefined,
         labDispatchNo: row.LabDispatchNo || '',
         labDispatchDate: row.LabDispatchDate ? new Date(row.LabDispatchDate).toISOString() : '',
         color: row.Color || '',
@@ -2144,7 +2169,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         finishWidth: row.FinishWidth || '',
         weight: row.Weight || '',
         commisionInfo: {
-          id: id && row.CommissionInfo?.Id ? row.CommissionInfo.Id : undefined,
+          id: row.CommissionInfo?.Id || undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2155,13 +2180,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           endUse: row.CommissionInfo?.EndUse || '',
           endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
           dispatchLater: row.CommissionInfo?.DispatchLater || '',
-          sellerCommission: row.CommissionInfo?.SellerCommission || '',
-          buyerCommission: row.CommissionInfo?.BuyerCommission || '',
+          sellerCommission: row.CommissionInfo?.SellerCommission || '',          buyerCommission: row.CommissionInfo?.BuyerCommission || '',
         },
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
-        sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
-      })),      multiWidthContractRow: multiWidthContractRows.map((row) => ({
-        id: id && row.Id ? row.Id : undefined,
+        sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,      })),multiWidthContractRow: multiWidthContractRows.map((row) => ({
+        id: row.Id || undefined,
+        contractId: id || undefined,
         width: row.Width || '',
         quantity: row.Quantity || '1',
         rate: row.Rate || '0',
@@ -2173,9 +2197,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         commissionPercentage: row.CommissionPercentage || '',
         commissionValue: row.CommissionValue || '',
         totalAmount: row.TotalAmount || '',
-        Date: row.Date ? new Date(row.Date).toISOString() : '',
-        commisionInfo: {
-          id: id && row.CommissionInfo?.Id ? row.CommissionInfo.Id : undefined,
+        Date: row.Date ? new Date(row.Date).toISOString() : '',        commisionInfo: {
+          id: row.CommissionInfo?.Id || undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2187,11 +2210,15 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
           dispatchLater: row.CommissionInfo?.DispatchLater || '',
           sellerCommission: row.CommissionInfo?.SellerCommission || '',
-          buyerCommission: row.CommissionInfo?.BuyerCommission || '',
-        },
-        buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
+          buyerCommission: row.CommissionInfo?.BuyerCommission || '',        },        buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
       })),
+      // Include deleted IDs for proper cleanup on backend
+      deletedConversionRowIds: deletedConversionRowIds,
+      deletedDietRowIds: deletedDietRowIds,
+      deletedMultiWidthRowIds: deletedMultiWidthRowIds,
+      deletedBuyerBreakupIds: deletedBuyerBreakupIds,
+      deletedSellerBreakupIds: deletedSellerBreakupIds,
     };
 
     // Avoid filtering out empty arrays
