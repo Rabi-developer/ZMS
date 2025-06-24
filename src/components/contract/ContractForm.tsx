@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { getAllOrganization } from "@/apis/organization"
 import { getAllBranch } from "@/apis/branchs"
 import { getAllDescriptions } from "@/apis/description"
-import { createContract, updateContract } from "@/apis/contract"
+import { createContract, updateContract, deleteContract} from "@/apis/contract"
 import { getAllBlendRatios } from "@/apis/blendratio"
 import { getAllEndUses } from "@/apis/enduse"
 import { getAllFabricTypess } from "@/apis/fabrictypes"
@@ -2020,14 +2020,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     setSubmissionErrors([]);
     const validBuyerBreakups = validateBreakups(buyerDeliveryBreakups);
     const validSellerBreakups = validateBreakups(sellerDeliveryBreakups);    const buyerDeliveryBreakupsPayload = validBuyerBreakups.map((b) => ({
-      id: b.Id,
-      contractId: id || undefined,
+     // id: b.Id,
+   //   contractId: id || undefined,
       qty: b.Qty,
       deliveryDate: b.DeliveryDate,
     }));
     const sellerDeliveryBreakupsPayload = validSellerBreakups.map((b) => ({
-      id: b.Id,
-      contractId: id || undefined,
+     // id: b.Id,
+    //  contractId: id || undefined,
       qty: b.Qty,
       deliveryDate: b.DeliveryDate,
     }));
@@ -2037,7 +2037,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     };
 
     const payload = {
-      id: id || undefined,
+   //   id: id || undefined,
       contractNumber: data.ContractNumber,
       date: data.Date,
       contractType: data.ContractType,
@@ -2104,8 +2104,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
       sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,      // Explicitly include all contract row arrays
       conversionContractRow: conversionContractRows.map((row) => ({
-        id: row.Id || undefined,
-        contractId: id || undefined,
+       // id: row.Id || undefined,
+       // contractId: id || undefined,
         width: row.Width || '',
         quantity: row.Quantity || '1',
         pickRate: row.PickRate || '',
@@ -2124,8 +2124,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         commissionPercentage: row.CommissionPercentage || '',
         commissionValue: row.CommissionValue || '',
         totalAmount: row.TotalAmount || '',        commisionInfo: {
-          id: row.CommissionInfo?.Id || undefined,
-          contractId: id || undefined,
+        //  id: row.CommissionInfo?.Id || undefined,
+        //  contractId: id || undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2142,8 +2142,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
       })),      dietContractRow: dietContractRows.map((row) => ({
-        id: row.Id || undefined,
-        contractId: id || undefined,        labDispatchNo: row.LabDispatchNo || '',
+        //id: row.Id || undefined,
+      //  contractId: id || undefined,        labDispatchNo: row.LabDispatchNo || '',
         labDispatchDate: row.LabDispatchDate ? (row.LabDispatchDate.includes('T') ? row.LabDispatchDate : new Date(row.LabDispatchDate).toISOString()) : '',
         color: row.Color || '',
         quantity: row.Quantity || '1',
@@ -2160,8 +2160,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         shrinkage: row.Shrinkage || '',
         finishWidth: row.FinishWidth || '',
         weight: row.Weight || '',        commisionInfo: {
-          id: row.CommissionInfo?.Id || undefined,
-          contractId: id || undefined,
+         // id: row.CommissionInfo?.Id || undefined,
+         // contractId: id || undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2176,8 +2176,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         },
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,      })),multiWidthContractRow: multiWidthContractRows.map((row) => ({
-        id: row.Id || undefined,
-        contractId: id || undefined,
+      //  id: row.Id || undefined,
+      //  contractId: id || undefined,
         width: row.Width || '',
         quantity: row.Quantity || '1',
         rate: row.Rate || '0',
@@ -2190,8 +2190,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         commissionValue: row.CommissionValue || '',        totalAmount: row.TotalAmount || '',
         date: row.Date ? (row.Date.includes('T') ? row.Date : new Date(row.Date).toISOString()) : '',
         commisionInfo: {
-          id: row.CommissionInfo?.Id || undefined,
-          contractId: id || undefined,
+       //id: row.CommissionInfo?.Id || undefined,
+         // contractId: id || undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2218,8 +2218,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
     // Avoid filtering out empty arrays
     let response;
     if (id) {
-        window.location.href= '/contract';      
-        response = await updateContract(id, payload);
+           await deleteContract(id);
+
+        response = await createContract(payload);
+        window.location.href= '/contract';  
       toast('Contract Updated Successfully', { type: 'success' });
      
     } else {
