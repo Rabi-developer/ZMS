@@ -36,7 +36,7 @@ import { getAllPaymentTerms } from "@/apis/paymentterm"
 import { getAllUnitOfMeasures } from "@/apis/unitofmeasure"
 import { getAllGeneralSaleTextTypes } from "@/apis/generalSaleTextType"
 import { getAllSelvegeThicknesss } from "@/apis/selvegethickness"
-import { getAllInductionThreads } from "@/apis/inductionthread"
+import { getAllInductionThreads } from "@/apis/Inductionthread"
 import { getAllGSMs } from "@/apis/gsm"
 
 // Schema definitions  scema for validation
@@ -1378,7 +1378,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               Seller: initialData.seller || '',
               Buyer: initialData.buyer || '',
               ReferenceNumber: initialData.referenceNumber || '',
-              DeliveryDate: initialData.deliveryDate || '',
+              DeliveryDate: initialData.deliveryDate ? (typeof initialData.deliveryDate === 'string' && initialData.deliveryDate.includes('T') ? initialData.deliveryDate.split('T')[0] : initialData.deliveryDate) : '',
               Refer: initialData.refer || '',
               Referdate: initialData.referdate || '',
               FabricType: initialData.fabricType || '',
@@ -1435,15 +1435,13 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               FinishWidth: initialData.finishWidth || '',
             };
 
-            reset(formattedData);
-
-            if (initialData.buyerDeliveryBreakups) {
+            reset(formattedData);            if (initialData.buyerDeliveryBreakups) {
               setBuyerDeliveryBreakups(
                 initialData.buyerDeliveryBreakups.map((breakup) => ({
                   Id: breakup.id,
                   Qty: breakup.qty,
-                  DeliveryDate: breakup.deliveryDate,
-                })),
+                  DeliveryDate: breakup.deliveryDate ? (typeof breakup.deliveryDate === 'string' && breakup.deliveryDate.includes('T') ? breakup.deliveryDate.split('T')[0] : breakup.deliveryDate) : '',
+                }))
               );
             }
             if (initialData.sellerDeliveryBreakups) {
@@ -1451,10 +1449,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                 initialData.sellerDeliveryBreakups.map((breakup) => ({
                   Id: breakup.id,
                   Qty: breakup.qty,
-                  DeliveryDate: breakup.deliveryDate,
-                })),
+                  DeliveryDate: breakup.deliveryDate ? (typeof breakup.deliveryDate === 'string' && breakup.deliveryDate.includes('T') ? breakup.deliveryDate.split('T')[0] : breakup.deliveryDate) : '',
+                }))
               );
-            }            // Initialize contract rows from API data
+            }// Initialize contract rows from API data
             if (initialData.conversionContractRow && initialData.conversionContractRow.length > 0) {
               setConversionContractRows(
                 initialData.conversionContractRow.map((row) => ({
@@ -1463,9 +1461,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   Quantity: row.quantity || '1',
                   PickRate: row.pickRate || '',
                   FabRate: row.fabRate || '',
-                  Rate: row.rate || '0',
-                  Amounts: row.amounts || '',
-                  DeliveryDate: row.deliveryDate || '',
+                  Rate: row.rate || '0',                  Amounts: row.amounts || '',
+                  DeliveryDate: row.deliveryDate ? (typeof row.deliveryDate === 'string' && row.deliveryDate.includes('T') ? row.deliveryDate.split('T')[0] : row.deliveryDate) : '',
                   Wrapwt: row.wrapwt || '',
                   Weftwt: row.weftwt || '',
                   WrapBag: row.wrapBag || '',
@@ -1499,14 +1496,12 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               setDietContractRows(
                 initialData.dietContractRow.map((row) => ({
                   Id: row.id || undefined,
-                  LabDispatchNo: row.labDispatchNo || '',
-                  LabDispatchDate: row.labDispatchDate || '',
+                  LabDispatchNo: row.labDispatchNo || '',                  LabDispatchDate: row.labDispatchDate ? (typeof row.labDispatchDate === 'string' && row.labDispatchDate.includes('T') ? row.labDispatchDate.split('T')[0] : row.labDispatchDate) : '',
                   Color: row.color || '',
                   Quantity: row.quantity || '1',
                   Finish: row.finish || '',
-                  Rate: row.rate || '0',
-                  AmountTotal: row.amountTotal || '',
-                  DeliveryDate: row.deliveryDate || '',
+                  Rate: row.rate || '0',                  AmountTotal: row.amountTotal || '',
+                  DeliveryDate: row.deliveryDate ? (typeof row.deliveryDate === 'string' && row.deliveryDate.includes('T') ? row.deliveryDate.split('T')[0] : row.deliveryDate) : '',
                   Gst: row.gst || '',
                   GstValue: row.gstValue || '',
                   FabricValue: row.fabricValue || '',
@@ -1547,9 +1542,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   FabricValue: row.fabricValue || '',
                   CommissionType: row.commissionType || '',
                   CommissionPercentage: row.commissionPercentage || '',
-                  CommissionValue: row.commissionValue || '',
-                  TotalAmount: row.totalAmount || '',
-                  Date: row.Date || '',
+                  CommissionValue: row.commissionValue || '',                  TotalAmount: row.totalAmount || '',
+                  Date: row.Date ? (typeof row.Date === 'string' && row.Date.includes('T') ? row.Date.split('T')[0] : row.Date) : '',
                   CommissionInfo: {
                     Id: row.commisionInfo?.id || undefined,
                     PaymentTermsSeller: row.commisionInfo?.paymentTermsSeller || '',
@@ -2115,10 +2109,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         width: row.Width || '',
         quantity: row.Quantity || '1',
         pickRate: row.PickRate || '',
-        fabRate: row.FabRate || '',
-        rate: row.Rate || '0',
+        fabRate: row.FabRate || '',        rate: row.Rate || '0',
         amounts: row.Amounts || '',
-        deliveryDate: row.DeliveryDate ? new Date(row.DeliveryDate).toISOString() : '',
+        deliveryDate: row.DeliveryDate ? (row.DeliveryDate.includes('T') ? row.DeliveryDate : new Date(row.DeliveryDate).toISOString()) : '',
         wrapwt: row.Wrapwt || '',
         weftwt: row.Weftwt || '',
         wrapBag: row.WrapBag || '',
@@ -2150,15 +2143,13 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
       })),      dietContractRow: dietContractRows.map((row) => ({
         id: row.Id || undefined,
-        contractId: id || undefined,
-        labDispatchNo: row.LabDispatchNo || '',
-        labDispatchDate: row.LabDispatchDate ? new Date(row.LabDispatchDate).toISOString() : '',
+        contractId: id || undefined,        labDispatchNo: row.LabDispatchNo || '',
+        labDispatchDate: row.LabDispatchDate ? (row.LabDispatchDate.includes('T') ? row.LabDispatchDate : new Date(row.LabDispatchDate).toISOString()) : '',
         color: row.Color || '',
         quantity: row.Quantity || '1',
-        finish: row.Finish || '',
-        rate: row.Rate || '0',
+        finish: row.Finish || '',        rate: row.Rate || '0',
         amountTotal: row.AmountTotal || '',
-        deliveryDate: row.DeliveryDate ? new Date(row.DeliveryDate).toISOString() : '',
+        deliveryDate: row.DeliveryDate ? (row.DeliveryDate.includes('T') ? row.DeliveryDate : new Date(row.DeliveryDate).toISOString()) : '',
         gst: row.Gst || '',
         gstValue: row.GstValue || '',
         fabricValue: row.FabricValue || '',
@@ -2197,7 +2188,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         commissionType: row.CommissionType || '',
         commissionPercentage: row.CommissionPercentage || '',
         commissionValue: row.CommissionValue || '',        totalAmount: row.TotalAmount || '',
-        Date: row.Date ? new Date(row.Date).toISOString() : '',
+        date: row.Date ? (row.Date.includes('T') ? row.Date : new Date(row.Date).toISOString()) : '',
         commisionInfo: {
           id: row.CommissionInfo?.Id || undefined,
           contractId: id || undefined,
