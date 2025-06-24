@@ -2130,9 +2130,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         commissionType: row.CommissionType || '',
         commissionPercentage: row.CommissionPercentage || '',
         commissionValue: row.CommissionValue || '',
-        totalAmount: row.TotalAmount || '',
-        commisionInfo: {
+        totalAmount: row.TotalAmount || '',        commisionInfo: {
           id: row.CommissionInfo?.Id || undefined,
+          contractId: id || undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2142,7 +2142,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           buyerRemark: row.CommissionInfo?.BuyerRemark || '',
           endUse: row.CommissionInfo?.EndUse || '',
           endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
-          dispatchLater: row.CommissionInfo?.DispatchLater || '',          sellerCommission: row.CommissionInfo?.SellerCommission || '',
+          dispatchLater: row.CommissionInfo?.DispatchLater || '',
+          sellerCommission: row.CommissionInfo?.SellerCommission || '',
           buyerCommission: row.CommissionInfo?.BuyerCommission || '',
         },
         buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
@@ -2167,9 +2168,9 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         totalAmount: row.TotalAmount || '',
         shrinkage: row.Shrinkage || '',
         finishWidth: row.FinishWidth || '',
-        weight: row.Weight || '',
-        commisionInfo: {
+        weight: row.Weight || '',        commisionInfo: {
           id: row.CommissionInfo?.Id || undefined,
+          contractId: id || undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2195,10 +2196,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         fabricValue: row.FabricValue || '',
         commissionType: row.CommissionType || '',
         commissionPercentage: row.CommissionPercentage || '',
-        commissionValue: row.CommissionValue || '',
-        totalAmount: row.TotalAmount || '',
-        Date: row.Date ? new Date(row.Date).toISOString() : '',        commisionInfo: {
+        commissionValue: row.CommissionValue || '',        totalAmount: row.TotalAmount || '',
+        Date: row.Date ? new Date(row.Date).toISOString() : '',
+        commisionInfo: {
           id: row.CommissionInfo?.Id || undefined,
+          contractId: id || undefined,
           paymentTermsSeller: row.CommissionInfo?.PaymentTermsSeller || '',
           paymentTermsBuyer: row.CommissionInfo?.PaymentTermsBuyer || '',
           deliveryTerms: row.CommissionInfo?.DeliveryTerms || '',
@@ -2210,7 +2212,8 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
           endUseSubOptions: row.CommissionInfo?.EndUseSubOptions || '',
           dispatchLater: row.CommissionInfo?.DispatchLater || '',
           sellerCommission: row.CommissionInfo?.SellerCommission || '',
-          buyerCommission: row.CommissionInfo?.BuyerCommission || '',        },        buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
+          buyerCommission: row.CommissionInfo?.BuyerCommission || '',
+        },buyerDeliveryBreakups: buyerDeliveryBreakupsPayload,
         sellerDeliveryBreakups: sellerDeliveryBreakupsPayload,
       })),
       // Include deleted IDs for proper cleanup on backend
