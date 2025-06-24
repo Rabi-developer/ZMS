@@ -21,16 +21,16 @@ import { Contract } from '../contract/columns';
 // Schema for form validation
 const DispatchNoteSchema = z.object({
   listid: z.string().optional(),
-  Date: z.string().min(1, 'Date is required'),
-  Bilty: z.string().min(1, 'Bilty number is required'),
-  Seller: z.string().min(1, 'Seller is required'),
-  Buyer: z.string().min(1, 'Buyer is required'),
+  Date: z.string().optional(),
+  Bilty: z.string().optional(),
+  Seller: z.string().optional(),
+  Buyer: z.string().optional(),
   VehicleType: z.string().optional(),
   Remarks: z.string().optional(),
-  DriverName: z.string().min(1, 'Driver name is required'),
-  DriverNumber: z.string().min(1, 'Driver number is required'),
+  DriverName: z.string().optional(),
+  DriverNumber: z.string().optional(),
   Transporter: z.string().optional(),
-  Destination: z.string().min(1, 'Destination is required'),
+  Destination: z.string().optional(),
 });
 
 type FormData = z.infer<typeof DispatchNoteSchema>;
