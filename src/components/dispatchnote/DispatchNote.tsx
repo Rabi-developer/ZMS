@@ -49,6 +49,10 @@ interface ContractRow {
   dispatchQty: string;
   addQuantity: string;
   balanceQuantity: string;
+  totalDispatchQuantity?: string;
+  editModeInitialTotal?: string;
+  editModeInitialBalance?: string;
+  relatedContractId?: string; // Store the original related contract ID for edit mode
   isSelected: boolean;
   fabricDetails: Partial<Contract>;
   contractType: 'Conversion' | 'Diet' | 'MultiWidth';
@@ -89,12 +93,18 @@ interface DispatchNoteData {
     contractNumber: string;
     seller: string;
     buyer: string;
+    widthOrColor?: string;
+    buyerRefer?: string;
+    fabricDetails?: string;
     date: string;
     quantity: string;
     rate: string;
     totalAmount: string;
     base: string;
     dispatchQty: string;
+    TotalDispatchQuantity?: string; // Match API response field name
+    totalDispatchQuantity?: string; // Keep for backward compatibility
+    balanceQuantity?: string;
     contractType: 'Conversion' | 'Diet' | 'MultiWidth';
   }[];
 }
@@ -261,10 +271,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
         let updatedContracts: ExtendedContract[] = [];
 
         if (isEdit && initialData?.relatedContracts) {
-          const relatedContractMap = new Map(
-            initialData.relatedContracts.map((rc) => [`${rc.contractId}:${rc.id}`, rc])
-          );
-
+          // In edit mode, we don't need to modify dispatch quantities here
+          // The filtering and data population will happen in the useEffect
           updatedContracts = response.data
             .map((contract: Contract) => {
               const contractRows: ContractRow[] = [];
@@ -273,14 +281,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
               // Conversion Contract Rows
               contract.conversionContractRow?.forEach((row, index) => {
                 const rowId = `${contract.id}:${row.id}`;
-                const relatedContract = relatedContractMap.get(rowId);
                 const quantity = row.quantity || '0';
                 const rate = row.fabRate || row.rate || contract.rate || '0';
-                const dispatchQty = relatedContract?.dispatchQty || '0';
-                const addQuantity = dispatchQty;
-                const balanceQuantity = (
-                  parseFloat(quantity) - parseFloat(dispatchQty)
-                ).toString();
 
                 contractRows.push({
                   rowId,
@@ -292,11 +294,11 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   date: contract.date || '',
                   quantity,
                   rate,
-                  base: relatedContract?.base || '',
-                  dispatchQty,
-                  addQuantity,
-                  balanceQuantity,
-                  isSelected: relatedContract?.contractNumber === initialData.contractNumber,
+                  base: '0',
+                  dispatchQty: '0',
+                  addQuantity: '0',
+                  balanceQuantity: quantity,
+                  isSelected: false,
                   fabricDetails: contract,
                   contractType: 'Conversion',
                   isFirstRow: index === 0,
@@ -308,14 +310,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
               // Diet Contract Rows
               contract.dietContractRow?.forEach((row, index) => {
                 const rowId = `${contract.id}:${row.id}`;
-                const relatedContract = relatedContractMap.get(rowId);
                 const quantity = row.quantity || '0';
                 const rate = row.rate || contract.rate || '0';
-                const dispatchQty = relatedContract?.dispatchQty || '0';
-                const addQuantity = dispatchQty;
-                const balanceQuantity = (
-                  parseFloat(quantity) - parseFloat(dispatchQty)
-                ).toString();
 
                 contractRows.push({
                   rowId,
@@ -327,11 +323,11 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   date: contract.date || '',
                   quantity,
                   rate,
-                  base: relatedContract?.base || '',
-                  dispatchQty,
-                  addQuantity,
-                  balanceQuantity,
-                  isSelected: relatedContract?.contractNumber === initialData.contractNumber,
+                  base: '0',
+                  dispatchQty: '0',
+                  addQuantity: '0',
+                  balanceQuantity: quantity,
+                  isSelected: false,
                   fabricDetails: contract,
                   contractType: 'Diet',
                   isFirstRow: index === 0 && contract.conversionContractRow.length === 0,
@@ -343,14 +339,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
               // MultiWidth Contract Rows
               contract.multiWidthContractRow?.forEach((row, index) => {
                 const rowId = `${contract.id}:${row.id}`;
-                const relatedContract = relatedContractMap.get(rowId);
                 const quantity = row.quantity || '0';
                 const rate = row.rate || contract.rate || '0';
-                const dispatchQty = relatedContract?.dispatchQty || '0';
-                const addQuantity = dispatchQty;
-                const balanceQuantity = (
-                  parseFloat(quantity) - parseFloat(dispatchQty)
-                ).toString();
 
                 contractRows.push({
                   rowId,
@@ -362,11 +352,11 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   date: contract.date || '',
                   quantity,
                   rate,
-                  base: relatedContract?.base || '',
-                  dispatchQty,
-                  addQuantity,
-                  balanceQuantity,
-                  isSelected: relatedContract?.contractNumber === initialData.contractNumber,
+                  base: '0',
+                  dispatchQty: '0',
+                  addQuantity: '0',
+                  balanceQuantity: quantity,
+                  isSelected: false,
                   fabricDetails: contract,
                   contractType: 'MultiWidth',
                   isFirstRow:
@@ -622,26 +612,40 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
   // Filter contract rows by Seller and Buyer
   useEffect(() => {
     let filteredRows: ContractRow[] = [];
-  console.log("z-test-2", initialData?.relatedContracts)
+    console.log("z-test-2", initialData?.relatedContracts)
+    
     if (isEdit && initialData?.relatedContracts) {
       filteredRows = contracts
         .flatMap((contract) => contract.contractRows)
         .filter((row) =>
           initialData.relatedContracts!.some(
-            (rc) => rc.contractNumber === row.contractNumber  // Line 630
+            (rc) => rc.contractNumber === row.contractNumber && 
+                   rc.contractType === row.contractType
           )
         );
 
+      // Map the initial data to the filtered rows
       filteredRows.forEach((row) => {
-    if (initialData?.relatedContracts) {
-      // If you want to assign a specific base, you may need to find the matching contract
-      const matched = initialData.relatedContracts.find(rc => rc.contractNumber === row.contractNumber);
-      if (matched) {
-        row.base = matched.base;
-      }
-     
-    }
-  });
+        if (initialData?.relatedContracts) {
+          const matched = initialData.relatedContracts.find(rc => 
+            rc.contractNumber === row.contractNumber && 
+            rc.contractType === row.contractType &&
+            rc.widthOrColor === (row.width || row.color)
+          );
+          if (matched) {
+            // Only set initial values if they haven't been set yet
+            if (!row.editModeInitialTotal) {
+              row.base = matched.base || '0';
+              row.dispatchQty = '0'; // Start with 0 for new dispatch
+              // Handle both field name variations from API
+              row.totalDispatchQuantity = matched.TotalDispatchQuantity || matched.totalDispatchQuantity || '0';
+              row.balanceQuantity = matched.balanceQuantity || row.quantity;
+              row.editModeInitialTotal = matched.TotalDispatchQuantity || matched.totalDispatchQuantity || '0';
+              row.editModeInitialBalance = matched.balanceQuantity || row.quantity;
+            }
+          }
+        }
+      });
     } else {
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
       const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
@@ -657,7 +661,6 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
     }
 
     setFilteredContractRows(filteredRows);
-    // Line 648
     console.log("z-test", filteredRows)
   }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers]);
 
@@ -692,13 +695,24 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
         contractRows: contract.contractRows.map((row) => {
           if (row.rowId === rowId) {
             const updatedRow = { ...row, [field]: value };
+            
             if (field === 'dispatchQty') {
               const dispatchQty = parseFloat(value || '0');
               updatedRow.addQuantity = dispatchQty.toString();
               
-              // Calculate balance quantity considering history
+              // Calculate balance quantity considering edit mode
               let currentBalance = parseFloat(row.quantity || '0');
-              if (historyData && historyData.relatedContracts) {
+              let currentTotalDispatch = 0;
+              
+              if (isEdit && row.editModeInitialTotal && row.editModeInitialBalance) {
+                // In edit mode, use the initial values from the existing dispatch note
+                currentTotalDispatch = parseFloat(row.editModeInitialTotal) + dispatchQty;
+                currentBalance = parseFloat(row.editModeInitialBalance) - dispatchQty;
+                
+                // Update total dispatch quantity
+                updatedRow.totalDispatchQuantity = currentTotalDispatch.toString();
+              } else if (historyData && historyData.relatedContracts) {
+                // In add mode, use history data
                 const historyContract = historyData.relatedContracts.find(
                   (hc: any) => 
                     hc.contractNumber === row.contractNumber && 
@@ -707,9 +721,19 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 if (historyContract) {
                   currentBalance = parseFloat(historyContract.balanceQuantity || row.quantity);
                 }
+                currentBalance = currentBalance - dispatchQty;
+              } else {
+                // No history, calculate from contract quantity
+                currentBalance = parseFloat(row.quantity || '0') - dispatchQty;
               }
               
-              updatedRow.balanceQuantity = (currentBalance - dispatchQty).toString();
+              // Validate if dispatch quantity exceeds available balance
+              if (currentBalance < 0) {
+                toast('Dispatch quantity cannot exceed available balance!', { type: 'error' });
+                return row; // Don't update if validation fails
+              }
+              
+              updatedRow.balanceQuantity = currentBalance.toString();
             }
             return updatedRow;
           }
@@ -755,25 +779,37 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
       const relatedContracts = contracts
         .flatMap((contract) => contract.contractRows)
         .filter((row) => row.dispatchQty != '0')
-        .map((row) => ({
-          // id: row.rowId,
-         // contractId: row.contractId,
-          contractNumber: row.contractNumber,
-          seller: row.seller,
-          buyer: row.buyer,
-          fabricDetails: getFabricDetails(row),
-          date: row.date,
-          quantity: row.quantity,
-          widthOrColor : row.width || row.color,
-          buyerRefer: row.refer,
-          rate: row.rate,
-          totalAmount: (parseFloat(row.quantity) * parseFloat(row.rate || '0')).toString(),
-          base: row.base,
-          TotalDispatchQuantity : row.dispatchQty,
-          balanceQuantity: row.balanceQuantity,
-          dispatchQty: row.dispatchQty,
-          contractType: row.contractType,
-        }));
+        .map((row) => {
+          // Find the corresponding initial data for this row when editing
+          let existingId = null;
+          if (isEdit && initialData?.relatedContracts) {
+            const existingContract = initialData.relatedContracts.find(rc => 
+              rc.contractNumber === row.contractNumber && 
+              rc.contractType === row.contractType &&
+              rc.widthOrColor === (row.width || row.color)
+            );
+            existingId = existingContract?.id || null;
+          }
+
+          return {
+            ...(isEdit && existingId && { id: existingId }), // Include id only in edit mode and if it exists
+            contractNumber: row.contractNumber,
+            seller: row.seller,
+            buyer: row.buyer,
+            fabricDetails: getFabricDetails(row),
+            date: row.date,
+            quantity: row.quantity,
+            widthOrColor: row.width || row.color,
+            buyerRefer: row.refer,
+            rate: row.rate,
+            totalAmount: (parseFloat(row.quantity) * parseFloat(row.rate || '0')).toString(),
+            base: row.base,
+            TotalDispatchQuantity: row.dispatchQty,
+            balanceQuantity: row.balanceQuantity,
+            dispatchQty: row.dispatchQty,
+            contractType: row.contractType,
+          };
+        });
 
       if (relatedContracts.length === 0) {
         toast('Please fill at least one contract row with Base or Dispatch Quantity', { type: 'error' });
@@ -1085,7 +1121,9 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                                   <input
                                     type="text"
                                     value={
-                                      historyData && historyData.relatedContracts 
+                                      isEdit && row.totalDispatchQuantity 
+                                        ? row.totalDispatchQuantity
+                                        : historyData && historyData.relatedContracts 
                                         ? historyData.relatedContracts.find(
                                             (hc: any) => 
                                               hc.contractNumber === row.contractNumber && 
@@ -1101,13 +1139,15 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                                   <input
                                     type="text"
                                     value={
-                                      historyData && historyData.relatedContracts 
+                                      isEdit && row.balanceQuantity 
+                                        ? row.balanceQuantity
+                                        : historyData && historyData.relatedContracts 
                                         ? historyData.relatedContracts.find(
                                             (hc: any) => 
                                               hc.contractNumber === row.contractNumber && 
                                               hc.contractType === row.contractType
                                           )?.balanceQuantity || row.quantity
-                                        : row.balanceQuantity
+                                        : row.balanceQuantity || row.quantity
                                     }
                                     disabled
                                     className="w-full p-2 border border-gray-300 rounded bg-gray-100"
