@@ -61,6 +61,7 @@ interface ContractRow {
 interface ExtendedContract extends Contract {
   contractRows: ContractRow[];
   rowCount: number;
+  base: string;
 }
 
 interface DispatchNoteData {
@@ -399,7 +400,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 const rate = row.fabRate || row.rate || contract.rate || '0';
 
                 // Check for history data to populate fields
-                let historyBase = '';
+                let historyBase = '0';
                 let historyDispatchQty = '0';
                 let historyBalanceQty = quantity;
 
@@ -410,7 +411,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                       hc.contractType === 'Conversion'
                   );
                   if (historyContract) {
-                    historyBase = historyContract.base || '';
+                    historyBase = historyContract.base || '0';
                     historyDispatchQty = historyContract.totalDispatchQuantity || '0';
                     historyBalanceQty = historyContract.balanceQuantity || quantity;
                   }
@@ -426,7 +427,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   date: contract.date || '',
                   quantity,
                   rate,
-                  base: historyBase,
+                  base: '0',
                   dispatchQty: '0', // Keep this as 0 for new dispatch
                   addQuantity: '0',
                   balanceQuantity: historyBalanceQty,
@@ -446,7 +447,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 const rate = row.rate || contract.rate || '0';
 
                 // Check for history data to populate fields
-                let historyBase = '';
+                let historyBase = '0';
                 let historyDispatchQty = '0';
                 let historyBalanceQty = quantity;
 
@@ -457,7 +458,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                       hc.contractType === 'Diet'
                   );
                   if (historyContract) {
-                    historyBase = historyContract.base || '';
+                    historyBase = historyContract.base || '0';
                     historyDispatchQty = historyContract.totalDispatchQuantity || '0';
                     historyBalanceQty = historyContract.balanceQuantity || quantity;
                   }
@@ -473,7 +474,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   date: contract.date || '',
                   quantity,
                   rate,
-                  base: historyBase,
+                  base:'0',
                   dispatchQty: '0', // Keep this as 0 for new dispatch
                   addQuantity: '0',
                   balanceQuantity: historyBalanceQty,
@@ -493,7 +494,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 const rate = row.rate || contract.rate || '0';
 
                 // Check for history data to populate fields
-                let historyBase = '';
+                let historyBase = '0';
                 let historyDispatchQty = '0';
                 let historyBalanceQty = quantity;
 
@@ -504,7 +505,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                       hc.contractType === 'MultiWidth'
                   );
                   if (historyContract) {
-                    historyBase = historyContract.base || '';
+                    historyBase = historyContract.base || '0';
                     historyDispatchQty = historyContract.totalDispatchQuantity || '0';
                     historyBalanceQty = historyContract.balanceQuantity || quantity;
                   }
@@ -621,15 +622,26 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
   // Filter contract rows by Seller and Buyer
   useEffect(() => {
     let filteredRows: ContractRow[] = [];
-
+  console.log("z-test-2", initialData?.relatedContracts)
     if (isEdit && initialData?.relatedContracts) {
       filteredRows = contracts
         .flatMap((contract) => contract.contractRows)
         .filter((row) =>
           initialData.relatedContracts!.some(
-            (rc) => rc.contractNumber === row.contractNumber && rc.id === row.rowId
+            (rc) => rc.contractNumber === row.contractNumber  // Line 630
           )
         );
+
+      filteredRows.forEach((row) => {
+    if (initialData?.relatedContracts) {
+      // If you want to assign a specific base, you may need to find the matching contract
+      const matched = initialData.relatedContracts.find(rc => rc.contractNumber === row.contractNumber);
+      if (matched) {
+        row.base = matched.base;
+      }
+     
+    }
+  });
     } else {
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
       const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
@@ -645,6 +657,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
     }
 
     setFilteredContractRows(filteredRows);
+    // Line 648
+    console.log("z-test", filteredRows)
   }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers]);
 
   // Fetch data on mount
