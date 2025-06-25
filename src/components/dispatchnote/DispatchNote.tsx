@@ -778,7 +778,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
     try {
       const relatedContracts = contracts
         .flatMap((contract) => contract.contractRows)
-        .filter((row) => row.dispatchQty != '0')
+        .filter((row) => row.dispatchQty != '0' || isEdit)
         .map((row) => {
           // Find the corresponding initial data for this row when editing
           let existingId = null;
