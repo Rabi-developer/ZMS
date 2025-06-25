@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 export type DispatchNote = {
   id: string;
+  status: string;
   listid: string;
   date: string;
   bilty: string;
@@ -45,6 +46,23 @@ export type DispatchNote = {
   }[];
 };
 
+export const getStatusStyles = (status: string) => {
+  switch (status) {
+    case 'Prepared':
+      return 'bg-[#eab308]/10 text-[#eab308] border-[#eab308]';
+    case 'Approved':
+      return 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]';
+    case 'Canceled':
+      return 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]';
+    case 'Closed':
+      return 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]';
+    case 'UnApproved':
+      return 'bg-[#8b5cf6]/10 text-[#8b5cf6] border-[#8b5cf6]';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-300';
+  }
+};
+
 export const columns = (
   handleDeleteOpen: (id: string) => void,
   handleViewOpen: (id: string) => void,
@@ -66,24 +84,13 @@ export const columns = (
         checked={row.getIsSelected()}
         onChange={(e) => {
           row.getToggleSelectedHandler()(e);
-          handleCheckboxChange(row.original.id, e.target.checked);
+        handleCheckboxChange(row.original.id, e.target.checked);
         }}
         className="h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
+        
       />
     ),
   },
-  // {
-  //   accessorKey: 'listid',
-  //   header: ({ column }) => (
-  //     <Button
-  //       variant="ghost"
-  //       onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-  //     >
-  //       ID
-  //       <ArrowUpDown className="ml-2 h-4 w-4" />
-  //     </Button>
-  //   ),
-  // },
   {
     accessorKey: 'date',
     header: ({ column }) => (
@@ -109,17 +116,26 @@ export const columns = (
     header: 'Buyer',
   },
   {
-    accessorKey: 'remarks',
-    header: 'Vechile#',
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <span
+        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
+          row.original.status || 'Pending'
+        )}`}
+      >
+        {row.original.status || 'Pending'}
+      </span>
+    ),
   },
   {
     accessorKey: 'vehicleType',
     header: 'Vehicle Type',
   },
-  // {
-  //   accessorKey: 'vehicle',
-  //   header: 'Vehicle',
-  // },
+  {
+    accessorKey: 'vehicle',
+    header: 'Vehicle',
+  },
   {
     accessorKey: 'contractNumber',
     header: 'Contract Number',
