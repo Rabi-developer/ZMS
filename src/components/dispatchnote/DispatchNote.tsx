@@ -511,7 +511,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   date: contract.date || '',
                   quantity,
                   rate,
-                  base: historyBase,
+                  base: '0',
                   dispatchQty: '0', // Keep this as 0 for new dispatch
                   addQuantity: '0',
                   balanceQuantity: historyBalanceQty,
@@ -683,65 +683,60 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
       }))
     );
   };
-  // Handle Base and Dispatch Qty input changes
-  const handleContractInputChange = (
-    rowId: string,
-    field: 'base' | 'dispatchQty',
-    value: string
-  ) => {
-    setContracts((prev) =>
-      prev.map((contract) => ({
-        ...contract,
-        contractRows: contract.contractRows.map((row) => {
-          if (row.rowId === rowId) {
-            const updatedRow = { ...row, [field]: value };
-            
-            if (field === 'dispatchQty') {
-              const dispatchQty = parseFloat(value || '0');
-              updatedRow.addQuantity = dispatchQty.toString();
-              
-              // Calculate balance quantity considering edit mode
-              let currentBalance = parseFloat(row.quantity || '0');
-              let currentTotalDispatch = 0;
-              
-              if (isEdit && row.editModeInitialTotal && row.editModeInitialBalance) {
-                // In edit mode, use the initial values from the existing dispatch note
-                currentTotalDispatch = parseFloat(row.editModeInitialTotal) + dispatchQty;
-                currentBalance = parseFloat(row.editModeInitialBalance) - dispatchQty;
-                
-                // Update total dispatch quantity
-                updatedRow.totalDispatchQuantity = currentTotalDispatch.toString();
-              } else if (historyData && historyData.relatedContracts) {
-                // In add mode, use history data
-                const historyContract = historyData.relatedContracts.find(
-                  (hc: any) => 
-                    hc.contractNumber === row.contractNumber && 
-                    hc.contractType === row.contractType
-                );
-                if (historyContract) {
-                  currentBalance = parseFloat(historyContract.balanceQuantity || row.quantity);
-                }
-                currentBalance = currentBalance - dispatchQty;
-              } else {
-                // No history, calculate from contract quantity
-                currentBalance = parseFloat(row.quantity || '0') - dispatchQty;
+ const handleContractInputChange = (
+  rowId: string,
+  field: 'base' | 'dispatchQty',
+  value: string
+) => {
+  setContracts((prev) =>
+    prev.map((contract) => ({
+      ...contract,
+      contractRows: contract.contractRows.map((row) => {
+        if (row.rowId === rowId) {
+          // Only update the targeted row
+          const updatedRow = { ...row, [field]: value };
+
+          if (field === 'dispatchQty') {
+            const dispatchQty = parseFloat(value || '0');
+            updatedRow.addQuantity = dispatchQty.toString();
+
+            // Calculate balance quantity considering edit mode
+            let currentBalance = parseFloat(row.quantity || '0');
+            let currentTotalDispatch = 0;
+
+            if (isEdit && row.editModeInitialTotal && row.editModeInitialBalance) {
+              currentTotalDispatch = parseFloat(row.editModeInitialTotal) + dispatchQty;
+              currentBalance = parseFloat(row.editModeInitialBalance) - dispatchQty;
+              updatedRow.totalDispatchQuantity = currentTotalDispatch.toString();
+            } else if (historyData && historyData.relatedContracts) {
+              const historyContract = historyData.relatedContracts.find(
+                (hc: any) =>
+                  hc.contractNumber === row.contractNumber &&
+                  hc.contractType === row.contractType
+              );
+              if (historyContract) {
+                currentBalance = parseFloat(historyContract.balanceQuantity || row.quantity);
               }
-              
-              // Validate if dispatch quantity exceeds available balance
-              if (currentBalance < 0) {
-                toast('Dispatch quantity cannot exceed available balance!', { type: 'error' });
-                return row; // Don't update if validation fails
-              }
-              
-              updatedRow.balanceQuantity = currentBalance.toString();
+              currentBalance = currentBalance - dispatchQty;
+            } else {
+              currentBalance = parseFloat(row.quantity || '0') - dispatchQty;
             }
-            return updatedRow;
+
+            if (currentBalance < 0) {
+              toast('Dispatch quantity cannot exceed available balance!', { type: 'error' });
+              return row; // Don't update if validation fails
+            }
+
+            updatedRow.balanceQuantity = currentBalance.toString();
           }
-          return row;
-        }),
-      }))
-    );
-  };
+          return updatedRow;
+        }
+        // For all other rows, return as is (do not update)
+        return row;
+      }),
+    }))
+  );
+};
 
   // Handle row click to update selected contract info
   const handleRowClick = (rowId: string, isSelected: boolean, contractType: string, contractNumber: string, rowIndex: number) => {
@@ -1008,10 +1003,11 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                           <th className="p-4 font-medium">Fabric Details</th>
                           <th className="p-4 font-medium">Contract Date</th>
                           <th className="p-4 font-medium">Contract Qty</th>
-                          <th className="p-4 font-medium">Bale / Role</th>
-                          <th className="p-4 font-medium">Dispatch Qty</th>
                           <th className="p-4 font-medium">Total Dispatch Quantity</th>
                           <th className="p-4 font-medium">Balance Qty</th>
+                          <th className="p-4 font-medium">Bale / Role</th>
+                          <th className="p-4 font-medium">Dispatch Qty</th>
+                         
                         </tr>
                       </thead>
                       <tbody className={filteredContractRows.length >= 5 ? " " : ""}>
@@ -1097,6 +1093,29 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                                 <td className="p-4">{row.isFirstRow ? row.date || '-' : ''}</td>
                                 <td className="p-4">{row.quantity || '0'}</td>
                                 <td className="p-4">
+  <input
+    type="text"
+    value={
+      parseFloat(row.balanceQuantity || '0') === 0
+        ? row.quantity || '0'
+        : (parseFloat(row.quantity || '0') - parseFloat(row.balanceQuantity || '0')).toString()
+    }
+    disabled
+    className="w-full p-2 border border-gray-300 rounded bg-gray-100"
+    onClick={(e) => e.stopPropagation()}
+  />
+</td>
+<td className="p-4">
+  <input
+    type="text"
+    value={row.balanceQuantity || row.quantity}
+    disabled
+    className="w-full p-2 border border-gray-300 rounded bg-gray-100"
+    onClick={(e) => e.stopPropagation()}
+  />
+</td>
+    
+                                <td className="p-4">
                                   <input
                                     type="text"
                                     value={row.base || ''}
@@ -1107,54 +1126,18 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                                     onClick={(e) => e.stopPropagation()}
                                   />
                                 </td>
-                                <td className="p-4">
-                                  <input
-                                    type="text"
-                                    value={row.dispatchQty || ''}
-                                    onChange={(e) =>
-                                      handleContractInputChange(row.rowId, 'dispatchQty', e.target.value)
-                                    }
-                                    className="w-full p-2 border border-gray-300 rounded bg-white"
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                </td>                                <td className="p-4">
-                                  <input
-                                    type="text"
-                                    value={
-                                      isEdit && row.totalDispatchQuantity 
-                                        ? row.totalDispatchQuantity
-                                        : historyData && historyData.relatedContracts 
-                                        ? historyData.relatedContracts.find(
-                                            (hc: any) => 
-                                              hc.contractNumber === row.contractNumber && 
-                                              hc.contractType === row.contractType
-                                          )?.totalDispatchQuantity || '0'
-                                        : '0'
-                                    }
-                                    disabled
-                                    className="w-full p-2 border border-gray-300 rounded bg-gray-100"
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                </td>                                <td className="p-4">
-                                  <input
-                                    type="text"
-                                    value={
-                                      isEdit && row.balanceQuantity 
-                                        ? row.balanceQuantity
-                                        : historyData && historyData.relatedContracts 
-                                        ? historyData.relatedContracts.find(
-                                            (hc: any) => 
-                                              hc.contractNumber === row.contractNumber && 
-                                              hc.contractType === row.contractType
-                                          )?.balanceQuantity || row.quantity
-                                        : row.balanceQuantity || row.quantity
-                                    }
-                                    disabled
-                                    className="w-full p-2 border border-gray-300 rounded bg-gray-100"
-                                    onClick={(e) => e.stopPropagation()}
-                                  />
-                                </td>
-                              </tr>
+                               <td className="p-4">
+                              <input
+                              type="text"
+                              value={row.dispatchQty || ''}
+                              onChange={(e) =>
+                              handleContractInputChange(row.rowId, 'dispatchQty', e.target.value)
+                              }
+                              className="w-full p-2 border border-gray-300 rounded bg-white"
+                               onClick={(e) => e.stopPropagation()}
+                               />
+                            </td>
+                       </tr>
                             </>
                           );
                         })}
@@ -1169,13 +1152,12 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
               )}
             </div>
           </div>
-
           <div className="w-full h-[8vh] flex justify-end gap-4 mt-4 px-4 bg-white border-t-2 border-[#e0e0e0]">
             <Button
               type="submit"
               className="w-[160px] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
             >
-              Save
+            {isEdit ? "Update" : "Submit"}            
             </Button>
             <Link href="/dispatchnote">
               <Button

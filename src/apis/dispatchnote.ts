@@ -90,14 +90,14 @@ const deleteDispatchNote = async (id: string) => {
   }
 };
 
-const updateDispatchNoteStatus = async (DispatchNoteStatus: { id: string; status: string }) => {
+const updateDispatchNoteStatus = async (dispatchnotestatus: { id: string; status: string }) => {
   try {
-    const response = await apiFetch('DispatchNote/status', {
+    const response = await apiFetch('DispatchNote/Status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ Id: DispatchNoteStatus.id, Status: DispatchNoteStatus.status }),
+      body: JSON.stringify({ Id: dispatchnotestatus.id, Status: dispatchnotestatus.status }),
     }, true);
     return response;
   } catch (error: any) {

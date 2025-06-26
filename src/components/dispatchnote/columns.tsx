@@ -74,7 +74,11 @@ export const columns = (
       <input
         type="checkbox"
         checked={table.getIsAllRowsSelected()}
-        onChange={table.getToggleAllRowsSelectedHandler()}
+        onChange={(e) => {
+          table.toggleAllRowsSelected(e.target.checked);
+          const rowIds = e.target.checked ? table.getRowModel().rows.map((row) => row.original.id) : [];
+          handleCheckboxChange('all', e.target.checked);
+        }}
         className="h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
       />
     ),
@@ -83,11 +87,10 @@ export const columns = (
         type="checkbox"
         checked={row.getIsSelected()}
         onChange={(e) => {
-          row.getToggleSelectedHandler()(e);
-        handleCheckboxChange(row.original.id, e.target.checked);
+          row.toggleSelected(e.target.checked);
+          handleCheckboxChange(row.original.id, e.target.checked);
         }}
         className="h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
-        
       />
     ),
   },
@@ -132,10 +135,10 @@ export const columns = (
     accessorKey: 'vehicleType',
     header: 'Vehicle Type',
   },
-  {
-    accessorKey: 'vehicle',
-    header: 'Vehicle',
-  },
+  // {
+  //   accessorKey: 'vehicle',
+  //   header: 'Vehicle',
+  // },
   {
     accessorKey: 'contractNumber',
     header: 'Contract Number',

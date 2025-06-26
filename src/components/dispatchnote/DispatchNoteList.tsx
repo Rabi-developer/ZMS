@@ -4,31 +4,27 @@ import { toast } from 'react-toastify';
 import { columns, DispatchNote } from './columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllDispatchNotes, deleteDispatchNote , updateDispatchNoteStatus } from '@/apis/dispatchnote';
+import { getAllDispatchNotes, deleteDispatchNote, updateDispatchNoteStatus } from '@/apis/dispatchnote';
 import { MdLocalShipping } from 'react-icons/md';
-import DispatchPDFExport from './DispatchPDFExport'; // Import the PDF export module
-import { FiDownload } from 'react-icons/fi'; // Optional: Icon for the button
+import DispatchPDFExport from './DispatchPDFExport';
+import { FiDownload } from 'react-icons/fi';
 import { FaCheck, FaFileExcel } from 'react-icons/fa';
-
 
 const DispatchNoteList = () => {
   const [dispatchNotes, setDispatchNotes] = React.useState<DispatchNote[]>([]);
+  const [filteredDispatchNotes, setFilteredDispatchNotes] = React.useState<DispatchNote[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [openDelete, setOpenDelete] = React.useState(false);
   const [openView, setOpenView] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState('');
   const [selectedDispatchNote, setSelectedDispatchNote] = React.useState<DispatchNote | null>(null);
-  const [selectedDispatchNoteIds, setSelectedDispatchNoteIds] = React.useState<string[]>([]);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = React.useState<string[]>([]);
   const [pageIndex, setPageIndex] = React.useState(0);
   const [pageSize, setPageSize] = React.useState(10);
-  const [filteredInvoices, setFilteredInvoices] = React.useState<DispatchNote[]>([]);
   const [selectedStatusFilter, setSelectedStatusFilter] = React.useState<string>('All');
   const [selectedBulkStatus, setSelectedBulkStatus] = React.useState<string | null>(null);
-  const [selectedInvoiceIds, setSelectedInvoiceIds] = React.useState<string[]>([]);
   const [updating, setUpdating] = React.useState(false);
-  
-    
-  // Status options aligned with getStatusStyles
+
   const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'Closed', 'UnApproved'];
 
   const statusOptionsConfig = [
@@ -39,12 +35,12 @@ const DispatchNoteList = () => {
     { id: 5, name: 'UnApproved', color: '#8b5cf6' },
   ];
 
+  // Fetch dispatch notes
   const fetchDispatchNotes = async () => {
     try {
       setLoading(true);
-      const response = await getAllDispatchNotes(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      const response = await getAllDispatchNotes(pageIndex + 1, pageSize);
       setDispatchNotes(response.data);
-      console.log('Fetched dispatch notes:', response.data);
     } catch (error) {
       console.error('Error fetching dispatch notes:', error);
       toast('Failed to fetch dispatch notes', { type: 'error' });
@@ -52,6 +48,15 @@ const DispatchNoteList = () => {
       setLoading(false);
     }
   };
+
+  // Apply status filter
+  React.useEffect(() => {
+    let filtered = dispatchNotes;
+    if (selectedStatusFilter !== 'All') {
+      filtered = dispatchNotes.filter((note) => note.status === selectedStatusFilter);
+    }
+    setFilteredDispatchNotes(filtered);
+  }, [dispatchNotes, selectedStatusFilter]);
 
   React.useEffect(() => {
     fetchDispatchNotes();
@@ -90,80 +95,54 @@ const DispatchNoteList = () => {
     setSelectedDispatchNote(null);
   };
 
-  const handleDispatchNoteCheckboxChange = (dispatchNoteId: string, checked: boolean) => {
-    setSelectedDispatchNoteIds((prev) =>
-      checked ? [...prev, dispatchNoteId] : prev.filter((id) => id !== dispatchNoteId)
-    );
-  };
-  
-  
-  const handleCheckboxChange = (invoiceId: string, checked: boolean) => {
-    setSelectedInvoiceIds((prev) => {
-      const newSelectedIds = checked
-        ? [...prev, invoiceId]
-        : prev.filter((id) => id !== invoiceId);
-
-      if (newSelectedIds.length === 0) {
-        setSelectedBulkStatus(null);
-      } else if (newSelectedIds.length === 1) {
-        const selectedInvoice = dispatchNotes.find((inv) => inv.id === newSelectedIds[0]);
-        setSelectedBulkStatus(selectedInvoice?.status || 'Pending');
-      } else {
-        const selectedInvoices = dispatchNotes.filter((inv) => newSelectedIds.includes(inv.id));
-        const statuses = selectedInvoices.map((inv) => inv.status || 'Pending');
-        const allSameStatus = statuses.every((status) => status === statuses[0]);
-        setSelectedBulkStatus(allSameStatus ? statuses[0] : null);
-      }
-
-      return newSelectedIds;
-    });
+  const handleCheckboxChange = (dispatchNoteId: string, checked: boolean, rowIds?: string[]) => {
+    if (dispatchNoteId === 'all' && rowIds) {
+      setSelectedInvoiceIds(checked ? rowIds : []);
+    } else {
+      setSelectedInvoiceIds((prev) =>
+        checked ? [...prev, dispatchNoteId] : prev.filter((id) => id !== dispatchNoteId)
+      );
+    }
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
-      if (selectedInvoiceIds.length === 0) {
-        toast('Please select at least one invoice', { type: 'warning' });
-        return;
-      }
-      try {
-        setUpdating(true);
-        const updatePromises = selectedInvoiceIds.map((id) =>
-          updateDispatchNoteStatus({ id, status: newStatus })
-        );
-        await Promise.all(updatePromises);
-        setSelectedBulkStatus(newStatus);
-        setSelectedInvoiceIds([]);
-        setSelectedStatusFilter(newStatus);
-        toast('Invoices Status Updated Successfully', { type: 'success' });
-        await fetchDispatchNotes();
-      } catch (error: any) {
-        toast(`Failed to update invoice status: ${error.message || 'Unknown error'}`, { type: 'error' });
-      } finally {
-        setUpdating(false);
-      }
-    };
-  // Handle PDF download for selected dispatch notes
+    if (selectedInvoiceIds.length === 0) {
+      toast('Please select at least one dispatch note', { type: 'warning' });
+      return;
+    }
+    try {
+      setUpdating(true);
+      const updatePromises = selectedInvoiceIds.map((id) =>
+        updateDispatchNoteStatus({ id, status: newStatus })
+      );
+      await Promise.all(updatePromises);
+      setSelectedBulkStatus(newStatus);
+      setSelectedInvoiceIds([]);
+      toast('Dispatch Notes Status Updated Successfully', { type: 'success' });
+      await fetchDispatchNotes();
+    } catch (error: any) {
+      toast(`Failed to update status: ${error.message || 'Unknown error'}`, { type: 'error' });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleDownloadPDF = async () => {
-    if (selectedDispatchNoteIds.length === 0) {
+    if (selectedInvoiceIds.length === 0) {
       toast('No dispatch notes selected', { type: 'warning' });
       return;
     }
-
     try {
-      for (const id of selectedDispatchNoteIds) {
+      for (const id of selectedInvoiceIds) {
         const dispatchNote = dispatchNotes.find((dn) => dn.id === id);
         if (dispatchNote) {
-          // Ensure 'destination' is always a string
-          const safeDispatchNote = {
-            ...dispatchNote,
-            destination: dispatchNote.destination ?? '',
-          };
           await DispatchPDFExport.exportToPDF({
-            dispatchNote: safeDispatchNote,
-            sellerSignature: undefined, // Add actual signature if available
-            buyerSignature: undefined, // Add actual signature if available
-            zmsSignature: undefined, // Add actual signature if available
-            sellerAddress: undefined, // Will be fetched in exportToPDF
-            buyerAddress: undefined, // Will be fetched in exportToPDF
+            dispatchNote: { ...dispatchNote, destination: dispatchNote.destination ?? '' },
+            sellerSignature: undefined,
+            buyerSignature: undefined,
+            zmsSignature: undefined,
+            sellerAddress: undefined,
+            buyerAddress: undefined,
           });
         }
       }
@@ -174,11 +153,8 @@ const DispatchNoteList = () => {
     }
   };
 
-  // Define all columns for related contracts
   const relatedContractColumns = [
     { header: 'Contract #', accessor: 'contractNumber' },
-    //{ header: 'Seller', accessor: 'seller' },
-  //  { header: 'Buyer#', accessor: 'buyerRefer' },
     { header: 'Width/Color', accessor: 'widthOrColor' },
     { header: 'Buyer Refer', accessor: 'buyerRefer' },
     { header: 'Fabric Details', accessor: 'fabricDetails' },
@@ -193,41 +169,36 @@ const DispatchNoteList = () => {
 
   return (
     <div className="container bg-white rounded-md p-6">
-      {/* Download PDF Button */}
-      <div className='flex flex-wrap gap-5 '>
-         <div className="flex items-center">
-            <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
-            <select
-              value={selectedStatusFilter}
-              onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-            >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-
-           {selectedDispatchNoteIds.length > 0 && (
-        <div className="">
+      <div className="flex flex-wrap gap-5">
+        <div className="flex items-center">
+          <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
+          <select
+            value={selectedStatusFilter}
+            onChange={(e) => setSelectedStatusFilter(e.target.value)}
+            className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          >
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
+        {selectedInvoiceIds.length > 0 && (
           <button
             onClick={handleDownloadPDF}
             className="flex items-center px-4 py-2 bg-[#06b6d4] text-white rounded-md hover:bg-cyan-700 transition-colors duration-200"
             disabled={loading}
           >
             <FiDownload className="mr-2" />
-            Download PDF{selectedDispatchNoteIds.length > 1 ? 's' : ''} ({selectedDispatchNoteIds.length})
+            Download PDF{selectedInvoiceIds.length > 1 ? 's' : ''} ({selectedInvoiceIds.length})
           </button>
-        </div>
-      )}
+        )}
       </div>
-     
 
       <DataTable
-        columns={columns(handleDeleteOpen, handleViewOpen, handleDispatchNoteCheckboxChange)}
-        data={dispatchNotes}
+        columns={columns(handleDeleteOpen, handleViewOpen, handleCheckboxChange)}
+        data={filteredDispatchNotes}
         loading={loading}
         link={'/dispatchnote/create'}
         setPageIndex={setPageIndex}
@@ -235,7 +206,8 @@ const DispatchNoteList = () => {
         pageSize={pageSize}
         setPageSize={setPageSize}
       />
- <div className="mt-4 space-y-2 border-t-2 border-b-2 py-3">
+
+      <div className="mt-4 space-y-2 border-t-2 border-b-2 py-3">
         <div className="flex flex-wrap gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -259,11 +231,12 @@ const DispatchNoteList = () => {
           })}
         </div>
       </div>
-      {selectedDispatchNoteIds.length > 0 && (
+
+      {selectedInvoiceIds.length > 0 && (
         <div className="mt-4">
           <h2 className="text-xl text-[#06b6d4] font-bold">Related Contracts for Selected Dispatch Notes</h2>
           <div className="border rounded p-4 mt-2">
-            {selectedDispatchNoteIds.map((id) => {
+            {selectedInvoiceIds.map((id) => {
               const dispatchNote = dispatchNotes.find((dn) => dn.id === id);
               if (!dispatchNote || !dispatchNote.relatedContracts?.length) {
                 return (
@@ -311,7 +284,7 @@ const DispatchNoteList = () => {
       )}
 
       {openView && selectedDispatchNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 ">
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
           <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
             <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-5 flex justify-between items-center">
               <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
