@@ -687,74 +687,60 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
     );
   };
  const handleContractInputChange = (
-  rowId: string,
-  field: 'base' | 'dispatchQty',
-  value: string
-) => {
-  setContracts((prev) =>
-    prev.map((contract) => ({
-      ...contract,
-      contractRows: contract.contractRows.map((row) => {
-        if (row.rowId === rowId) {
-          // Only update the targeted row
-          const updatedRow = { ...row, [field]: value };
+    rowId: string,
+    field: 'base' | 'dispatchQty',
+    value: string
+  ) => {
+    setContracts((prev) =>
+      prev.map((contract) => ({
+        ...contract,
+        contractRows: contract.contractRows.map((row) => {
+          if (row.rowId === rowId) {
+            const updatedRow = { ...row, [field]: value };
 
-          if (field === 'dispatchQty') {
-            const dispatchQty = parseFloat(value || '0');
-            updatedRow.addQuantity = dispatchQty.toString();
+            if (field === 'dispatchQty') {
+              const dispatchQty = parseFloat(value || '0');
+              updatedRow.addQuantity = dispatchQty.toString();
 
-            // Calculate balance quantity considering edit mode - only for this specific row
-            let currentBalance = parseFloat(row.quantity || '0');
-            let currentTotalDispatch = dispatchQty;
+              let currentBalance = parseFloat(row.quantity || '0');
+              let currentTotalDispatch = dispatchQty;
 
-            if (isEdit && row.editModeInitialTotal && row.editModeInitialBalance) {
-              // In edit mode, add new dispatch to existing total
-              currentTotalDispatch = parseFloat(row.editModeInitialTotal) + dispatchQty;
-              // Calculate balance from the initial balance minus new dispatch
-              currentBalance = parseFloat(row.editModeInitialBalance) - dispatchQty;
-              updatedRow.totalDispatchQuantity = currentTotalDispatch.toString();
-            } else if (historyData && historyData.relatedContracts) {
-              // Find history for this specific row (match by contract number, type, and width/color)
-              const historyContract = historyData.relatedContracts.find(
-                (hc: any) =>
-                  hc.contractNumber === row.contractNumber &&
-                  hc.contractType === row.contractType &&
-                  hc.widthOrColor === (row.width || row.color)
-              );
-              if (historyContract) {
-                // Use the specific row's balance from history
-                const historyBalance = parseFloat(historyContract.balanceQuantity || row.quantity);
-                currentBalance = historyBalance - dispatchQty;
-                // Add to existing total dispatch for this specific row
-                const historyTotal = parseFloat(historyContract.totalDispatchQuantity || '0');
-                currentTotalDispatch = historyTotal + dispatchQty;
+              if (isEdit && row.editModeInitialTotal && row.editModeInitialBalance) {
+                currentTotalDispatch = parseFloat(row.editModeInitialTotal) + dispatchQty;
+                currentBalance = parseFloat(row.editModeInitialBalance) - dispatchQty;
                 updatedRow.totalDispatchQuantity = currentTotalDispatch.toString();
+              } else if (historyData && historyData.relatedContracts) {
+                const historyContract = historyData.relatedContracts.find(
+                  (hc: any) =>
+                    hc.contractNumber === row.contractNumber &&
+                    hc.contractType === row.contractType &&
+                    hc.widthOrColor === (row.width || row.color)
+                );
+                if (historyContract) {
+                  const historyBalance = parseFloat(historyContract.balanceQuantity || row.quantity);
+                  currentBalance = historyBalance - dispatchQty;
+                  const historyTotal = parseFloat(historyContract.totalDispatchQuantity || '0');
+                  currentTotalDispatch = historyTotal + dispatchQty;
+                  updatedRow.totalDispatchQuantity = currentTotalDispatch.toString();
+                } else {
+                  currentBalance = parseFloat(row.quantity || '0') - dispatchQty;
+                  updatedRow.totalDispatchQuantity = dispatchQty.toString();
+                }
               } else {
-                // No history for this specific row, use original quantity
                 currentBalance = parseFloat(row.quantity || '0') - dispatchQty;
                 updatedRow.totalDispatchQuantity = dispatchQty.toString();
               }
-            } else {
-              // New dispatch note, calculate from original quantity
-              currentBalance = parseFloat(row.quantity || '0') - dispatchQty;
-              updatedRow.totalDispatchQuantity = dispatchQty.toString();
-            }
 
-            if (currentBalance < 0) {
-              toast('Dispatch quantity cannot exceed available balance!', { type: 'error' });
-              return row; // Don't update if validation fails
+              
+              updatedRow.balanceQuantity = Math.max(0, currentBalance).toString();
             }
-
-            updatedRow.balanceQuantity = Math.max(0, currentBalance).toString();
+            return updatedRow;
           }
-          return updatedRow;
-        }
-        // For all other rows, return unchanged - no modifications at all
-        return row;
-      }),
-    }))
-  );
-};
+          return row; // Return unchanged row
+        }),
+      }))
+    );
+  };
 
   // Handle row click to update selected contract info
   const handleRowClick = (rowId: string, isSelected: boolean, contractType: string, contractNumber: string, rowIndex: number) => {
