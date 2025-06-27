@@ -360,7 +360,7 @@ const InspectionNoteList = () => {
               <div key={dispatchNoteId} className="mt-4">
                 <h4 className="text-md font-medium">Dispatch Note: {dispatchNote?.listid || '-'}</h4>
                 {notes.length > 0 ? (
-                  <table className="w-full text-left border-collapse text-sm md:text-base mt-2">
+                  <table className="w-full text-left border-collapse text-sm md:text-base mt-2 ml-5">
                     <thead>
                       <tr className="bg-[#06b6d4] text-white">
                         {/* <th className="p-3">Related Contracts</th> */}
@@ -376,7 +376,7 @@ const InspectionNoteList = () => {
                                 <thead>
                                   <tr className="bg-gray-200">
                                     <th className="p-2">Contract #</th>
-                                    <th className="p-2">Quantity</th>
+                                    {/* <th className="p-2">Quantity</th> */}
                                     <th className="p-2">Dispatch Qty</th>
                                     <th className="p-2">B Grade</th>
                                     <th className="p-2">S.L</th>
@@ -390,7 +390,7 @@ const InspectionNoteList = () => {
                                   {inspection.relatedContracts.map((contract) => (
                                     <tr key={contract.id} className="border-b">
                                       <td className="p-2">{contract.contractNumber || '-'}</td>
-                                      <td className="p-2">{contract.quantity || '-'}</td>
+                                      {/* <td className="p-2">{contract.quantity || '-'}</td> */}
                                       <td className="p-2">{contract.dispatchQty || '-'}</td>
                                       <td className="p-2">{contract.bGrade || '-'}</td>
                                       <td className="p-2">{contract.sl || '-'}</td>
@@ -442,7 +442,7 @@ const InspectionNoteList = () => {
           })}
         </div>
       )}
-      <div className="mt-4 space-y-2 border-t-2 border-b-2 h-[18vh]">
+      <div className="mt-4 space-y-2 h-[18vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;

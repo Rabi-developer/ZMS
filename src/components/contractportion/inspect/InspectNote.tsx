@@ -34,7 +34,7 @@ interface ExtendedContract {
   id: string;
   contractNumber: string;
   quantity: string;
-  dispatchQty: string;
+  totalDispatchQuantity: string;
   bGrade: string;
   sl: string;
   shrinkage: string;
@@ -60,7 +60,7 @@ interface InspectionNoteData {
     id?: string;
     contractNumber?: string;
     quantity?: string;
-    dispatchQty?: string;
+    totalDispatchQuantity?: string;
     bGrade?: string;
     sl?: string;
     shrinkage?: string;
@@ -80,10 +80,10 @@ interface DispatchNote {
     id: string;
     contractNumber: string;
     quantity: string;
-    dispatchQty: string;
+    totalDispatchQuantity: string;
   }[];
 }
-
+  
 interface InspectionNoteProps {
   isEdit?: boolean;
   initialData?: InspectionNoteData;
@@ -205,7 +205,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
         id: rc.id || `new-${Date.now()}-${Math.random()}`,
         contractNumber: rc.contractNumber || '',
         quantity: rc.quantity || '0',
-        dispatchQty: rc.dispatchQty || '0',
+        totalDispatchQuantity: rc.totalDispatchQuantity || '0',
         bGrade: rc.bGrade || '0',
         sl: rc.sl || '0',
         shrinkage: rc.shrinkage || '0',
@@ -237,7 +237,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
       id: rc.id || `new-${Date.now()}-${Math.random()}`,
       contractNumber: rc.contractNumber || '',
       quantity: rc.quantity || '0',
-      dispatchQty: rc.dispatchQty || '0',
+      totalDispatchQuantity: rc.totalDispatchQuantity || '0',
       bGrade: '',
       sl: '',
       shrinkage: '',
@@ -273,17 +273,13 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
       prev.map((contract) => {
         if (contract.id === contractId) {
           const updatedContract = { ...contract, [field]: value };
-          const dispatchQty = parseFloat(updatedContract.dispatchQty || '0');
+          const totalDispatchQuantity = parseFloat(updatedContract.totalDispatchQuantity || '0');
           const bGrade = parseFloat(updatedContract.bGrade || '0');
           const sl = parseFloat(updatedContract.sl || '0');
           const shrinkage = parseFloat(updatedContract.shrinkage || '0');
           const returnFabric = parseFloat(updatedContract.returnFabric || '0');
-          const totalDeductions =dispatchQty + bGrade + sl + shrinkage + returnFabric;
-          if (totalDeductions > dispatchQty) {
-            toast('The Dispatch Quantity is Less', { type: 'error' });
-            return contract; // Prevent update if invalid
-          }
-          updatedContract.aGrade = (dispatchQty - totalDeductions).toFixed(2);
+          const totalDeductions =bGrade + sl + shrinkage + returnFabric;
+          updatedContract.aGrade = (totalDispatchQuantity - totalDeductions).toFixed(2);
           return updatedContract;
         }
         return contract;
@@ -317,7 +313,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
           ...(isEdit && !contract.id.startsWith('new-') ? { id: contract.id } : {}),
           contractNumber: contract.contractNumber,
           quantity: contract.quantity,
-          dispatchQty: contract.dispatchQty,
+          totalDispatchQuantity: contract.totalDispatchQuantity,
           bGrade: contract.bGrade,
           sl: contract.sl,
           shrinkage: contract.shrinkage,
@@ -450,7 +446,6 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
                     <tr className="bg-[#06b6d4] text-white">
                       <th className="p-2 md:p-3 font-medium">Select</th>
                       <th className="p-2 md:p-3 font-medium">Contract #</th>
-                      <th className="p-2 md:p-3 font-medium">Contract Quantity</th>
                       <th className="p-2 md:p-3 font-medium">Dispatch Qty</th>
                       <th className="p-2 md:p-3 font-medium">B Grade</th>
                       <th className="p-2 md:p-3 font-medium">S.L</th>
@@ -476,8 +471,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
                           />
                         </td>
                         <td className="p-2 md:p-3">{contract.contractNumber || '-'}</td>
-                        <td className="p-2 md:p-3">{contract.quantity || '-'}</td>
-                        <td className="p-2 md:p-3">{contract.dispatchQty || '-'}</td>
+                        <td className="p-2 md:p-3">{contract.totalDispatchQuantity || '-'}</td>
                         <td className="p-2 md:p-3">
                           <input
                             type="number"
