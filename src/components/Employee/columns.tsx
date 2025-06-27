@@ -23,15 +23,12 @@ export const columns = (handleDeleteOpen: (id: string) => void): ColumnDef<Emplo
         variant='ghost'
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        Employee Name
+         Name
         <ArrowUpDown className='ml-2 h-4 w-4' />
       </Button>
     )
   },
-  {
-    accessorKey: 'employeeLastName',
-    header: 'Last Name'
-  },
+  
   {
     accessorKey: 'gender',
     header: 'Gender'

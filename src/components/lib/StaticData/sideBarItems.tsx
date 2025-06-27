@@ -249,15 +249,15 @@ export const sideBarItems = [
   color: '#33a4d8',
 },
 {
-  text: "Invoice",
-  href: "/invoice",
-  icon: RiPresentationLine,
-  color: '#33a4d8',
-},
-{
   text: "Inspection Note",
   href: "/inspectionnote",
   icon: TbAdjustmentsCheck,
+  color: '#33a4d8',
+},
+{
+  text: "Invoice",
+  href: "/invoice",
+  icon: RiPresentationLine,
   color: '#33a4d8',
 },
 {
@@ -266,10 +266,6 @@ export const sideBarItems = [
   icon: MdOutlinePayments,
   color: '#33a4d8',
 },
-
-
-
-
 ]},
 
 
@@ -457,117 +453,117 @@ export const sideBarItems = [
 
   // Al-Nasir Enterprise Sale-and-purchase Company
   //ZMS COMPANY- Project Target
-  {
-    text: "Al-Nasir Enterprise", 
-    type: "heading" 
-  },
-  {
-    text: "Project Target",
-    href: "/",
-    icon: GoProjectSymlink,
-    color: '#33a4d8',
-  },
-// Contact Company
-  {
-    text: "Contacts",
-    icon: FaPeopleRoof,
-    color: '#33a4d8',
-    sub_menu: [
-      { 
-        text: "Supplier", 
-        href: "/supplier", 
-        icon: FaArrowsDownToPeople, 
-        color: "#33a4d8" 
-      },
-      {
-        text: "Customer", 
-        href: "/customer", 
-        icon: GrWorkshop, 
-        color: "#33a4d8" 
-      },
+//   {
+//     text: "Al-Nasir Enterprise", 
+//     type: "heading" 
+//   },
+//   {
+//     text: "Project Target",
+//     href: "/",
+//     icon: GoProjectSymlink,
+//     color: '#33a4d8',
+//   },
+// // Contact Company
+//   {
+//     text: "Contacts",
+//     icon: FaPeopleRoof,
+//     color: '#33a4d8',
+//     sub_menu: [
+//       { 
+//         text: "Supplier", 
+//         href: "/supplier", 
+//         icon: FaArrowsDownToPeople, 
+//         color: "#33a4d8" 
+//       },
+//       {
+//         text: "Customer", 
+//         href: "/customer", 
+//         icon: GrWorkshop, 
+//         color: "#33a4d8" 
+//       },
      
-    ],
-  },
+//     ],
+//   },
   
-  {
-    text: "Inventory",
-    href: "",
-    icon: MdInventory2,
-    color: '#33a4d8',
-    sub_menu: [
-      {
-        text: "Category",
-        href: "/",
-        icon: BiCategoryAlt,
-        color: '#33a4d8',
-      },
-      {
-        text: "Product",
-        href: "",
-        icon: MdOutlineProductionQuantityLimits,
-        color: '#33a4d8',
-        sub_menu: [
-          {
-            text: "New",
-            href: "",
-            icon: FaFolderOpen,  
-            color: '#33a4d8',
-          },
-          {
-            text: "Old",
-            href: "",
-            icon: FaFolder,  
-            color: '#33a4d8',
-          },
-          {
-            text: "Return",
-            href: "",
-            icon: GiReturnArrow,  
-            color: '#33a4d8',
-          },
-        ],
-      },
-      {
-        text: "Stock",
-        href: "",
-        icon: CgShutterstock,
-        color: '#33a4d8',
-        sub_menu: [
-          {
-            text: "Stock Adjacement",
-            href: "",
-            icon: TbAdjustmentsCheck,
-            color: '#33a4d8',
-          },
-          {
-            text: "Stock Representation",
-            href: "",
-            icon: RiPresentationLine,
-            color: '#33a4d8',
-          },
-        ],
-      },
+//   {
+//     text: "Inventory",
+//     href: "",
+//     icon: MdInventory2,
+//     color: '#33a4d8',
+//     sub_menu: [
+//       {
+//         text: "Category",
+//         href: "/",
+//         icon: BiCategoryAlt,
+//         color: '#33a4d8',
+//       },
+//       {
+//         text: "Product",
+//         href: "",
+//         icon: MdOutlineProductionQuantityLimits,
+//         color: '#33a4d8',
+//         sub_menu: [
+//           {
+//             text: "New",
+//             href: "",
+//             icon: FaFolderOpen,  
+//             color: '#33a4d8',
+//           },
+//           {
+//             text: "Old",
+//             href: "",
+//             icon: FaFolder,  
+//             color: '#33a4d8',
+//           },
+//           {
+//             text: "Return",
+//             href: "",
+//             icon: GiReturnArrow,  
+//             color: '#33a4d8',
+//           },
+//         ],
+//       },
+//       {
+//         text: "Stock",
+//         href: "",
+//         icon: CgShutterstock,
+//         color: '#33a4d8',
+//         sub_menu: [
+//           {
+//             text: "Stock Adjacement",
+//             href: "",
+//             icon: TbAdjustmentsCheck,
+//             color: '#33a4d8',
+//           },
+//           {
+//             text: "Stock Representation",
+//             href: "",
+//             icon: RiPresentationLine,
+//             color: '#33a4d8',
+//           },
+//         ],
+//       },
       
-    ],
-  },
-  {
-    text: "Login",
-    href: "",
-    icon: CgShutterstock,
-    color: '#33a4d8',
-    sub_menu: [
-      {
-        text: "Singin",
-        href: "/singin",
-        icon: TbAdjustmentsCheck,
-        color: '#33a4d8',
-      },
-      {
-        text: "Sinup",
-        href: "/signup",
-        icon: RiPresentationLine,
-        color: '#33a4d8',
-      },
-    ],
-  },
+//     ],
+//   },
+//   {
+//     text: "Login",
+//     href: "",
+//     icon: CgShutterstock,
+//     color: '#33a4d8',
+//     sub_menu: [
+//       {
+//         text: "Singin",
+//         href: "/singin",
+//         icon: TbAdjustmentsCheck,
+//         color: '#33a4d8',
+//       },
+//       {
+//         text: "Sinup",
+//         href: "/signup",
+//         icon: RiPresentationLine,
+//         color: '#33a4d8',
+//       },
+//     ],
+//   },
 ];

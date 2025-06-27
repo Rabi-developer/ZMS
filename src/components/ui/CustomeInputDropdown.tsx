@@ -13,6 +13,7 @@ interface CustomDropdownProps {
   borderThickness?: string;
   variant?: 'default' | 'floating';
   register?: UseFormRegister<any>;
+  disabled?: boolean;
 }
 
 const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
@@ -22,11 +23,12 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
   onChange,
   error,
   borderColor = '#0899b2',
-  focusBorderColor = '##0899b2',
-  hoverBorderColor = '##0899b2',
+  focusBorderColor = '#0899b2',
+  hoverBorderColor = '#0899b2',
   borderThickness = '2',
   variant = 'default',
   register,
+  disabled = false,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -40,9 +42,11 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (!disabled) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [disabled]);
 
   // Filter and sort options
   const filteredOptions = useMemo(() => {
@@ -67,9 +71,11 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
   }, [options, searchTerm, sortOrder]);
 
   const handleSelect = (value: string) => {
-    onChange(value);
-    setIsOpen(false);
-    setSearchTerm('');
+    if (!disabled) {
+      onChange(value);
+      setIsOpen(false);
+      setSearchTerm('');
+    }
   };
 
   const displayText = selectedOption 
@@ -82,8 +88,8 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
         <label
           htmlFor="dropdown"
           className={`block text-lg font-medium text-gray-700 mb-2 transition-all duration-300 ${
-            variant === 'floating' && isOpen ? 'transform -translate-y-6 scale-75' : ''
-          }`}
+            variant === 'floating' && isOpen && !disabled ? 'transform -translate-y-6 scale-75' : ''
+          } ${disabled ? 'text-gray-400' : ''}`}
         >
           {label}
         </label>
@@ -93,26 +99,29 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
             type="text"
             placeholder={displayText}
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => setIsOpen(true)}
-            className={`w-full border-${borderColor} border-[#06b6d4]  px-4 py-3 rounded-t-lg text-[#6d6d6d] placeholder-gray-400 shadow-md focus:outline-none focus:ring-2
-              focus:ring-${focusBorderColor} border-${borderThickness} border-${borderColor}
-              hover:border-${hoverBorderColor} transition-all duration-300 bg-white
-              ${error ? 'border-red-500 focus:ring-red-500' : ''} ${isOpen ? '' : 'rounded-b-lg'}`}
+            onChange={(e) => !disabled && setSearchTerm(e.target.value)}
+            onFocus={() => !disabled && setIsOpen(true)}
+            disabled={disabled}
+            className={`w-full px-4 py-3 rounded-t-lg text-[#6d6d6d] placeholder-gray-400 shadow-md focus:outline-none transition-all duration-300 bg-white
+              ${disabled ? 'bg-gray-100 cursor-not-allowed border-gray-300' : `border-${borderColor} border-[#06b6d4] focus:ring-2 focus:ring-${focusBorderColor} border-${borderThickness} hover:border-${hoverBorderColor}`}
+              ${error ? 'border-red-500 focus:ring-red-500' : ''} ${isOpen && !disabled ? '' : 'rounded-b-lg'}`}
           />
 
           <div className="absolute right-2 top-2">
             <button
               type="button"
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className={`px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200 border-${borderThickness} border-${borderColor}`}
+              onClick={() => !disabled && setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              disabled={disabled}
+              className={`px-3 py-1 text-sm rounded-md transition-colors duration-200 border-${borderThickness} ${
+                disabled ? 'bg-gray-200 border-1 text-gray-400 cursor-not-allowed' : `bg-gray-100 hover:bg-gray-200 border-${borderColor}`
+              }`}
             >
               Sort {sortOrder === 'asc' ? '↑' : '↓'}
             </button>
           </div>
         </div>
 
-        {isOpen && (
+        {isOpen && !disabled && (
           <div
             className={`absolute w-full max-h-60 overflow-y-auto bg-white rounded-b-lg shadow-xl z-10 border-${borderThickness} border-${borderColor}`}
           >
@@ -123,8 +132,9 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
                 <div
                   key={option.id}
                   onClick={() => handleSelect(option.id.toString())}
-                  className={`px-4 py-2 bg-${borderColor}  text-gray-800 hover:bg-${hoverBorderColor} hover:text-[#06b6d4] hover:bg-[#ecfcff] cursor-pointer transition-colors duration-200
-                    ${selectedOption === option.id.toString() ? `bg-${borderColor} ` : ''}`}
+                  className={`px-4 py-2 text-gray-800  cursor-pointer transition-colors duration-200
+                    ${disabled ? 'cursor-not-allowed ' : `hover:bg-${hoverBorderColor} hover:text-[#06b6d4] hover:bg-[#ecfcff]`}
+                    ${selectedOption === option.id.toString() ? `bg-${borderColor}` : ''}`}
                 >
                   {option.name}
                 </div>
@@ -137,7 +147,8 @@ const CustomInputDropdown: React.FC<CustomDropdownProps> = ({
           id="dropdown"
           value={selectedOption}
           {...register}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => !disabled && onChange(e.target.value)}
+          disabled={disabled}
           className="hidden"
         >
           <option value="">Select an option</option>

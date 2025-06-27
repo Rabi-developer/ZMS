@@ -13,27 +13,27 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 const Schema = z.object({
-  Name: z.string().min(1, "Organisation Name is required"),
-  EmployeeFirstName: z.string().min(1, "Employee First Name is required"),
+  Name: z.string().optional(),
+  EmployeeFirstName: z.string().optional(),
   employeemiddlename: z.string().optional(),
-  employeelastname: z.string().min(1, "Employee Last Name is required"),
-  gender: z.string().min(1, "Gender is required"),
+  employeelastname:  z.string().optional(),
+  gender:  z.string().optional(),
   MobileNumber: z
     .string({ invalid_type_error: "Employee Number must be a number" })
     .min(1, "Employee Count must be at least 1"),
-  Date: z.string().min(1, "Date is required"),
+  Date:  z.string().optional(),
   status: z.string().optional(),
   cnicnumber: z
     .string({ invalid_type_error: "Employee CNIC Number must be a number" })
     .min(1, "Employee CNIC must be at least 1"),
-  email: z.string().email("Invalid email address"),
-  IndustryType: z.string().min(1, "Industry is required"),
-  address: z.string().min(1, "Address is required"),
-  Country: z.string().min(1, "Country is required"),
- EmploymentType: z.string().min(1, "Employment Type is required"),
+  email: z.string().optional(),
+  IndustryType:  z.string().optional(),
+  address: z.string().optional(),
+  Country:  z.string().optional(),
+ EmploymentType:  z.string().optional(),
  // option: z.string().min(1, "Option is required"),
-  states: z.string().min(1, "State is required"),
-  position: z.string().min(1, "Position Of Employee is required"),
+  states:  z.string().optional(),
+  position:  z.string().optional(),
  // description: z.string().optional(),
 });
 
@@ -126,10 +126,10 @@ const Employee = ({ id, initialData }: any) => {
                 variant="floating"
                 borderThickness='2'
                 label='First Name'
-                id="EmployeeFirstName"
-                register={register}
-                {...register("EmployeeFirstName")}
-                error={errors.EmployeeFirstName?.message}
+                id="name"
+                 register={register}
+                {...register("Name")}
+                error={errors.Name?.message}
               />
               
               <CustomInput
@@ -197,8 +197,8 @@ const Employee = ({ id, initialData }: any) => {
                 label='Referance'
                 id="EmployeeFirstName"
                 register={register}
-                {...register("Name")}
-                error={errors.Name?.message}
+                {...register("EmployeeFirstName")}
+                error={errors.EmployeeFirstName?.message}
               />
               <CustomInput
                 variant="floating"
