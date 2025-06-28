@@ -709,9 +709,11 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
 
             if (isEdit && row.editModeInitialTotal && row.editModeInitialBalance) {
               // In edit mode, add new dispatch to existing total
-              currentTotalDispatch = parseFloat(row.editModeInitialTotal) + dispatchQuantity;
+              const existingTotal = parseFloat(row.editModeInitialTotal);
+              currentTotalDispatch = existingTotal + dispatchQuantity;
               // Calculate balance from the initial balance minus new dispatch
-              currentBalance = parseFloat(row.editModeInitialBalance) - dispatchQuantity;
+              const initialBalance = parseFloat(row.editModeInitialBalance);
+              currentBalance = initialBalance - dispatchQuantity;
               updatedRow.totalDispatchQuantity = currentTotalDispatch.toString();
             } else if (historyData && historyData.relatedContracts) {
               // Find history for this specific row (match by contract number, type, and width/color)
@@ -728,7 +730,7 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                 // Add to existing total dispatch for this specific row
                 const historyTotal = parseFloat(historyContract.totalDispatchQuantity || '0');
                 currentTotalDispatch = historyTotal + dispatchQuantity;
-                updatedRow.totalDispatchQuantity = currentTotalDispatch.toString();
+                updatedRow.totalDispatchQuantity = updatedRow.totalDispatchQuantity + currentTotalDispatch.toString();
               } else {
                 // No history for this specific row, use original quantity
                 currentBalance = parseFloat(row.quantity || '0') - dispatchQuantity;
@@ -791,7 +793,15 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
     try {
       const relatedContracts = contracts
         .flatMap((contract) => contract.contractRows)
-        .filter((row) => row.dispatchQuantity != '0' || isEdit)
+        .filter((row) => {
+          const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
+          const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
+          
+          return (String(row.seller) === String(selectedSeller) ||
+                  row.seller === selectedSellerObj?.name) &&
+                 (String(row.buyer) === String(selectedBuyer) ||
+                  row.buyer === selectedBuyerObj?.name);
+        })
         .map((row) => {
           // Find the corresponding initial data for this row when editing
           let existingId = null;

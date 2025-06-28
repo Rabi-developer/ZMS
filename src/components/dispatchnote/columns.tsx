@@ -165,11 +165,11 @@ export const columns = (
           >
             <Eye className="h-4 w-4" />
           </Button>
-          <Link href={`/dispatchnote/edit/${dispatchNoteId}`}>
+          {/* <Link href={`/dispatchnote/edit/${dispatchNoteId}`}>
             <Button variant="outline" size="sm">
               <Edit className="h-4 w-4" />
             </Button>
-          </Link>
+          </Link> */}
           <Button
             variant="outline"
             size="sm"

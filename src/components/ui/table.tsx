@@ -319,7 +319,7 @@ export function DataTable<TData, TValue>({
           <span>Rows per page: </span>
           <select
             value={pageSize}
-            onChange={(e) => setPageSize(Number(100))}
+            onChange={(e) => setPageSize(Number(e.target.value))}
             className="rounded border-gray-300 text-sm cursor-pointer"
           >
             {[100,200,300,400,500,1000].map((pageSizeOption) => (
