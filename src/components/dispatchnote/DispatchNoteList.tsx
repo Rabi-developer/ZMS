@@ -245,6 +245,19 @@ const DispatchNoteList = () => {
                   </p>
                 );
               }
+              
+              const contractsWithDispatch = dispatchNote.relatedContracts.filter(
+                (contract) => contract.totalDispatchQuantity && Number(contract.totalDispatchQuantity) > 0
+              );
+              
+              if (contractsWithDispatch.length === 0) {
+                return (
+                  <p key={id} className="text-gray-500">
+                    No contracts with dispatch quantity greater than 0 found for Dispatch Note {dispatchNote.bilty}.
+                  </p>
+                );
+              }
+              
               return (
                 <div key={id} className="mb-4">
                   <h3 className="text-lg font-semibold">Dispatch Note: {dispatchNote.bilty}</h3>
@@ -257,7 +270,7 @@ const DispatchNoteList = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {dispatchNote.relatedContracts.map((contract) => (
+                      {contractsWithDispatch.map((contract) => (
                         <tr key={contract.id} className="border-b hover:bg-gray-100">
                           {relatedContractColumns.map((col) => (
                             <td key={col.accessor} className="p-3 font-bold">
@@ -386,26 +399,35 @@ const DispatchNoteList = () => {
                   <h2 className="text-xl text-[#06b6d4] font-bold">Related Contracts</h2>
                   <div className="border rounded p-4 mt-2 overflow-x-auto">
                     {selectedDispatchNote.relatedContracts && selectedDispatchNote.relatedContracts.length > 0 ? (
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-[#06b6d4] font-bold text-white">
-                            {relatedContractColumns.map((col) => (
-                              <th key={col.accessor} className="p-3 font-extrabold font-medium">{col.header}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedDispatchNote.relatedContracts.map((contract) => (
-                            <tr key={contract.id} className="border-b hover:bg-gray-100">
-                              {relatedContractColumns.map((col) => (
-                                <td key={col.accessor} className="p-3">
-                                  {contract[col.accessor as keyof typeof contract] || '-'}
-                                </td>
+                      (() => {
+                        const contractsWithDispatch = selectedDispatchNote.relatedContracts.filter(
+                          (contract) => contract.totalDispatchQuantity && Number(contract.totalDispatchQuantity) > 0
+                        );
+                        return contractsWithDispatch.length > 0 ? (
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-[#06b6d4] font-bold text-white">
+                                {relatedContractColumns.map((col) => (
+                                  <th key={col.accessor} className="p-3 font-extrabold">{col.header}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {contractsWithDispatch.map((contract) => (
+                                <tr key={contract.id} className="border-b hover:bg-gray-100">
+                                  {relatedContractColumns.map((col) => (
+                                    <td key={col.accessor} className="p-3">
+                                      {contract[col.accessor as keyof typeof contract] || '-'}
+                                    </td>
+                                  ))}
+                                </tr>
                               ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p className="text-gray-500">No contracts with dispatch quantity greater than 0 found.</p>
+                        );
+                      })()
                     ) : (
                       <p className="text-gray-500">No related contracts found.</p>
                     )}
