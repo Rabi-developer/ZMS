@@ -95,7 +95,7 @@ interface DispatchNoteData {
     buyer: string;
     widthOrColor?: string;
     buyerRefer?: string;
-    fabricDetails?: string;
+    fabricDetails?: string; //  Dispatch Note
     date: string;
     quantity: string;
     rate: string;
