@@ -238,8 +238,13 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       setFetchingDispatchNotes(true);
       const response = await getAllDispatchNotes(1, 100);
       if (response && response.data) {
-        // Client-side filtering as a fallback
-        const approvedDispatchNotes = response.data.filter((dn: DispatchNoteData) => dn.status === 'Approved');
+        // Client-side filtering as a fallback - ensure only Approved dispatch notes
+        const approvedDispatchNotes = response.data.filter((dn: DispatchNoteData) => {
+          console.log(`Dispatch Note ${dn.id} status:`, dn.status);
+          return dn.status === 'Approved';
+        });
+        console.log('Total dispatch notes:', response.data.length);
+        console.log('Approved dispatch notes:', approvedDispatchNotes.length);
         setDispatchNotes(approvedDispatchNotes);
       } else {
         setDispatchNotes([]);
@@ -336,28 +341,31 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   useEffect(() => {
     let filtered: ExtendedContract[] = [];
 
-    // Extract all dispatch note contracts with their details
-    const dispatchNoteContracts = dispatchNotes.flatMap((dn) =>
-      dn.relatedContracts
-        ?.filter((rc) => parseFloat(rc.dispatchQuantity || '0') > 0) // Only include contracts with dispatch quantity > 0
-        ?.map((rc) => ({
-          id: rc.id,
-          contractNumber: rc.contractNumber,
-          seller: rc.seller,
-          buyer: rc.buyer,
-          dispatchQuantity: rc.dispatchQuantity || '0',
-          dispatchNoteId: dn.id,
-          rate: rc.rate || '0',
-          fabricDetails: rc.fabricDetails || '',
-          widthOrColor: rc.widthOrColor || '',
-          buyerRefer: rc.buyerRefer || '',
-          quantity: rc.quantity || '',
-          totalAmount: rc.totalAmount || '',
-          date: rc.date || '',
-        })) || []
-    );
+    // Extract all dispatch note contracts with their details from APPROVED dispatch notes only
+    const dispatchNoteContracts = dispatchNotes
+      .filter((dn) => dn.status === 'Approved') // Ensure dispatch note is approved
+      .flatMap((dn) =>
+        dn.relatedContracts
+          ?.filter((rc) => parseFloat(rc.dispatchQuantity || '0') > 0) // Only include contracts with dispatch quantity > 0
+          ?.map((rc) => ({
+            id: rc.id,
+            contractNumber: rc.contractNumber,
+            seller: rc.seller,
+            buyer: rc.buyer,
+            dispatchQuantity: rc.dispatchQuantity || '0',
+            dispatchNoteId: dn.id,
+            dispatchNoteStatus: dn.status, // Include dispatch note status for verification
+            rate: rc.rate || '0',
+            fabricDetails: rc.fabricDetails || '',
+            widthOrColor: rc.widthOrColor || '',
+            buyerRefer: rc.buyerRefer || '',
+            quantity: rc.quantity || '',
+            totalAmount: rc.totalAmount || '',
+            date: rc.date || '',
+          })) || []
+      );
 
-    console.log('Dispatch Note Contracts with qty > 0:', dispatchNoteContracts);
+    console.log('Approved Dispatch Note Contracts with qty > 0:', dispatchNoteContracts);
 
     if (isEdit && initialData?.relatedContracts) {
       // For edit mode, filter from initial data
@@ -383,7 +391,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           dc.seller === selectedSellerObj.name && dc.buyer === selectedBuyerObj.name
         );
 
-        console.log('Matching Dispatch Contracts:', matchingDispatchContracts);
+        console.log('Matching Approved Dispatch Contracts:', matchingDispatchContracts);
 
         // Convert dispatch note contracts to ExtendedContract format
         filtered = matchingDispatchContracts.map((dc) => ({
@@ -478,7 +486,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       }
     }
 
-    console.log('Updated Filtered Contracts:', filtered);
+    console.log('Updated Filtered Contracts (Approved only):', filtered);
     setFilteredContracts([...filtered, ...additionalContracts]);
   }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers, dispatchNotes, additionalContracts]);
 
