@@ -322,7 +322,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     }
   }, [isEdit, initialData, sellers, buyers, setValue, router]);
 
-  // Filter contracts by Seller, Buyer, and Approved Dispatch Notes
+  // Filter contracts by Seller, Buyer, and Approved Dispatch Notes with dispatch quantity > 0
   useEffect(() => {
     let filtered: ExtendedContract[] = [];
 
@@ -338,11 +338,17 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     );
 
     if (isEdit && initialData?.relatedContracts) {
-      filtered = contracts.filter((contract) =>
-        initialData.relatedContracts!.some(
-          (rc) => rc.contractNumber === contract.contractNumber && rc.id === contract.id
+      filtered = contracts
+        .filter((contract) =>
+          initialData.relatedContracts!.some(
+            (rc) => rc.contractNumber === contract.contractNumber && rc.id === contract.id
+          )
         )
-      );
+        .filter((contract) => {
+          // Only show contracts with dispatch quantity > 0
+          const dispatchQty = parseFloat(contract.dispatchQuantity || '0');
+          return dispatchQty > 0;
+        });
     } else {
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
       const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
@@ -367,6 +373,11 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
             dispatchNoteId: dispatchContract?.dispatchNoteId,
             invoiceQty: dispatchContract?.dispatchQuantity || '0',
           };
+        })
+        .filter((contract) => {
+          // Only show contracts with dispatch quantity > 0
+          const dispatchQty = parseFloat(contract.dispatchQuantity || '0');
+          return dispatchQty > 0;
         });
     }
 
