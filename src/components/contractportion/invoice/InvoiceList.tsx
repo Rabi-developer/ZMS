@@ -26,7 +26,6 @@ const InvoiceList = () => {
   const [startDate, setStartDate] = React.useState<string | null>(null);
   const [endDate, setEndDate] = React.useState<string | null>(null);
 
-  // Status options aligned with getStatusStyles
   const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'Closed', 'UnApproved'];
 
   const statusOptionsConfig = [
@@ -37,18 +36,7 @@ const InvoiceList = () => {
     { id: 5, name: 'UnApproved', color: '#8b5cf6' },
   ];
 
-  const getFabricDetails = () => {
-    if (selectedInvoiceIds.length === 0) {
-      return 'No invoice selected';
-    }
-
-    const selectedInvoice = invoices.find((invoice) => invoice.id === selectedInvoiceIds[0]);
-    if (!selectedInvoice || !selectedInvoice.relatedContracts?.length) {
-      return 'N/A';
-    }
-
-    // Get the first related contract for fabric details
-    const contract = selectedInvoice.relatedContracts[0];
+  const getFabricDetails = (contract: Invoice['relatedContracts'][0]) => {
     const fabricDetails = [
       `${contract.warpCount || ''}${contract.warpYarnType || ''}`,
       `${contract.weftCount || ''}${contract.weftYarnType || ''}`,
@@ -56,7 +44,7 @@ const InvoiceList = () => {
       contract.weaves || '',
       contract.width || '',
       contract.final || '',
-      contract.selvedge || '',
+      contract.selvage || '',
     ]
       .filter((item) => item.trim() !== '')
       .join(' / ');
@@ -144,10 +132,10 @@ const InvoiceList = () => {
         setSelectedBulkStatus(null);
       } else if (newSelectedIds.length === 1) {
         const selectedInvoice = invoices.find((inv) => inv.id === newSelectedIds[0]);
-        setSelectedBulkStatus(selectedInvoice?.status || 'Pending');
+        setSelectedBulkStatus(selectedInvoice?.status || 'Prepared');
       } else {
         const selectedInvoices = invoices.filter((inv) => newSelectedIds.includes(inv.id));
-        const statuses = selectedInvoices.map((inv) => inv.status || 'Pending');
+        const statuses = selectedInvoices.map((inv) => inv.status || 'Prepared');
         const allSameStatus = statuses.every((status) => status === statuses[0]);
         setSelectedBulkStatus(allSameStatus ? statuses[0] : null);
       }
@@ -205,7 +193,7 @@ const InvoiceList = () => {
         'Due Date': invoice.dueDate || '-',
         'Seller': invoice.seller || '-',
         'Buyer': invoice.buyer || '-',
-        'Status': invoice.status || 'Pending',
+        'Status': invoice.status || 'Prepared',
         'Remarks': invoice.invoiceremarks || '-',
         'Contract Number': '',
         'Fabric Details': '',
@@ -245,7 +233,7 @@ const InvoiceList = () => {
           'Contract Number': contract.contractNumber || '-',
           'Fabric Details': contract.fabricDetails || getFabricDetails(contract),
           'Dispatch Quantity': contract.dispatchQty || '-',
-          'Invoice Quantity': contract.invoiceQty || '-',
+          'Invoice Quantity': contract.invoiceQty || contract.dispatchQty || '-',
           'Invoice Rate': contract.invoiceRate || '-',
           'Invoice Value': invoiceValue || '-',
           'GST': contract.gst || '-',
@@ -336,7 +324,7 @@ const InvoiceList = () => {
           className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
         >
           <FaFileExcel size={18} />
-          Download Excel
+          Export to Excel
         </button>
       </div>
       <DataTable
@@ -424,9 +412,9 @@ const InvoiceList = () => {
                         return (
                           <tr key={contract.id} className="border-b hover:bg-gray-100">
                             <td className="p-3">{contract.contractNumber || '-'}</td>
-                            <td className="p-3">{contract.fabricDetails || getFabricDetails()}</td>
+                            <td className="p-3">{contract.fabricDetails || getFabricDetails(contract)}</td>
                             <td className="p-3">{contract.dispatchQty || '-'}</td>
-                            <td className="p-3">{contract.invoiceQty || '-'}</td>
+                            <td className="p-3">{contract.invoiceQty || contract.dispatchQty || '-'}</td>
                             <td className="p-3">{contract.invoiceRate || '-'}</td>
                             <td className="p-3">{invoiceValue || '-'}</td>
                             <td className="p-3">{contract.gst || '-'}</td>
@@ -450,200 +438,90 @@ const InvoiceList = () => {
 
       {openDelete && (
         <DeleteConfirmModel
-          handleDeleteclose={handleDeleteClose}
+          handleDeleteClose={handleDeleteClose}
           handleDelete={handleDelete}
-          isOpen={openDelete}
+          itemName="Invoice"
         />
       )}
 
       {openView && selectedInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <div className="relative bg-white w-full max-w-4xl rounded-2xl shadow-2xl border border-gray-200 overflow-hidden transform transition-all duration-300 scale-95 hover:scale-100">
-            <div className="bg-gradient-to-r from-cyan-500 to-blue-600 p-5 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow-md">
-                Invoice Details
-              </h2>
-              <button
-                className="text-2xl text-white hover:text-red-200 focus:outline-none transition-colors duration-200 transform hover:scale-110"
-                onClick={handleViewClose}
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6 bg-gray-50">
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="group">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                      Invoice Number
-                    </span>
-                    <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                      {selectedInvoice.invoiceNumber}
-                    </div>
-                  </div>
-                  <div className="group">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                      Invoice Date
-                    </span>
-                    <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                      {selectedInvoice.invoiceDate || '-'}
-                    </div>
-                  </div>
-                  <div className="group">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                      Due Date
-                    </span>
-                    <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                      {selectedInvoice.dueDate || '-'}
-                    </div>
-                  </div>
-                  <div className="group">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                      Seller
-                    </span>
-                    <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                      {selectedInvoice.seller || '-'}
-                    </div>
-                  </div>
-                  <div className="group">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                      Buyer
-                    </span>
-                    <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                      {selectedInvoice.buyer || '-'}
-                    </div>
-                  </div>
-                  <div className="group">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                      Status
-                    </span>
-                    <div>
-                      <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
-                          selectedInvoice.status || 'Pending'
-                        )}`}
-                      >
-                        {selectedInvoice.status || 'Pending'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="group col-span-2">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1 transition-colors group-hover:text-cyan-600">
-                      Remarks
-                    </span>
-                    <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                      {selectedInvoice.invoiceremarks || '-'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <h2 className="text-xl text-[#06b6d4] font-bold">Related Contracts</h2>
-                  <div className="border rounded p-4 mt-2">
-                    {selectedInvoice.relatedContracts && selectedInvoice.relatedContracts.length > 0 ? (
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-[#06b6d4] text-white">
-                            <th className="p-3 font-medium">Contract #</th>
-                            <th className="p-3 font-medium">Fabric Details</th>
-                            <th className="p-3 font-medium">Dispatch Qty</th>
-                            <th className="p-3 font-medium">Invoice Qty</th>
-                            <th className="p-3 font-medium">Invoice Rate</th>
-                            <th className="p-3 font-medium">Invoice Value</th>
-                            <th className="p-3 font-medium">GST</th>
-                            <th className="p-3 font-medium">%</th>
-                            <th className="p-3 font-medium">GST Value</th>
-                            <th className="p-3 font-medium">Invoice Value with GST</th>
-                            <th className="p-3 font-medium">WHT%</th>
-                            <th className="p-3 font-medium">WHT Value</th>
-                            <th className="p-3 font-medium">Total Invoice Value</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedInvoice.relatedContracts.map((contract) => {
-                            const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
-                            const invoiceRate = parseFloat(contract.invoiceRate || '0') || 0;
-                            const gstPercentage = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
-                            const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
-
-                            const invoiceValue = contract.invoiceValue || (invoiceQty * invoiceRate).toFixed(2);
-                            const gstValue = contract.gstValue || (parseFloat(invoiceValue) * (gstPercentage / 100)).toFixed(2);
-                            const invoiceValueWithGst = contract.invoiceValueWithGst || (parseFloat(invoiceValue) + parseFloat(gstValue)).toFixed(2);
-                            const whtValue = contract.whtValue || (parseFloat(invoiceValueWithGst) * (whtPercentage / 100)).toFixed(2);
-                            const totalInvoiceValue = contract.totalInvoiceValue || (parseFloat(invoiceValueWithGst) - parseFloat(whtValue)).toFixed(2);
-
-                            return (
-                              <tr key={contract.id} className="border-b hover:bg-gray-100">
-                                <td className="p-3">{contract.contractNumber || '-'}</td>
-                                <td className="p-3">{contract.fabricDetails || getFabricDetails()}</td>
-                                <td className="p-3">{contract.dispatchQty || '-'}</td>
-                                <td className="p-3">{contract.invoiceQty || '-'}</td>
-                                <td className="p-3">{contract.invoiceRate || '-'}</td>
-                                <td className="p-3">{invoiceValue || '-'}</td>
-                                <td className="p-3">{contract.gst || '-'}</td>
-                                <td className="p-3">{contract.gstPercentage || '-'}</td>
-                                <td className="p-3">{gstValue || '-'}</td>
-                                <td className="p-3">{invoiceValueWithGst || '-'}</td>
-                                <td className="p-3">{contract.whtPercentage || '-'}</td>
-                                <td className="p-3">{whtValue || '-'}</td>
-                                <td className="p-3">{totalInvoiceValue || '-'}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    ) : (
-                      <p className="text-gray-500">No related contracts found.</p>
-                    )}
-                  </div>
-                </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-[#06b6d4] mb-4">Invoice Details: {selectedInvoice.invoiceNumber}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <p><strong>Invoice Number:</strong> {selectedInvoice.invoiceNumber || '-'}</p>
+                <p><strong>Invoice Date:</strong> {selectedInvoice.invoiceDate || '-'}</p>
+                <p><strong>Due Date:</strong> {selectedInvoice.dueDate || '-'}</p>
+                <p><strong>Seller:</strong> {selectedInvoice.seller || '-'}</p>
+                <p><strong>Buyer:</strong> {selectedInvoice.buyer || '-'}</p>
+                <p><strong>Status:</strong> {selectedInvoice.status || 'Prepared'}</p>
+                <p><strong>Remarks:</strong> {selectedInvoice.invoiceremarks || '-'}</p>
               </div>
             </div>
-            <div className="absolute top-0 left-0 w-24 h-24 bg-cyan-400 opacity-10 rounded-full -translate-x-12 -translate-y-12 pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-24 h-24 bg-blue-400 opacity-10 rounded-full translate-x-12 translate-y-12 pointer-events-none" />
+            <h3 className="text-lg font-semibold mt-4">Related Contracts</h3>
+            <table className="w-full text-left border-collapse mt-2">
+              <thead>
+                <tr className="bg-[#06b6d4] text-white">
+                  <th className="p-3 font-medium">Contract#</th>
+                  <th className="p-3 font-medium">Fabric Details</th>
+                  <th className="p-3 font-medium">Dispatch Qty</th>
+                  <th className="p-3 font-medium">Invoice Qty</th>
+                  <th className="p-3 font-medium">Invoice Rate</th>
+                  <th className="p-3 font-medium">Invoice Value</th>
+                  <th className="p-3 font-medium">GST</th>
+                  <th className="p-3 font-medium">%</th>
+                  <th className="p-3 font-medium">GST Value</th>
+                  <th className="p-3 font-medium">Invoice Value with GST</th>
+                  <th className="p-3 font-medium">WHT%</th>
+                  <th className="p-3 font-medium">WHT Value</th>
+                  <th className="p-3 font-medium">Total Invoice Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedInvoice.relatedContracts?.map((contract) => {
+                  const invoiceQty = parseFloat(contract.invoiceQty || contract.dispatchQty || '0') || 0;
+                  const invoiceRate = parseFloat(contract.invoiceRate || '0') || 0;
+                  const gstPercentage = parseFloat(contract.gstPercentage || contract.gst || '0') || 0;
+                  const whtPercentage = parseFloat(contract.whtPercentage || '0') || 0;
+
+                  const invoiceValue = contract.invoiceValue || (invoiceQty * invoiceRate).toFixed(2);
+                  const gstValue = contract.gstValue || (parseFloat(invoiceValue) * (gstPercentage / 100)).toFixed(2);
+                  const invoiceValueWithGst = contract.invoiceValueWithGst || (parseFloat(invoiceValue) + parseFloat(gstValue)).toFixed(2);
+                  const whtValue = contract.whtValue || (parseFloat(invoiceValueWithGst) * (whtPercentage / 100)).toFixed(2);
+                  const totalInvoiceValue = contract.totalInvoiceValue || (parseFloat(invoiceValueWithGst) - parseFloat(whtValue)).toFixed(2);
+
+                  return (
+                    <tr key={contract.id} className="border-b hover:bg-gray-100">
+                      <td className="p-3">{contract.contractNumber || '-'}</td>
+                      <td className="p-3">{contract.fabricDetails || getFabricDetails(contract)}</td>
+                      <td className="p-3">{contract.dispatchQty || '-'}</td>
+                      <td className="p-3">{contract.invoiceQty || contract.dispatchQty || '-'}</td>
+                      <td className="p-3">{contract.invoiceRate || '-'}</td>
+                      <td className="p-3">{invoiceValue || '-'}</td>
+                      <td className="p-3">{contract.gst || '-'}</td>
+                      <td className="p-3">{contract.gstPercentage || '-'}</td>
+                      <td className="p-3">{gstValue || '-'}</td>
+                      <td className="p-3">{invoiceValueWithGst || '-'}</td>
+                      <td className="p-3">{contract.whtPercentage || '-'}</td>
+                      <td className="p-3">{whtValue || '-'}</td>
+                      <td className="p-3">{totalInvoiceValue || '-'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <button
+              onClick={handleViewClose}
+              className="mt-4 bg-[#06b6d4] hover:bg-[#0891b2] text-white px-4 py-2 rounded-md"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
-      <style jsx>{`
-        @media (max-width: 768px) {
-          table {
-            display: block;
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-          thead {
-            display: none;
-          }
-          tbody, tr {
-            display: block;
-          }
-          td {
-            display: block;
-            text-align: left;
-            padding: 0.5rem;
-            position: relative;
-            padding-left: 50%;
-          }
-          td:before {
-            position: absolute;
-            left: 0.5rem;
-            width: 45%;
-            padding-right: 0.5rem;
-            white-space: nowrap;
-          }
-          tr {
-            margin-bottom: 1rem;
-            border-bottom: 1px solid #e7e7e7;
-          }
-        }
-      `}</style>
     </div>
   );
 };
 
 export default InvoiceList;
-
-function irono(arg0: number) {
-  throw new Error('Function not implemented.');
-}

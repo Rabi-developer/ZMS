@@ -34,7 +34,7 @@ interface ExtendedContract {
   id: string;
   contractNumber: string;
   quantity: string;
-  totalDispatchQuantity: string;
+  dispatchQuantity: string;
   bGrade: string;
   sl: string;
   shrinkage: string;
@@ -60,7 +60,7 @@ interface InspectionNoteData {
     id?: string;
     contractNumber?: string;
     quantity?: string;
-    totalDispatchQuantity?: string;
+    dispatchQuantity?: string;
     bGrade?: string;
     sl?: string;
     shrinkage?: string;
@@ -80,7 +80,7 @@ interface DispatchNote {
     id: string;
     contractNumber: string;
     quantity: string;
-    totalDispatchQuantity: string;
+    dispatchQuantity: string;
   }[];
 }
   
@@ -205,7 +205,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
         id: rc.id || `new-${Date.now()}-${Math.random()}`,
         contractNumber: rc.contractNumber || '',
         quantity: rc.quantity || '0',
-        totalDispatchQuantity: rc.totalDispatchQuantity || '0',
+        dispatchQuantity: rc.dispatchQuantity || '0',
         bGrade: rc.bGrade || '0',
         sl: rc.sl || '0',
         shrinkage: rc.shrinkage || '0',
@@ -232,12 +232,15 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
       setFilteredContracts([]);
       return;
     }
+    const filteredRelatedContracts = selectedDispatchNote?.relatedContracts?.filter(
+  rc => parseFloat(rc.dispatchQuantity) > 0
+) || [];
 
-    const dispatchNoteContracts = (selectedDispatchNote.relatedContracts || []).map((rc) => ({
+    const dispatchNoteContracts = (filteredRelatedContracts || []).map((rc) => ({
       id: rc.id || `new-${Date.now()}-${Math.random()}`,
       contractNumber: rc.contractNumber || '',
       quantity: rc.quantity || '0',
-      totalDispatchQuantity: rc.totalDispatchQuantity || '0',
+      dispatchQuantity: rc.dispatchQuantity || '0',
       bGrade: '',
       sl: '',
       shrinkage: '',
@@ -273,13 +276,13 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
       prev.map((contract) => {
         if (contract.id === contractId) {
           const updatedContract = { ...contract, [field]: value };
-          const totalDispatchQuantity = parseFloat(updatedContract.totalDispatchQuantity || '0');
+          const dispatchQuantity = parseFloat(updatedContract.dispatchQuantity || '0');
           const bGrade = parseFloat(updatedContract.bGrade || '0');
           const sl = parseFloat(updatedContract.sl || '0');
           const shrinkage = parseFloat(updatedContract.shrinkage || '0');
           const returnFabric = parseFloat(updatedContract.returnFabric || '0');
           const totalDeductions =bGrade + sl + shrinkage + returnFabric;
-          updatedContract.aGrade = (totalDispatchQuantity - totalDeductions).toFixed(2);
+          updatedContract.aGrade = (dispatchQuantity - totalDeductions).toFixed(2);
           return updatedContract;
         }
         return contract;
@@ -313,7 +316,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
           ...(isEdit && !contract.id.startsWith('new-') ? { id: contract.id } : {}),
           contractNumber: contract.contractNumber,
           quantity: contract.quantity,
-          totalDispatchQuantity: contract.totalDispatchQuantity,
+          dispatchQuantity: contract.dispatchQuantity,
           bGrade: contract.bGrade,
           sl: contract.sl,
           shrinkage: contract.shrinkage,
@@ -436,7 +439,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
 
         <div className="p-2 md:p-4">
           <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
-          <div className="mt-2 overflow-x-auto">
+          <div className="mt-2  ">
             {loading ? (
               <p className="text-gray-500 text-sm md:text-base">Loading...</p>
             ) : selectedDispatchNoteId ? (
@@ -459,7 +462,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
                     {filteredContracts.map((contract) => (
                       <tr
                         key={contract.id}
-                        className={`border-b hover:bg-gray-100 cursor-pointer ${contract.isSelected ? 'bg-blue-100' : ''}`}
+                        className={`border-b h-30 hover:bg-gray-100 cursor-pointer ${contract.isSelected ? 'bg-blue-100' : ''}`}
                         onClick={() => handleContractSelect(contract.id, !contract.isSelected)}
                       >
                         <td className="p-2 md:p-3">
@@ -471,7 +474,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
                           />
                         </td>
                         <td className="p-2 md:p-3">{contract.contractNumber || '-'}</td>
-                        <td className="p-2 md:p-3">{contract.totalDispatchQuantity || '-'}</td>
+                        <td className="p-2 md:p-3">{contract.dispatchQuantity || '-'}</td>
                         <td className="p-2 md:p-3">
                           <input
                             type="number"

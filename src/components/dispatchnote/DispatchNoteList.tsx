@@ -260,7 +260,7 @@ const DispatchNoteList = () => {
               
               return (
                 <div key={id} className="mb-4">
-                  <h3 className="text-lg font-semibold">Dispatch Note: {dispatchNote.bilty}</h3>
+                  <h3 className="text-lg font-semibold">Dispatch Note: {dispatchNote.listid}</h3>
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-[#06b6d4] font-extrabold text-white">

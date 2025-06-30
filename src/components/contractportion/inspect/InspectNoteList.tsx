@@ -26,7 +26,7 @@ interface InspectionNote {
     id?: string;
     contractNumber?: string;
     quantity?: string;
-    dispatchQty?: string;
+    dispatchQuantity?: string;
     bGrade?: string;
     sl?: string;
     shrinkage: string;
@@ -80,6 +80,12 @@ const InspectionNoteList = () => {
         };
       });
       setDispatchNotes(dispatchNotesWithInspectionNotes);
+      // Update inspectionNotes state for all dispatch notes
+      const updatedInspectionNotes: { [dispatchNoteId: string]: InspectionNote[] } = {};
+      dispatchNotesWithInspectionNotes.forEach((dispatchNote) => {
+        updatedInspectionNotes[dispatchNote.id] = dispatchNote.inspectionNotes || [];
+      });
+      setInspectionNotes(updatedInspectionNotes);
     } catch (error) {
       toast('Failed to fetch dispatch notes', { type: 'error' });
     } finally {
@@ -90,17 +96,18 @@ const InspectionNoteList = () => {
   const fetchInspectionNotes = async (dispatchNoteId: string) => {
     try {
       const response = await getAllInspectionNote(1, 100, { invoiceNumber: dispatchNoteId });
+      const notes = response?.data || [];
       setInspectionNotes((prev) => ({
         ...prev,
-        [dispatchNoteId]: response?.data || [],
+        [dispatchNoteId]: notes,
       }));
       setDispatchNotes((prev) =>
         prev.map((dn) =>
-          dn.id === dispatchNoteId ? { ...dn, inspectionNotes: response?.data || [] } : dn
+          dn.id === dispatchNoteId ? { ...dn, inspectionNotes: notes } : dn
         )
       );
     } catch (error) {
-      // toast(`Failed to fetch inspection notes for dispatch note ${dispatchNoteId}`, { type: 'error' });
+      toast(`Failed to fetch inspection notes for dispatch note ${dispatchNoteId}`, { type: 'error' });
     }
   };
 
@@ -108,7 +115,7 @@ const InspectionNoteList = () => {
     fetchDispatchNotes();
   }, [pageIndex, pageSize]);
 
-  // Filter dispatch notes by status 'Approved' and selected status filter
+  // Filter dispatch notes based on status
   useEffect(() => {
     let filtered = dispatchNotes.filter((dispatchNote) => dispatchNote.status === 'Approved');
     if (selectedStatusFilter !== 'All') {
@@ -178,18 +185,19 @@ const InspectionNoteList = () => {
       } else {
         newSelectedIds = prev.filter((id) => id !== dispatchNoteId);
       }
-      if (newSelectedIds.length === 0) {
+      // Set default status to 'Active' when a checkbox is clicked
+      if (newSelectedIds.length > 0 && !selectedBulkStatus) {
+        setSelectedBulkStatus('Active');
+      } else if (newSelectedIds.length === 0) {
         setSelectedBulkStatus(null);
-      } else {
-        const selectedDispatchNotes = dispatchNotes.filter((dn) => newSelectedIds.includes(dn.id));
-        const statuses = selectedDispatchNotes
-          .flatMap((dn) => dn.inspectionNotes?.map((note) => note.status || 'Pending') || [])
-          .filter((status, index, self) => self.indexOf(status) === index); // Unique statuses
-        const allSameStatus = statuses.length === 1 ? statuses[0] : null;
-        setSelectedBulkStatus(allSameStatus);
+        setSelectedStatusFilter('All');
       }
       return newSelectedIds;
     });
+    // Ensure inspection notes are fetched for the dispatch note
+    if (checked && !inspectionNotes[dispatchNoteId]) {
+      fetchInspectionNotes(dispatchNoteId);
+    }
   };
 
   // Bulk status update using inspection note IDs
@@ -209,9 +217,9 @@ const InspectionNoteList = () => {
       );
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
-      setSelectedDispatchNoteIds([]);
       setSelectedStatusFilter(newStatus);
-      setPageIndex(0); // Reset to first page
+      setSelectedDispatchNoteIds([]);
+      setPageIndex(0);
       toast('Inspection Note Status Updated Successfully', { type: 'success' });
       await fetchDispatchNotes();
     } catch (error: any) {
@@ -363,8 +371,8 @@ const InspectionNoteList = () => {
                   <table className="w-full text-left border-collapse text-sm md:text-base mt-2 ml-5">
                     <thead>
                       <tr className="bg-[#06b6d4] text-white">
-                        {/* <th className="p-3">Related Contracts</th> */}
-                        {/* <th className="p-3">Actions</th> */}
+                        <th className="p-3">Related Contracts</th>
+                        <th className="p-3">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -376,7 +384,6 @@ const InspectionNoteList = () => {
                                 <thead>
                                   <tr className="bg-gray-200">
                                     <th className="p-2">Contract #</th>
-                                    {/* <th className="p-2">Quantity</th> */}
                                     <th className="p-2">Dispatch Qty</th>
                                     <th className="p-2">B Grade</th>
                                     <th className="p-2">S.L</th>
@@ -390,8 +397,7 @@ const InspectionNoteList = () => {
                                   {inspection.relatedContracts.map((contract) => (
                                     <tr key={contract.id} className="border-b">
                                       <td className="p-2">{contract.contractNumber || '-'}</td>
-                                      {/* <td className="p-2">{contract.quantity || '-'}</td> */}
-                                      <td className="p-2">{contract.dispatchQty || '-'}</td>
+                                      <td className="p-2">{contract.dispatchQuantity || '-'}</td>
                                       <td className="p-2">{contract.bGrade || '-'}</td>
                                       <td className="p-2">{contract.sl || '-'}</td>
                                       <td className="p-2">{contract.shrinkage || '-'}</td>
@@ -407,7 +413,7 @@ const InspectionNoteList = () => {
                             )}
                           </td>
                           <td className="p-3">
-                            {/* <div className="flex gap-2">
+                            <div className="flex gap-2">
                               <Link href={`/inspectionnote/edit/${inspection.id}`}>
                                 <Button variant="outline" size="sm">
                                   <Edit className="h-4 w-4" />
@@ -428,7 +434,7 @@ const InspectionNoteList = () => {
                               >
                                 <Trash className="h-4 w-4" />
                               </Button>
-                            </div> */}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -532,7 +538,7 @@ const InspectionNoteList = () => {
                         <td className="p-3">{contract.date || '-'}</td>
                         <td className="p-3">{contract.base || '-'}</td>
                         <td className="p-3">{contract.quantity || '-'}</td>
-                        <td className="p-3">{contract.dispatchQuantity || '-'}</td>
+                        <td className="p-3">{contract.dispatchQuantity || ''}</td>
                         <td className="p-3">{contract.totalDispatchQuantity || '-'}</td>
                         <td className="p-3">{contract.balanceQuantity || '-'}</td>
                         <td className="p-3">{contract.contractType || '-'}</td>
@@ -560,7 +566,6 @@ const InspectionNoteList = () => {
                                 <thead>
                                   <tr className="bg-gray-200">
                                     <th className="p-2">Contract #</th>
-                                    {/* <th className="p-2">Quantity</th> */}
                                     <th className="p-2">Dispatch Qty</th>
                                     <th className="p-2">B Grade</th>
                                     <th className="p-2">S.L</th>
@@ -572,8 +577,7 @@ const InspectionNoteList = () => {
                                   {inspection.relatedContracts.map((contract) => (
                                     <tr key={contract.id} className="border-b">
                                       <td className="p-2">{contract.contractNumber || '-'}</td>
-                                      {/* <td className="p-2">{contract.quantity || '-'}</td> */}
-                                      <td className="p-2">{contract.dispatchQty || '-'}</td>
+                                      <td className="p-2">{contract.dispatchQuantity || '-'}</td>
                                       <td className="p-2">{contract.bGrade || '-'}</td>
                                       <td className="p-2">{contract.sl || '-'}</td>
                                       <td className="p-2">{contract.aGrade || '-'}</td>
