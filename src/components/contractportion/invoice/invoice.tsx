@@ -112,9 +112,12 @@ interface InvoiceData {
     dispatchQuantity?: string;
     invoiceQty?: string;
     rate?: string;
+    invoiceRate?: string;
     gstPercentage?: string;
+    gst?: string;
     wht?: string;
     whtPercentage?: string;
+    fabricDetails?: string;
   }[];
 }
 
@@ -359,18 +362,135 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     console.log('Dispatch Note Contracts with qty > 0:', dispatchNoteContracts);
 
     if (isEdit && initialData?.relatedContracts) {
-      // For edit mode, filter from initial data
-      filtered = contracts
-        .filter((contract) =>
-          initialData.relatedContracts!.some(
-            (rc) => rc.contractNumber === contract.contractNumber && rc.id === contract.id
-          )
-        )
-        .filter((contract) => {
-          // Only show contracts with dispatch quantity > 0
-          const dispatchQty = parseFloat(contract.dispatchQuantity || '0');
-          return dispatchQty > 0;
-        });
+      // For edit mode, match invoice contracts with dispatch notes by seller and buyer
+      const selectedSellerName = initialData.seller;
+      const selectedBuyerName = initialData.buyer;
+      
+      // Find matching dispatch notes by seller and buyer
+      const matchingDispatchNotes = dispatchNotes.filter((dn) => 
+        dn.seller === selectedSellerName && dn.buyer === selectedBuyerName
+      );
+      
+      console.log('Matching Dispatch Notes for Edit:', matchingDispatchNotes);
+      
+      // Extract contracts from matching dispatch notes
+      const matchingDispatchContracts = matchingDispatchNotes.flatMap((dn) =>
+        dn.relatedContracts
+          ?.filter((rc) => parseFloat(rc.dispatchQuantity || '0') > 0)
+          ?.map((rc) => ({
+            id: rc.id,
+            contractNumber: rc.contractNumber,
+            seller: rc.seller,
+            buyer: rc.buyer,
+            dispatchQuantity: rc.dispatchQuantity || '0',
+            dispatchNoteId: dn.id,
+            rate: rc.rate || '0',
+            fabricDetails: rc.fabricDetails || '',
+            widthOrColor: rc.widthOrColor || '',
+            buyerRefer: rc.buyerRefer || '',
+            quantity: rc.quantity || '',
+            totalAmount: rc.totalAmount || '',
+            date: rc.date || '',
+          })) || []
+      );
+      
+      // Map invoice related contracts to ExtendedContract format
+      filtered = initialData.relatedContracts.map((invoiceContract) => {
+        // Find corresponding dispatch contract by contract number and seller/buyer
+        const dispatchContract = matchingDispatchContracts.find((dc) => 
+          dc.contractNumber === invoiceContract.contractNumber
+        );
+        
+        return {
+          id: invoiceContract.id || '',
+          contractNumber: invoiceContract.contractNumber || '',
+          seller: invoiceContract.seller || '',
+          buyer: invoiceContract.buyer || '',
+          dispatchQuantity: dispatchContract?.dispatchQuantity || invoiceContract.invoiceQty || '0',
+          dispatchNoteId: dispatchContract?.dispatchNoteId || '',
+          invoiceQty: invoiceContract.invoiceQty || '0',
+          invoiceRate: invoiceContract.invoiceRate || invoiceContract.rate || '',
+          rate: invoiceContract.rate || '',
+          gstPercentage: invoiceContract.gstPercentage || '',
+          wht: invoiceContract.wht || '',
+          whtPercentage: invoiceContract.whtPercentage || '',
+          isSelected: true, // Pre-select in edit mode
+          gstType: invoiceContract.gstPercentage ? gstTypes.find((gt) => gt.name === invoiceContract.gstPercentage)?.id : '',
+          selvage: '',
+          paymentTermsSeller: '',
+          paymentTermsBuyer: '',
+          fabricDetails: invoiceContract.fabricDetails || dispatchContract?.fabricDetails || '',
+          // Add required Contract properties with default values
+          date: invoiceContract.date || '',
+          contractType: 'Sale',
+          companyId: '',
+          branchId: '',
+          contractOwner: '',
+          deliveryDate: '',
+          fabricType: '',
+          description: '',
+          stuff: '',
+          quantity: invoiceContract.quantity || '',
+          unitOfMeasure: '',
+          totalAmount: invoiceContract.totalAmount || '',
+          gst: invoiceContract.gst || '',
+          weftYarnType: '',
+          fabricValue: '',
+          paymenterm: '',
+          paymenterms: '',
+          referenceNumber: '',
+          refer: '',
+          warpCount: '',
+          warpYarnType: '',
+          weftCount: '',
+          noOfEnds: '',
+          noOfPicks: '',
+          weaves: '',
+          width: dispatchContract?.widthOrColor || '',
+          final: '',
+          referdate: '',
+          descriptionSubOptions: '',
+          stuffSubOptions: '',
+          blendRatio: '',
+          blendType: '',
+          warpYarnTypeSubOptions: '',
+          weftYarnTypeSubOptions: '',
+          weavesSubOptions: '',
+          pickInsertion: '',
+          pickInsertionSubOptions: '',
+          selvege: '',
+          selvegeSubOptions: '',
+          selvegeWeaves: '',
+          selvegeWeaveSubOptions: '',
+          selvegeWidth: '',
+          tolerance: '',
+          packing: '',
+          pieceLength: '',
+          inductionThread: '',
+          inductionThreadSubOptions: '',
+          gsm: '',
+          gstValue: '',
+          createdBy: '',
+          creationDate: '',
+          updatedBy: '',
+          updationDate: '',
+          approvedBy: '',
+          approvedDate: '',
+          endUse: '',
+          selvegeThickness: '',
+          selvegeThicknessSubOptions: '',
+          endUseSubOptions: '',
+          notes: '',
+          dispatchLater: '',
+          status: '',
+          finishWidth: '',
+          buyerDeliveryBreakups: [],
+          sellerDeliveryBreakups: [],
+          conversionContractRow: [],
+          dietContractRow: [],
+          multiWidthContractRow: []
+        };
+      });
     } else {
       // For create mode, use dispatch note contracts directly
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
@@ -773,6 +893,11 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   const onSubmit = async (data: FormData) => {
     try {
       console.log('Filtered Contracts:', filteredContracts);
+      
+      // Get seller and buyer names for dispatch note matching
+      const selectedSellerName = sellers.find((s) => s.id === data.Seller)?.name || data.Seller;
+      const selectedBuyerName = buyers.find((b) => b.id === data.Buyer)?.name || data.Buyer;
+      
       const relatedContracts = [...filteredContracts, ...additionalContracts]
         .filter((contract) => contract.isSelected)
         .map((contract) => {
@@ -792,6 +917,17 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                     rc.id === contract.id
                 )?.id || contract.id
               : contract.id;
+
+          // Find dispatch note ID by matching seller, buyer, and contract number
+          let foundDispatchNoteId = contract.dispatchNoteId;
+          if (!foundDispatchNoteId) {
+            const matchingDispatchNote = dispatchNotes.find((dn) => 
+              dn.seller === selectedSellerName && 
+              dn.buyer === selectedBuyerName &&
+              dn.relatedContracts?.some((rc) => rc.contractNumber === contract.contractNumber)
+            );
+            foundDispatchNoteId = matchingDispatchNote?.id || '';
+          }
 
           return {
             ...(isEdit && relatedContractId ? { id: relatedContractId } : {}),
@@ -813,7 +949,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
             whtValue: whtValue.toFixed(2),
             totalInvoiceValue: totalInvoiceValue.toFixed(2),
             gstType: contract.gstType || '',
-            dispatchNoteId: contract.dispatchNoteId || '',
+            dispatchNoteId: foundDispatchNoteId,
           };
         });
 
