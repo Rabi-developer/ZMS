@@ -36,7 +36,34 @@ const InvoiceList = () => {
     { id: 5, name: 'UnApproved', color: '#8b5cf6' },
   ];
 
-  const getFabricDetails = (contract: Invoice['relatedContracts'][0]) => {
+  const getFabricDetails = (contract: {
+    fabricValue: string;
+    id?: string;
+    contractNumber?: string;
+    fabricDetails?: string;
+    dispatchQty?: string;
+    invoiceQty?: string;
+    invoiceRate?: string;
+    invoiceValue?: string;
+    gst?: string;
+    gstPercentage?: string;
+    gstValue?: string;
+    invoiceValueWithGst?: string;
+    whtPercentage?: string;
+    whtValue?: string;
+    totalInvoiceValue?: string;
+    warpCount?: string;
+    warpYarnType?: string;
+    weftCount?: string;
+    weftYarnType?: string;
+    noOfEnds?: string;
+    noOfPicks?: string;
+    weaves?: string;
+    width?: string;
+    final?: string;
+    selvage?: string;
+    selvedge?: string;
+  }) => {
     const fabricDetails = [
       `${contract.warpCount || ''}${contract.warpYarnType || ''}`,
       `${contract.weftCount || ''}${contract.weftYarnType || ''}`,
@@ -438,9 +465,9 @@ const InvoiceList = () => {
 
       {openDelete && (
         <DeleteConfirmModel
-          handleDeleteClose={handleDeleteClose}
+          handleDeleteclose={handleDeleteClose}
           handleDelete={handleDelete}
-          itemName="Invoice"
+          isOpen={openDelete}
         />
       )}
 
