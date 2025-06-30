@@ -61,7 +61,7 @@ const InspectionNoteList = () => {
     { id: 3, name: 'Active', color: '#869719' },
   ];
 
-  // Fetch approved invoices and their inspection notes
+  // Fetch approved invoices and their inspection notes with related contracts
   const fetchInvoicesAndInspectionNotes = async () => {
     try {
       setLoading(true);
@@ -71,16 +71,21 @@ const InspectionNoteList = () => {
       const inspectionResponse = await getAllInspectionNote(1, 1000, { invoiceNumber: '' });
       const allInspectionNotes = inspectionResponse?.data || [];
 
+      // Map invoices with their inspection notes and related contracts
       const invoicesWithInspectionNotes = approvedInvoices.map((invoice: Invoice) => {
         const notes = allInspectionNotes.filter((note: InspectionNote) => note.invoiceNumber === invoice.invoiceNumber);
         return {
           ...invoice,
-          inspectionNotes: notes,
+          inspectionNotes: notes.length > 0 ? notes.map((note: InspectionNote) => ({
+            ...note,
+            relatedContracts: note.relatedContracts || [], // Ensure relatedContracts is always an array
+          })) : [],
         };
       });
 
       setInvoices(invoicesWithInspectionNotes);
 
+      // Create inspectionNotes map
       const inspectionNotesMap = invoicesWithInspectionNotes.reduce(
         (acc: { [invoiceId: string]: InspectionNote[] }, invoice: Invoice & { inspectionNotes?: InspectionNote[] }) => {
           acc[invoice.id] = invoice.inspectionNotes || [];
@@ -100,13 +105,17 @@ const InspectionNoteList = () => {
     try {
       const invoice = invoices.find((inv) => inv.id === invoiceId);
       const response = await getAllInspectionNote(1, 100, { invoiceNumber: invoice?.invoiceNumber || '' });
+      const notes = response?.data.map((note: InspectionNote) => ({
+        ...note,
+        relatedContracts: note.relatedContracts || [],
+      })) || [];
       setInspectionNotes((prev) => ({
         ...prev,
-        [invoiceId]: response?.data || [],
+        [invoiceId]: notes,
       }));
       setInvoices((prev) =>
         prev.map((inv) =>
-          inv.id === invoiceId ? { ...inv, inspectionNotes: response?.data || [] } : inv
+          inv.id === invoiceId ? { ...inv, inspectionNotes: notes } : inv
         )
       );
     } catch (error) {
@@ -122,7 +131,8 @@ const InspectionNoteList = () => {
     let filtered = invoices;
     if (selectedStatusFilter !== 'All') {
       filtered = invoices.filter((invoice) =>
-        invoice.inspectionNotes?.some((note) => note.status === selectedStatusFilter)
+        invoice.inspectionNotes?.some((note) => note.status === selectedStatusFilter) ||
+        (selectedStatusFilter === 'UnApproved Inspection' && invoice.inspectionNotes?.length === 0)
       );
     }
     setFilteredInvoices(filtered);
@@ -141,7 +151,17 @@ const InspectionNoteList = () => {
         fetchInspectionNotes(invoiceId);
       }
     });
-  }, [selectedInvoiceIds, inspectionNotes]);
+    // Clean up inspectionNotes for unselected invoices
+    setInspectionNotes((prev) => {
+      const updatedNotes = { ...prev };
+      Object.keys(updatedNotes).forEach((key) => {
+        if (!selectedInvoiceIds.includes(key)) {
+          delete updatedNotes[key];
+        }
+      });
+      return updatedNotes;
+    });
+  }, [selectedInvoiceIds]);
 
   const handleDelete = async () => {
     try {
@@ -360,71 +380,55 @@ const InspectionNoteList = () => {
                 <table className="w-full text-left border-collapse text-sm md:text-base mt-2">
                   <thead>
                     <tr className="bg-[#06b6d4] text-white">
-                      <th className="p-3">Related Contract</th>
+                      <th className="p-3">IRN Number</th>
+                      <th className="p-3">IRN Date</th>
+                      <th className="p-3">Contract #</th>
+                      <th className="p-3">Dispatch Qty</th>
+                      <th className="p-3">B Grade</th>
+                      <th className="p-3">S.L</th>
+                      <th className="p-3">Shrinkage</th>
+                      <th className="p-3">Return Fabric</th>
+                      <th className="p-3">A Grade</th>
+                      <th className="p-3">Inspected By</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b">
-                      <td className="p-3">
-                        {notes.length > 0 ? (
-                          <table className="w-full text-left border-collapse">
-                            <thead>
-                              <tr className="bg-gray-200">
-                                <th className="p-2">IRN Number</th>
-                                <th className="p-2">IRN Date</th>
-                                <th className="p-2">Contract #</th>
-                                <th className="p-2">Quantity</th>
-                                <th className="p-2">Dispatch Qty</th>
-                                <th className="p-2">B Grade</th>
-                                <th className="p-2">S.L</th>
-                                <th className="p-2">Shrinkage</th>
-                                <th className="p-2">Return Fabric</th>
-                                <th className="p-2">A Grade</th>
-                                <th className="p-2">Inspected By</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {notes.map((inspection) => (
-                                <tr key={inspection.id} className="border-b">
-                                  <td className="p-2">{inspection.irnNumber || '-'}</td>
-                                  <td className="p-2">{inspection.irnDate || '-'}</td>
-                                  <td className="p-2">
-                                    {inspection.relatedContracts?.map((c) => c.contractNumber).join(', ') || '-'}
-                                  </td>
-                                  <td className="p-2">
-                                    {inspection.relatedContracts?.map((c) => c.quantity).join(', ') || '-'}
-                                  </td>
-                                  <td className="p-2">
-                                    {inspection.relatedContracts?.map((c) => c.dispatchQuantity).join(', ') || '-'}
-                                  </td>
-                                  <td className="p-2">
-                                    {inspection.relatedContracts?.map((c) => c.bGrade).join(', ') || '-'}
-                                  </td>
-                                  <td className="p-2">
-                                    {inspection.relatedContracts?.map((c) => c.sl).join(', ') || '-'}
-                                  </td>
-                                  <td className="p-2">
-                                    {inspection.relatedContracts?.map((c) => c.shrinkage).join(', ') || '-'}
-                                  </td>
-                                  <td className="p-2">
-                                    {inspection.relatedContracts?.map((c) => c.returnFabric).join(', ') || '-'}
-                                  </td>
-                                  <td className="p-2">
-                                    {inspection.relatedContracts?.map((c) => c.aGrade).join(', ') || '-'}
-                                  </td>
-                                  <td className="p-2">
-                                    {inspection.relatedContracts?.map((c) => c.inspectedBy).join(', ') || '-'}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        ) : (
-                          'No inspection notes'
-                        )}
-                      </td>
-                      
-                    </tr>
+                    {notes.length > 0 ? (
+                      notes.map((inspection) => (
+                        <tr key={inspection.id} className="border-b">
+                          <td className="p-3">{inspection.irnNumber || '-'}</td>
+                          <td className="p-3">{inspection.irnDate || '-'}</td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.contractNumber || '-').join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.dispatchQuantity || '-').join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.bGrade || '-').join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.sl || '-').join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.shrinkage || '-').join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.returnFabric || '-').join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.aGrade || '-').join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.inspectedBy || '-').join(', ') || '-'}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={10} className="p-3 text-gray-500">No inspection notes</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

@@ -160,22 +160,22 @@ export const columns = (
       ),
       cell: ({ row }) => <div>{row.original.invoiceNumber || '-'}</div>,
     },
-    {
-      accessorKey: 'dispatchNoteId',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          Dispatch Note #
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => {
-        const dispatchNote = dispatchNotes.find((dn) => dn.id === row.original.dispatchNoteId);
-        return <div>{dispatchNote?.listid || '-'}</div>;
-      },
-    },
+    // {
+    //   accessorKey: 'dispatchNoteId',
+    //   header: ({ column }) => (
+    //     <Button
+    //       variant="ghost"
+    //       onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+    //     >
+    //       Dispatch Note #
+    //       <ArrowUpDown className="ml-2 h-4 w-4" />
+    //     </Button>
+    //   ),
+    //   cell: ({ row }) => {
+    //     const dispatchNote = dispatchNotes.find((dn) => dn.id === row.original.dispatchNoteId);
+    //     return <div>{dispatchNote?.listid || '-'}</div>;
+    //   },
+    // },
     {
       accessorKey: 'invoiceDate',
       header: ({ column }) => (
