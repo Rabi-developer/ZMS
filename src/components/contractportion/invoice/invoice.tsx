@@ -198,12 +198,12 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       setFetchingGstTypes(true);
       const response = await getAllGeneralSaleTextTypes();
       if (response && response.data) {
-        setGstTypes(
-          response.data.map((item: any) => ({
-            id: item.id,
-            name: item.gstType,
-          }))
-        );
+        const gstData = response.data.map((item: any) => ({
+          id: item.id,
+          name: item.gstType,
+        }));
+        console.log('Fetched GST Types:', gstData);
+        setGstTypes(gstData);
       } else {
         setGstTypes([]);
         toast('No GST types found', { type: 'warning' });
@@ -480,7 +480,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           fabricType: '',
           description: '',
           stuff: '',
-          quantity: dc.quantity,
+          quantity: dc.quantity || '',
           unitOfMeasure: '',
           totalAmount: dc.totalAmount,
           gst: '',
@@ -544,7 +544,25 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     }
 
     console.log('Updated Filtered Contracts (Approved Inspection Status only):', filtered);
-    setFilteredContracts([...filtered, ...additionalContracts]);
+    
+    // Preserve existing GST selections when updating filtered contracts
+    const existingFilteredContracts = [...filteredContracts, ...additionalContracts];
+    const updatedFiltered = filtered.map(contract => {
+      const existing = existingFilteredContracts.find(ec => ec.id === contract.id);
+      if (existing && existing.gstType) {
+        return {
+          ...contract,
+          gstType: existing.gstType,
+          gstPercentage: existing.gstPercentage,
+          isSelected: existing.isSelected,
+          whtPercentage: existing.whtPercentage,
+          wht: existing.wht
+        };
+      }
+      return contract;
+    });
+    
+    setFilteredContracts([...updatedFiltered, ...additionalContracts]);
   }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers, dispatchNotes, inspectionNotes, additionalContracts]);
 
   // Fetch data on mount
@@ -924,6 +942,22 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     }
   };
 
+  // Debug: Monitor contract state changes
+  useEffect(() => {
+    console.log('Contracts state updated:', contracts.length);
+    console.log('Filtered contracts state updated:', filteredContracts.length);
+    console.log('Additional contracts state updated:', additionalContracts.length);
+    
+    // Log GST type selections
+    const contractsWithGst = [...filteredContracts, ...additionalContracts].filter(c => c.gstType);
+    console.log('Contracts with GST selected:', contractsWithGst.map(c => ({ 
+      id: c.id, 
+      contractNumber: c.contractNumber,
+      gstType: c.gstType, 
+      gstPercentage: c.gstPercentage 
+    })));
+  }, [contracts, filteredContracts, additionalContracts]);
+
   const { totalInvoiceValue, totalGSTValue, totalInvoiceValueWithGST } = calculateTotals();
 
   return (
@@ -1162,16 +1196,24 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                             {invoiceValue.toFixed(2)}
                           </td>
                           <td className="p-2 md:p-3 block md:table-cell before:content-['GST:'] before:font-bold before:md:hidden">
-                            <CustomInputDropdown
-                              label=""
-                              options={gstTypes}
-                              selectedOption={contract.gstType || ''}
-                              onChange={(value) =>
-                                handleContractInputChange(contract.id, 'gstType', value, isAdditional)
-                              }
-                              register={register}
-                              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                            />
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <CustomInputDropdown
+                                label=""
+                                options={gstTypes}
+                                selectedOption={contract.gstType || ''}
+                                onChange={(value) => {
+                                  console.log('GST Dropdown onChange triggered:', { 
+                                    contractId: contract.id, 
+                                    value, 
+                                    currentGstType: contract.gstType,
+                                    isAdditional,
+                                    gstTypes 
+                                  });
+                                  handleContractInputChange(contract.id, 'gstType', value, isAdditional);
+                                }}
+                                register={register}
+                              />
+                            </div>
                           </td>
                           <td className="p-2 md:p-3 block md:table-cell before:content-['%:'] before:font-bold before:md:hidden">
                             {contract.gstPercentage || '-'}
