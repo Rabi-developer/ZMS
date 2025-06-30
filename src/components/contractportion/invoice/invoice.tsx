@@ -332,7 +332,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
         contractNumber: rc.contractNumber,
         seller: rc.seller,
         buyer: rc.buyer,
-        dispatchQuantity: rc.dispatchQuantity || rc.dispatchQuantity || '0', // Use dispatchQuantity from DispatchNote
+        dispatchQuantity: rc.dispatchQuantity || '0', // Use dispatchQuantity from DispatchNote
         dispatchNoteId: dn.id,
       })) || []
     );
