@@ -79,12 +79,14 @@ interface DispatchNote {
   status: string;
   seller: string;
   buyer: string;
-  relatedContracts?: {
-    id: string;
-    contractNumber: string;
-    quantity: string;
-    dispatchQuantity: string;
-  }[];
+  relatedContracts?: RelatedContract[];
+}
+
+interface RelatedContract {
+  id: string;
+  contractNumber: string;
+  quantity: string;
+  dispatchQuantity: string;
 }
 
 interface Invoice {
@@ -92,7 +94,6 @@ interface Invoice {
   invoiceNumber: string;
   seller: string;
   buyer: string;
-  dispatchNoteId: string;
   status: string;
   relatedContracts?: {
     id: string;
@@ -176,17 +177,20 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
             const invoice = invoiceResponse?.data?.find((inv: Invoice) => inv.id === invoiceId);
             if (invoice) {
               setValue('InvoiceNumber', invoice.invoiceNumber, { shouldValidate: true });
-              setValue('DispatchNoteId', invoice.dispatchNoteId, { shouldValidate: true });
               setValue('Seller', sellersResponse?.data?.find((s: any) => s.sellerName === invoice.seller)?.id || '', { shouldValidate: true });
               setValue('Buyer', buyersResponse?.data?.find((b: any) => b.buyerName === invoice.buyer)?.id || '', { shouldValidate: true });
 
-              // Update filteredContracts based on dispatchNoteId
-              const selectedDispatchNote = approvedDispatchNotes.find(
-                (dn: DispatchNote) => dn.id === invoice.dispatchNoteId
+              // Find dispatch note by matching seller and buyer
+              const matchingDispatchNote = approvedDispatchNotes.find(
+                (dn: DispatchNote) => dn.seller === invoice.seller && dn.buyer === invoice.buyer
               );
-              if (selectedDispatchNote) {
-                const filteredRelatedContracts = selectedDispatchNote?.relatedContracts?.filter(
-                  (rc) => parseFloat(rc.dispatchQuantity) > 0
+              
+              if (matchingDispatchNote) {
+                setValue('DispatchNoteId', matchingDispatchNote.id, { shouldValidate: true });
+                
+                // Update filteredContracts based on found dispatch note
+                const filteredRelatedContracts = matchingDispatchNote?.relatedContracts?.filter(
+                  (rc: RelatedContract) => parseFloat(rc.dispatchQuantity) > 0
                 ) || [];
                 const dispatchNoteContracts = filteredRelatedContracts.map((rc: any) => ({
                   id: rc.id || `new-${Date.now()}-${Math.random()}`,
@@ -202,6 +206,8 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
                   isSelected: true,
                 }));
                 setFilteredContracts(dispatchNoteContracts);
+              } else {
+                toast('No matching dispatch note found for this invoice', { type: 'warning' });
               }
             } else {
               toast('Invoice not found', { type: 'error' });
@@ -351,7 +357,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
         irnDate: data.IrnDate,
         seller: sellers.find((s) => s.id === data.Seller)?.name || data.Seller,
         buyer: buyers.find((b) => b.id === data.Buyer)?.name || data.Buyer,
-        dispatchNoteId: selectedDispatchNote?.id || data.DispatchNoteId,
+        dispatchNoteId: data.DispatchNoteId, // Use the selected dispatch note ID directly
         invoiceNumber: data.InvoiceNumber,
         remarks: data.Remarks,
         creationDate: isEdit ? initialData?.creationDate || new Date().toISOString() : new Date().toISOString(),
