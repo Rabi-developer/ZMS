@@ -414,7 +414,7 @@ const InvoiceList = () => {
                         <th className="p-3 font-medium">Invoice Qty</th>
                         <th className="p-3 font-medium">Invoice Rate</th>
                         <th className="p-3 font-medium">Invoice Value</th>
-                        <th className="p-3 font-medium">GST</th>
+                        {/* <th className="p-3 font-medium">GST</th> */}
                         <th className="p-3 font-medium">%</th>
                         <th className="p-3 font-medium">GST Value</th>
                         <th className="p-3 font-medium">Invoice Value with GST</th>
@@ -440,11 +440,11 @@ const InvoiceList = () => {
                           <tr key={contract.id} className="border-b hover:bg-gray-100">
                             <td className="p-3">{contract.contractNumber || '-'}</td>
                             <td className="p-3">{contract.fabricDetails || getFabricDetails(contract)}</td>
-                            <td className="p-3">{contract.dispatchQty || '-'}</td>
+                            <td className="p-3">{contract.invoiceQty || contract.dispatchQty || '-'}</td>
                             <td className="p-3">{contract.invoiceQty || contract.dispatchQty || '-'}</td>
                             <td className="p-3">{contract.invoiceRate || '-'}</td>
                             <td className="p-3">{invoiceValue || '-'}</td>
-                            <td className="p-3">{contract.gst || '-'}</td>
+                            {/* <td className="p-3">{contract.gstPercentage || '-'}</td> */}
                             <td className="p-3">{contract.gstPercentage || '-'}</td>
                             <td className="p-3">{gstValue || '-'}</td>
                             <td className="p-3">{invoiceValueWithGst || '-'}</td>

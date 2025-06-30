@@ -17,6 +17,7 @@ import { getAllBuyer } from '@/apis/buyer';
 import { getAllDispatchNotes } from '@/apis/dispatchnote';
 import { getAllEmployee } from '@/apis/employee';
 import { createInspectionNote, updateInspectionNote } from '@/apis/inspectnote';
+import { getAllInvoice } from '@/apis/invoice';
 
 // Schema for form validation
 const InspectionNoteSchema = z.object({
@@ -25,6 +26,7 @@ const InspectionNoteSchema = z.object({
   Seller: z.string().min(1, 'Seller is required'),
   Buyer: z.string().min(1, 'Buyer is required'),
   DispatchNoteId: z.string().min(1, 'Dispatch note is required'),
+  InvoiceNumber: z.string().optional(), // For display, not submission
   Remarks: z.string().optional(),
 });
 
@@ -51,6 +53,7 @@ interface InspectionNoteData {
   seller?: string;
   buyer?: string;
   dispatchNoteId?: string;
+  invoiceNumber?: string;
   remarks?: string;
   createdBy?: string;
   creationDate?: string;
@@ -83,7 +86,22 @@ interface DispatchNote {
     dispatchQuantity: string;
   }[];
 }
-  
+
+interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  seller: string;
+  buyer: string;
+  dispatchNoteId: string;
+  status: string;
+  relatedContracts?: {
+    id: string;
+    contractNumber: string;
+    quantity: string;
+    dispatchQuantity: string;
+  }[];
+}
+
 interface InspectionNoteProps {
   isEdit?: boolean;
   initialData?: InspectionNoteData;
@@ -115,73 +133,97 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
       Seller: '',
       Buyer: '',
       DispatchNoteId: '',
+      InvoiceNumber: '',
       Remarks: '',
     },
   });
 
   const selectedDispatchNoteId = watch('DispatchNoteId');
+  const selectedInvoiceNumber = watch('InvoiceNumber');
 
-  // Fetch Sellers
-  const fetchSellers = async () => {
-    try {
-      const response = await getAllSellers();
-      setSellers(response?.data?.map((seller: any) => ({
-        id: String(seller.id),
-        name: seller.sellerName,
-      })) || []);
-    } catch (error) {
-      toast('Failed to fetch sellers', { type: 'error' });
-    }
-  };
-
-  // Fetch Buyers
-  const fetchBuyers = async () => {
-    try {
-      const response = await getAllBuyer();
-      setBuyers(response?.data?.map((buyer: any) => ({
-        id: String(buyer.id),
-        name: buyer.buyerName,
-      })) || []);
-    } catch (error) {
-      toast('Failed to fetch buyers', { type: 'error' });
-    }
-  };
-
-  // Fetch Approved Dispatch Notes
-  const fetchDispatchNotes = async () => {
-    try {
-      const response = await getAllDispatchNotes(1, 100);
-      const approvedDispatchNotes = response?.data?.filter((dn: DispatchNote) => dn.status === 'Approved') || [];
-      setDispatchNotes(approvedDispatchNotes);
-    } catch (error) {
-      toast('Failed to fetch dispatch notes', { type: 'error' });
-    }
-  };
-
-  // Fetch Employees
-  const fetchEmployees = async () => {
-    try {
-      const response = await getAllEmployee();
-      setEmployees(response?.data?.map((emp: any) => ({
-        id: String(emp.id),
-        name: emp.name,
-      })) || []);
-    } catch (error) {
-      toast('Failed to fetch employees', { type: 'error' });
-    }
-  };
-
-  // Fetch data on mount
+  // Fetch data (sellers, buyers, dispatch notes, employees, and invoice if needed)
   useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchSellers(), fetchBuyers(), fetchDispatchNotes(), fetchEmployees()])
-      .finally(() => setLoading(false));
-  }, []);
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [sellersResponse, buyersResponse, dispatchNotesResponse, employeesResponse] = await Promise.all([
+          getAllSellers(),
+          getAllBuyer(),
+          getAllDispatchNotes(1, 100),
+          getAllEmployee(),
+        ]);
 
-  // Handle query parameter for pre-populating dispatch note
+        setSellers(sellersResponse?.data?.map((seller: any) => ({
+          id: String(seller.id),
+          name: seller.sellerName,
+        })) || []);
+        setBuyers(buyersResponse?.data?.map((buyer: any) => ({
+          id: String(buyer.id),
+          name: buyer.buyerName,
+        })) || []);
+        const approvedDispatchNotes = dispatchNotesResponse?.data?.filter((dn: DispatchNote) => dn.status === 'Approved') || [];
+        setDispatchNotes(approvedDispatchNotes);
+        setEmployees(employeesResponse?.data?.map((emp: any) => ({
+          id: String(emp.id),
+          name: emp.name,
+        })) || []);
+
+        // Handle invoiceId after data is loaded
+        const invoiceId = searchParams.get('invoiceId');
+        if (invoiceId && !isEdit) {
+          try {
+            const invoiceResponse = await getAllInvoice(1, 100); // Replace with getInvoiceById if available
+            const invoice = invoiceResponse?.data?.find((inv: Invoice) => inv.id === invoiceId);
+            if (invoice) {
+              setValue('InvoiceNumber', invoice.invoiceNumber, { shouldValidate: true });
+              setValue('DispatchNoteId', invoice.dispatchNoteId, { shouldValidate: true });
+              setValue('Seller', sellersResponse?.data?.find((s: any) => s.sellerName === invoice.seller)?.id || '', { shouldValidate: true });
+              setValue('Buyer', buyersResponse?.data?.find((b: any) => b.buyerName === invoice.buyer)?.id || '', { shouldValidate: true });
+
+              // Update filteredContracts based on dispatchNoteId
+              const selectedDispatchNote = approvedDispatchNotes.find(
+                (dn: DispatchNote) => dn.id === invoice.dispatchNoteId
+              );
+              if (selectedDispatchNote) {
+                const filteredRelatedContracts = selectedDispatchNote?.relatedContracts?.filter(
+                  (rc) => parseFloat(rc.dispatchQuantity) > 0
+                ) || [];
+                const dispatchNoteContracts = filteredRelatedContracts.map((rc: any) => ({
+                  id: rc.id || `new-${Date.now()}-${Math.random()}`,
+                  contractNumber: rc.contractNumber || '',
+                  quantity: rc.quantity || '0',
+                  dispatchQuantity: rc.dispatchQuantity || '0',
+                  bGrade: '',
+                  sl: '',
+                  shrinkage: '',
+                  returnFabric: '',
+                  aGrade: '',
+                  inspectedBy: '',
+                  isSelected: true,
+                }));
+                setFilteredContracts(dispatchNoteContracts);
+              }
+            } else {
+              toast('Invoice not found', { type: 'error' });
+            }
+          } catch (error) {
+            toast('Failed to fetch invoice data', { type: 'error' });
+          }
+        }
+      } catch (error) {
+        toast('Failed to fetch data', { type: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [searchParams, setValue, isEdit]);
+
+  // Handle dispatchNoteId query parameter (for backward compatibility)
   useEffect(() => {
     const dispatchNoteId = searchParams.get('dispatchNoteId');
-    if (dispatchNoteId && dispatchNotes.length > 0 && !isEdit) {
+    if (dispatchNoteId && dispatchNotes.length > 0 && !isEdit && !searchParams.get('invoiceId')) {
       const selectedDispatchNote = dispatchNotes.find((dn) => dn.id === dispatchNoteId);
       if (selectedDispatchNote) {
         setValue('DispatchNoteId', selectedDispatchNote.id, { shouldValidate: true });
@@ -199,6 +241,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
       setValue('Seller', sellers.find((s) => s.name === initialData.seller)?.id || '', { shouldValidate: true });
       setValue('Buyer', buyers.find((b) => b.name === initialData.buyer)?.id || '', { shouldValidate: true });
       setValue('DispatchNoteId', initialData.dispatchNoteId || '', { shouldValidate: true });
+      setValue('InvoiceNumber', initialData.invoiceNumber || '', { shouldValidate: true });
       setValue('Remarks', initialData.remarks || '');
 
       const initialContracts = initialData.relatedContracts?.map((rc) => ({
@@ -233,10 +276,10 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
       return;
     }
     const filteredRelatedContracts = selectedDispatchNote?.relatedContracts?.filter(
-  rc => parseFloat(rc.dispatchQuantity) > 0
-) || [];
+      (rc) => parseFloat(rc.dispatchQuantity) > 0
+    ) || [];
 
-    const dispatchNoteContracts = (filteredRelatedContracts || []).map((rc) => ({
+    const dispatchNoteContracts = filteredRelatedContracts.map((rc) => ({
       id: rc.id || `new-${Date.now()}-${Math.random()}`,
       contractNumber: rc.contractNumber || '',
       quantity: rc.quantity || '0',
@@ -281,7 +324,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
           const sl = parseFloat(updatedContract.sl || '0');
           const shrinkage = parseFloat(updatedContract.shrinkage || '0');
           const returnFabric = parseFloat(updatedContract.returnFabric || '0');
-          const totalDeductions =bGrade + sl + shrinkage + returnFabric;
+          const totalDeductions = bGrade + sl + shrinkage + returnFabric;
           updatedContract.aGrade = (dispatchQuantity - totalDeductions).toFixed(2);
           return updatedContract;
         }
@@ -309,6 +352,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
         seller: sellers.find((s) => s.id === data.Seller)?.name || data.Seller,
         buyer: buyers.find((b) => b.id === data.Buyer)?.name || data.Buyer,
         dispatchNoteId: selectedDispatchNote?.id || data.DispatchNoteId,
+        invoiceNumber: data.InvoiceNumber,
         remarks: data.Remarks,
         creationDate: isEdit ? initialData?.creationDate || new Date().toISOString() : new Date().toISOString(),
         updationDate: new Date().toISOString(),
@@ -390,9 +434,23 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
               variant="floating"
               borderThickness="2"
             />
+            <CustomInput
+              type="text"
+              variant="floating"
+              borderThickness="2"
+              label="Invoice Number"
+              id="InvoiceNumber"
+              {...register('InvoiceNumber')}
+              disabled
+              error={errors.InvoiceNumber?.message}
+              className="w-full"
+            />
             <CustomInputDropdown
               label="Dispatch Note #"
-              options={dispatchNotes.map((dn) => ({ id: dn.id, name: dn.listid }))}
+              options={dispatchNotes.map((dn) => ({
+                id: dn.id,
+                name: `${dn.listid}${selectedInvoiceNumber ? ` (Invoice: ${selectedInvoiceNumber})` : ''}`,
+              }))}
               selectedOption={watch('DispatchNoteId') || ''}
               onChange={(value) => {
                 setValue('DispatchNoteId', value, { shouldValidate: true });
@@ -404,7 +462,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
               }}
               error={errors.DispatchNoteId?.message}
               register={register}
-              disabled
+              disabled={!!selectedInvoiceNumber || isEdit}
             />
             <CustomInputDropdown
               label="Seller"
@@ -413,7 +471,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
               onChange={(value) => setValue('Seller', value, { shouldValidate: true })}
               error={errors.Seller?.message}
               register={register}
-              disabled={!!selectedDispatchNoteId || isEdit}
+              disabled
             />
             <CustomInputDropdown
               label="Buyer"
@@ -422,7 +480,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
               onChange={(value) => setValue('Buyer', value, { shouldValidate: true })}
               error={errors.Buyer?.message}
               register={register}
-              disabled={!!selectedDispatchNoteId || isEdit}
+              disabled
             />
             <div className="mt-4 col-span-1 md:col-span-3">
               <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Remarks</h2>
@@ -439,7 +497,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
 
         <div className="p-2 md:p-4">
           <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
-          <div className="mt-2  ">
+          <div className="mt-2">
             {loading ? (
               <p className="text-gray-500 text-sm md:text-base">Loading...</p>
             ) : selectedDispatchNoteId ? (

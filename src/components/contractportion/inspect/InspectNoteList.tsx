@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllDispatchNotes, deleteDispatchNote, updateDispatchNoteStatus } from '@/apis/dispatchnote';
+import { getAllInvoice, deleteInvoice, updateInvoiceStatus } from '@/apis/invoice';
 import { deleteInspectionNote, getAllInspectionNote, updateInspectionNoteStatus } from '@/apis/inspectnote';
-import { columns, getStatusStyles, DispatchNote } from './columns';
 import { Edit, Trash } from 'lucide-react';
+import { columns, getStatusStyles, Invoice } from './columns';
 
 interface InspectionNote {
   id: string;
@@ -19,7 +19,7 @@ interface InspectionNote {
   irnDate: string;
   seller: string;
   buyer: string;
-  dispatchNoteId: string;
+  invoiceNumber?: string;
   status?: string;
   remarks?: string;
   relatedContracts?: {
@@ -29,8 +29,8 @@ interface InspectionNote {
     dispatchQuantity?: string;
     bGrade?: string;
     sl?: string;
-    shrinkage: string;
-    returnFabric: string;
+    shrinkage?: string;
+    returnFabric?: string;
     aGrade?: string;
     inspectedBy?: string;
   }[];
@@ -39,22 +39,21 @@ interface InspectionNote {
 const InspectionNoteList = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [dispatchNotes, setDispatchNotes] = useState<DispatchNote[]>([]);
-  const [filteredDispatchNotes, setFilteredDispatchNotes] = useState<DispatchNote[]>([]);
-  const [inspectionNotes, setInspectionNotes] = useState<{ [dispatchNoteId: string]: InspectionNote[] }>({});
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
+  const [inspectionNotes, setInspectionNotes] = useState<{ [invoiceId: string]: InspectionNote[] }>({});
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [openView, setOpenView] = useState(false);
   const [deleteId, setDeleteId] = useState('');
-  const [selectedDispatchNote, setSelectedDispatchNote] = useState<DispatchNote | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
-  const [selectedDispatchNoteIds, setSelectedDispatchNoteIds] = useState<string[]>([]);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  // Define status options and their styles
   const statusOptions = ['All', 'Approved Inspection', 'UnApproved Inspection', 'Active'];
   const statusOptionsConfig = [
     { id: 1, name: 'Approved Inspection', color: '#3b82f6' },
@@ -62,94 +61,96 @@ const InspectionNoteList = () => {
     { id: 3, name: 'Active', color: '#869719' },
   ];
 
-  // Fetch dispatch notes and attach inspection notes
-  const fetchDispatchNotes = async () => {
+  // Fetch approved invoices and their inspection notes
+  const fetchInvoicesAndInspectionNotes = async () => {
     try {
       setLoading(true);
-      const response = await getAllDispatchNotes(pageIndex + 1, pageSize);
-      const dispatchNotes = response?.data || [];
-      // Fetch all inspection notes in one go
-      const allInspectionNotesRes = await getAllInspectionNote(1, 1000, { invoiceNumber: '' });
-      const allInspectionNotes = allInspectionNotesRes?.data || [];
-      // Attach inspection notes to the correct dispatch note by matching dispatchNoteId
-      const dispatchNotesWithInspectionNotes = dispatchNotes.map((dispatchNote: DispatchNote) => {
-        const notes = allInspectionNotes.filter((note: InspectionNote) => note.dispatchNoteId === dispatchNote.id);
+      const invoiceResponse = await getAllInvoice(pageIndex + 1, pageSize);
+      const approvedInvoices = invoiceResponse?.data.filter((invoice: Invoice) => invoice.status === 'Approved') || [];
+
+      const inspectionResponse = await getAllInspectionNote(1, 1000, { invoiceNumber: '' });
+      const allInspectionNotes = inspectionResponse?.data || [];
+
+      const invoicesWithInspectionNotes = approvedInvoices.map((invoice: Invoice) => {
+        const notes = allInspectionNotes.filter((note: InspectionNote) => note.invoiceNumber === invoice.invoiceNumber);
         return {
-          ...dispatchNote,
+          ...invoice,
           inspectionNotes: notes,
         };
       });
-      setDispatchNotes(dispatchNotesWithInspectionNotes);
-      // Update inspectionNotes state for all dispatch notes
-      const updatedInspectionNotes: { [dispatchNoteId: string]: InspectionNote[] } = {};
-      dispatchNotesWithInspectionNotes.forEach((dispatchNote) => {
-        updatedInspectionNotes[dispatchNote.id] = dispatchNote.inspectionNotes || [];
-      });
-      setInspectionNotes(updatedInspectionNotes);
+
+      setInvoices(invoicesWithInspectionNotes);
+
+      const inspectionNotesMap = invoicesWithInspectionNotes.reduce(
+        (acc: { [invoiceId: string]: InspectionNote[] }, invoice: Invoice & { inspectionNotes?: InspectionNote[] }) => {
+          acc[invoice.id] = invoice.inspectionNotes || [];
+          return acc;
+        },
+        {} as { [invoiceId: string]: InspectionNote[] }
+      );
+      setInspectionNotes(inspectionNotesMap);
     } catch (error) {
-      toast('Failed to fetch dispatch notes', { type: 'error' });
+      toast('Failed to fetch data', { type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchInspectionNotes = async (dispatchNoteId: string) => {
+  const fetchInspectionNotes = async (invoiceId: string) => {
     try {
-      const response = await getAllInspectionNote(1, 100, { invoiceNumber: dispatchNoteId });
-      const notes = response?.data || [];
+      const invoice = invoices.find((inv) => inv.id === invoiceId);
+      const response = await getAllInspectionNote(1, 100, { invoiceNumber: invoice?.invoiceNumber || '' });
       setInspectionNotes((prev) => ({
         ...prev,
-        [dispatchNoteId]: notes,
+        [invoiceId]: response?.data || [],
       }));
-      setDispatchNotes((prev) =>
-        prev.map((dn) =>
-          dn.id === dispatchNoteId ? { ...dn, inspectionNotes: notes } : dn
+      setInvoices((prev) =>
+        prev.map((inv) =>
+          inv.id === invoiceId ? { ...inv, inspectionNotes: response?.data || [] } : inv
         )
       );
     } catch (error) {
-      toast(`Failed to fetch inspection notes for dispatch note ${dispatchNoteId}`, { type: 'error' });
+      // toast(`Failed to fetch inspection notes for invoice ${invoiceId}`, { type: 'error' });
     }
   };
 
   useEffect(() => {
-    fetchDispatchNotes();
+    fetchInvoicesAndInspectionNotes();
   }, [pageIndex, pageSize]);
 
-  // Filter dispatch notes based on status
   useEffect(() => {
-    let filtered = dispatchNotes.filter((dispatchNote) => dispatchNote.status === 'Approved');
+    let filtered = invoices;
     if (selectedStatusFilter !== 'All') {
-      filtered = filtered.filter((dispatchNote) =>
-        dispatchNote.inspectionNotes?.some((note) => note.status === selectedStatusFilter)
+      filtered = invoices.filter((invoice) =>
+        invoice.inspectionNotes?.some((note) => note.status === selectedStatusFilter)
       );
     }
-    setFilteredDispatchNotes(filtered);
-  }, [dispatchNotes, selectedStatusFilter]);
+    setFilteredInvoices(filtered);
+  }, [invoices, selectedStatusFilter]);
 
   useEffect(() => {
     if (searchParams.get('refresh') === 'true') {
-      fetchDispatchNotes();
+      fetchInvoicesAndInspectionNotes();
       router.replace('/inspectionnote');
     }
   }, [searchParams, router]);
 
-  // Fetch inspection notes for selected dispatch notes
   useEffect(() => {
-    selectedDispatchNoteIds.forEach((dispatchNoteId) => {
-      if (!inspectionNotes[dispatchNoteId]) {
-        fetchInspectionNotes(dispatchNoteId);
+    selectedInvoiceIds.forEach((invoiceId) => {
+      if (!inspectionNotes[invoiceId]) {
+        fetchInspectionNotes(invoiceId);
       }
     });
-  }, [selectedDispatchNoteIds, inspectionNotes]);
+  }, [selectedInvoiceIds, inspectionNotes]);
 
   const handleDelete = async () => {
     try {
-      await deleteDispatchNote(deleteId);
+      await deleteInvoice(deleteId);
       setOpenDelete(false);
-      toast('Dispatch Note Deleted Successfully', { type: 'success' });
-      fetchDispatchNotes();
+      toast('Invoice Deleted Successfully', { type: 'success' });
+      fetchInvoicesAndInspectionNotes();
     } catch (error) {
-      toast('Failed to delete dispatch note', { type: 'error' });
+      toast('Failed to delete invoice', { type: 'error' });
     }
   };
 
@@ -163,51 +164,49 @@ const InspectionNoteList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = (dispatchNoteId: string) => {
-    const dispatchNote = dispatchNotes.find((item) => item.id === dispatchNoteId);
-    setSelectedDispatchNote(dispatchNote || null);
+  const handleViewOpen = (invoiceId: string) => {
+    const invoice = invoices.find((item) => item.id === invoiceId);
+    setSelectedInvoice(invoice || null);
     setOpenView(true);
-    if (dispatchNote) {
-      fetchInspectionNotes(dispatchNote.id);
+    if (invoice) {
+      fetchInspectionNotes(invoice.id);
     }
   };
 
   const handleViewClose = () => {
     setOpenView(false);
-    setSelectedDispatchNote(null);
+    setSelectedInvoice(null);
   };
 
-  const handleCheckboxChange = (dispatchNoteId: string, checked: boolean) => {
-    setSelectedDispatchNoteIds((prev) => {
+  const handleCheckboxChange = (invoiceId: string, checked: boolean) => {
+    setSelectedInvoiceIds((prev) => {
       let newSelectedIds: string[];
       if (checked) {
-        newSelectedIds = prev.includes(dispatchNoteId) ? prev : [...prev, dispatchNoteId];
+        newSelectedIds = prev.includes(invoiceId) ? prev : [...prev, invoiceId];
       } else {
-        newSelectedIds = prev.filter((id) => id !== dispatchNoteId);
+        newSelectedIds = prev.filter((id) => id !== invoiceId);
       }
-      // Set default status to 'Active' when a checkbox is clicked
-      if (newSelectedIds.length > 0 && !selectedBulkStatus) {
-        setSelectedBulkStatus('Active');
-      } else if (newSelectedIds.length === 0) {
+      if (newSelectedIds.length === 0) {
         setSelectedBulkStatus(null);
-        setSelectedStatusFilter('All');
+      } else {
+        const selectedInvoices = invoices.filter((inv) => newSelectedIds.includes(inv.id));
+        const statuses = selectedInvoices
+          .flatMap((inv) => inv.inspectionNotes?.map((note) => note.status || 'Pending') || [])
+          .filter((status, index, self) => self.indexOf(status) === index);
+        const allSameStatus = statuses.length === 1 ? statuses[0] : null;
+        setSelectedBulkStatus(allSameStatus);
       }
       return newSelectedIds;
     });
-    // Ensure inspection notes are fetched for the dispatch note
-    if (checked && !inspectionNotes[dispatchNoteId]) {
-      fetchInspectionNotes(dispatchNoteId);
-    }
   };
 
-  // Bulk status update using inspection note IDs
   const handleBulkStatusUpdate = async (newStatus: string) => {
-    const selectedInspectionNoteIds = dispatchNotes
-      .filter((dispatchNote) => selectedDispatchNoteIds.includes(dispatchNote.id))
-      .flatMap((dispatchNote) => dispatchNote.inspectionNotes?.map((note) => note.id) || []);
+    const selectedInspectionNoteIds = invoices
+      .filter((invoice) => selectedInvoiceIds.includes(invoice.id))
+      .flatMap((invoice) => invoice.inspectionNotes?.map((note) => note.id) || []);
 
     if (selectedInspectionNoteIds.length === 0) {
-      toast('Please select at least one dispatch note with inspection notes', { type: 'warning' });
+      toast('Please select at least one invoice with inspection notes', { type: 'warning' });
       return;
     }
     try {
@@ -217,11 +216,11 @@ const InspectionNoteList = () => {
       );
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
+      setSelectedInvoiceIds([]);
       setSelectedStatusFilter(newStatus);
-      setSelectedDispatchNoteIds([]);
       setPageIndex(0);
       toast('Inspection Note Status Updated Successfully', { type: 'success' });
-      await fetchDispatchNotes();
+      await fetchInvoicesAndInspectionNotes();
     } catch (error: any) {
       toast(`Failed to update inspection note status: ${error.message || 'Unknown error'}`, { type: 'error' });
     } finally {
@@ -230,92 +229,84 @@ const InspectionNoteList = () => {
   };
 
   const exportToExcel = () => {
-    let dataToExport = selectedDispatchNoteIds.length > 0
-      ? filteredDispatchNotes.filter((dispatchNote) => selectedDispatchNoteIds.includes(dispatchNote.id))
-      : filteredDispatchNotes;
+    let dataToExport = selectedInvoiceIds.length > 0
+      ? filteredInvoices.filter((invoice) => selectedInvoiceIds.includes(invoice.id))
+      : filteredInvoices;
 
     if (dataToExport.length === 0) {
-      toast('No dispatch notes to export', { type: 'warning' });
+      toast('No invoices to export', { type: 'warning' });
       return;
     }
 
-    const formattedData = dataToExport.flatMap((dispatchNote) => {
-      const dispatchNoteData = {
-        'Dispatch Note ID': dispatchNote.listid || '-',
-        'Dispatch Date': dispatchNote.date || '-',
-        'Bilty Number': dispatchNote.bilty || '-',
-        'Seller': dispatchNote.seller || '-',
-        'Buyer': dispatchNote.buyer || '-',
-        'IRN Number': dispatchNote.inspectionNotes?.[0]?.irnNumber || '-',
-        'IRN Date': dispatchNote.inspectionNotes?.[0]?.irnDate || '-',
-        'Status': dispatchNote.status || '-',
-        'Remarks': dispatchNote.remarks || '-',
+    const formattedData = dataToExport.flatMap((invoice) => {
+      const invoiceData = {
+        'Invoice Number': invoice.invoiceNumber || '-',
+        'Invoice Date': invoice.invoiceDate || '-',
+        'Seller': invoice.seller || '-',
+        'Buyer': invoice.buyer || '-',
+        'Status': invoice.status || 'Approved',
+        'Remarks': invoice.invoiceremarks || '-',
+        'IRN Number': invoice.inspectionNotes?.[0]?.irnNumber || '-',
+        'IRN Date': invoice.inspectionNotes?.[0]?.irnDate || '-',
         'Contract Number': '',
-        'Vehicle Type': dispatchNote.vehicleType || '-',
-        'Vehicle': dispatchNote.vehicle || '-',
-        'Driver Name': dispatchNote.driverName || '-',
-        'Destination': dispatchNote.destination || '-',
+        'Quantity': '',
+        'Dispatch Quantity': '',
+        'B Grade': '',
+        'S.L': '',
+        'Shrinkage': '',
+        'Return Fabric': '',
+        'A Grade': '',
+        'Inspected By': '',
       };
 
-      const contractRows = dispatchNote.relatedContracts?.map((contract) => ({
-        'Dispatch Note ID': '',
-        'Dispatch Date': '',
-        'Bilty Number': '',
-        'Seller': '',
-        'Buyer': '',
-        'IRN Number': '',
-        'IRN Date': '',
-        'Status': '',
-        'Remarks': '',
-        'Contract Number': contract.contractNumber || '-',
-        'Vehicle Type': '',
-        'Vehicle': '',
-        'Driver Name': '',
-        'Destination': '',
-      })) || [];
-
-      const inspectionNoteRows = (inspectionNotes[dispatchNote.id] || []).flatMap((inspection) => [
+      const inspectionNoteRows = (inspectionNotes[invoice.id] || []).flatMap((inspection) => [
         {
-          'Dispatch Note ID': '',
-          'Dispatch Date': '',
-          'Bilty Number': '',
+          'Invoice Number': '',
+          'Invoice Date': '',
           'Seller': '',
           'Buyer': '',
-          'IRN Number': inspection.irnNumber || '-',
-          'IRN Date': inspection.irnDate || '-',
-          'Status': inspection.status || '-',
-          'Remarks': inspection.remarks || '-',
-          'Contract Number': `Inspection Note: ${inspection.irnNumber}`,
-          'Vehicle Type': '',
-          'Vehicle': '',
-          'Driver Name': '',
-          'Destination': '',
-        },
-        ...(inspection.relatedContracts?.map((contract) => ({
-          'Dispatch Note ID': '',
-          'Dispatch Date': '',
-          'Bilty Number': '',
-          'Seller': '',
-          'Buyer': '',
-          'IRN Number': '',
-          'IRN Date': '',
           'Status': '',
           'Remarks': '',
+          'IRN Number': inspection.irnNumber || '-',
+          'IRN Date': inspection.irnDate || '-',
+          'Contract Number': `Inspection Note: ${inspection.irnNumber}`,
+          'Quantity': '',
+          'Dispatch Quantity': '',
+          'B Grade': '',
+          'S.L': '',
+          'Shrinkage': '',
+          'Return Fabric': '',
+          'A Grade': '',
+          'Inspected By': '',
+        },
+        ...(inspection.relatedContracts?.map((contract) => ({
+          'Invoice Number': '',
+          'Invoice Date': '',
+          'Seller': '',
+          'Buyer': '',
+          'Status': '',
+          'Remarks': '',
+          'IRN Number': '',
+          'IRN Date': '',
           'Contract Number': contract.contractNumber || '-',
-          'Vehicle Type': '',
-          'Vehicle': '',
-          'Driver Name': '',
-          'Destination': '',
+          'Quantity': contract.quantity || '-',
+          'Dispatch Quantity': contract.dispatchQuantity || '-',
+          'B Grade': contract.bGrade || '-',
+          'S.L': contract.sl || '-',
+          'Shrinkage': contract.shrinkage || '-',
+          'Return Fabric': contract.returnFabric || '-',
+          'A Grade': contract.aGrade || '-',
+          'Inspected By': contract.inspectedBy || '-',
         })) || []),
       ]);
 
-      return [dispatchNoteData, ...contractRows, ...inspectionNoteRows];
+      return [invoiceData, ...inspectionNoteRows];
     });
 
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'DispatchNotes');
-    XLSX.writeFile(workbook, 'ApprovedDispatchNotes.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'ApprovedInvoices');
+    XLSX.writeFile(workbook, 'ApprovedInvoices.xlsx');
   };
 
   return (
@@ -323,7 +314,7 @@ const InspectionNoteList = () => {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
-            <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
+            <label className="text-sm font-medium text-gray-700 mr-2">Filter by Inspection Status:</label>
             <select
               value={selectedStatusFilter}
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
@@ -348,101 +339,94 @@ const InspectionNoteList = () => {
       <div>
         <DataTable
           columns={columns(handleDeleteOpen, handleViewOpen, handleCheckboxChange)}
-          data={filteredDispatchNotes}
+          data={filteredInvoices}
           loading={loading}
-          link={''}
+          link=""
           setPageIndex={setPageIndex}
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
         />
       </div>
-      {/* Display inspection notes and related contracts for selected dispatch notes */}
-      {selectedDispatchNoteIds.length > 0 && (
+      {selectedInvoiceIds.length > 0 && (
         <div className="mt-4">
-          <h3 className="text-lg font-semibold text-[#06b6d4]">Selected Inspection Notes and Contracts</h3>
-          {selectedDispatchNoteIds.map((dispatchNoteId) => {
-            const dispatchNote = dispatchNotes.find((dn) => dn.id === dispatchNoteId);
-            const notes = inspectionNotes[dispatchNoteId] || [];
+          <h3 className="text-lg font-semibold text-[#06b6d4]">Selected Invoices and Inspection Notes</h3>
+          {selectedInvoiceIds.map((invoiceId) => {
+            const invoice = invoices.find((inv) => inv.id === invoiceId);
+            const notes = inspectionNotes[invoiceId] || [];
             return (
-              <div key={dispatchNoteId} className="mt-4">
-                <h4 className="text-md font-medium">Dispatch Note: {dispatchNote?.listid || '-'}</h4>
-                {notes.length > 0 ? (
-                  <table className="w-full text-left border-collapse text-sm md:text-base mt-2 ml-5">
-                    <thead>
-                      <tr className="bg-[#06b6d4] text-white">
-                        <th className="p-3">Related Contracts</th>
-                        <th className="p-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {notes.map((inspection) => (
-                        <tr key={inspection.id} className="">
-                          <td className="p-3">
-                            {inspection.relatedContracts && inspection.relatedContracts.length > 0 ? (
-                              <table className="w-full text-left border-collapse">
-                                <thead>
-                                  <tr className="bg-gray-200">
-                                    <th className="p-2">Contract #</th>
-                                    <th className="p-2">Dispatch Qty</th>
-                                    <th className="p-2">B Grade</th>
-                                    <th className="p-2">S.L</th>
-                                    <th className="p-2">Shrinkage</th>
-                                    <th className="p-2">Return Fabric</th>
-                                    <th className="p-2">A Grade</th>
-                                    <th className="p-2">Inspected By</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {inspection.relatedContracts.map((contract) => (
-                                    <tr key={contract.id} className="border-b">
-                                      <td className="p-2">{contract.contractNumber || '-'}</td>
-                                      <td className="p-2">{contract.dispatchQuantity || '-'}</td>
-                                      <td className="p-2">{contract.bGrade || '-'}</td>
-                                      <td className="p-2">{contract.sl || '-'}</td>
-                                      <td className="p-2">{contract.shrinkage || '-'}</td>
-                                      <td className="p-2">{contract.returnFabric || '-'}</td>
-                                      <td className="p-2">{contract.aGrade || '-'}</td>
-                                      <td className="p-2">{contract.inspectedBy || '-'}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            ) : (
-                              'No contracts'
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <div className="flex gap-2">
-                              <Link href={`/inspectionnote/edit/${inspection.id}`}>
-                                <Button variant="outline" size="sm">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    await deleteInspectionNote(inspection.id);
-                                    toast('Inspection Note Deleted Successfully', { type: 'success' });
-                                    fetchInspectionNotes(dispatchNoteId);
-                                  } catch (error) {
-                                    toast('Failed to delete inspection note', { type: 'error' });
-                                  }
-                                }}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="text-gray-500 text-sm md:text-base">No inspection notes found for this dispatch note.</p>
-                )}
+              <div key={invoiceId} className="mt-4">
+                <h4 className="text-md font-medium">Invoice: {invoice?.invoiceNumber || '-'}</h4>
+                <table className="w-full text-left border-collapse text-sm md:text-base mt-2">
+                  <thead>
+                    <tr className="bg-[#06b6d4] text-white">
+                      <th className="p-3">Related Contract</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b">
+                      <td className="p-3">
+                        {notes.length > 0 ? (
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="bg-gray-200">
+                                <th className="p-2">IRN Number</th>
+                                <th className="p-2">IRN Date</th>
+                                <th className="p-2">Contract #</th>
+                                <th className="p-2">Quantity</th>
+                                <th className="p-2">Dispatch Qty</th>
+                                <th className="p-2">B Grade</th>
+                                <th className="p-2">S.L</th>
+                                <th className="p-2">Shrinkage</th>
+                                <th className="p-2">Return Fabric</th>
+                                <th className="p-2">A Grade</th>
+                                <th className="p-2">Inspected By</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {notes.map((inspection) => (
+                                <tr key={inspection.id} className="border-b">
+                                  <td className="p-2">{inspection.irnNumber || '-'}</td>
+                                  <td className="p-2">{inspection.irnDate || '-'}</td>
+                                  <td className="p-2">
+                                    {inspection.relatedContracts?.map((c) => c.contractNumber).join(', ') || '-'}
+                                  </td>
+                                  <td className="p-2">
+                                    {inspection.relatedContracts?.map((c) => c.quantity).join(', ') || '-'}
+                                  </td>
+                                  <td className="p-2">
+                                    {inspection.relatedContracts?.map((c) => c.dispatchQuantity).join(', ') || '-'}
+                                  </td>
+                                  <td className="p-2">
+                                    {inspection.relatedContracts?.map((c) => c.bGrade).join(', ') || '-'}
+                                  </td>
+                                  <td className="p-2">
+                                    {inspection.relatedContracts?.map((c) => c.sl).join(', ') || '-'}
+                                  </td>
+                                  <td className="p-2">
+                                    {inspection.relatedContracts?.map((c) => c.shrinkage).join(', ') || '-'}
+                                  </td>
+                                  <td className="p-2">
+                                    {inspection.relatedContracts?.map((c) => c.returnFabric).join(', ') || '-'}
+                                  </td>
+                                  <td className="p-2">
+                                    {inspection.relatedContracts?.map((c) => c.aGrade).join(', ') || '-'}
+                                  </td>
+                                  <td className="p-2">
+                                    {inspection.relatedContracts?.map((c) => c.inspectedBy).join(', ') || '-'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : (
+                          'No inspection notes'
+                        )}
+                      </td>
+                      
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             );
           })}
@@ -479,116 +463,84 @@ const InspectionNoteList = () => {
           isOpen={openDelete}
         />
       )}
-      {openView && selectedDispatchNote && (
+      {openView && selectedInvoice && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
           <div className="bg-white w-full max-w-4xl rounded-2xl p-6 max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-[#06b6d4]">Dispatch Note Details</h2>
+              <h2 className="text-2xl font-bold text-[#06b6d4]">Invoice Details</h2>
               <button onClick={handleViewClose} className="text-2xl font-bold">×</button>
             </div>
             <div className="flex-1 overflow-y-auto pr-2">
               <div className="grid grid-cols-2 gap-4">
-                <div><strong>Dispatch Note ID:</strong> {selectedDispatchNote.listid || '-'}</div>
-                <div><strong>Dispatch Date:</strong> {selectedDispatchNote.date || '-'}</div>
-                <div><strong>Bilty Number:</strong> {selectedDispatchNote.bilty || '-'}</div>
-                <div><strong>Seller:</strong> {selectedDispatchNote.seller || '-'}</div>
-                <div><strong>Buyer:</strong> {selectedDispatchNote.buyer || '-'}</div>
+                <div><strong>Invoice Number:</strong> {selectedInvoice.invoiceNumber || '-'}</div>
+                <div><strong>Invoice Date:</strong> {selectedInvoice.invoiceDate || '-'}</div>
+                <div><strong>Seller:</strong> {selectedInvoice.seller || '-'}</div>
+                <div><strong>Buyer:</strong> {selectedInvoice.buyer || '-'}</div>
                 <div>
                   <strong>Status:</strong>
                   <span
                     className={`inline-flex px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
-                      selectedDispatchNote.status || 'Pending'
+                      selectedInvoice.status || 'Approved'
                     )}`}
                   >
-                    {selectedDispatchNote.status || 'Pending'}
+                    {selectedInvoice.status || 'Approved'}
                   </span>
                 </div>
-                <div><strong>Vehicle Type:</strong> {selectedDispatchNote.vehicleType || '-'}</div>
-                <div><strong>Driver Name:</strong> {selectedDispatchNote.driverName || '-'}</div>
-                <div><strong>Destination:</strong> {selectedDispatchNote.destination || '-'}</div>
                 <div className="col-span-2">
-                  <strong>Vehicle</strong> {selectedDispatchNote.remarks || '-'}
+                  <strong>Remarks:</strong> {selectedInvoice.invoiceremarks || '-'}
                 </div>
-              </div>
-              <div className="mt-4 overflow-x-auto">
-                <h3 className="text-lg font-semibold">Related Contracts</h3>
-                <table className="w-full text-left border-collapse text-sm md:text-base">
-                  <thead>
-                    <tr className="bg-[#06b6d4] text-white">
-                      <th className="p-3">Contract #</th>
-                      <th className="p-3">Width/Color</th>
-                      <th className="p-3">Buyer Refer</th>
-                      <th className="p-3 w-[50vh]">Fabric Details</th>
-                      <th className="p-3">Date</th>
-                      <th className="p-3">Base</th>
-                      <th className="p-3">Quantity</th>
-                      <th className="p-3">Dispatch Quantity</th>
-                      <th className="p-3">Total Dispatch Quantity</th>
-                      <th className="p-3">Balance Quantity</th>
-                      <th className="p-3">Contract Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedDispatchNote.relatedContracts?.map((contract) => (
-                      <tr key={contract.id} className="border-b">
-                        <td className="p-3">{contract.contractNumber || '-'}</td>
-                        <td className="p-3">{contract.widthOrColor || '-'}</td>
-                        <td className="p-3">{contract.buyerRefer || '-'}</td>
-                        <td className="p-3 w-[50vh]">{contract.fabricDetails || '-'}</td>
-                        <td className="p-3">{contract.date || '-'}</td>
-                        <td className="p-3">{contract.base || '-'}</td>
-                        <td className="p-3">{contract.quantity || '-'}</td>
-                        <td className="p-3">{contract.dispatchQuantity || ''}</td>
-                        <td className="p-3">{contract.totalDispatchQuantity || '-'}</td>
-                        <td className="p-3">{contract.balanceQuantity || '-'}</td>
-                        <td className="p-3">{contract.contractType || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
               <div className="mt-4 overflow-x-auto">
                 <h3 className="text-lg font-semibold">Inspection Notes</h3>
-                {inspectionNotes[selectedDispatchNote.id]?.length > 0 ? (
+                {inspectionNotes[selectedInvoice.id]?.length > 0 ? (
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-[#06b6d4] text-white">
-                        <th className="p-3">Related Contracts</th>
+                        <th className="p-3">IRN Number</th>
+                        <th className="p-3">IRN Date</th>
+                        <th className="p-3">Contract #</th>
+                        <th className="p-3">Quantity</th>
+                        <th className="p-3">Dispatch Qty</th>
+                        <th className="p-3">B Grade</th>
+                        <th className="p-3">S.L</th>
+                        <th className="p-3">Shrinkage</th>
+                        <th className="p-3">Return Fabric</th>
+                        <th className="p-3">A Grade</th>
+                        <th className="p-3">Inspected By</th>
                         <th className="p-3">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {inspectionNotes[selectedDispatchNote.id]?.map((inspection) => (
+                      {inspectionNotes[selectedInvoice.id]?.map((inspection) => (
                         <tr key={inspection.id} className="border-b">
+                          <td className="p-3">{inspection.irnNumber || '-'}</td>
+                          <td className="p-3">{inspection.irnDate || '-'}</td>
                           <td className="p-3">
-                            {inspection.relatedContracts && inspection.relatedContracts.length > 0 ? (
-                              <table className="w-full text-left border-collapse">
-                                <thead>
-                                  <tr className="bg-gray-200">
-                                    <th className="p-2">Contract #</th>
-                                    <th className="p-2">Dispatch Qty</th>
-                                    <th className="p-2">B Grade</th>
-                                    <th className="p-2">S.L</th>
-                                    <th className="p-2">A Grade</th>
-                                    <th className="p-2">Inspected By</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {inspection.relatedContracts.map((contract) => (
-                                    <tr key={contract.id} className="border-b">
-                                      <td className="p-2">{contract.contractNumber || '-'}</td>
-                                      <td className="p-2">{contract.dispatchQuantity || '-'}</td>
-                                      <td className="p-2">{contract.bGrade || '-'}</td>
-                                      <td className="p-2">{contract.sl || '-'}</td>
-                                      <td className="p-2">{contract.aGrade || '-'}</td>
-                                      <td className="p-2">{contract.inspectedBy || '-'}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            ) : (
-                              'No contracts'
-                            )}
+                            {inspection.relatedContracts?.map((c) => c.contractNumber).join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.quantity).join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.dispatchQuantity).join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.bGrade).join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.sl).join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.shrinkage).join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.returnFabric).join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.aGrade).join(', ') || '-'}
+                          </td>
+                          <td className="p-3">
+                            {inspection.relatedContracts?.map((c) => c.inspectedBy).join(', ') || '-'}
                           </td>
                           <td className="p-3">
                             <div className="flex gap-2">
@@ -604,7 +556,7 @@ const InspectionNoteList = () => {
                                   try {
                                     await deleteInspectionNote(inspection.id);
                                     toast('Inspection Note Deleted Successfully', { type: 'success' });
-                                    fetchInspectionNotes(selectedDispatchNote.id);
+                                    fetchInspectionNotes(selectedInvoice.id);
                                   } catch (error) {
                                     toast('Failed to delete inspection note', { type: 'error' });
                                   }
@@ -619,10 +571,15 @@ const InspectionNoteList = () => {
                     </tbody>
                   </table>
                 ) : (
-                  <p className="text-gray-500">No inspection notes found for this dispatch note.</p>
+                  <p className="text-gray-500">No inspection notes found for this invoice.</p>
                 )}
               </div>
             </div>
+            <Link href={`/inspectionnote/create?invoiceId=${selectedInvoice.id}`}>
+              <Button className="mt-4 bg-[#06b6d4] hover:bg-[#0891b2] text-white">
+                Create Inspection Note
+              </Button>
+            </Link>
           </div>
         </div>
       )}

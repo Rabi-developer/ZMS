@@ -16,7 +16,6 @@ import { getAllBuyer } from '@/apis/buyer';
 import { getAllContract } from '@/apis/contract';
 import { getAllDispatchNotes } from '@/apis/dispatchnote';
 import { getAllGeneralSaleTextTypes } from '@/apis/generalSaleTextType';
-import { getAllInspectionNote } from '@/apis/inspectnote';
 import { Contract } from '@/components/contract/columns';
 import { createInvoice, updateInvoice } from '@/apis/invoice';
 
@@ -65,7 +64,7 @@ interface DispatchNoteData {
   creationDate?: string;
   updatedBy?: string;
   updationDate?: string;
-  status?: string; // Dispatch note status
+  status?: string; // Added to track dispatch note status
   relatedContracts?: {
     id?: string;
     contractNumber?: string;
@@ -85,33 +84,6 @@ interface DispatchNoteData {
     balanceQuantity?: string;
     contractType?: string;
     rowId?: string;
-  }[];
-}
-
-interface InspectionNoteData {
-  id: string;
-  irnNumber?: string;
-  irnDate?: string;
-  seller?: string;
-  buyer?: string;
-  dispatchNoteId?: string;
-  remarks?: string;
-  createdBy?: string;
-  status?: string; // Inspection status - "Approved Inspection"
-  creationDate?: string;
-  updatedBy?: string;
-  updationDate?: string;
-  relatedContracts?: {
-    id?: string;
-    contractNumber?: string;
-    quantity?: string;
-    dispatchQty?: string;
-    bGrade?: string;
-    sl?: string;
-    shrinkage?: string;
-    returnFabric?: string;
-    aGrade?: string;
-    inspectedBy?: string;
   }[];
 }
 
@@ -158,13 +130,11 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   const [contracts, setContracts] = useState<ExtendedContract[]>([]);
   const [filteredContracts, setFilteredContracts] = useState<ExtendedContract[]>([]);
   const [dispatchNotes, setDispatchNotes] = useState<DispatchNoteData[]>([]);
-  const [inspectionNotes, setInspectionNotes] = useState<InspectionNoteData[]>([]);
   const [gstTypes, setGstTypes] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchingSellers, setFetchingSellers] = useState(false);
   const [fetchingBuyers, setFetchingBuyers] = useState(false);
   const [fetchingDispatchNotes, setFetchingDispatchNotes] = useState(false);
-  const [fetchingInspectionNotes, setFetchingInspectionNotes] = useState(false);
   const [fetchingGstTypes, setFetchingGstTypes] = useState(false);
   const [additionalContracts, setAdditionalContracts] = useState<ExtendedContract[]>([]);
 
@@ -191,8 +161,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
 
   const selectedSeller = watch('Seller');
   const selectedBuyer = watch('Buyer');
-
-  // Fetch GST Types
+ // Fetch GST Types
   const fetchGstTypes = async () => {
     try {
       setFetchingGstTypes(true);
@@ -262,49 +231,24 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     }
   };
 
-  // Fetch Dispatch Notes
+  // Fetch Dispatch Notes (only Approved)
   const fetchDispatchNotes = async () => {
     try {
       setFetchingDispatchNotes(true);
       const response = await getAllDispatchNotes(1, 100);
       if (response && response.data) {
-        console.log('Total dispatch notes:', response.data.length);
-        setDispatchNotes(response.data);
+        // Client-side filtering as a fallback
+        const approvedDispatchNotes = response.data.filter((dn: DispatchNoteData) => dn.status === 'Approved');
+        setDispatchNotes(approvedDispatchNotes);
       } else {
         setDispatchNotes([]);
-        toast('No dispatch notes found', { type: 'warning' });
+        toast('No approved dispatch notes found', { type: 'warning' });
       }
     } catch (error) {
       setDispatchNotes([]);
       toast('Failed to fetch dispatch notes', { type: 'error' });
     } finally {
       setFetchingDispatchNotes(false);
-    }
-  };
-
-  // Fetch Inspection Notes (only Approved Inspection)
-  const fetchInspectionNotes = async () => {
-    try {
-      setFetchingInspectionNotes(true);
-      const response = await getAllInspectionNote(1, 100, { invoiceNumber: '' });
-      if (response && response.data) {
-        // Filter only approved inspection notes
-        const approvedInspectionNotes = response.data.filter((inspection: InspectionNoteData) => {
-          console.log(`Inspection Note ${inspection.id} status:`, inspection.status);
-          return inspection.status === 'Approved Inspection';
-        });
-        console.log('Total inspection notes:', response.data.length);
-        console.log('Approved inspection notes:', approvedInspectionNotes.length);
-        setInspectionNotes(approvedInspectionNotes);
-      } else {
-        setInspectionNotes([]);
-        toast('No approved inspection notes found', { type: 'warning' });
-      }
-    } catch (error) {
-      setInspectionNotes([]);
-      toast('Failed to fetch inspection notes', { type: 'error' });
-    } finally {
-      setFetchingInspectionNotes(false);
     }
   };
 
@@ -323,7 +267,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           wht: '',
           whtPercentage: '',
           isSelected: false,
-          gstType: '',
+          gstType: contract.gst ? gstTypes.find((gt) => gt.name === contract.gst)?.id : '',
         }));
 
         if (isEdit && initialData?.relatedContracts) {
@@ -339,7 +283,9 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
               invoiceRate: relatedContract?.rate || contract.rate || '',
               gstPercentage: relatedContract?.gstPercentage || contract.gst || '',
               gstType: relatedContract?.gstPercentage
-                ? gstTypes.find((gt) => gt.name === relatedContract.gstPercentage)?.id || ''
+                ? gstTypes.find((gt) => gt.name === relatedContract.gstPercentage)?.id
+                : contract.gst
+                ? gstTypes.find((gt) => gt.name === contract.gst)?.id
                 : '',
               wht: relatedContract?.wht || '',
               whtPercentage: relatedContract?.whtPercentage || '',
@@ -385,44 +331,32 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     }
   }, [isEdit, initialData, sellers, buyers, setValue, router]);
 
-  // Filter contracts by Seller, Buyer, and Dispatch Notes with Approved Inspection Status and dispatch quantity > 0
+  // Filter contracts by Seller, Buyer, and Approved Dispatch Notes with dispatch quantity > 0
   useEffect(() => {
     let filtered: ExtendedContract[] = [];
 
-    // Get dispatch note IDs that have approved inspection status
-    const approvedDispatchNoteIds = inspectionNotes
-      .filter((inspection) => inspection.status === 'Approved Inspection')
-      .map((inspection) => inspection.dispatchNoteId)
-      .filter(Boolean); // Remove any undefined values
+    // Extract all dispatch note contracts with their details
+    const dispatchNoteContracts = dispatchNotes.flatMap((dn) =>
+      dn.relatedContracts
+        ?.filter((rc) => parseFloat(rc.dispatchQuantity || '0') > 0) // Only include contracts with dispatch quantity > 0
+        ?.map((rc) => ({
+          id: rc.id,
+          contractNumber: rc.contractNumber,
+          seller: rc.seller,
+          buyer: rc.buyer,
+          dispatchQuantity: rc.dispatchQuantity || '0',
+          dispatchNoteId: dn.id,
+          rate: rc.rate || '0',
+          fabricDetails: rc.fabricDetails || '',
+          widthOrColor: rc.widthOrColor || '',
+          buyerRefer: rc.buyerRefer || '',
+          quantity: rc.quantity || '',
+          totalAmount: rc.totalAmount || '',
+          date: rc.date || '',
+        })) || []
+    );
 
-    console.log('Approved Inspection Dispatch Note IDs:', approvedDispatchNoteIds);
-
-    // Extract contracts from dispatch notes that have approved inspection
-    const dispatchNoteContracts = dispatchNotes
-      .filter((dn) => approvedDispatchNoteIds.includes(dn.id)) // Only dispatch notes with approved inspection
-      .flatMap((dn) =>
-        dn.relatedContracts
-          ?.filter((rc) => parseFloat(rc.dispatchQuantity || '0') > 0) // Only include contracts with dispatch quantity > 0
-          ?.map((rc) => ({
-            id: rc.id,
-            contractNumber: rc.contractNumber,
-            seller: rc.seller,
-            buyer: rc.buyer,
-            dispatchQuantity: rc.dispatchQuantity || '0',
-            dispatchNoteId: dn.id,
-            dispatchNoteStatus: dn.status, // Include dispatch note status for verification
-            inspectionStatus: inspectionNotes.find(insp => insp.dispatchNoteId === dn.id)?.status, // Include inspection status
-            rate: rc.rate || '0',
-            fabricDetails: rc.fabricDetails || '',
-            widthOrColor: rc.widthOrColor || '',
-            buyerRefer: rc.buyerRefer || '',
-            quantity: rc.quantity || '',
-            totalAmount: rc.totalAmount || '',
-            date: rc.date || '',
-          })) || []
-      );
-
-    console.log('Approved Inspection Dispatch Note Contracts with qty > 0:', dispatchNoteContracts);
+    console.log('Dispatch Note Contracts with qty > 0:', dispatchNoteContracts);
 
     if (isEdit && initialData?.relatedContracts) {
       // For edit mode, filter from initial data
@@ -448,7 +382,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           dc.seller === selectedSellerObj.name && dc.buyer === selectedBuyerObj.name
         );
 
-        console.log('Matching Approved Inspection Dispatch Contracts:', matchingDispatchContracts);
+        console.log('Matching Dispatch Contracts:', matchingDispatchContracts);
 
         // Convert dispatch note contracts to ExtendedContract format
         filtered = matchingDispatchContracts.map((dc) => ({
@@ -543,44 +477,51 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       }
     }
 
+   
     console.log('Updated Filtered Contracts (Approved Inspection Status only):', filtered);
     
-    // Preserve existing GST selections when updating filtered contracts
-    const existingFilteredContracts = [...filteredContracts, ...additionalContracts];
-    const updatedFiltered = filtered.map(contract => {
-      const existing = existingFilteredContracts.find(ec => ec.id === contract.id);
-      if (existing && existing.gstType) {
-        return {
-          ...contract,
-          gstType: existing.gstType,
-          gstPercentage: existing.gstPercentage,
-          isSelected: existing.isSelected,
-          whtPercentage: existing.whtPercentage,
-          wht: existing.wht
-        };
-      }
-      return contract;
-    });
-    
-    setFilteredContracts([...updatedFiltered, ...additionalContracts]);
-  }, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers, dispatchNotes, inspectionNotes, additionalContracts]);
+   const existingFilteredContracts = [...filteredContracts, ...additionalContracts];
+  const updatedFiltered = filtered.map(contract => {
+    const existing = existingFilteredContracts.find(ec => ec.id === contract.id);
+    if (existing && existing.gstType) {
+      return {
+        ...contract,
+        gstType: existing.gstType,
+        gstPercentage: existing.gstPercentage,
+        isSelected: existing.isSelected,
+        whtPercentage: existing.whtPercentage,
+        wht: existing.wht
+      };
+    }
+    return contract;
+  });
+
+  setFilteredContracts([...updatedFiltered, ...additionalContracts]);
+}, [isEdit, initialData, selectedSeller, selectedBuyer, contracts, sellers, buyers, dispatchNotes, additionalContracts]);
 
   // Fetch data on mount
   useEffect(() => {
-    const fetchData = async () => {
-      await Promise.all([
-        fetchSellers(),
-        fetchBuyers(),
-        fetchDispatchNotes(),
-        fetchInspectionNotes(),
-        fetchGstTypes()
-      ]);
-      // Fetch contracts after GST types are loaded
-      await fetchContracts();
-    };
-    
-    fetchData();
+    fetchSellers();
+    fetchBuyers();
+    fetchContracts();
+    fetchDispatchNotes();
+    fetchGstTypes();
   }, []);
+// Debug: Monitor contract state changes
+  useEffect(() => {
+    console.log('Contracts state updated:', contracts.length);
+    console.log('Filtered contracts state updated:', filteredContracts.length);
+    console.log('Additional contracts state updated:', additionalContracts.length);
+    
+    // Log GST type selections
+    const contractsWithGst = [...filteredContracts, ...additionalContracts].filter(c => c.gstType);
+    console.log('Contracts with GST selected:', contractsWithGst.map(c => ({ 
+      id: c.id, 
+      contractNumber: c.contractNumber,
+      gstType: c.gstType, 
+      gstPercentage: c.gstPercentage 
+    })));
+  }, [contracts, filteredContracts, additionalContracts]);
 
   // Handle contract row selection
   const handleContractSelect = (contractId: string, checked: boolean) => {
@@ -614,8 +555,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     value: string,
     isAdditional: boolean = false
   ) => {
-    console.log('handleContractInputChange called:', { contractId, field, value, isAdditional });
-    
     if (isAdditional) {
       setAdditionalContracts((prev) =>
         prev.map((contract) => {
@@ -623,8 +562,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
             const updatedContract = { ...contract, [field]: value };
             if (field === 'gstType') {
               const selectedGst = gstTypes.find((gt) => gt.id === value);
-              console.log('Selected GST:', selectedGst);
-              updatedContract.gstType = value;
               updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
             }
             return updatedContract;
@@ -633,18 +570,11 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
         })
       );
       setFilteredContracts((prev) =>
-        prev.map((contract) => {
-          if (contract.id === contractId) {
-            const updatedContract = { ...contract, [field]: value };
-            if (field === 'gstType') {
-              const selectedGst = gstTypes.find((gt) => gt.id === value);
-              updatedContract.gstType = value;
-              updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
-            }
-            return updatedContract;
-          }
-          return contract;
-        })
+        prev.map((contract) =>
+          contract.id === contractId
+            ? { ...contract, [field]: value }
+            : contract
+        )
       );
     } else {
       setContracts((prev) =>
@@ -653,8 +583,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
             const updatedContract = { ...contract, [field]: value };
             if (field === 'gstType') {
               const selectedGst = gstTypes.find((gt) => gt.id === value);
-              console.log('Selected GST:', selectedGst);
-              updatedContract.gstType = value;
               updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
             }
             return updatedContract;
@@ -668,7 +596,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
             const updatedContract = { ...contract, [field]: value };
             if (field === 'gstType') {
               const selectedGst = gstTypes.find((gt) => gt.id === value);
-              updatedContract.gstType = value;
               updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
             }
             return updatedContract;
@@ -942,22 +869,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     }
   };
 
-  // Debug: Monitor contract state changes
-  useEffect(() => {
-    console.log('Contracts state updated:', contracts.length);
-    console.log('Filtered contracts state updated:', filteredContracts.length);
-    console.log('Additional contracts state updated:', additionalContracts.length);
-    
-    // Log GST type selections
-    const contractsWithGst = [...filteredContracts, ...additionalContracts].filter(c => c.gstType);
-    console.log('Contracts with GST selected:', contractsWithGst.map(c => ({ 
-      id: c.id, 
-      contractNumber: c.contractNumber,
-      gstType: c.gstType, 
-      gstPercentage: c.gstPercentage 
-    })));
-  }, [contracts, filteredContracts, additionalContracts]);
-
   const { totalInvoiceValue, totalGSTValue, totalInvoiceValueWithGST } = calculateTotals();
 
   return (
@@ -1081,8 +992,8 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
             <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Related Contracts</h2>
           </div>
           <div className="mt-2 overflow-x-auto">
-            {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes || fetchingInspectionNotes || fetchingGstTypes) ? (
-              <p className="text-gray-500 text-sm md:text-base">Loading contracts, sellers, buyers, dispatch notes, inspection notes, or GST types...</p>
+            {(loading || fetchingSellers || fetchingBuyers || fetchingDispatchNotes || fetchingGstTypes) ? (
+              <p className="text-gray-500 text-sm md:text-base">Loading contracts, sellers, buyers, dispatch notes, or GST types...</p>
             ) : selectedSeller && selectedBuyer ? (
               [...filteredContracts, ...additionalContracts].length > 0 ? (
                 <table className="w-full text-left border-collapse text-sm md:text-base">
@@ -1195,8 +1106,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                           <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Value:'] before:font-bold before:md:hidden">
                             {invoiceValue.toFixed(2)}
                           </td>
-                          <td className="p-2 md:p-3 block md:table-cell before:content-['GST:'] before:font-bold before:md:hidden">
-                            <div onClick={(e) => e.stopPropagation()}>
+                         <div onClick={(e) => e.stopPropagation()}>
                               <CustomInputDropdown
                                 label=""
                                 options={gstTypes}
@@ -1214,7 +1124,6 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                                 register={register}
                               />
                             </div>
-                          </td>
                           <td className="p-2 md:p-3 block md:table-cell before:content-['%:'] before:font-bold before:md:hidden">
                             {contract.gstPercentage || '-'}
                           </td>
@@ -1275,7 +1184,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                 </table>
               ) : (
                 <p className="text-gray-500 text-sm md:text-base">
-                  No contracts found for the selected Seller and Buyer with associated Approved Inspection Notes.
+                  No contracts found for the selected Seller and Buyer with associated Approved Dispatch Notes.
                 </p>
               )
             ) : (
