@@ -198,18 +198,17 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
       setFetchingGstTypes(true);
       const response = await getAllGeneralSaleTextTypes();
       if (response && response.data) {
-        const gstData = response.data.map((item: any) => ({
-          id: item.id,
-          name: item.gstType,
-        }));
-        console.log('GST Types loaded:', gstData);
-        setGstTypes(gstData);
+        setGstTypes(
+          response.data.map((item: any) => ({
+            id: item.id,
+            name: item.gstType,
+          }))
+        );
       } else {
         setGstTypes([]);
         toast('No GST types found', { type: 'warning' });
       }
     } catch (error) {
-      console.error('Error fetching GST types:', error);
       setGstTypes([]);
       toast('Error fetching GST types', { type: 'error' });
     } finally {
@@ -324,7 +323,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           wht: '',
           whtPercentage: '',
           isSelected: false,
-          gstType: contract.gst ? gstTypes.find((gt) => gt.name === contract.gst)?.id : '',
+          gstType: '',
         }));
 
         if (isEdit && initialData?.relatedContracts) {
@@ -340,9 +339,7 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
               invoiceRate: relatedContract?.rate || contract.rate || '',
               gstPercentage: relatedContract?.gstPercentage || contract.gst || '',
               gstType: relatedContract?.gstPercentage
-                ? gstTypes.find((gt) => gt.name === relatedContract.gstPercentage)?.id
-                : contract.gst
-                ? gstTypes.find((gt) => gt.name === contract.gst)?.id
+                ? gstTypes.find((gt) => gt.name === relatedContract.gstPercentage)?.id || ''
                 : '',
               wht: relatedContract?.wht || '',
               whtPercentage: relatedContract?.whtPercentage || '',
@@ -552,12 +549,19 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
 
   // Fetch data on mount
   useEffect(() => {
-    fetchSellers();
-    fetchBuyers();
-    fetchContracts();
-    fetchDispatchNotes();
-    fetchInspectionNotes();
-    fetchGstTypes();
+    const fetchData = async () => {
+      await Promise.all([
+        fetchSellers(),
+        fetchBuyers(),
+        fetchDispatchNotes(),
+        fetchInspectionNotes(),
+        fetchGstTypes()
+      ]);
+      // Fetch contracts after GST types are loaded
+      await fetchContracts();
+    };
+    
+    fetchData();
   }, []);
 
   // Handle contract row selection
@@ -592,27 +596,69 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
     value: string,
     isAdditional: boolean = false
   ) => {
-    const updateContract = (contract: ExtendedContract) => {
-      if (contract.id === contractId) {
-        const updatedContract = { ...contract, [field]: value };
-        if (field === 'gstType') {
-          const selectedGst = gstTypes.find((gt) => gt.id === value);
-          console.log('GST Selection - Contract ID:', contractId, 'Selected GST ID:', value, 'Found GST:', selectedGst);
-          updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
-        }
-        return updatedContract;
-      }
-      return contract;
-    };
-
-    if (isAdditional) {
-      setAdditionalContracts((prev) => prev.map(updateContract));
-    } else {
-      setContracts((prev) => prev.map(updateContract));
-    }
+    console.log('handleContractInputChange called:', { contractId, field, value, isAdditional });
     
-    // Always update filtered contracts
-    setFilteredContracts((prev) => prev.map(updateContract));
+    if (isAdditional) {
+      setAdditionalContracts((prev) =>
+        prev.map((contract) => {
+          if (contract.id === contractId) {
+            const updatedContract = { ...contract, [field]: value };
+            if (field === 'gstType') {
+              const selectedGst = gstTypes.find((gt) => gt.id === value);
+              console.log('Selected GST:', selectedGst);
+              updatedContract.gstType = value;
+              updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
+            }
+            return updatedContract;
+          }
+          return contract;
+        })
+      );
+      setFilteredContracts((prev) =>
+        prev.map((contract) => {
+          if (contract.id === contractId) {
+            const updatedContract = { ...contract, [field]: value };
+            if (field === 'gstType') {
+              const selectedGst = gstTypes.find((gt) => gt.id === value);
+              updatedContract.gstType = value;
+              updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
+            }
+            return updatedContract;
+          }
+          return contract;
+        })
+      );
+    } else {
+      setContracts((prev) =>
+        prev.map((contract) => {
+          if (contract.id === contractId) {
+            const updatedContract = { ...contract, [field]: value };
+            if (field === 'gstType') {
+              const selectedGst = gstTypes.find((gt) => gt.id === value);
+              console.log('Selected GST:', selectedGst);
+              updatedContract.gstType = value;
+              updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
+            }
+            return updatedContract;
+          }
+          return contract;
+        })
+      );
+      setFilteredContracts((prev) =>
+        prev.map((contract) => {
+          if (contract.id === contractId) {
+            const updatedContract = { ...contract, [field]: value };
+            if (field === 'gstType') {
+              const selectedGst = gstTypes.find((gt) => gt.id === value);
+              updatedContract.gstType = value;
+              updatedContract.gstPercentage = selectedGst ? selectedGst.name.replace('%', '') : '';
+            }
+            return updatedContract;
+          }
+          return contract;
+        })
+      );
+    }
   };
 
   // Add new contract row
@@ -1116,22 +1162,16 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
                             {invoiceValue.toFixed(2)}
                           </td>
                           <td className="p-2 md:p-3 block md:table-cell before:content-['GST:'] before:font-bold before:md:hidden">
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <select
-                                value={contract.gstType || ''}
-                                onChange={(e) =>
-                                  handleContractInputChange(contract.id, 'gstType', e.target.value, isAdditional)
-                                }
-                                className="w-full p-2 border border-gray-300 rounded text-sm"
-                              >
-                                <option value="">Select GST</option>
-                                {gstTypes.map((gst) => (
-                                  <option key={gst.id} value={gst.id}>
-                                    {gst.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                            <CustomInputDropdown
+                              label=""
+                              options={gstTypes}
+                              selectedOption={contract.gstType || ''}
+                              onChange={(value) =>
+                                handleContractInputChange(contract.id, 'gstType', value, isAdditional)
+                              }
+                              register={register}
+                              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                            />
                           </td>
                           <td className="p-2 md:p-3 block md:table-cell before:content-['%:'] before:font-bold before:md:hidden">
                             {contract.gstPercentage || '-'}
