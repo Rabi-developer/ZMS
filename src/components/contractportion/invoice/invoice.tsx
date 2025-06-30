@@ -46,6 +46,7 @@ interface ExtendedContract extends Contract {
   selvage?: string;
   paymentTermsSeller?: string;
   paymentTermsBuyer?: string;
+  fabricDetails?: string; // Add fabricDetails for dispatch note contracts
 }
 
 interface DispatchNoteData {
@@ -73,7 +74,16 @@ interface DispatchNoteData {
     quantity?: string;
     totalAmount?: string;
     base?: string;
-    dispatchQuantity?: string; // Added to map dispatchQuantity
+    dispatchQuantity?: string;
+    rate?: string;
+    fabricDetails?: string;
+    widthOrColor?: string;
+    buyerRefer?: string;
+    contractQuantity?: string;
+    totalDispatchQuantity?: string;
+    balanceQuantity?: string;
+    contractType?: string;
+    rowId?: string;
   }[];
 }
 
@@ -326,18 +336,31 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
   useEffect(() => {
     let filtered: ExtendedContract[] = [];
 
+    // Extract all dispatch note contracts with their details
     const dispatchNoteContracts = dispatchNotes.flatMap((dn) =>
-      dn.relatedContracts?.map((rc) => ({
-        id: rc.id,
-        contractNumber: rc.contractNumber,
-        seller: rc.seller,
-        buyer: rc.buyer,
-        dispatchQuantity: rc.dispatchQuantity || '0', // Use dispatchQuantity from DispatchNote
-        dispatchNoteId: dn.id,
-      })) || []
+      dn.relatedContracts
+        ?.filter((rc) => parseFloat(rc.dispatchQuantity || '0') > 0) // Only include contracts with dispatch quantity > 0
+        ?.map((rc) => ({
+          id: rc.id,
+          contractNumber: rc.contractNumber,
+          seller: rc.seller,
+          buyer: rc.buyer,
+          dispatchQuantity: rc.dispatchQuantity || '0',
+          dispatchNoteId: dn.id,
+          rate: rc.rate || '0',
+          fabricDetails: rc.fabricDetails || '',
+          widthOrColor: rc.widthOrColor || '',
+          buyerRefer: rc.buyerRefer || '',
+          quantity: rc.quantity || '',
+          totalAmount: rc.totalAmount || '',
+          date: rc.date || '',
+        })) || []
     );
 
+    console.log('Dispatch Note Contracts with qty > 0:', dispatchNoteContracts);
+
     if (isEdit && initialData?.relatedContracts) {
+      // For edit mode, filter from initial data
       filtered = contracts
         .filter((contract) =>
           initialData.relatedContracts!.some(
@@ -350,35 +373,109 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
           return dispatchQty > 0;
         });
     } else {
+      // For create mode, use dispatch note contracts directly
       const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
       const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
 
-      filtered = contracts
-        .filter((contract) => {
-          const matchesSellerAndBuyer =
-            contract.seller === selectedSellerObj?.name &&
-            contract.buyer === selectedBuyerObj?.name;
-          const isInDispatchNote = dispatchNoteContracts.some(
-            (dc) => dc.contractNumber === contract.contractNumber
-          );
-          return matchesSellerAndBuyer && isInDispatchNote;
-        })
-        .map((contract) => {
-          const dispatchContract = dispatchNoteContracts.find(
-            (dc) => dc.contractNumber === contract.contractNumber
-          );
-          return {
-            ...contract,
-            dispatchQuantity: dispatchContract?.dispatchQuantity || '0',
-            dispatchNoteId: dispatchContract?.dispatchNoteId,
-            invoiceQty: dispatchContract?.dispatchQuantity || '0',
-          };
-        })
-        .filter((contract) => {
-          // Only show contracts with dispatch quantity > 0
-          const dispatchQty = parseFloat(contract.dispatchQuantity || '0');
-          return dispatchQty > 0;
-        });
+      if (selectedSellerObj && selectedBuyerObj) {
+        // Filter dispatch note contracts by selected seller and buyer
+        const matchingDispatchContracts = dispatchNoteContracts.filter((dc) =>
+          dc.seller === selectedSellerObj.name && dc.buyer === selectedBuyerObj.name
+        );
+
+        console.log('Matching Dispatch Contracts:', matchingDispatchContracts);
+
+        // Convert dispatch note contracts to ExtendedContract format
+        filtered = matchingDispatchContracts.map((dc) => ({
+          id: dc.id || '',
+          contractNumber: dc.contractNumber || '',
+          seller: dc.seller || '',
+          buyer: dc.buyer || '',
+          dispatchQuantity: dc.dispatchQuantity,
+          dispatchNoteId: dc.dispatchNoteId,
+          invoiceQty: dc.dispatchQuantity,
+          invoiceRate: dc.rate,
+          rate: dc.rate,
+          gstPercentage: '',
+          wht: '',
+          whtPercentage: '',
+          isSelected: false,
+          gstType: '',
+          selvage: '',
+          paymentTermsSeller: '',
+          paymentTermsBuyer: '',
+          fabricDetails: dc.fabricDetails, // Include fabricDetails from dispatch note
+          // Add required Contract properties with default values
+          date: dc.date,
+          contractType: 'Sale',
+          companyId: '',
+          branchId: '',
+          contractOwner: '',
+          deliveryDate: '',
+          fabricType: '',
+          description: '',
+          stuff: '',
+          quantity: dc.quantity,
+          unitOfMeasure: '',
+          totalAmount: dc.totalAmount,
+          gst: '',
+          weftYarnType: '',
+          fabricValue: '',
+          paymenterm: '',
+          paymenterms: '',
+          referenceNumber: '',
+          refer: '',
+          warpCount: '',
+          warpYarnType: '',
+          weftCount: '',
+          noOfEnds: '',
+          noOfPicks: '',
+          weaves: '',
+          width: dc.widthOrColor,
+          final: '',
+          referdate: '',
+          descriptionSubOptions: '',
+          stuffSubOptions: '',
+          blendRatio: '',
+          blendType: '',
+          warpYarnTypeSubOptions: '',
+          weftYarnTypeSubOptions: '',
+          weavesSubOptions: '',
+          pickInsertion: '',
+          pickInsertionSubOptions: '',
+          selvege: '',
+          selvegeSubOptions: '',
+          selvegeWeaves: '',
+          selvegeWeaveSubOptions: '',
+          selvegeWidth: '',
+          tolerance: '',
+          packing: '',
+          pieceLength: '',
+          inductionThread: '',
+          inductionThreadSubOptions: '',
+          gsm: '',
+          gstValue: '',
+          createdBy: '',
+          creationDate: '',
+          updatedBy: '',
+          updationDate: '',
+          approvedBy: '',
+          approvedDate: '',
+          endUse: '',
+          selvegeThickness: '',
+          selvegeThicknessSubOptions: '',
+          endUseSubOptions: '',
+          notes: '',
+          dispatchLater: '',
+          status: '',
+          finishWidth: '',
+          buyerDeliveryBreakups: [],
+          sellerDeliveryBreakups: [],
+          conversionContractRow: [],
+          dietContractRow: [],
+          multiWidthContractRow: []
+        }));
+      }
     }
 
     console.log('Updated Filtered Contracts:', filtered);
@@ -571,6 +668,12 @@ const InvoiceForm = ({ isEdit = false, initialData }: InvoiceFormProps) => {
 
   // Format Fabric Details
   const getFabricDetails = (contract: ExtendedContract) => {
+    // If fabricDetails is already available (from dispatch note), use it
+    if (contract.fabricDetails) {
+      return contract.fabricDetails;
+    }
+    
+    // Otherwise, construct from individual fields
     const fabricDetails = [
       `${contract.warpCount || ''}${contract.warpYarnType || ''}`,
       `${contract.weftCount || ''}${contract.weftYarnType || ''}`,
