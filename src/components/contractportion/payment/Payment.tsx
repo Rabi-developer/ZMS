@@ -849,8 +849,51 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 />
               </>
             )}
-          </div>
+
+          {/* Show previous advances for selected Seller/Buyer */}
+          {selectedSeller && selectedBuyer && (
+            <div className="col-span-full mt-4">
+              <h3 className="text-md md:text-lg font-semibold text-[#06b6d4] dark:text-white mb-2">Previous Advances for Selected Seller & Buyer</h3>
+              {previousPayments.filter(
+                (p) =>
+                  p.paymentType === 'Advance' &&
+                  (p.status === 'Approved' || p.status === 'Pending') &&
+                  (sellers.find((s) => s.id === selectedSeller)?.name === p.seller || selectedSeller === p.seller) &&
+                  (buyers.find((b) => b.id === selectedBuyer)?.name === p.buyer || selectedBuyer === p.buyer)
+              ).length > 0 ? (
+                <table className="w-full text-left border-collapse text-sm md:text-base">
+                  <thead>
+                    <tr className="bg-[#06b6d4] text-white">
+                      <th className="p-2 md:p-3 font-medium">Payment #</th>
+                      <th className="p-2 md:p-3 font-medium">Advance Received</th>
+                      <th className="p-2 md:p-3 font-medium">Date</th>
+                      <th className="p-2 md:p-3 font-medium">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previousPayments.filter(
+                      (p) =>
+                        p.paymentType === 'Advance' &&
+                        (p.status === 'Approved' || p.status === 'Pending') &&
+                        (sellers.find((s) => s.id === selectedSeller)?.name === p.seller || selectedSeller === p.seller) &&
+                        (buyers.find((b) => b.id === selectedBuyer)?.name === p.buyer || selectedBuyer === p.buyer)
+                    ).map((p) => (
+                      <tr key={p.id} className="border-b hover:bg-gray-100 block md:table-row">
+                        <td className="p-2 md:p-3 block md:table-cell">{p.paymentNumber || '-'}</td>
+                        <td className="p-2 md:p-3 block md:table-cell">{p.advanceReceived || '-'}</td>
+                        <td className="p-2 md:p-3 block md:table-cell">{p.paymentDate ? p.paymentDate.split('T')[0] : '-'}</td>
+                        <td className="p-2 md:p-3 block md:table-cell">{p.remarks || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-gray-500 text-sm md:text-base">No previous advances found for this Seller and Buyer.</p>
+              )}
+            </div>
+          )}
         </div>
+      </div>
 
         {(selectedPaymentType === 'Payment' || selectedPaymentType === 'Income Tax') && (
           <div className="p-2 md:p-4">
