@@ -208,14 +208,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const selectedBuyer = watch('buyer');
   const selectedPaymentType = watch('paymentType');
   const selectedPaymentNumber = watch('paymentNumber');
-  const selectedChequeNo = watch('chequeNo');
-  const selectedIncomeTaxAmount = watch('incomeTaxAmount');
   const incomeTaxRate = watch('incomeTaxRate');
   const watchedInvoices = watch('relatedInvoices') || [];
 
   // Calculate remaining income tax
   const calculateRemainingTax = () => {
-    const taxAmount = parseFloat(selectedIncomeTaxAmount || '0');
+    const taxAmount = parseFloat(watch('incomeTaxAmount') || '0');
     const rate = parseFloat(incomeTaxRate || '0');
     return (taxAmount - rate).toFixed(2);
   };
@@ -359,9 +357,36 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         setValue('chequeNo', '');
         setValue('incomeTaxAmount', '');
       }
+    } else {
+      setChequeNumbers([]);
+      setIncomeTaxAmounts([]);
+      setValue('chequeNo', '');
+      setValue('incomeTaxAmount', '');
     }
   }, [selectedPaymentNumber, previousPayments, setValue, selectedPaymentType]);
 
+  // Update advanceReceived based on selected seller and buyer for both 'Advance' and 'Payment' types
+ useEffect(() => {
+  if (selectedSeller && selectedBuyer && (selectedPaymentType === 'Advance' || selectedPaymentType === 'Payment')) {
+    const selectedSellerName = sellers.find((s) => s.id === selectedSeller)?.name;
+    const selectedBuyerName = buyers.find((b) => b.id === selectedBuyer)?.name;
+    const totalAdvance = previousPayments
+      .filter(
+        (payment) =>
+          payment.paymentType === 'Advance' &&
+          (payment.status === 'Approved' || payment.status === 'Pending') &&
+          payment.seller === selectedSellerName &&
+          payment.buyer === selectedBuyerName
+      )
+      .reduce(
+        (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
+        0
+      );
+    setValue('advanceReceived', totalAdvance.toFixed(2), { shouldValidate: true });
+  } else {
+    setValue('advanceReceived', '', { shouldValidate: true });
+  }
+}, [selectedSeller, selectedBuyer, previousPayments, sellers, buyers, setValue, selectedPaymentType]);
   // Initialize form with initialData when editing
   useEffect(() => {
     if (isEdit && initialData) {
@@ -378,13 +403,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       setValue('chequeNo', initialData.chequeNo || '');
       setValue('chequeDate', initialData.chequeDate?.split('T')[0] || '');
 
-      // Only set seller if needed
       const sellerId = sellers.find((s) => s.name === initialData.seller)?.id || initialData.seller || '';
       if (sellerId && sellerId !== (typeof initialData.seller === 'string' ? initialData.seller : '')) {
         setValue('seller', sellerId);
       }
 
-      // Only set buyer if needed
       const buyerId = buyers.find((b) => b.name === initialData.buyer)?.id || initialData.buyer || '';
       if (buyerId && buyerId !== (typeof initialData.buyer === 'string' ? initialData.buyer : '')) {
         setValue('buyer', buyerId);
@@ -613,7 +636,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               onMouseEnter={() => setIdFocused(true)}
               onMouseLeave={() => setIdFocused(false)}
             >
-              {/* Use a single input: dropdown for Income Tax, readonly input for others */}
               {selectedPaymentType === 'Income Tax' ? (
                 <CustomInputDropdown
                   label="Payment#"
@@ -717,14 +739,14 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 />
               </>
             )}
-              <CustomInputDropdown
+            <CustomInputDropdown
               label="Seller"
               options={sellers}
               selectedOption={watch('seller') || ''}
               onChange={(value) => {
                 setValue('seller', value, { shouldValidate: true });
                 setSelectedInvoiceIds([]);
-                  setValue('relatedInvoices', []);
+                setValue('relatedInvoices', []);
                 setShowInvoiceSelection(false);
               }}
               error={errors.seller?.message}
@@ -745,64 +767,48 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             />
             {selectedPaymentType === 'Income Tax' && (
               <>
-                {/* Only show Income Tax specific fields, not duplicate Payment#, Payment Date, Payment Type */}
-                {(() => {
-                  const selectedPayment = previousPayments.find(
-                    (payment) => payment.paymentNumber === watch('paymentNumber')
-                  );
-                  return (
-                    <>
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Cheque No"
-                        id="chequeNo"
-                        type="text"
-                        value={selectedPayment?.chequeNo || ''}
-                        disabled
-                        className="w-full"
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Income Tax Amount"
-                        id="incomeTaxAmount"
-                        type="number"
-                        value={selectedPayment?.incomeTaxAmount || ''}
-                        disabled
-                        className="w-full"
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="Remaining Tax"
-                        id="remainingTax"
-                        type="number"
-                        value={(() => {
-                          // Remaining Tax = Income Tax Amount - sum of Received Amounts from invoice table
-                          const taxAmount = parseFloat(selectedPayment?.incomeTaxAmount || '0');
-                          const sumReceived = (watchedInvoices || []).reduce((sum, inv) => sum + parseFloat(inv.receivedAmount || '0'), 0);
-                          return (taxAmount - sumReceived).toFixed(2);
-                        })()}
-                        disabled
-                        className="w-full"
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
-                        label="CPR"
-                        id="cpr"
-                        type="text"
-                        {...register('cpr')}
-                        error={errors.cpr?.message}
-                        className="w-full"
-                      />
-                    </>
-                  );
-                })()}
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Cheque No"
+                  id="chequeNo"
+                  type="text"
+                  value={watch('chequeNo') || ''}
+                  disabled
+                  className="w-full"
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Income Tax Amount"
+                  id="incomeTaxAmount"
+                  type="number"
+                  value={watch('incomeTaxAmount') || ''}
+                  disabled
+                  className="w-full"
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Remaining Tax"
+                  id="remainingTax"
+                  type="number"
+                  value={calculateRemainingTax()}
+                  disabled
+                  className="w-full"
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="CPR"
+                  id="cpr"
+                  type="text"
+                  {...register('cpr')}
+                  error={errors.cpr?.message}
+                  className="w-full"
+                />
               </>
             )}
-          
             {selectedPaymentType !== 'Income Tax' && (
               <>
                 <CustomInput
@@ -835,7 +841,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                   {...register('advanceReceived')}
                   error={errors.advanceReceived?.message}
                   className="w-full"
-                  disabled
+                    disabled={selectedPaymentType !== 'Advance' && selectedPaymentType !== 'Payment'}
+                
                 />
                 <CustomInput
                   variant="floating"
@@ -849,51 +856,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 />
               </>
             )}
-
-          {/* Show previous advances for selected Seller/Buyer */}
-          {selectedSeller && selectedBuyer && (
-            <div className="col-span-full mt-4">
-              <h3 className="text-md md:text-lg font-semibold text-[#06b6d4] dark:text-white mb-2">Previous Advances for Selected Seller & Buyer</h3>
-              {previousPayments.filter(
-                (p) =>
-                  p.paymentType === 'Advance' &&
-                  (p.status === 'Approved' || p.status === 'Pending') &&
-                  (sellers.find((s) => s.id === selectedSeller)?.name === p.seller || selectedSeller === p.seller) &&
-                  (buyers.find((b) => b.id === selectedBuyer)?.name === p.buyer || selectedBuyer === p.buyer)
-              ).length > 0 ? (
-                <table className="w-full text-left border-collapse text-sm md:text-base">
-                  <thead>
-                    <tr className="bg-[#06b6d4] text-white">
-                      <th className="p-2 md:p-3 font-medium">Payment #</th>
-                      <th className="p-2 md:p-3 font-medium">Advance Received</th>
-                      <th className="p-2 md:p-3 font-medium">Date</th>
-                      <th className="p-2 md:p-3 font-medium">Remarks</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previousPayments.filter(
-                      (p) =>
-                        p.paymentType === 'Advance' &&
-                        (p.status === 'Approved' || p.status === 'Pending') &&
-                        (sellers.find((s) => s.id === selectedSeller)?.name === p.seller || selectedSeller === p.seller) &&
-                        (buyers.find((b) => b.id === selectedBuyer)?.name === p.buyer || selectedBuyer === p.buyer)
-                    ).map((p) => (
-                      <tr key={p.id} className="border-b hover:bg-gray-100 block md:table-row">
-                        <td className="p-2 md:p-3 block md:table-cell">{p.paymentNumber || '-'}</td>
-                        <td className="p-2 md:p-3 block md:table-cell">{p.advanceReceived || '-'}</td>
-                        <td className="p-2 md:p-3 block md:table-cell">{p.paymentDate ? p.paymentDate.split('T')[0] : '-'}</td>
-                        <td className="p-2 md:p-3 block md:table-cell">{p.remarks || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-gray-500 text-sm md:text-base">No previous advances found for this Seller and Buyer.</p>
-              )}
-            </div>
-          )}
+          </div>
         </div>
-      </div>
 
         {(selectedPaymentType === 'Payment' || selectedPaymentType === 'Income Tax') && (
           <div className="p-2 md:p-4">
@@ -1093,37 +1057,15 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                   const invIndex = updatedInvoices.findIndex((inv) => inv.id === invoice.id);
                                   if (invIndex >= 0) {
                                     updatedInvoices[invIndex].invoiceAdjusted = value;
-                                    const totalAmount = updatedInvoices[invIndex].totalAmount || invoice.invoiceValueWithGst || '0';
-                                    const seller = invoice.seller;
-                                    const buyer = invoice.buyer;
-                                    let invoiceAmount = parseFloat(totalAmount || '0');
-                                    const found = invoices.find(
-                                      (inv) =>
-                                        inv.invoiceNumber === invoice.invoiceNumber &&
-                                        inv.seller === seller &&
-                                        inv.buyer === buyer
+                                    updateBalance(
+                                      invIndex,
+                                      updatedInvoices[invIndex].totalAmount || invoice.invoiceValueWithGst || '0',
+                                      updatedInvoices[invIndex].receivedAmount || '0',
+                                      value,
+                                      invoice.invoiceNumber,
+                                      invoice.seller,
+                                      invoice.buyer
                                     );
-                                    if (found && found.invoiceValueWithGst) {
-                                      invoiceAmount = parseFloat(found.invoiceValueWithGst);
-                                    }
-                                    const totalAdvance = previousPayments
-                                      .filter(
-                                        (payment) =>
-                                          payment.paymentType === 'Advance' &&
-                                          payment.status === 'Approved' &&
-                                          payment.seller === seller &&
-                                          payment.buyer === buyer
-                                      )
-                                      .reduce(
-                                        (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
-                                        0
-                                      );
-                                    const receivedAmount = updatedInvoices[invIndex].receivedAmount || '0';
-                                    const balance = (
-                                      invoiceAmount -
-                                      (parseFloat(receivedAmount || '0') + parseFloat(value || '0') + totalAdvance)
-                                    ).toFixed(2);
-                                    updatedInvoices[invIndex].balance = balance;
                                     setValue('relatedInvoices', updatedInvoices);
                                   }
                                 }}
@@ -1151,8 +1093,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                 sum +
                                 parseFloat(
                                   watchedInvoices.find((i) => i.id === inv.id)?.receivedAmount ||
-                                    inv.receivedAmount ||
-                                    '0'
+                                    inv.receivedAmount || '0'
                                 ),
                               0
                             ).toFixed(2)}
@@ -1171,8 +1112,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                 sum +
                                 parseFloat(
                                   watchedInvoices.find((i) => i.id === inv.id)?.balance ||
-                                    inv.balance ||
-                                    '0'
+                                    inv.balance || '0'
                                 ),
                               0
                             ).toFixed(2)}
@@ -1183,8 +1123,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                 sum +
                                 parseFloat(
                                   watchedInvoices.find((i) => i.id === inv.id)?.invoiceAdjusted ||
-                                    inv.invoiceAdjusted ||
-                                    '0'
+                                    inv.invoiceAdjusted || '0'
                                 ),
                               0
                             ).toFixed(2)}
@@ -1205,8 +1144,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             </div>
           </div>
         )}
-
-        {/* Removed read-only invoice table for Income Tax; now handled above with Payment type logic */}
 
         {selectedPaymentType === 'Advance' && (
           <div className="p-2 md:p-4">
