@@ -712,9 +712,35 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 />
               </>
             )}
+              <CustomInputDropdown
+              label="Seller"
+              options={sellers}
+              selectedOption={watch('seller') || ''}
+              onChange={(value) => {
+                setValue('seller', value, { shouldValidate: true });
+                setSelectedInvoiceIds([]);
+                  setValue('relatedInvoices', []);
+                setShowInvoiceSelection(false);
+              }}
+              error={errors.seller?.message}
+              register={register}
+            />
+            <CustomInputDropdown
+              label="Buyer"
+              options={buyers}
+              selectedOption={watch('buyer') || ''}
+              onChange={(value) => {
+                setValue('buyer', value, { shouldValidate: true });
+                setSelectedInvoiceIds([]);
+                setValue('relatedInvoices', []);
+                setShowInvoiceSelection(false);
+              }}
+              error={errors.buyer?.message}
+              register={register}
+            />
             {selectedPaymentType === 'Income Tax' && (
               <>
-                {/* Auto-filled, read-only Cheque No and Income Tax Amount when Payment# is selected */}
+                {/* Only show Income Tax specific fields, not duplicate Payment#, Payment Date, Payment Type */}
                 {(() => {
                   const selectedPayment = previousPayments.find(
                     (payment) => payment.paymentNumber === watch('paymentNumber')
@@ -744,20 +770,15 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                       <CustomInput
                         variant="floating"
                         borderThickness="2"
-                        label="Income Tax Rate"
-                        id="incomeTaxRate"
-                        type="number"
-                        {...register('incomeTaxRate')}
-                        error={errors.incomeTaxRate?.message}
-                        className="w-full"
-                      />
-                      <CustomInput
-                        variant="floating"
-                        borderThickness="2"
                         label="Remaining Tax"
                         id="remainingTax"
                         type="number"
-                        value={calculateRemainingTax()}
+                        value={(() => {
+                          // Remaining Tax = Income Tax Amount - sum of Received Amounts from invoice table
+                          const taxAmount = parseFloat(selectedPayment?.incomeTaxAmount || '0');
+                          const sumReceived = (watchedInvoices || []).reduce((sum, inv) => sum + parseFloat(inv.receivedAmount || '0'), 0);
+                          return (taxAmount - sumReceived).toFixed(2);
+                        })()}
                         disabled
                         className="w-full"
                       />
@@ -776,32 +797,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 })()}
               </>
             )}
-            <CustomInputDropdown
-              label="Seller"
-              options={sellers}
-              selectedOption={watch('seller') || ''}
-              onChange={(value) => {
-                setValue('seller', value, { shouldValidate: true });
-                setSelectedInvoiceIds([]);
-                setValue('relatedInvoices', []);
-                setShowInvoiceSelection(false);
-              }}
-              error={errors.seller?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Buyer"
-              options={buyers}
-              selectedOption={watch('buyer') || ''}
-              onChange={(value) => {
-                setValue('buyer', value, { shouldValidate: true });
-                setSelectedInvoiceIds([]);
-                setValue('relatedInvoices', []);
-                setShowInvoiceSelection(false);
-              }}
-              error={errors.buyer?.message}
-              register={register}
-            />
+          
             {selectedPaymentType !== 'Income Tax' && (
               <>
                 <CustomInput
