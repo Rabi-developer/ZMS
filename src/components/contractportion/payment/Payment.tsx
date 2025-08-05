@@ -10,17 +10,18 @@ import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
 import CustomSingleDatePicker from '@/components/ui/CustomDateRangePicker';
 import { MdPayment } from 'react-icons/md';
 import { BiSolidErrorAlt } from 'react-icons/bi';
+import { FaTimes } from 'react-icons/fa';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { getAllSellers } from '@/apis/seller';
 import { getAllBuyer } from '@/apis/buyer';
 import { getAllInvoice } from '@/apis/invoice';
-import { createPayment, updatePayment } from '@/apis/payment';
+import { createPayment, updatePayment, getAllPayment } from '@/apis/payment';
 
 // Schema for form validation
 const PaymentSchema = z.object({
   paymentNumber: z.string().optional(),
-  paymentDate: z.string().min(1, 'Payment date is required'),
+  paymentDate: z.string().optional(),
   paymentType: z.enum(['Advance', 'Payment'], { required_error: 'Payment type is required' }),
   mode: z.string().min(1, 'Payment mode is required'),
   bankName: z.string().min(1, 'Bank name is required'),
@@ -28,7 +29,7 @@ const PaymentSchema = z.object({
   chequeDate: z.string().optional(),
   seller: z.string().min(1, 'Seller is required'),
   buyer: z.string().min(1, 'Buyer is required'),
-  paidAmount: z.string().min(1, 'Paid amount is required'),
+  paidAmount: z.string().optional(),
   incomeTaxAmount: z.string().optional(),
   advanceReceived: z.string().optional(),
   remarks: z.string().optional(),
@@ -64,6 +65,7 @@ interface ExtendedInvoice {
   balance: string;
   invoiceAdjusted: string;
   isSelected?: boolean;
+  invoiceValueWithGst?: string;
 }
 
 interface PaymentData {
@@ -85,6 +87,7 @@ interface PaymentData {
   creationDate?: string;
   updatedBy?: string;
   updationDate?: string;
+  status?: string;
   relatedInvoices?: {
     id?: string;
     invoiceNumber?: string;
@@ -110,15 +113,26 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
   const [invoices, setInvoices] = useState<ExtendedInvoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<ExtendedInvoice[]>([]);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
+  const [showInvoiceSelection, setShowInvoiceSelection] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingSellers, setFetchingSellers] = useState(false);
   const [fetchingBuyers, setFetchingBuyers] = useState(false);
   const [idFocused, setIdFocused] = useState(false);
+  const [previousPayments, setPreviousPayments] = useState<PaymentData[]>([]);
 
-  // Static options for Payment Type and Bank Name
+  // Static options for Payment Type, Mode, and Bank Name
   const paymentTypes = [
     { id: 'Advance', name: 'Advance' },
     { id: 'Payment', name: 'Payment' },
+  ];
+
+  const modeOptions = [
+    { id: 'Cash', name: 'Cash' },
+    { id: 'Cheque', name: 'Cheque' },
+    { id: 'Bank Letter', name: 'Bank Letter' },
+    { id: 'LC', name: 'LC' },
+    { id: 'Bad Debts', name: 'Bad Debts' },
   ];
 
   const bankNames = [
@@ -160,8 +174,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const selectedSeller = watch('seller');
   const selectedBuyer = watch('buyer');
   const selectedPaymentType = watch('paymentType');
-
-  // Watch relatedInvoices for dynamic updates
+  const chequeNo = watch('chequeNo');
+  const advanceReceived = watch('advanceReceived');
+  const [advanceRemarks, setAdvanceRemarks] = useState('');
   const watchedInvoices = watch('relatedInvoices') || [];
 
   // Fetch Sellers
@@ -204,7 +219,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       }
     } catch (error) {
       setBuyers([]);
-      toast('Failed to fetch sellers', { type: 'error' });
+      toast('Failed to fetch buyers', { type: 'error' });
     } finally {
       setFetchingBuyers(false);
     }
@@ -218,22 +233,31 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       if (response && response.data) {
         const updatedInvoices: ExtendedInvoice[] = response.data
           .filter((invoice: any) => invoice.status === 'Approved')
-          .map((invoice: any) => ({
-            id: String(invoice.id),
-            invoiceNumber: invoice.invoiceNumber || '',
-            invoiceDate: invoice.invoiceDate || '',
-            dueDate: invoice.dueDate || '',
-            seller: invoice.seller || '',
-            buyer: invoice.buyer || '',
-            totalAmount: invoice.totalAmount || '0',
-            receivedAmount: invoice.receivedAmount || '0',
-            balance: (
-              (parseFloat(invoice.totalAmount || '0') || 0) -
-              (parseFloat(invoice.receivedAmount || '0')) || 0
-            ).toFixed(2),
-            invoiceAdjusted: invoice.invoiceAdjusted || 'No',
-            isSelected: isEdit && initialData?.relatedInvoices?.some((ri) => ri?.id === invoice.id),
-          }));
+          .map((invoice: any) => {
+            const invoiceValueWithGst = invoice.relatedContracts
+              ? invoice.relatedContracts
+                  .reduce(
+                    (sum: number, contract: any) =>
+                      sum + (parseFloat(contract.invoiceValueWithGst) || 0),
+                    0
+                  )
+                  .toFixed(2)
+              : invoice.invoiceValueWithGst || '0.00';
+            return {
+              id: String(invoice.id),
+              invoiceNumber: invoice.invoiceNumber || '',
+              invoiceDate: invoice.invoiceDate || '',
+              dueDate: invoice.dueDate || '',
+              seller: invoice.seller || '',
+              buyer: invoice.buyer || '',
+              totalAmount: invoice.totalAmount || '0',
+              receivedAmount: invoice.receivedAmount || '0',
+              balance: invoice.balance || '0',
+              invoiceAdjusted: invoice.invoiceAdjusted || '0',
+              invoiceValueWithGst,
+              isSelected: isEdit && initialData?.relatedInvoices?.some((ri) => ri?.id === invoice.id),
+            };
+          });
         setInvoices(updatedInvoices);
       } else {
         setInvoices([]);
@@ -244,6 +268,21 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       toast('Failed to fetch invoices', { type: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch Previous Payments
+  const fetchPreviousPayments = async () => {
+    try {
+      const response = await getAllPayment();
+      if (response && response.data) {
+        setPreviousPayments(response.data);
+      } else {
+        setPreviousPayments([]);
+      }
+    } catch (error) {
+      setPreviousPayments([]);
+      toast('Failed to fetch previous payments', { type: 'error' });
     }
   };
 
@@ -270,10 +309,14 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         'buyer',
         buyers.find((b) => b.name === initialData.buyer)?.id || initialData.buyer || ''
       );
-      setValue('paidAmount', initialData.paidAmount || '');
       setValue('incomeTaxAmount', initialData.incomeTaxAmount || '');
       setValue('advanceReceived', initialData.advanceReceived || '');
       setValue('remarks', initialData.remarks || '');
+      if (initialData.status === 'Approved' && initialData.paymentType === 'Advance') {
+        setValue('paidAmount', initialData.advanceReceived || '');
+      } else {
+        setValue('paidAmount', initialData.paidAmount || '');
+      }
       setValue(
         'relatedInvoices',
         initialData.relatedInvoices?.map((ri) => ({
@@ -286,85 +329,146 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           totalAmount: ri.totalAmount || '0',
           receivedAmount: ri.receivedAmount || '0',
           balance: ri.balance || '0',
-          invoiceAdjusted: ri.invoiceAdjusted || 'No',
+          invoiceAdjusted: ri.invoiceAdjusted || '0',
         })) || []
       );
+      setSelectedInvoiceIds(initialData.relatedInvoices?.map((ri) => ri.id || '') || []);
     }
   }, [isEdit, initialData, sellers, buyers, setValue, router]);
 
-  // Filter invoices by Seller and Buyer
+  // Filter invoices and update selected invoices
   useEffect(() => {
-    let filtered: ExtendedInvoice[] = [];
+    const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
+    const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
 
-    if (isEdit && initialData?.relatedInvoices) {
-      filtered = invoices.filter((invoice) =>
-        initialData.relatedInvoices!.some((ri) => ri.id === invoice.id)
-      );
-    } else {
-      const selectedSellerObj = sellers.find((s) => String(s.id) === String(selectedSeller));
-      const selectedBuyerObj = buyers.find((b) => String(b.id) === String(selectedBuyer));
+    const filtered = invoices.filter(
+      (invoice) =>
+        invoice.seller === selectedSellerObj?.name &&
+        invoice.buyer === selectedBuyerObj?.name
+    );
 
-      filtered = invoices.filter(
-        (invoice) =>
-          invoice.seller === selectedSellerObj?.name && invoice.buyer === selectedBuyerObj?.name
-      );
-    }
+    // Update filteredInvoices to only include selected invoices
+    const selectedInvoices = filtered.filter((invoice) => selectedInvoiceIds.includes(invoice.id));
+    setFilteredInvoices(selectedInvoices);
 
-    setFilteredInvoices(filtered);
-  }, [isEdit, initialData, selectedSeller, selectedBuyer, invoices, sellers, buyers]);
+    // Update relatedInvoices with advance adjustments
+    const updatedRelatedInvoices = selectedInvoices.map((invoice) => {
+      const totalAdvance = previousPayments
+        .filter(
+          (payment) =>
+            payment.paymentType === 'Advance' &&
+            payment.status === 'Approved' &&
+            payment.seller === invoice.seller &&
+            payment.buyer === invoice.buyer
+        )
+        .reduce(
+          (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
+          0
+        );
+
+      const invoiceAmount = parseFloat(invoice.invoiceValueWithGst || invoice.totalAmount || '0');
+      const receivedAmount = parseFloat(invoice.receivedAmount || '0');
+      const existingInvoice = watchedInvoices.find((inv) => inv.id === invoice.id);
+      const adjustedAmount = existingInvoice
+        ? existingInvoice.invoiceAdjusted
+        : Math.min(totalAdvance, invoiceAmount - receivedAmount).toFixed(2);
+
+      return {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.invoiceDate,
+        dueDate: invoice.dueDate,
+        seller: invoice.seller,
+        buyer: invoice.buyer,
+        totalAmount: invoice.totalAmount || invoice.invoiceValueWithGst || '0',
+        receivedAmount: existingInvoice?.receivedAmount || invoice.receivedAmount || '0',
+        balance: existingInvoice?.balance || (
+          invoiceAmount -
+          (parseFloat(existingInvoice?.receivedAmount || invoice.receivedAmount || '0') +
+            parseFloat(adjustedAmount || '0'))
+        ).toFixed(2),
+        invoiceAdjusted: adjustedAmount,
+      };
+    });
+
+    setValue('relatedInvoices', updatedRelatedInvoices);
+  }, [selectedSeller, selectedBuyer, invoices, sellers, buyers, selectedInvoiceIds, previousPayments, setValue, watchedInvoices]);
 
   // Fetch data on mount
   useEffect(() => {
     fetchSellers();
     fetchBuyers();
     fetchInvoices();
+    fetchPreviousPayments();
   }, []);
 
-  // Handle invoice selection and update relatedInvoices
-  const handleInvoiceSelect = (invoice: ExtendedInvoice, checked: boolean) => {
-    setInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === invoice.id ? { ...inv, isSelected: checked } : inv
-      )
-    );
-    setFilteredInvoices((prev) =>
-      prev.map((inv) =>
-        inv.id === invoice.id ? { ...inv, isSelected: checked } : inv
-      )
-    );
-
-    if (checked) {
-      setValue('relatedInvoices', [
-        ...watchedInvoices,
-        {
-          id: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          invoiceDate: invoice.invoiceDate,
-          dueDate: invoice.dueDate,
-          seller: invoice.seller,
-          buyer: invoice.buyer,
-          totalAmount: invoice.totalAmount,
-          receivedAmount: invoice.receivedAmount,
-          balance: invoice.balance,
-          invoiceAdjusted: invoice.invoiceAdjusted,
-        },
-      ]);
-    } else {
-      setValue(
-        'relatedInvoices',
-        watchedInvoices.filter((inv) => inv.id !== invoice.id)
-      );
-    }
+  // Handle invoice selection by clicking Invoice #
+  const handleInvoiceSelect = (invoice: ExtendedInvoice) => {
+    setSelectedInvoiceIds((prev) => {
+      if (prev.includes(invoice.id)) {
+        // Deselect invoice
+        return prev.filter((id) => id !== invoice.id);
+      } else {
+        // Select invoice
+        return [...prev, invoice.id];
+      }
+    });
+    setShowInvoiceSelection(false);
   };
 
-  // Update balance when totalAmount or receivedAmount changes
-  const updateBalance = (index: number, totalAmount: string, receivedAmount: string) => {
-    const balance = (parseFloat(totalAmount || '0') - parseFloat(receivedAmount || '0')).toFixed(2);
+  // Handle invoice removal
+  const handleRemoveInvoice = (invoiceId: string) => {
+    setSelectedInvoiceIds((prev) => prev.filter((id) => id !== invoiceId));
+  };
+
+  // Update balance and synchronize receivedAmount and invoiceAdjusted
+  const updateBalance = (
+    index: number,
+    totalAmount: string,
+    receivedAmount: string,
+    invoiceAdjusted: string,
+    invoiceNumber?: string,
+    seller?: string,
+    buyer?: string
+  ) => {
+    let invoiceAmount = parseFloat(totalAmount || '0');
+    if (invoiceNumber && seller && buyer) {
+      const found = invoices.find(
+        (inv) =>
+          inv.invoiceNumber === invoiceNumber &&
+          inv.seller === seller &&
+          inv.buyer === buyer
+      );
+      if (found && found.invoiceValueWithGst) {
+        invoiceAmount = parseFloat(found.invoiceValueWithGst);
+      }
+    }
+
+    // Calculate total advance received for this seller and buyer
+    const totalAdvance = previousPayments
+      .filter(
+        (payment) =>
+          payment.paymentType === 'Advance' &&
+          payment.status === 'Approved' &&
+          payment.seller === seller &&
+          payment.buyer === buyer
+      )
+      .reduce(
+        (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
+        0
+      );
+
+    const balance = (
+      invoiceAmount -
+      (parseFloat(receivedAmount || '0') + parseFloat(invoiceAdjusted || '0') + totalAdvance)
+    ).toFixed(2);
+
     const updatedInvoices = [...watchedInvoices];
     updatedInvoices[index] = {
       ...updatedInvoices[index],
       totalAmount,
       receivedAmount,
+      invoiceAdjusted,
       balance,
     };
     setValue('relatedInvoices', updatedInvoices);
@@ -386,11 +490,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         paidAmount: data.paidAmount,
         incomeTaxAmount: data.incomeTaxAmount,
         advanceReceived: data.advanceReceived,
-        remarks: data.remarks,
+        remarks: data.paymentType === 'Advance' ? advanceRemarks : data.remarks,
         creationDate: isEdit
           ? initialData?.creationDate || new Date().toISOString()
           : new Date().toISOString(),
         updationDate: new Date().toISOString(),
+        status: 'Pending',
         relatedInvoices: data.paymentType === 'Payment' ? data.relatedInvoices : [],
       };
 
@@ -422,7 +527,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <div className="p-2 md:p-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div
               className="relative group"
               onMouseEnter={() => setIdFocused(true)}
@@ -470,20 +575,22 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               label="Payment Type"
               options={paymentTypes}
               selectedOption={watch('paymentType') || ''}
-              onChange={(value) =>
-                setValue('paymentType', value as 'Advance' | 'Payment', { shouldValidate: true })
-              }
+              onChange={(value) => {
+                setValue('paymentType', value as 'Advance' | 'Payment', { shouldValidate: true });
+                setSelectedInvoiceIds([]);
+                setValue('relatedInvoices', []);
+                setShowInvoiceSelection(false);
+              }}
               error={errors.paymentType?.message}
               register={register}
             />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
+            <CustomInputDropdown
               label="Mode"
-              id="mode"
-              {...register('mode')}
+              options={modeOptions}
+              selectedOption={watch('mode') || ''}
+              onChange={(value) => setValue('mode', value, { shouldValidate: true })}
               error={errors.mode?.message}
-              className="w-full"
+              register={register}
             />
             <CustomInputDropdown
               label="Bank Name"
@@ -518,7 +625,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               label="Seller"
               options={sellers}
               selectedOption={watch('seller') || ''}
-              onChange={(value) => setValue('seller', value, { shouldValidate: true })}
+              onChange={(value) => {
+                setValue('seller', value, { shouldValidate: true });
+                setSelectedInvoiceIds([]);
+                setValue('relatedInvoices', []);
+                setShowInvoiceSelection(false);
+              }}
               error={errors.seller?.message}
               register={register}
             />
@@ -526,7 +638,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               label="Buyer"
               options={buyers}
               selectedOption={watch('buyer') || ''}
-              onChange={(value) => setValue('buyer', value, { shouldValidate: true })}
+              onChange={(value) => {
+                setValue('buyer', value, { shouldValidate: true });
+                setSelectedInvoiceIds([]);
+                setValue('relatedInvoices', []);
+                setShowInvoiceSelection(false);
+              }}
               error={errors.buyer?.message}
               register={register}
             />
@@ -539,6 +656,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               {...register('paidAmount')}
               error={errors.paidAmount?.message}
               className="w-full"
+              disabled
             />
             <CustomInput
               variant="floating"
@@ -560,16 +678,16 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               error={errors.advanceReceived?.message}
               className="w-full"
             />
-            <div className="mt-4 col-span-1 md:col-span-3">
-              <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Remarks</h2>
-              <textarea
-                className="w-full p-2 border-[#06b6d4] border rounded text-sm md:text-base"
-                rows={4}
-                {...register('remarks')}
-                placeholder="Enter any remarks"
-              />
-              {errors.remarks && <p className="text-red-500 text-sm">{errors.remarks.message}</p>}
-            </div>
+            <CustomInput
+              variant="floating"
+              borderThickness="2"
+              label="Remarks"
+              id="remarks"
+              type="text"
+              {...register('remarks')}
+              error={errors.remarks?.message}
+              className="w-full"
+            />
           </div>
         </div>
 
@@ -580,173 +698,307 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               {loading || fetchingSellers || fetchingBuyers ? (
                 <p className="text-gray-500 text-sm md:text-base">Loading invoices, sellers, or buyers...</p>
               ) : selectedSeller && selectedBuyer ? (
-                filteredInvoices.length > 0 ? (
-                  <table className="w-full text-left border-collapse text-sm md:text-base">
-                    <thead>
-                      <tr className="bg-[#06b6d4] text-white">
-                        <th className="p-2 md:p-3 font-medium">Select</th>
-                        <th className="p-2 md:p-3 font-medium">Invoice #</th>
-                        <th className="p-2 md:p-3 font-medium">Invoice Date</th>
-                        <th className="p-2 md:p-3 font-medium">Due Date</th>
-                        <th className="p-2 md:p-3 font-medium">Inv. Amount</th>
-                        <th className="p-2 md:p-3 font-medium">Received Amount</th>
-                        <th className="p-2 md:p-3 font-medium">Balance</th>
-                        <th className="p-2 md:p-3 font-medium">Invoice Adjusted</th>
-                      </tr>
-                    </thead>
-                  <tbody>
-  {filteredInvoices.map((invoice, index) => (
-    <tr
-      key={invoice.id}
-      className={`border-b hover:bg-gray-100 cursor-pointer ${
-        invoice.isSelected ? 'bg-blue-100' : ''
-      } block md:table-row`}
-      onClick={() => handleInvoiceSelect(invoice, !invoice.isSelected)}
-    >
-      <td className="p-2 md:p-3 block md:table-cell before:content-['Select:'] before:font-bold before:md:hidden">
-        <input
-          type="checkbox"
-          checked={invoice.isSelected || false}
-          onChange={(e) => handleInvoiceSelect(invoice, e.target.checked)}
-          onClick={(e) => e.stopPropagation()}
-        />
-      </td>
-      <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_#:'] before:font-bold before:md:hidden">
-        {invoice.invoiceNumber || '-'}
-      </td>
-      <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Date:'] before:font-bold before:md:hidden">
-        {invoice.invoiceDate || '-'}
-      </td>
-      <td className="p-2 md:p-3 block md:table-cell before:content-['Due_Date:'] before:font-bold before:md:hidden">
-        {invoice.dueDate || '-'}
-      </td>
-      <td className="p-2 md:p-3 block md:table-cell before:content-['Inv._Amount:'] before:font-bold before:md:hidden">
-        <input
-          type="number"
-          step="0.01"
-          value={
-            watchedInvoices.find((inv) => inv.id === invoice.id)?.totalAmount === '0' ||
-            !watchedInvoices.find((inv) => inv.id === invoice.id)?.totalAmount
-              ? ''
-              : watchedInvoices.find((inv) => inv.id === invoice.id)?.totalAmount || invoice.totalAmount || ''
-          }
-          onChange={(e) => {
-            const value = e.target.value;
-            const updatedInvoices = [...watchedInvoices];
-            const invIndex = updatedInvoices.findIndex((inv) => inv.id === invoice.id);
-            if (invIndex >= 0) {
-              updatedInvoices[invIndex].totalAmount = value;
-              updateBalance(
-                invIndex,
-                value,
-                updatedInvoices[invIndex].receivedAmount || '0'
-              );
-            } else {
-              updatedInvoices.push({
-                ...invoice,
-                totalAmount: value,
-                receivedAmount: invoice.receivedAmount || '0',
-                balance: invoice.balance || '0',
-                invoiceAdjusted: invoice.invoiceAdjusted || 'No',
-              });
-              updateBalance(
-                updatedInvoices.length - 1,
-                value,
-                invoice.receivedAmount || '0'
-              );
-            }
-            setValue('relatedInvoices', updatedInvoices);
-          }}
-          onClick={(e) => e.stopPropagation()}
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-      </td>
-      <td className="p-2 md:p-3 block md:table-cell before:content-['Received_Amount:'] before:font-bold before:md:hidden">
-        <input
-          type="number"
-          step="0.01" // Changed to allow decimal places for consistency
-          value={
-            watchedInvoices.find((inv) => inv.id === invoice.id)?.receivedAmount === '0' ||
-            !watchedInvoices.find((inv) => inv.id === invoice.id)?.receivedAmount
-              ? ''
-              : watchedInvoices.find((inv) => inv.id === invoice.id)?.receivedAmount || invoice.receivedAmount || ''
-          }
-          onChange={(e) => {
-            const value = e.target.value;
-            const updatedInvoices = [...watchedInvoices];
-            const invIndex = updatedInvoices.findIndex((inv) => inv.id === invoice.id);
-            if (invIndex >= 0) {
-              updatedInvoices[invIndex].receivedAmount = value;
-              updateBalance(
-                invIndex,
-                updatedInvoices[invIndex].totalAmount || '0',
-                value
-              );
-            } else {
-              updatedInvoices.push({
-                ...invoice,
-                totalAmount: invoice.totalAmount || '0',
-                receivedAmount: value,
-                balance: invoice.balance || '0',
-                invoiceAdjusted: invoice.invoiceAdjusted || 'No',
-              });
-              updateBalance(
-                updatedInvoices.length - 1,
-                invoice.totalAmount || '0',
-                value
-              );
-            }
-            setValue('relatedInvoices', updatedInvoices);
-          }}
-          onClick={(e) => e.stopPropagation()}
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-      </td>
-      <td className="p-2 md:p-3 block md:table-cell before:content-['Balance:'] before:font-bold before:md:hidden">
-        {watchedInvoices.find((inv) => inv.id === invoice.id)?.balance || invoice.balance || '0.00'}
-      </td>
-      <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Adjusted:'] before:font-bold before:md:hidden">
-        <input
-          type="number"
-          step="0.01"
-          value={
-            watchedInvoices.find((inv) => inv.id === invoice.id)?.invoiceAdjusted === '0' ||
-            !watchedInvoices.find((inv) => inv.id === invoice.id)?.invoiceAdjusted
-              ? ''
-              : watchedInvoices.find((inv) => inv.id === invoice.id)?.invoiceAdjusted || invoice.invoiceAdjusted || ''
-          }
-          onChange={(e) => {
-            const value = e.target.value;
-            const updatedInvoices = [...watchedInvoices];
-            const invIndex = updatedInvoices.findIndex((inv) => inv.id === invoice.id);
-            if (invIndex >= 0) {
-              updatedInvoices[invIndex].invoiceAdjusted = value;
-            } else {
-              updatedInvoices.push({
-                ...invoice,
-                totalAmount: invoice.totalAmount || '0',
-                receivedAmount: invoice.receivedAmount || '0',
-                balance: invoice.balance || '0',
-                invoiceAdjusted: value,
-              });
-            }
-            setValue('relatedInvoices', updatedInvoices);
-          }}
-          onClick={(e) => e.stopPropagation()}
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-      </td>
-    </tr>
-  ))}
-</tbody>
-                  </table>
-                ) : (
-                  <p className="text-gray-500 text-sm md:text-base">
-                    No approved invoices found for the selected Seller and Buyer.
-                  </p>
-                )
+                <>
+                  <button
+                    type="button"
+                    className="mb-2 px-4 py-2 bg-[#06b6d4] text-white rounded hover:bg-[#0891b2] font-semibold"
+                    onClick={() => setShowInvoiceSelection(true)}
+                  >
+                    Add Invoice
+                  </button>
+                  {showInvoiceSelection && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                      <div className="bg-white dark:bg-[#030630] rounded shadow-lg p-6 w-full max-w-3xl relative">
+                        <button
+                          type="button"
+                          className="absolute top-2 right-2 text-gray-500 hover:text-black dark:hover:text-white"
+                          onClick={() => setShowInvoiceSelection(false)}
+                        >
+                          <FaTimes />
+                        </button>
+                        <h3 className="text-md md:text-lg font-semibold dark:text-white mb-2">Select Invoices</h3>
+                        <div className="mb-3 text-base text-blue-700 bg-blue-100 rounded px-3 py-2">
+                          Double click on a row to select or deselect the invoice you want.
+                        </div>
+                        {invoices.filter(
+                          (invoice) =>
+                            invoice.seller === sellers.find((s) => s.id === selectedSeller)?.name &&
+                            invoice.buyer === buyers.find((b) => b.id === selectedBuyer)?.name
+                        ).length > 0 ? (
+                          <table className="w-full text-left border-collapse text-sm md:text-base">
+                            <thead>
+                              <tr className="bg-[#06b6d4] text-white">
+                                <th className="p-2 md:p-3 font-medium">Invoice #</th>
+                                <th className="p-2 md:p-3 font-medium">Invoice Date</th>
+                                <th className="p-2 md:p-3 font-medium">Due Date</th>
+                                <th className="p-2 md:p-3 font-medium">Received Amount</th>
+                                <th className="p-2 md:p-3 font-medium">Inv. Amount</th>
+                                <th className="p-2 md:p-3 font-medium">Balance</th>
+                                <th className="p-2 md:p-3 font-medium">Invoice Adjusted</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {invoices
+                                .filter(
+                                  (invoice) =>
+                                    invoice.seller === sellers.find((s) => s.id === selectedSeller)?.name &&
+                                    invoice.buyer === buyers.find((b) => b.id === selectedBuyer)?.name
+                                )
+                                .map((invoice) => {
+                                  const totalAdvance = previousPayments
+                                    .filter(
+                                      (payment) =>
+                                        payment.paymentType === 'Advance' &&
+                                        payment.status === 'Approved' &&
+                                        payment.seller === invoice.seller &&
+                                        payment.buyer === invoice.buyer
+                                    )
+                                    .reduce(
+                                      (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
+                                      0
+                                    );
+                                  const invoiceAmount = parseFloat(invoice.invoiceValueWithGst || invoice.totalAmount || '0');
+                                  const receivedAmount = parseFloat(invoice.receivedAmount || '0');
+                                  const balance = (invoiceAmount - receivedAmount - totalAdvance).toFixed(2);
+                                  return (
+                                    <tr
+                                      key={invoice.id}
+                                      className={`border-b hover:bg-gray-100 cursor-pointer ${
+                                        selectedInvoiceIds.includes(invoice.id) ? 'bg-blue-100' : ''
+                                      } block md:table-row`}
+                                      onDoubleClick={() => handleInvoiceSelect(invoice)}
+                                      title="Double click to select/deselect"
+                                    >
+                                      <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_#:'] before:font-bold before:md:hidden">
+                                        {invoice.invoiceNumber || '-'}
+                                      </td>
+                                      <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Date:'] before:font-bold before:md:hidden">
+                                        {invoice.invoiceDate || '-'}
+                                      </td>
+                                      <td className="p-2 md:p-3 block md:table-cell before:content-['Due_Date:'] before:font-bold before:md:hidden">
+                                        {invoice.dueDate || '-'}
+                                      </td>
+                                      <td className="p-2 md:p-3 block md:table-cell before:content-['Received_Amount:'] before:font-bold before:md:hidden">
+                                        {invoice.receivedAmount || '0.00'}
+                                      </td>
+                                      <td className="p-2 md:p-3 block md:table-cell before:content-['Inv._Amount:'] before:font-bold before:md:hidden">
+                                        {invoice.invoiceValueWithGst || invoice.totalAmount || '0.00'}
+                                      </td>
+                                      <td className="p-2 md:p-3 block md:table-cell before:content-['Balance:'] before:font-bold before:md:hidden">
+                                        {balance}
+                                      </td>
+                                      <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Adjusted:'] before:font-bold before:md:hidden">
+                                        {Math.min(totalAdvance, invoiceAmount - receivedAmount).toFixed(2)}
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                            </tbody>
+                          </table>
+                        ) : (
+                          <p className="text-gray-500 text-sm md:text-base">
+                            No approved invoices found for the selected Seller and Buyer.
+                          </p>
+                        )}
+                        <div className="flex justify-end mt-4">
+                          <button
+                            type="button"
+                            className="px-4 py-2 bg-[#06b6d4] text-white rounded hover:bg-[#0891b2] font-semibold"
+                            onClick={() => setShowInvoiceSelection(false)}
+                          >
+                            Done
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {filteredInvoices.length > 0 ? (
+                    <table className="w-full text-left border-collapse text-sm md:text-base">
+                      <thead>
+                        <tr className="bg-[#06b6d4] text-white">
+                          <th className="p-2 md:p-3 font-medium">Invoice #</th>
+                          <th className="p-2 md:p-3 font-medium">Invoice Date</th>
+                          <th className="p-2 md:p-3 font-medium">Due Date</th>
+                          <th className="p-2 md:p-3 font-medium">Received Amount</th>
+                          <th className="p-2 md:p-3 font-medium">Inv. Amount</th>
+                          <th className="p-2 md:p-3 font-medium">Balance</th>
+                          <th className="p-2 md:p-3 font-medium">Invoice Adjusted</th>
+                          <th className="p-2 md:p-3 font-medium">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredInvoices.map((invoice, index) => (
+                          <tr
+                            key={invoice.id}
+                            className={`border-b hover:bg-gray-100 block md:table-row`}
+                          >
+                            <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_#:'] before:font-bold before:md:hidden">
+                              {invoice.invoiceNumber || '-'}
+                            </td>
+                            <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Date:'] before:font-bold before:md:hidden">
+                              {invoice.invoiceDate || '-'}
+                            </td>
+                            <td className="p-2 md:p-3 block md:table-cell before:content-['Due_Date:'] before:font-bold before:md:hidden">
+                              {invoice.dueDate || '-'}
+                            </td>
+                            <td className="p-2 md:p-3 block md:table-cell before:content-['Received_Amount:'] before:font-bold before:md:hidden">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={
+                                  watchedInvoices.find((inv) => inv.id === invoice.id)?.receivedAmount || ''
+                                }
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  const updatedInvoices = [...watchedInvoices];
+                                  const invIndex = updatedInvoices.findIndex((inv) => inv.id === invoice.id);
+                                  if (invIndex >= 0) {
+                                    updatedInvoices[invIndex].receivedAmount = value;
+                                    updatedInvoices[invIndex].invoiceAdjusted = value;
+                                    updateBalance(
+                                      invIndex,
+                                      updatedInvoices[invIndex].totalAmount || invoice.invoiceValueWithGst || '0',
+                                      value,
+                                      value,
+                                      invoice.invoiceNumber,
+                                      invoice.seller,
+                                      invoice.buyer
+                                    );
+                                    setValue('relatedInvoices', updatedInvoices);
+                                  }
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded"
+                              />
+                            </td>
+                            <td className="p-2 md:p-3 block md:table-cell before:content-['Inv._Amount:'] before:font-bold before:md:hidden">
+                              {invoice.invoiceValueWithGst || invoice.totalAmount || '0.00'}
+                            </td>
+                            <td className="p-2 md:p-3 block md:table-cell before:content-['Balance:'] before:font-bold before:md:hidden">
+                              {watchedInvoices.find((inv) => inv.id === invoice.id)?.balance || invoice.balance || '0.00'}
+                            </td>
+                            <td className="p-2 md:p-3 block md:table-cell before:content-['Invoice_Adjusted:'] before:font-bold before:md:hidden">
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={
+                                  watchedInvoices.find((inv) => inv.id === invoice.id)?.invoiceAdjusted || ''
+                                }
+                                onChange={(e) => {
+                                  const value = e.target.value;
+                                  const updatedInvoices = [...watchedInvoices];
+                                  const invIndex = updatedInvoices.findIndex((inv) => inv.id === invoice.id);
+                                  if (invIndex >= 0) {
+                                    updatedInvoices[invIndex].invoiceAdjusted = value;
+                                    // Recalculate balance based on new invoiceAdjusted and receivedAmount
+                                    const totalAmount = updatedInvoices[invIndex].totalAmount || invoice.invoiceValueWithGst || '0';
+                                    const seller = invoice.seller;
+                                    const buyer = invoice.buyer;
+                                    let invoiceAmount = parseFloat(totalAmount || '0');
+                                    const found = invoices.find(
+                                      (inv) =>
+                                        inv.invoiceNumber === invoice.invoiceNumber &&
+                                        inv.seller === seller &&
+                                        inv.buyer === buyer
+                                    );
+                                    if (found && found.invoiceValueWithGst) {
+                                      invoiceAmount = parseFloat(found.invoiceValueWithGst);
+                                    }
+                                    // Calculate total advance received for this seller and buyer
+                                    const totalAdvance = previousPayments
+                                      .filter(
+                                        (payment) =>
+                                          payment.paymentType === 'Advance' &&
+                                          payment.status === 'Approved' &&
+                                          payment.seller === seller &&
+                                          payment.buyer === buyer
+                                      )
+                                      .reduce(
+                                        (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
+                                        0
+                                      );
+                                    const receivedAmount = updatedInvoices[invIndex].receivedAmount || '0';
+                                    const balance = (
+                                      invoiceAmount -
+                                      (parseFloat(receivedAmount || '0') + parseFloat(value || '0') + totalAdvance)
+                                    ).toFixed(2);
+                                    updatedInvoices[invIndex].balance = balance;
+                                    setValue('relatedInvoices', updatedInvoices);
+                                  }
+                                }}
+                                className="w-full p-2 border border-gray-300 rounded"
+                              />
+                            </td>
+                            <td className="p-2 md:p-3 block md:table-cell before:content-['Action:'] before:font-bold before:md:hidden">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveInvoice(invoice.id)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <FaTimes />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="font-bold bg-gray-100">
+                          <td className="p-2 md:p-3">Total</td>
+                          <td className="p-2 md:p-3"></td>
+                          <td className="p-2 md:p-3"></td>
+                          <td className="p-2 md:p-3">
+                            {filteredInvoices.reduce(
+                              (sum, inv) =>
+                                sum +
+                                parseFloat(
+                                  watchedInvoices.find((i) => i.id === inv.id)?.receivedAmount ||
+                                    inv.receivedAmount ||
+                                    '0'
+                                ),
+                              0
+                            ).toFixed(2)}
+                          </td>
+                          <td className="p-2 md:p-3">
+                            {filteredInvoices.reduce(
+                              (sum, inv) =>
+                                sum +
+                                parseFloat(inv.invoiceValueWithGst || inv.totalAmount || '0'),
+                              0
+                            ).toFixed(2)}
+                          </td>
+                          <td className="p-2 md:p-3">
+                            {filteredInvoices.reduce(
+                              (sum, inv) =>
+                                sum +
+                                parseFloat(
+                                  watchedInvoices.find((i) => i.id === inv.id)?.balance ||
+                                    inv.balance ||
+                                    '0'
+                                ),
+                              0
+                            ).toFixed(2)}
+                          </td>
+                          <td className="p-2 md:p-3">
+                            {filteredInvoices.reduce(
+                              (sum, inv) =>
+                                sum +
+                                parseFloat(
+                                  watchedInvoices.find((i) => i.id === inv.id)?.invoiceAdjusted ||
+                                    inv.invoiceAdjusted ||
+                                    '0'
+                                ),
+                              0
+                            ).toFixed(2)}
+                          </td>
+                          <td className="p-2 md:p-3"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p className="text-gray-500 text-sm md:text-base">No invoices selected.</p>
+                  )}
+                </>
               ) : (
-                <p className="text-gray-500 text-sm md:text-base">Please select both Seller and Buyer to view invoices.</p>
+                <p className="text-gray-500 text-sm md:text-base">
+                  Please select both Seller and Buyer to select invoices.
+                </p>
               )}
             </div>
           </div>
@@ -763,35 +1015,43 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                     <th className="p-2 md:p-3 font-medium">Remarks</th>
                   </tr>
                 </thead>
-             <tbody>
-           <tr className="border-b hover:bg-gray-100 block md:table-row">
-         <td className="p-2 md:p-3 block md:table-cell before:content-['Advance_Received:'] before:font-bold before:md:hidden">
-     <input
-        type="number"
-        step="0.01"
-        {...register('advanceReceived')}
-        onChange={(e) => setValue('advanceReceived', e.target.value, { shouldValidate: true })}
-        className="w-full p-2 border border-gray-300 rounded"
-        placeholder="Enter advance received (numbers only)"
-      />
-      {errors.advanceReceived && (
-        <p className="text-red-500 text-sm mt-1">{errors.advanceReceived.message}</p>
-      )}
-    </td>
-   <td className="p-2 md:p-3 block md:table-cell before:content-['Remarks:'] before:font-bold before:md:hidden">
-   <input
-    type="text"
-    {...register('remarks')}
-    onChange={(e) => setValue('remarks', e.target.value, { shouldValidate: true })}
-    className="w-full p-2 border border-gray-300 rounded"
-    placeholder="Enter remarks (text)"
-   />
-   {errors.remarks && (
-    <p className="text-red-500 text-sm mt-1">{errors.remarks.message}</p>
-   )}
-  </td>
-  </tr>
-</tbody>
+                <tbody>
+                  <tr className="border-b hover:bg-gray-100 block md:table-row">
+                    <td className="p-2 md:p-3 block md:table-cell before:content-['Advance_Received:'] before:font-bold before:md:hidden">
+                      <input
+                        type="number"
+                        step="0.01"
+                        {...register('advanceReceived')}
+                        onChange={(e) => {
+                          setValue('advanceReceived', e.target.value, { shouldValidate: true });
+                          if (initialData?.status === 'Approved') {
+                            setValue('paidAmount', e.target.value, { shouldValidate: true });
+                          }
+                        }}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        placeholder="Enter advance received (numbers only)"
+                      />
+                      {errors.advanceReceived && (
+                        <p className="text-red-500 text-sm mt-1">{errors.advanceReceived.message}</p>
+                      )}
+                    </td>
+                    <td className="p-2 md:p-3 block md:table-cell before:content-['Remarks:'] before:font-bold before:md:hidden">
+                      <div className="flex items-center gap-2">
+                        {chequeNo && (
+                          <span style={{ fontWeight: 'bold', whiteSpace: 'pre' }}>{` ${chequeNo}`}</span>
+                        )}
+                        <input
+                          type="text"
+                          value={advanceRemarks}
+                          onChange={(e) => setAdvanceRemarks(e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded"
+                          placeholder="Enter remarks for Advance only"
+                          style={{ flex: 1 }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
               </table>
             </div>
           </div>
@@ -826,7 +1086,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           thead {
             display: none;
           }
-          tbody, tr {
+          tbody,
+          tr {
             display: block;
           }
           td {

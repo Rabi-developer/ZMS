@@ -131,10 +131,10 @@ export const columns = (
       </span>
     ),
   },
-  {
-    accessorKey: 'vehicleType',
-    header: 'Vehicle Type',
-  },
+  // {
+  //   accessorKey: 'vehicleType', This one 
+  //   header: 'Vehicle Type',
+  // },
   // {
   //   accessorKey: 'vehicle',
   //   header: 'Vehicle',
