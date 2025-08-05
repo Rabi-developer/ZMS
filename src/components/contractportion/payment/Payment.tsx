@@ -377,14 +377,19 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       setValue('bankName', initialData.bankName || '');
       setValue('chequeNo', initialData.chequeNo || '');
       setValue('chequeDate', initialData.chequeDate?.split('T')[0] || '');
-      setValue(
-        'seller',
-        sellers.find((s) => s.name === initialData.seller)?.id || initialData.seller || ''
-      );
-      setValue(
-        'buyer',
-        buyers.find((b) => b.name === initialData.buyer)?.id || initialData.buyer || ''
-      );
+
+      // Only set seller if needed
+      const sellerId = sellers.find((s) => s.name === initialData.seller)?.id || initialData.seller || '';
+      if (sellerId && sellerId !== (typeof initialData.seller === 'string' ? initialData.seller : '')) {
+        setValue('seller', sellerId);
+      }
+
+      // Only set buyer if needed
+      const buyerId = buyers.find((b) => b.name === initialData.buyer)?.id || initialData.buyer || '';
+      if (buyerId && buyerId !== (typeof initialData.buyer === 'string' ? initialData.buyer : '')) {
+        setValue('buyer', buyerId);
+      }
+
       setValue('incomeTaxAmount', initialData.incomeTaxAmount || '');
       setValue('incomeTaxRate', initialData.incomeTaxRate || '');
       setValue('cpr', initialData.cpr || '');
@@ -444,7 +449,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
       const invoiceAmount = parseFloat(invoice.invoiceValueWithGst || invoice.totalAmount || '0');
       const receivedAmount = parseFloat(invoice.receivedAmount || '0');
-      const existingInvoice = watchedInvoices.find((inv) => inv.id === invoice.id);
+      const existingInvoice = (watch('relatedInvoices') || []).find((inv: any) => inv.id === invoice.id);
       const adjustedAmount = existingInvoice
         ? existingInvoice.invoiceAdjusted
         : Math.min(totalAdvance, invoiceAmount - receivedAmount).toFixed(2);
@@ -468,7 +473,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     });
 
     setValue('relatedInvoices', updatedRelatedInvoices);
-  }, [selectedSeller, selectedBuyer, invoices, sellers, buyers, selectedInvoiceIds, previousPayments, setValue, watchedInvoices]);
+  }, [selectedSeller, selectedBuyer, invoices, sellers, buyers, selectedInvoiceIds, previousPayments, setValue]);
 
   // Fetch data on mount
   useEffect(() => {
