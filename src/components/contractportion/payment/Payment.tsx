@@ -7,6 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
 import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
+// import Select from 'react-select';
+
 import CustomSingleDatePicker from '@/components/ui/CustomDateRangePicker';
 import { MdPayment } from 'react-icons/md';
 import { BiSolidErrorAlt } from 'react-icons/bi';
@@ -135,13 +137,38 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     { id: 'Bad Debts', name: 'Bad Debts' },
   ];
 
-  const bankNames = [
-    { id: '1', name: 'Habib Bank Limited' },
-    { id: '2', name: 'United Bank Limited' },
-    { id: '3', name: 'MCB Bank Limited' },
-    { id: '4', name: 'Allied Bank Limited' },
-    { id: '5', name: 'National Bank of Pakistan' },
+  // All major Pakistani banks
+  const pakistanBanks = [
+    { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
+    { id: 'MCB', name: 'MCB Bank Limited' },
+    { id: 'UBL', name: 'United Bank Limited (UBL)' },
+    { id: 'ABL', name: 'Allied Bank Limited (ABL)' },
+    { id: 'NBP', name: 'National Bank of Pakistan (NBP)' },
+    { id: 'Meezan', name: 'Meezan Bank' },
+    { id: 'BankAlfalah', name: 'Bank Alfalah' },
+    { id: 'Askari', name: 'Askari Bank' },
+    { id: 'Faysal', name: 'Faysal Bank' },
+    { id: 'BankAlHabib', name: 'Bank Al Habib' },
+    { id: 'Soneri', name: 'Soneri Bank' },
+    { id: 'Samba', name: 'Samba Bank' },
+    { id: 'JS', name: 'JS Bank' },
+    { id: 'Silk', name: 'Silk Bank' },
+    { id: 'Summit', name: 'Summit Bank' },
+    { id: 'StandardChartered', name: 'Standard Chartered Bank' },
+    { id: 'BankIslami', name: 'BankIslami Pakistan' },
+    { id: 'DubaiIslamic', name: 'Dubai Islamic Bank Pakistan' },
+    { id: 'AlBaraka', name: 'Al Baraka Bank' },
+    { id: 'ZaraiTaraqiati', name: 'Zarai Taraqiati Bank Limited (ZTBL)' },
+    { id: 'SindhBank', name: 'Sindh Bank' },
+    { id: 'BankOfPunjab', name: 'The Bank of Punjab' },
+    { id: 'FirstWomenBank', name: 'First Women Bank' },
+    { id: 'BankOfKhyber', name: 'The Bank of Khyber' },
+    { id: 'BankOfAzadKashmir', name: 'Bank of Azad Kashmir' },
+    { id: 'IndustrialDevelopment', name: 'Industrial Development Bank of Pakistan' },
+    { id: 'Other', name: 'Other' },
   ];
+
+
 
   const {
     control,
@@ -482,7 +509,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         paymentDate: data.paymentDate,
         paymentType: data.paymentType,
         mode: data.mode,
-        bankName: bankNames.find((b) => b.id === data.bankName)?.name || data.bankName,
+        bankName: pakistanBanks.find((b) => b.id === data.bankName)?.name || data.bankName,
         chequeNo: data.chequeNo,
         chequeDate: data.chequeDate,
         seller: sellers.find((s) => s.id === data.seller)?.name || data.seller,
@@ -594,7 +621,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             />
             <CustomInputDropdown
               label="Bank Name"
-              options={bankNames}
+              options={pakistanBanks}
               selectedOption={watch('bankName') || ''}
               onChange={(value) => setValue('bankName', value, { shouldValidate: true })}
               error={errors.bankName?.message}
