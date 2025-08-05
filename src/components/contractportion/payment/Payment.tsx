@@ -7,8 +7,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
 import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
-// import Select from 'react-select';
-
 import CustomSingleDatePicker from '@/components/ui/CustomDateRangePicker';
 import { MdPayment } from 'react-icons/md';
 import { BiSolidErrorAlt } from 'react-icons/bi';
@@ -24,15 +22,17 @@ import { createPayment, updatePayment, getAllPayment } from '@/apis/payment';
 const PaymentSchema = z.object({
   paymentNumber: z.string().optional(),
   paymentDate: z.string().optional(),
-  paymentType: z.enum(['Advance', 'Payment'], { required_error: 'Payment type is required' }),
-  mode: z.string().min(1, 'Payment mode is required'),
-  bankName: z.string().min(1, 'Bank name is required'),
+  paymentType: z.enum(['Advance', 'Payment', 'Income Tax'], { required_error: 'Payment type is required' }),
+  mode: z.string().optional(),
+  bankName: z.string().optional(),
   chequeNo: z.string().optional(),
   chequeDate: z.string().optional(),
-  seller: z.string().min(1, 'Seller is required'),
-  buyer: z.string().min(1, 'Buyer is required'),
+  seller: z.string().optional(),
+  buyer: z.string().optional(),
   paidAmount: z.string().optional(),
   incomeTaxAmount: z.string().optional(),
+  incomeTaxRate: z.string().optional(),
+  cpr: z.string().optional(),
   advanceReceived: z.string().optional(),
   remarks: z.string().optional(),
   relatedInvoices: z
@@ -74,7 +74,7 @@ interface PaymentData {
   id?: string;
   paymentNumber?: string;
   paymentDate?: string;
-  paymentType?: 'Advance' | 'Payment';
+  paymentType?: 'Advance' | 'Payment' | 'Income Tax';
   mode?: string;
   bankName?: string;
   chequeNo?: string;
@@ -83,6 +83,8 @@ interface PaymentData {
   buyer?: string;
   paidAmount?: string;
   incomeTaxAmount?: string;
+  incomeTaxRate?: string;
+  cpr?: string;
   advanceReceived?: string;
   remarks?: string;
   createdBy?: string;
@@ -122,11 +124,16 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const [fetchingBuyers, setFetchingBuyers] = useState(false);
   const [idFocused, setIdFocused] = useState(false);
   const [previousPayments, setPreviousPayments] = useState<PaymentData[]>([]);
+  const [paymentNumbers, setPaymentNumbers] = useState<{ id: string; name: string }[]>([]);
+  const [chequeNumbers, setChequeNumbers] = useState<{ id: string; name: string }[]>([]);
+  const [incomeTaxAmounts, setIncomeTaxAmounts] = useState<{ id: string; name: string }[]>([]);
+  const [advanceRemarks, setAdvanceRemarks] = useState('');
 
   // Static options for Payment Type, Mode, and Bank Name
   const paymentTypes = [
     { id: 'Advance', name: 'Advance' },
     { id: 'Payment', name: 'Payment' },
+    { id: 'Income Tax', name: 'Income Tax' },
   ];
 
   const modeOptions = [
@@ -137,7 +144,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     { id: 'Bad Debts', name: 'Bad Debts' },
   ];
 
-  // All major Pakistani banks
   const pakistanBanks = [
     { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
     { id: 'MCB', name: 'MCB Bank Limited' },
@@ -168,8 +174,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     { id: 'Other', name: 'Other' },
   ];
 
-
-
   const {
     control,
     register,
@@ -192,6 +196,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       buyer: '',
       paidAmount: '',
       incomeTaxAmount: '',
+      incomeTaxRate: '',
+      cpr: '',
       advanceReceived: '',
       remarks: '',
       relatedInvoices: [],
@@ -201,10 +207,18 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const selectedSeller = watch('seller');
   const selectedBuyer = watch('buyer');
   const selectedPaymentType = watch('paymentType');
-  const chequeNo = watch('chequeNo');
-  const advanceReceived = watch('advanceReceived');
-  const [advanceRemarks, setAdvanceRemarks] = useState('');
+  const selectedPaymentNumber = watch('paymentNumber');
+  const selectedChequeNo = watch('chequeNo');
+  const selectedIncomeTaxAmount = watch('incomeTaxAmount');
+  const incomeTaxRate = watch('incomeTaxRate');
   const watchedInvoices = watch('relatedInvoices') || [];
+
+  // Calculate remaining income tax
+  const calculateRemainingTax = () => {
+    const taxAmount = parseFloat(selectedIncomeTaxAmount || '0');
+    const rate = parseFloat(incomeTaxRate || '0');
+    return (taxAmount - rate).toFixed(2);
+  };
 
   // Fetch Sellers
   const fetchSellers = async () => {
@@ -304,14 +318,49 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       const response = await getAllPayment();
       if (response && response.data) {
         setPreviousPayments(response.data);
+        const paymentNumberOptions = response.data
+          .filter(
+            (payment: PaymentData) =>
+              (payment.paymentType === 'Advance' || payment.paymentType === 'Payment') &&
+              payment.status === 'Approved'
+          )
+          .map((payment: PaymentData) => ({
+            id: payment.paymentNumber || '',
+            name: payment.paymentNumber || '',
+          }));
+        setPaymentNumbers(paymentNumberOptions);
       } else {
         setPreviousPayments([]);
+        setPaymentNumbers([]);
       }
     } catch (error) {
       setPreviousPayments([]);
+      setPaymentNumbers([]);
       toast('Failed to fetch previous payments', { type: 'error' });
     }
   };
+
+  // Update cheque numbers and income tax amounts
+  useEffect(() => {
+    if (selectedPaymentType === 'Income Tax' && selectedPaymentNumber) {
+      const selectedPayment = previousPayments.find(
+        (payment) => payment.paymentNumber === selectedPaymentNumber
+      );
+      if (selectedPayment && selectedPayment.chequeNo) {
+        setChequeNumbers([{ id: selectedPayment.chequeNo, name: selectedPayment.chequeNo }]);
+        setValue('chequeNo', selectedPayment.chequeNo);
+        setIncomeTaxAmounts([
+          { id: selectedPayment.incomeTaxAmount || '0', name: selectedPayment.incomeTaxAmount || '0' },
+        ]);
+        setValue('incomeTaxAmount', selectedPayment.incomeTaxAmount || '0');
+      } else {
+        setChequeNumbers([]);
+        setIncomeTaxAmounts([]);
+        setValue('chequeNo', '');
+        setValue('incomeTaxAmount', '');
+      }
+    }
+  }, [selectedPaymentNumber, previousPayments, setValue, selectedPaymentType]);
 
   // Initialize form with initialData when editing
   useEffect(() => {
@@ -337,6 +386,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         buyers.find((b) => b.name === initialData.buyer)?.id || initialData.buyer || ''
       );
       setValue('incomeTaxAmount', initialData.incomeTaxAmount || '');
+      setValue('incomeTaxRate', initialData.incomeTaxRate || '');
+      setValue('cpr', initialData.cpr || '');
       setValue('advanceReceived', initialData.advanceReceived || '');
       setValue('remarks', initialData.remarks || '');
       if (initialData.status === 'Approved' && initialData.paymentType === 'Advance') {
@@ -374,11 +425,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         invoice.buyer === selectedBuyerObj?.name
     );
 
-    // Update filteredInvoices to only include selected invoices
     const selectedInvoices = filtered.filter((invoice) => selectedInvoiceIds.includes(invoice.id));
     setFilteredInvoices(selectedInvoices);
 
-    // Update relatedInvoices with advance adjustments
     const updatedRelatedInvoices = selectedInvoices.map((invoice) => {
       const totalAdvance = previousPayments
         .filter(
@@ -429,14 +478,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     fetchPreviousPayments();
   }, []);
 
-  // Handle invoice selection by clicking Invoice #
+  // Handle invoice selection
   const handleInvoiceSelect = (invoice: ExtendedInvoice) => {
     setSelectedInvoiceIds((prev) => {
       if (prev.includes(invoice.id)) {
-        // Deselect invoice
         return prev.filter((id) => id !== invoice.id);
       } else {
-        // Select invoice
         return [...prev, invoice.id];
       }
     });
@@ -471,7 +518,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       }
     }
 
-    // Calculate total advance received for this seller and buyer
     const totalAdvance = previousPayments
       .filter(
         (payment) =>
@@ -505,25 +551,27 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     try {
       const payload = {
         ...(isEdit && initialData?.id ? { id: initialData.id } : {}),
-        paymentNumber: isEdit ? initialData?.paymentNumber : undefined,
+        paymentNumber: selectedPaymentType === 'Income Tax' ? data.paymentNumber : (isEdit ? initialData?.paymentNumber : undefined),
         paymentDate: data.paymentDate,
         paymentType: data.paymentType,
-        mode: data.mode,
-        bankName: pakistanBanks.find((b) => b.id === data.bankName)?.name || data.bankName,
+        mode: selectedPaymentType === 'Income Tax' ? undefined : data.mode,
+        bankName: selectedPaymentType === 'Income Tax' ? undefined : (pakistanBanks.find((b) => b.id === data.bankName)?.name || data.bankName),
         chequeNo: data.chequeNo,
-        chequeDate: data.chequeDate,
+        chequeDate: selectedPaymentType === 'Income Tax' ? undefined : data.chequeDate,
         seller: sellers.find((s) => s.id === data.seller)?.name || data.seller,
         buyer: buyers.find((b) => b.id === data.buyer)?.name || data.buyer,
-        paidAmount: data.paidAmount,
+        paidAmount: selectedPaymentType === 'Income Tax' ? undefined : data.paidAmount,
         incomeTaxAmount: data.incomeTaxAmount,
-        advanceReceived: data.advanceReceived,
-        remarks: data.paymentType === 'Advance' ? advanceRemarks : data.remarks,
+        incomeTaxRate: data.incomeTaxRate,
+        cpr: data.cpr,
+        advanceReceived: selectedPaymentType === 'Income Tax' ? undefined : data.advanceReceived,
+        remarks: selectedPaymentType === 'Advance' ? advanceRemarks : data.remarks,
         creationDate: isEdit
           ? initialData?.creationDate || new Date().toISOString()
           : new Date().toISOString(),
         updationDate: new Date().toISOString(),
         status: 'Pending',
-        relatedInvoices: data.paymentType === 'Payment' ? data.relatedInvoices : [],
+        relatedInvoices: selectedPaymentType === 'Income Tax' || selectedPaymentType === 'Payment' ? data.relatedInvoices : [],
       };
 
       if (isEdit) {
@@ -560,33 +608,45 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               onMouseEnter={() => setIdFocused(true)}
               onMouseLeave={() => setIdFocused(false)}
             >
-              <Controller
-                name="paymentNumber"
-                control={control}
-                render={({ field }) => (
-                  <>
-                    <CustomInput
-                      {...field}
-                      label="Payment#"
-                      type="text"
-                      disabled
-                      placeholder=""
-                      value={field.value || ''}
-                      className="w-full"
-                    />
-                    {idFocused && (
-                      <>
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                          <BiSolidErrorAlt className="text-red-500 text-xl cursor-pointer" />
-                        </div>
-                        <div className="absolute bottom-full right-0 h-8 w-max text-sm md:text-large text-black bg-[#d5e4ff] rounded px-3 py-1 shadow-lg z-10 animate-fade-in">
-                          Payment# is auto-generated by the system
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-              />
+              {/* Use a single input: dropdown for Income Tax, readonly input for others */}
+              {selectedPaymentType === 'Income Tax' ? (
+                <CustomInputDropdown
+                  label="Payment#"
+                  options={paymentNumbers}
+                  selectedOption={watch('paymentNumber') || ''}
+                  onChange={(value) => setValue('paymentNumber', value, { shouldValidate: true })}
+                  error={errors.paymentNumber?.message}
+                  register={register}
+                />
+              ) : (
+                <Controller
+                  name="paymentNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <>
+                      <CustomInput
+                        {...field}
+                        label="Payment#"
+                        type="text"
+                        disabled
+                        placeholder=""
+                        value={field.value || ''}
+                        className="w-full"
+                      />
+                      {idFocused && (
+                        <>
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <BiSolidErrorAlt className="text-red-500 text-xl cursor-pointer" />
+                          </div>
+                          <div className="absolute bottom-full right-0 h-8 w-max text-sm md:text-large text-black bg-[#d5e4ff] rounded px-3 py-1 shadow-lg z-10 animate-fade-in">
+                            Payment# is auto-generated by the system
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                />
+              )}
             </div>
             <CustomSingleDatePicker
               label="Payment Date"
@@ -603,7 +663,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               options={paymentTypes}
               selectedOption={watch('paymentType') || ''}
               onChange={(value) => {
-                setValue('paymentType', value as 'Advance' | 'Payment', { shouldValidate: true });
+                setValue('paymentType', value as 'Advance' | 'Payment' | 'Income Tax', { shouldValidate: true });
                 setSelectedInvoiceIds([]);
                 setValue('relatedInvoices', []);
                 setShowInvoiceSelection(false);
@@ -611,43 +671,123 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               error={errors.paymentType?.message}
               register={register}
             />
-            <CustomInputDropdown
-              label="Mode"
-              options={modeOptions}
-              selectedOption={watch('mode') || ''}
-              onChange={(value) => setValue('mode', value, { shouldValidate: true })}
-              error={errors.mode?.message}
-              register={register}
-            />
-            <CustomInputDropdown
-              label="Bank Name"
-              options={pakistanBanks}
-              selectedOption={watch('bankName') || ''}
-              onChange={(value) => setValue('bankName', value, { shouldValidate: true })}
-              error={errors.bankName?.message}
-              register={register}
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Cheque No"
-              id="chequeNo"
-              {...register('chequeNo')}
-              error={errors.chequeNo?.message}
-              className="w-full"
-            />
-            <CustomSingleDatePicker
-              label="Cheque Date"
-              selectedDate={watch('chequeDate') || ''}
-              onChange={(date: string | undefined) =>
-                setValue('chequeDate', date, { shouldValidate: true })
-              }
-              error={errors.chequeDate?.message}
-              register={register}
-              name="chequeDate"
-              variant="floating"
-              borderThickness="2"
-            />
+            {selectedPaymentType !== 'Income Tax' && (
+              <>
+                <CustomInputDropdown
+                  label="Mode"
+                  options={modeOptions}
+                  selectedOption={watch('mode') || ''}
+                  onChange={(value) => setValue('mode', value, { shouldValidate: true })}
+                  error={errors.mode?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Bank Name"
+                  options={pakistanBanks}
+                  selectedOption={watch('bankName') || ''}
+                  onChange={(value) => setValue('bankName', value, { shouldValidate: true })}
+                  error={errors.bankName?.message}
+                  register={register}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Cheque No"
+                  id="chequeNo"
+                  {...register('chequeNo')}
+                  error={errors.chequeNo?.message}
+                  className="w-full"
+                />
+                <CustomSingleDatePicker
+                  label="Cheque Date"
+                  selectedDate={watch('chequeDate') || ''}
+                  onChange={(date: string | undefined) =>
+                    setValue('chequeDate', date, { shouldValidate: true })
+                  }
+                  error={errors.chequeDate?.message}
+                  register={register}
+                  name="chequeDate"
+                  variant="floating"
+                  borderThickness="2"
+                />
+              </>
+            )}
+            {selectedPaymentType === 'Income Tax' && (
+              <>
+                <CustomInputDropdown
+                  label="Cheque No"
+                  options={(() => {
+                    // Only show cheque numbers for the selected Payment#
+                    const selectedPayment = previousPayments.find(
+                      (payment) => payment.paymentNumber === watch('paymentNumber')
+                    );
+                    if (selectedPayment && selectedPayment.chequeNo) {
+                      return [{ id: selectedPayment.chequeNo, name: selectedPayment.chequeNo }];
+                    }
+                    return [];
+                  })()}
+                  selectedOption={watch('chequeNo') || ''}
+                  onChange={(value) => {
+                    setValue('chequeNo', value, { shouldValidate: true });
+                    // Reset tax when cheque changes
+                    setValue('incomeTaxAmount', '', { shouldValidate: true });
+                  }}
+                  error={errors.chequeNo?.message}
+                  register={register}
+                />
+                <CustomInputDropdown
+                  label="Income Tax Amount"
+                  options={(() => {
+                    // Only show income tax amounts for the selected Payment# and Cheque No
+                    const selectedPayment = previousPayments.find(
+                      (payment) => payment.paymentNumber === watch('paymentNumber')
+                    );
+                    if (
+                      selectedPayment &&
+                      selectedPayment.chequeNo === watch('chequeNo') &&
+                      selectedPayment.incomeTaxAmount
+                    ) {
+                      return [{ id: selectedPayment.incomeTaxAmount, name: selectedPayment.incomeTaxAmount }];
+                    }
+                    return [];
+                  })()}
+                  selectedOption={watch('incomeTaxAmount') || ''}
+                  onChange={(value) => setValue('incomeTaxAmount', value, { shouldValidate: true })}
+                  error={errors.incomeTaxAmount?.message}
+                  register={register}
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Income Tax Rate"
+                  id="incomeTaxRate"
+                  type="number"
+                  {...register('incomeTaxRate')}
+                  error={errors.incomeTaxRate?.message}
+                  className="w-full"
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Remaining Tax"
+                  id="remainingTax"
+                  type="number"
+                  value={calculateRemainingTax()}
+                  disabled
+                  className="w-full"
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="CPR"
+                  id="cpr"
+                  type="text"
+                  {...register('cpr')}
+                  error={errors.cpr?.message}
+                  className="w-full"
+                />
+              </>
+            )}
             <CustomInputDropdown
               label="Seller"
               options={sellers}
@@ -674,47 +814,52 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               error={errors.buyer?.message}
               register={register}
             />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Paid Amount"
-              id="paidAmount"
-              type="number"
-              {...register('paidAmount')}
-              error={errors.paidAmount?.message}
-              className="w-full"
-              disabled
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Income Tax Amount"
-              id="incomeTaxAmount"
-              type="number"
-              {...register('incomeTaxAmount')}
-              error={errors.incomeTaxAmount?.message}
-              className="w-full"
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Advance Received"
-              id="advanceReceived"
-              type="number"
-              {...register('advanceReceived')}
-              error={errors.advanceReceived?.message}
-              className="w-full"
-            />
-            <CustomInput
-              variant="floating"
-              borderThickness="2"
-              label="Remarks"
-              id="remarks"
-              type="text"
-              {...register('remarks')}
-              error={errors.remarks?.message}
-              className="w-full"
-            />
+            {selectedPaymentType !== 'Income Tax' && (
+              <>
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Paid Amount"
+                  id="paidAmount"
+                  type="number"
+                  {...register('paidAmount')}
+                  error={errors.paidAmount?.message}
+                  className="w-full"
+                  disabled
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Income Tax Amount"
+                  id="incomeTaxAmount"
+                  type="number"
+                  {...register('incomeTaxAmount')}
+                  error={errors.incomeTaxAmount?.message}
+                  className="w-full"
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Advance Received"
+                  id="advanceReceived"
+                  type="number"
+                  {...register('advanceReceived')}
+                  error={errors.advanceReceived?.message}
+                  className="w-full"
+                  disabled
+                />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
+                  label="Remarks"
+                  id="remarks"
+                  type="text"
+                  {...register('remarks')}
+                  error={errors.remarks?.message}
+                  className="w-full"
+                />
+              </>
+            )}
           </div>
         </div>
 
@@ -916,7 +1061,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                   const invIndex = updatedInvoices.findIndex((inv) => inv.id === invoice.id);
                                   if (invIndex >= 0) {
                                     updatedInvoices[invIndex].invoiceAdjusted = value;
-                                    // Recalculate balance based on new invoiceAdjusted and receivedAmount
                                     const totalAmount = updatedInvoices[invIndex].totalAmount || invoice.invoiceValueWithGst || '0';
                                     const seller = invoice.seller;
                                     const buyer = invoice.buyer;
@@ -930,7 +1074,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                     if (found && found.invoiceValueWithGst) {
                                       invoiceAmount = parseFloat(found.invoiceValueWithGst);
                                     }
-                                    // Calculate total advance received for this seller and buyer
                                     const totalAdvance = previousPayments
                                       .filter(
                                         (payment) =>
@@ -1031,6 +1174,51 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           </div>
         )}
 
+        {selectedPaymentType === 'Income Tax' && (
+          <div className="p-2 md:p-4">
+            <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Related Invoices (Read Only)</h2>
+            <div className="border rounded p-4 mt-2 overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm md:text-base">
+                <thead>
+                  <tr className="bg-[#06b6d4] text-white">
+                    <th className="p-2 md:p-3 font-medium">Invoice #</th>
+                    <th className="p-2 md:p-3 font-medium">Invoice Date</th>
+                    <th className="p-2 md:p-3 font-medium">Due Date</th>
+                    <th className="p-2 md:p-3 font-medium">Received Amount</th>
+                    <th className="p-2 md:p-3 font-medium">Inv. Amount</th>
+                    <th className="p-2 md:p-3 font-medium">Balance</th>
+                    <th className="p-2 md:p-3 font-medium">Invoice Adjusted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    // Only show invoices that are already saved in Advance or Payment
+                    const paidInvoices = previousPayments
+                      .filter((p) => p.paymentType === 'Advance' || p.paymentType === 'Payment')
+                      .flatMap((p) => p.relatedInvoices || []);
+                    if (!paidInvoices.length) {
+                      return (
+                        <tr><td colSpan={7} className="text-gray-500 text-sm md:text-base">No invoices found for Advance or Payment.</td></tr>
+                      );
+                    }
+                    return paidInvoices.map((invoice, idx) => (
+                      <tr key={invoice.id || idx}>
+                        <td className="p-2 md:p-3">{invoice.invoiceNumber || '-'}</td>
+                        <td className="p-2 md:p-3">{invoice.invoiceDate || '-'}</td>
+                        <td className="p-2 md:p-3">{invoice.dueDate || '-'}</td>
+                        <td className="p-2 md:p-3">{invoice.receivedAmount || '0.00'}</td>
+                        <td className="p-2 md:p-3">{invoice.totalAmount || '0.00'}</td>
+                        <td className="p-2 md:p-3">{invoice.balance || '0.00'}</td>
+                        <td className="p-2 md:p-3">{invoice.invoiceAdjusted || '0.00'}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {selectedPaymentType === 'Advance' && (
           <div className="p-2 md:p-4">
             <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Advance Details</h2>
@@ -1064,8 +1252,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                     </td>
                     <td className="p-2 md:p-3 block md:table-cell before:content-['Remarks:'] before:font-bold before:md:hidden">
                       <div className="flex items-center gap-2">
-                        {chequeNo && (
-                          <span style={{ fontWeight: 'bold', whiteSpace: 'pre' }}>{` ${chequeNo}`}</span>
+                        {watch('chequeNo') && (
+                          <span style={{ fontWeight: 'bold', whiteSpace: 'pre' }}>{` ${watch('chequeNo')}`}</span>
                         )}
                         <input
                           type="text"
