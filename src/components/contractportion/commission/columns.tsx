@@ -3,36 +3,31 @@ import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export type Payment = {
+export type CommissionInvoice = {
   id: string;
-  paymentNumber: string;
-  paymentDate: string;
-  paymentType: 'Advance' | 'Payment' | 'Income Tax';
-  mode: string;
-  bankName: string;
-  chequeNo?: string;
-  chequeDate?: string;
-  seller: string;
-  buyer: string;
-  paidAmount: string;
-  incomeTaxAmount?: string;
-  advanceReceived?: string;
+  commissionInvoiceNumber: string;
+  date: string;
+  dueDate: string;
+  commissionFrom: 'Seller' | 'Buyer' | 'Both';
+  seller?: string;
+  buyer?: string;
   remarks?: string;
-  createdBy?: string;
-  creationDate?: string;
-  updatedBy?: string;
-  updationDate?: string;
+  excludeSRB?: boolean;
   status?: string;
   relatedInvoices?: {
     id: string;
     invoiceNumber: string;
     invoiceDate: string;
-    dueDate: string;
-    seller: string;
     buyer: string;
+    quality: string;
+    invoiceQty: string;
+    rate: string;
+    invoiceValue: string;
+    commissionPercent: string;
+    amount: string;
+    srTax: string;
+    srTaxAmount: string;
     totalAmount: string;
-    receivedAmount: string;
-    balance: string;
   }[];
 };
 
@@ -44,6 +39,8 @@ export const getStatusStyles = (status: string) => {
       return 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]';
     case 'Canceled':
       return 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]';
+    case 'Completed':
+      return 'bg-[#3b82f6]/10 text-[#3b82f6] border-[#3b82f6]';
     default:
       return 'bg-gray-100 text-gray-800 border-gray-300';
   }
@@ -53,7 +50,7 @@ export const columns = (
   handleDeleteOpen: (id: string) => void,
   handleViewOpen: (id: string) => void,
   handleCheckboxChange: (id: string, checked: boolean) => void
-): ColumnDef<Payment>[] => [
+): ColumnDef<CommissionInvoice>[] => [
   {
     id: 'select',
     header: ({ table }) => (
@@ -77,48 +74,44 @@ export const columns = (
     ),
   },
   {
-    accessorKey: 'paymentNumber',
+    accessorKey: 'commissionInvoiceNumber',
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        Payment#
+        Comm.Invoice#
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
   },
   {
-    accessorKey: 'paymentDate',
+    accessorKey: 'date',
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        Payment Date
+        Date
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
   },
   {
-    accessorKey: 'paymentType',
-    header: 'Payment Type',
+    accessorKey: 'dueDate',
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      >
+        Due Date
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
   },
   {
-    accessorKey: 'mode',
-    header: 'Mode',
-  },
-  {
-    accessorKey: 'bankName',
-    header: 'Bank Name',
-  },
-  {
-    accessorKey: 'chequeNo',
-    header: 'Cheque No',
-  },
-  {
-    accessorKey: 'chequeDate',
-    header: 'Cheque Date',
+    accessorKey: 'commissionFrom',
+    header: 'Commission From',
   },
   {
     accessorKey: 'seller',
@@ -129,16 +122,9 @@ export const columns = (
     header: 'Buyer',
   },
   {
-    accessorKey: 'paidAmount',
-    header: 'Paid Amount',
-  },
-  {
-    accessorKey: 'incomeTaxAmount',
-    header: 'Income Tax Amount',
-  },
-  {
-    accessorKey: 'advanceReceived',
-    header: 'Advance Received',
+    accessorKey: 'excludeSRB',
+    header: 'Exclude SRB',
+    cell: ({ row }) => (row.original.excludeSRB ? 'Yes' : 'No'),
   },
   {
     accessorKey: 'status',
@@ -158,24 +144,20 @@ export const columns = (
     header: 'Remarks',
   },
   {
-    accessorKey: 'name',
-    header: '',
-  },
-  {
     header: 'Actions',
     id: 'actions',
     cell: ({ row }) => {
-      const paymentId = row.original.id;
+      const invoiceId = row.original.id;
       return (
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleViewOpen(paymentId)}
+            onClick={() => handleViewOpen(invoiceId)}
           >
             <Eye className="h-4 w-4" />
           </Button>
-          <Link href={`/payment/edit/${paymentId}`}>
+          <Link href={`/commission-invoice/edit/${invoiceId}`}>
             <Button variant="outline" size="sm">
               <Edit className="h-4 w-4" />
             </Button>
@@ -183,7 +165,7 @@ export const columns = (
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDeleteOpen(paymentId)}
+            onClick={() => handleDeleteOpen(invoiceId)}
           >
             <Trash className="h-4 w-4" />
           </Button>
@@ -192,3 +174,4 @@ export const columns = (
     },
   },
 ];
+
