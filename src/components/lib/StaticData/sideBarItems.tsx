@@ -56,9 +56,6 @@ import { LiaFileContractSolid } from "react-icons/lia";
 import { RiContractLine } from "react-icons/ri";
 import { MdOutlinePayments } from "react-icons/md";
 
-
-
-
 export const sideBarItems = [
   //Home
   {
@@ -266,6 +263,30 @@ export const sideBarItems = [
   icon: MdOutlinePayments,
   color: '#33a4d8',
 },
+]},
+
+//Commission Invoice
+{
+  text: "Commission Invoice", 
+  type: "heading"
+},
+{
+  text: "Commission ",
+  icon: FaRegFileArchive,
+  color: '#33a4d8',   
+  sub_menu: [
+    {
+      text: "Commission Invoice",
+      href: "/commisioninvoice",  
+      icon: GiStabbedNote,
+      color: '#33a4d8',
+    },
+    // {
+    //   text: "Commission Invoice Form",
+    //   href: "/commisioninvoice/create",
+    //   icon: GiSoundWaves, 
+    //   color: '#33a4d8',
+    // },
 ]},
 
 
