@@ -256,7 +256,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       }, 0);
 
     const remainingBalance = totalInvoiceAmount - totalReceived;
-    return remainingBalance < 0 ? 0 : remainingBalance.toFixed(2);
+    return remainingBalance.toFixed(2); // Allow negative balance as per response
   };
 
   // Fetch Sellers
@@ -411,7 +411,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 buyer: ri.buyer || '',
                 totalAmount: ri.totalAmount || '0',
                 receivedAmount: ri.receivedAmount || '0',
-                balance: ri.balance || '0',
+                balance: ri.balance || '0', // Use balance from API response
                 invoiceAdjusted: ri.invoiceAdjusted || '0',
               }))
             );
@@ -478,6 +478,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         0
       );
       const remainingAdvance = totalAdvance - totalInvoiceAdjusted;
+
       setValue('advanceReceived', (remainingAdvance < 0 ? 0 : remainingAdvance).toFixed(2), { shouldValidate: true });
     } else {
       setValue('advanceReceived', '', { shouldValidate: true });
@@ -531,7 +532,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           buyer: ri.buyer || '',
           totalAmount: ri.totalAmount || '0',
           receivedAmount: ri.receivedAmount || '0',
-          balance: ri.balance || '0',
+          balance: ri.balance || '0', // Use balance from initialData
           invoiceAdjusted: ri.invoiceAdjusted || '0',
         })) || []
       );
@@ -564,7 +565,10 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         : parseFloat(invoice.invoiceAdjusted || '0');
 
       let balance = '0.00';
-      if (selectedPaymentType === 'Payment') {
+      if (selectedPaymentType === 'Income Tax') {
+        // For Income Tax, balance = invoiceAdjusted - invoiceAmount
+        balance = (adjustedAmount - invoiceAmount).toFixed(2); // Allow negative balance as per response
+      } else if (selectedPaymentType === 'Payment') {
         if (advanceReceived > 0) {
           balance = (advanceReceived + adjustedAmount - invoiceAmount).toFixed(2);
         } else {
@@ -653,7 +657,10 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       );
 
     let balance = '0.00';
-    if (selectedPaymentType === 'Payment') {
+    if (selectedPaymentType === 'Income Tax') {
+      // For Income Tax, balance = invoiceAdjusted - invoiceAmount
+      balance = (parseFloat(invoiceAdjusted || '0') - invoiceAmount).toFixed(2); // Allow negative balance
+    } else if (selectedPaymentType === 'Payment') {
       const adjustedAmount = parseFloat(invoiceAdjusted || '0');
       balance = (invoiceAmount - (parseFloat(receivedAmount || '0') + adjustedAmount)).toFixed(2);
       if (parseFloat(balance) < 0) balance = '0.00';
@@ -1058,7 +1065,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                   const receivedAmount = parseFloat(invoice.receivedAmount || '0');
                                   const adjustedAmount = parseFloat(invoice.invoiceAdjusted || '0');
                                   let balance = '0.00';
-                                  if (selectedPaymentType === 'Payment') {
+                                  if (selectedPaymentType === 'Income Tax') {
+                                    balance = (adjustedAmount - invoiceAmount).toFixed(2); // Allow negative balance
+                                  } else if (selectedPaymentType === 'Payment') {
                                     if (totalAdvance > 0) {
                                       balance = (totalAdvance + adjustedAmount - invoiceAmount).toFixed(2);
                                     } else {
@@ -1155,7 +1164,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                             watchedInvoices.find((inv) => inv.id === invoice.id)?.invoiceAdjusted || invoice.invoiceAdjusted || '0'
                           );
                           let balance = '0.00';
-                          if (selectedPaymentType === 'Payment') {
+                          if (selectedPaymentType === 'Income Tax') {
+                            balance = (adjustedAmount - invoiceAmount).toFixed(2); // Allow negative balance
+                          } else if (selectedPaymentType === 'Payment') {
                             if (totalAdvance > 0) {
                               balance = (totalAdvance + adjustedAmount - invoiceAmount).toFixed(2);
                             } else {
@@ -1277,25 +1288,15 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                             ).toFixed(2)}
                           </td>
                           <td className="p-2 md:p-3">
-                            {/* Show total balance as (Total Received Amount - Total Invoice Amount) */}
-                            {(() => {
-                              const totalReceived = filteredInvoices.reduce(
-                                (sum, inv) =>
-                                  sum +
-                                  parseFloat(
-                                    watchedInvoices.find((i) => i.id === inv.id)?.receivedAmount ||
-                                      inv.receivedAmount || '0'
-                                  ),
-                                0
-                              );
-                              const totalInvoice = filteredInvoices.reduce(
-                                (sum, inv) =>
-                                  sum +
-                                  parseFloat(inv.invoiceValueWithGst || inv.totalAmount || '0'),
-                                0
-                              );
-                              return (totalReceived - totalInvoice).toFixed(2);
-                            })()}
+                            {filteredInvoices.reduce(
+                              (sum, inv) =>
+                                sum +
+                                parseFloat(
+                                  watchedInvoices.find((i) => i.id === inv.id)?.balance ||
+                                    inv.balance || '0'
+                                ),
+                              0
+                            ).toFixed(2)}
                           </td>
                           <td className="p-2 md:p-3">
                             {filteredInvoices.reduce(
