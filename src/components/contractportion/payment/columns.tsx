@@ -7,7 +7,7 @@ export type Payment = {
   id: string;
   paymentNumber: string;
   paymentDate: string;
-  paymentType: 'Advance' | 'Payment';
+  paymentType: 'Advance' | 'Payment' | 'Income Tax';
   mode: string;
   bankName: string;
   chequeNo?: string;
@@ -22,6 +22,7 @@ export type Payment = {
   creationDate?: string;
   updatedBy?: string;
   updationDate?: string;
+  status?: string;
   relatedInvoices?: {
     id: string;
     invoiceNumber: string;
@@ -33,6 +34,19 @@ export type Payment = {
     receivedAmount: string;
     balance: string;
   }[];
+};
+
+export const getStatusStyles = (status: string) => {
+  switch (status) {
+    case 'Pending':
+      return 'bg-[#eab308]/10 text-[#eab308] border-[#eab308]';
+    case 'Approved':
+      return 'bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]';
+    case 'Canceled':
+      return 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]';
+    default:
+      return 'bg-gray-100 text-gray-800 border-gray-300';
+  }
 };
 
 export const columns = (
@@ -127,13 +141,22 @@ export const columns = (
     header: 'Advance Received',
   },
   {
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => (
+      <span
+        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
+          row.original.status || 'Pending'
+        )}`}
+      >
+        {row.original.status || 'Pending'}
+      </span>
+    ),
+  },
+  {
     accessorKey: 'remarks',
     header: 'Remarks',
   },
-  // {
-  //   accessorKey: 'name',
-  //   header: '',
-  // },
   {
     header: 'Actions',
     id: 'actions',
