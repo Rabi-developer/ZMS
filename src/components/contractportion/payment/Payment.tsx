@@ -104,6 +104,7 @@ interface PaymentData {
     totalAmount?: string;
     receivedAmount?: string;
     balance?: string;
+    originalBalance?: string;
     invoiceAdjusted?: string;
   }[];
 }
