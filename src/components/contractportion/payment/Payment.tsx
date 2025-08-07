@@ -476,6 +476,119 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     }
   }, [selectedPaymentNumber, selectedPaymentType, setValue, sellers, buyers, invoices]);
 
+  // Auto-fetch last payment for Payment type when seller and buyer are selected
+  useEffect(() => {
+    if (
+      selectedPaymentType === 'Payment' && 
+      !selectedPaymentNumber && // Only when no payment number is selected
+      selectedSeller && 
+      selectedBuyer &&
+      sellers.length > 0 &&
+      buyers.length > 0
+    ) {
+      const selectedSellerName = sellers.find((s) => s.id === selectedSeller)?.name;
+      const selectedBuyerName = buyers.find((b) => b.id === selectedBuyer)?.name;
+      
+      if (selectedSellerName && selectedBuyerName) {
+        const fetchLastPaymentData = async () => {
+          try {
+            // Call payment API to get the latest payment data
+            const response = await getAllPayment();
+            if (response && response.data) {
+              // Find the last payment for this seller and buyer combination
+              const lastPayment = response.data
+                .filter((payment: any) => 
+                  payment.seller === selectedSellerName &&
+                  payment.buyer === selectedBuyerName &&
+                  payment.status === 'Approved' &&
+                  (payment.paymentType === 'Payment' || payment.paymentType === 'Income Tax')
+                )
+                .sort((a: any, b: any) => new Date(b.paymentDate || '').getTime() - new Date(a.paymentDate || '').getTime())[0];
+
+              if (lastPayment && lastPayment.relatedInvoices && lastPayment.relatedInvoices.length > 0) {
+                // Auto-populate related invoices from the last payment
+                const apiRelatedInvoices = lastPayment.relatedInvoices.map((ri: any) => {
+                  // Find the actual invoice to get the correct total amount
+                  const actualInvoice = invoices.find((inv) => 
+                    inv.invoiceNumber === ri.invoiceNumber &&
+                    inv.seller === ri.seller &&
+                    inv.buyer === ri.buyer
+                  );
+                  
+                  const correctInvoiceAmount = actualInvoice ? 
+                    parseFloat(actualInvoice.invoiceValueWithGst || actualInvoice.totalAmount || '0') : 
+                    parseFloat(ri.totalAmount || '0');
+                  
+                  // Use the balance directly from the API response (remove negative sign only)
+                  const apiBalance = parseFloat(ri.balance || '0');
+                  const correctBalance = Math.abs(apiBalance).toFixed(2);
+                  
+                  return {
+                    id: ri.id || '',
+                    invoiceNumber: ri.invoiceNumber || '',
+                    invoiceDate: ri.invoiceDate || '',
+                    dueDate: ri.dueDate || '',
+                    seller: ri.seller || '',
+                    buyer: ri.buyer || '',
+                    totalAmount: correctInvoiceAmount.toString(),
+                    receivedAmount: '', // Keep blank for user input
+                    balance: correctBalance, // Use balance directly from API response
+                    invoiceAdjusted: ri.invoiceAdjusted || '0',
+                  };
+                });
+                
+                setValue('relatedInvoices', apiRelatedInvoices);
+                
+                // Find matching invoices by invoice number to get their IDs for selection
+                const matchingInvoiceIds: string[] = [];
+                apiRelatedInvoices.forEach((apiInvoice: any) => {
+                  const matchingInvoice = invoices.find((inv) => 
+                    inv.invoiceNumber === apiInvoice.invoiceNumber &&
+                    inv.seller === apiInvoice.seller &&
+                    inv.buyer === apiInvoice.buyer
+                  );
+                  if (matchingInvoice) {
+                    matchingInvoiceIds.push(matchingInvoice.id);
+                    // Update the API invoice with the correct ID from invoice list
+                    const apiIndex = apiRelatedInvoices.findIndex((ai: any) => ai.invoiceNumber === apiInvoice.invoiceNumber);
+                    if (apiIndex >= 0) {
+                      apiRelatedInvoices[apiIndex].id = matchingInvoice.id;
+                    }
+                  } else {
+                    // If no matching invoice found in the list, still include it
+                    matchingInvoiceIds.push(apiInvoice.id);
+                  }
+                });
+                
+                // Update the form with corrected invoice IDs
+                setValue('relatedInvoices', apiRelatedInvoices);
+                setSelectedInvoiceIds(matchingInvoiceIds);
+                
+                toast(`Auto-loaded invoices from last payment (${lastPayment.paymentNumber || 'Previous Payment'})`, { type: 'info' });
+              } else {
+                // Clear invoices if no matching payment found
+                setValue('relatedInvoices', []);
+                setSelectedInvoiceIds([]);
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching payment data:', error);
+            toast('Failed to fetch payment data', { type: 'error' });
+            // Clear invoices on error
+            setValue('relatedInvoices', []);
+            setSelectedInvoiceIds([]);
+          }
+        };
+        
+        fetchLastPaymentData();
+      }
+    } else if (selectedPaymentType === 'Payment' && !selectedPaymentNumber && (selectedSeller || selectedBuyer)) {
+      // Clear invoices when seller/buyer changes but no selection is complete
+      setValue('relatedInvoices', []);
+      setSelectedInvoiceIds([]);
+    }
+  }, [selectedSeller, selectedBuyer, selectedPaymentType, selectedPaymentNumber, sellers, buyers, invoices, setValue]);
+
   // Update advanceReceived
   useEffect(() => {
     if (selectedSeller && selectedBuyer && (selectedPaymentType === 'Advance' || selectedPaymentType === 'Payment')) {
