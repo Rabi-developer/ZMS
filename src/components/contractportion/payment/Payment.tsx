@@ -48,7 +48,6 @@ const PaymentSchema = z.object({
         receivedAmount: z.string().optional(),
         balance: z.string().optional(),
         invoiceAdjusted: z.string().optional(),
-        isFromPaymentSelection: z.boolean().optional(),
       })
     )
     .optional(),
@@ -69,7 +68,6 @@ interface ExtendedInvoice {
   invoiceAdjusted: string;
   isSelected?: boolean;
   invoiceValueWithGst?: string;
-  isFromPaymentSelection?: boolean; // Flag to identify Payment# selected invoices
 }
 
 interface PaymentData {
@@ -413,8 +411,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               totalAmount: ri.totalAmount || '0',
               receivedAmount: '', // Keep blank for user input
               balance: ri.balance || '0', // Use balance from API response
-              invoiceAdjusted: '0', // Don't auto-populate, start with 0
-              isFromPaymentSelection: true, // Flag to identify Payment# selected invoices
+              invoiceAdjusted: ri.invoiceAdjusted || '0',
             }));
             
             setValue('relatedInvoices', apiRelatedInvoices);
@@ -499,136 +496,18 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           0
         );
 
-      // Calculate total invoice adjustments from all previous approved payments
-      const totalPreviousInvoiceAdjusted = previousPayments
-        .filter(
-          (payment) =>
-            (payment.paymentType === 'Payment' || payment.paymentType === 'Income Tax') &&
-            payment.status === 'Approved' &&
-            payment.seller === selectedSellerName &&
-            payment.buyer === selectedBuyerName &&
-            payment.relatedInvoices
-        )
-        .reduce(
-          (sum, payment) => sum + (payment.relatedInvoices || []).reduce(
-            (invSum, inv) => invSum + (parseFloat(inv.invoiceAdjusted || '0') || 0),
-            0
-          ),
-          0
-        );
-
-      // Subtract total invoice adjustments from current form (for real-time updates)
-      const currentInvoiceAdjusted = (watch('relatedInvoices') || []).reduce(
+      // Subtract total invoice adjustments for Payment type
+      const totalInvoiceAdjusted = (watch('relatedInvoices') || []).reduce(
         (sum, inv) => sum + (parseFloat(inv.invoiceAdjusted || '0') || 0),
         0
       );
-
-      const remainingAdvance = totalAdvance - totalPreviousInvoiceAdjusted - currentInvoiceAdjusted;
+      const remainingAdvance = totalAdvance - totalInvoiceAdjusted;
 
       setValue('advanceReceived', (remainingAdvance < 0 ? 0 : remainingAdvance).toFixed(2), { shouldValidate: true });
     } else {
       setValue('advanceReceived', '', { shouldValidate: true });
     }
   }, [selectedSeller, selectedBuyer, previousPayments, sellers, buyers, selectedPaymentType, watch, setValue]);
-
-  // Auto-populate Related Invoices from last payment when selecting Seller and Buyer
-  useEffect(() => {
-    console.log('Auto-populate useEffect triggered:', {
-      selectedSeller,
-      selectedBuyer,
-      selectedPaymentType,
-      selectedPaymentNumber,
-      sellersLength: sellers.length,
-      buyersLength: buyers.length,
-      previousPaymentsLength: previousPayments.length,
-      invoicesLength: invoices.length
-    });
-
-    if (selectedSeller && selectedBuyer && selectedPaymentType === 'Payment' && !selectedPaymentNumber) {
-      const selectedSellerName = sellers.find((s) => s.id === selectedSeller)?.name;
-      const selectedBuyerName = buyers.find((b) => b.id === selectedBuyer)?.name;
-
-      console.log('Selected names:', { selectedSellerName, selectedBuyerName });
-
-      // Find the last payment for this seller-buyer combination
-      const filteredPayments = previousPayments.filter(
-        (payment) =>
-          (payment.paymentType === 'Payment' || payment.paymentType === 'Income Tax') &&
-          payment.status === 'Approved' &&
-          payment.seller === selectedSellerName &&
-          payment.buyer === selectedBuyerName &&
-          payment.relatedInvoices &&
-          payment.relatedInvoices.length > 0
-      );
-
-      console.log('Filtered payments:', filteredPayments.length, filteredPayments);
-
-      const lastPayment = filteredPayments
-        .sort((a, b) => new Date(b.paymentDate || '').getTime() - new Date(a.paymentDate || '').getTime())[0];
-
-      console.log('Last payment:', lastPayment);
-
-      if (lastPayment && lastPayment.relatedInvoices) {
-        // Set relatedInvoices from last payment
-        const lastPaymentInvoices = lastPayment.relatedInvoices.map((ri: any) => ({
-          id: ri.id || '',
-          invoiceNumber: ri.invoiceNumber || '',
-          invoiceDate: ri.invoiceDate || '',
-          dueDate: ri.dueDate || '',
-          seller: ri.seller || '',
-          buyer: ri.buyer || '',
-          totalAmount: ri.totalAmount || '0',
-          receivedAmount: '', // Keep blank for user input
-          balance: ri.balance || '0', // Use balance from last payment
-          invoiceAdjusted: '0', // Don't auto-populate, start with 0
-          isFromPaymentSelection: true, // Flag to identify auto-populated invoices
-        }));
-
-        console.log('Setting last payment invoices:', lastPaymentInvoices);
-
-        setValue('relatedInvoices', lastPaymentInvoices);
-
-        // Find matching invoices by invoice number to get their IDs for selection
-        const matchingInvoiceIds: string[] = [];
-        lastPaymentInvoices.forEach((lastInvoice: any) => {
-          const matchingInvoice = invoices.find((inv) => 
-            inv.invoiceNumber === lastInvoice.invoiceNumber &&
-            inv.seller === lastInvoice.seller &&
-            inv.buyer === lastInvoice.buyer
-          );
-          console.log('Matching invoice search:', {
-            searchFor: lastInvoice.invoiceNumber,
-            found: matchingInvoice,
-            allInvoices: invoices.map(i => ({ number: i.invoiceNumber, seller: i.seller, buyer: i.buyer }))
-          });
-          if (matchingInvoice) {
-            matchingInvoiceIds.push(matchingInvoice.id);
-            // Update the invoice with the correct ID from invoice list
-            const invoiceIndex = lastPaymentInvoices.findIndex((ai: any) => ai.invoiceNumber === lastInvoice.invoiceNumber);
-            if (invoiceIndex >= 0) {
-              lastPaymentInvoices[invoiceIndex].id = matchingInvoice.id;
-            }
-          } else {
-            // If no matching invoice found in the list, still include it
-            matchingInvoiceIds.push(lastInvoice.id);
-          }
-        });
-
-        console.log('Setting invoice IDs:', matchingInvoiceIds);
-
-        // Update the form with corrected invoice IDs
-        setValue('relatedInvoices', lastPaymentInvoices);
-        setSelectedInvoiceIds(matchingInvoiceIds);
-      } else {
-        console.log('No last payment found, clearing invoices');
-        // Clear related invoices if no last payment found
-        setValue('relatedInvoices', []);
-        setSelectedInvoiceIds([]);
-      }
-    } else {
-      console.log('Conditions not met for auto-population');
-    }
-  }, [selectedSeller, selectedBuyer, selectedPaymentType, selectedPaymentNumber, sellers, buyers, previousPayments, invoices, setValue]);
 
   // Initialize form with initialData when editing
   useEffect(() => {
@@ -717,16 +596,22 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       if (paymentInvoiceData && paymentInvoiceData.balance !== undefined) {
         // Use data from Payment# selection but keep received amount blank for user input
         receivedAmount = existingInvoice?.receivedAmount || ''; // Keep blank unless user has entered something
-        // Don't auto-populate Invoice Adjusted - let user enter manually
-        adjustedAmount = existingInvoice ? parseFloat(existingInvoice.invoiceAdjusted || '0') : 0;
-        // For Payment# selected invoices, use invoice amount as base and subtract received amount and invoice adjusted
-        const userReceivedAmount = parseFloat(receivedAmount || '0');
-        balance = Math.max(0, invoiceAmount - userReceivedAmount - adjustedAmount).toFixed(2);
+        adjustedAmount = parseFloat(paymentInvoiceData.invoiceAdjusted || '0');
+        // Show the original balance from API when no received amount entered
+        if (!receivedAmount || receivedAmount === '') {
+          balance = Math.abs(parseFloat(paymentInvoiceData.balance || '0')).toFixed(2);
+        } else {
+          // Subtract user's received amount from original balance
+          const originalBalance = Math.abs(parseFloat(paymentInvoiceData.balance || '0'));
+          const userReceivedAmount = parseFloat(receivedAmount || '0');
+          balance = Math.max(0, originalBalance - userReceivedAmount).toFixed(2);
+        }
       } else {
         // Calculate balance for newly added invoices
         receivedAmount = existingInvoice?.receivedAmount || '0'; // Don't use invoice.receivedAmount
-        // Don't auto-populate Invoice Adjusted - only use if user has manually entered
-        adjustedAmount = existingInvoice ? parseFloat(existingInvoice.invoiceAdjusted || '0') : 0;
+        adjustedAmount = existingInvoice
+          ? parseFloat(existingInvoice.invoiceAdjusted || '0')
+          : parseFloat(invoice.invoiceAdjusted || '0');
 
         if (selectedPaymentType === 'Income Tax') {
           // For Income Tax, balance = invoiceAdjusted - invoiceAmount
@@ -753,7 +638,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         receivedAmount,
         balance,
         invoiceAdjusted: adjustedAmount.toString(),
-        isFromPaymentSelection: paymentInvoiceData?.isFromPaymentSelection || false, // Preserve the flag
       };
     });
 
@@ -850,59 +734,20 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       // For Income Tax, balance = invoiceAdjusted - invoiceAmount
       balance = Math.abs(parseFloat(invoiceAdjusted || '0') - invoiceAmount).toFixed(2); // Remove negative sign
     } else if (selectedPaymentType === 'Payment') {
-      let adjustedAmount = parseFloat(invoiceAdjusted || '0');
-      
-      // Validate that Invoice Adjusted doesn't exceed Advance Received
-      const currentAdvanceReceived = parseFloat(watch('advanceReceived') || '0');
-      const otherInvoicesAdjusted = (watch('relatedInvoices') || []).reduce(
+      const adjustedAmount = parseFloat(invoiceAdjusted || '0');
+      balance = Math.abs(invoiceAmount - (parseFloat(receivedAmount || '0') + adjustedAmount)).toFixed(2);
+
+      const totalInvoiceAdjusted = (watch('relatedInvoices') || []).reduce(
         (sum, inv, idx) => {
-          if (idx !== index) { // Exclude current invoice being updated
-            return sum + (parseFloat(inv.invoiceAdjusted || '0') || 0);
+          if (idx === index) {
+            return sum + adjustedAmount;
           }
-          return sum;
+          return sum + (parseFloat(inv.invoiceAdjusted || '0') || 0);
         },
         0
       );
-      
-      // Calculate total advance available (before any adjustments from current session)
-      const totalAdvanceAvailable = totalAdvance - previousPayments
-        .filter(
-          (payment) =>
-            (payment.paymentType === 'Payment' || payment.paymentType === 'Income Tax') &&
-            payment.status === 'Approved' &&
-            payment.seller === seller &&
-            payment.buyer === buyer &&
-            payment.relatedInvoices
-        )
-        .reduce(
-          (sum, payment) => sum + (payment.relatedInvoices || []).reduce(
-            (invSum, inv) => invSum + (parseFloat(inv.invoiceAdjusted || '0') || 0),
-            0
-          ),
-          0
-        );
-      
-      // Check if total adjusted amount would exceed available advance
-      const maxAllowedAdjusted = Math.max(0, totalAdvanceAvailable - otherInvoicesAdjusted);
-      if (adjustedAmount > maxAllowedAdjusted) {
-        adjustedAmount = maxAllowedAdjusted;
-        // Show warning toast
-        toast(`Invoice Adjusted cannot exceed remaining Advance Received (${maxAllowedAdjusted.toFixed(2)})`, { type: 'warning' });
-      }
-      
-      // Check if this invoice is from Payment# selection using the flag
-      const currentInvoice = watchedInvoices[index];
-      if (currentInvoice && (currentInvoice as any).isFromPaymentSelection) {
-        // For Payment# selected invoices, use the invoice amount as the base
-        // and subtract both received amount and invoice adjusted
-        balance = Math.max(0, invoiceAmount - adjustedAmount - parseFloat(receivedAmount || '0')).toFixed(2);
-      } else {
-        // For regular calculation
-        balance = Math.abs(invoiceAmount - (parseFloat(receivedAmount || '0') + adjustedAmount)).toFixed(2);
-      }
-      
-      // Update the invoiceAdjusted value to the validated amount
-      invoiceAdjusted = adjustedAmount.toString();
+      const remainingAdvance = totalAdvance - totalInvoiceAdjusted;
+      setValue('advanceReceived', (remainingAdvance < 0 ? 0 : remainingAdvance).toFixed(2), { shouldValidate: true });
     } else {
       balance = Math.abs(invoiceAmount - (parseFloat(receivedAmount || '0') + parseFloat(invoiceAdjusted || '0'))).toFixed(2);
     }
@@ -1402,12 +1247,21 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           const watchedInvoice = watchedInvoices.find((inv) => inv.id === invoice.id);
                           const receivedAmount = parseFloat(watchedInvoice?.receivedAmount || invoice.receivedAmount || '0');
                           const adjustedAmount = parseFloat(watchedInvoice?.invoiceAdjusted || invoice.invoiceAdjusted || '0');
-                          //
-                          // Use balance from form data (which is calculated by updateBalance function)
+                          
+                          // Use balance from form data if available (from Payment# selection), otherwise calculate
                           let balance = '0.00';
                           if (watchedInvoice && watchedInvoice.balance !== undefined) {
-                            // Use the balance calculated by updateBalance function
-                            balance = Math.abs(parseFloat(watchedInvoice.balance) || 0).toFixed(2);
+                            // For Payment# selected invoices, show original balance if no received amount entered
+                            const userReceivedAmount = watchedInvoice.receivedAmount || '';
+                            if (!userReceivedAmount || userReceivedAmount === '') {
+                              // Show original balance from API (absolute value)
+                              balance = Math.abs(parseFloat(watchedInvoice.balance) || 0).toFixed(2);
+                            } else {
+                              // Subtract user's received amount from original balance
+                              const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
+                              const enteredAmount = parseFloat(userReceivedAmount || '0');
+                              balance = Math.max(0, originalBalance - enteredAmount).toFixed(2);
+                            }
                           } else {
                             // Calculate balance for manually added invoices
                             if (selectedPaymentType === 'Income Tax') {
@@ -1416,7 +1270,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                               if (totalAdvance > 0) {
                                 balance = Math.abs(totalAdvance + adjustedAmount - invoiceAmount).toFixed(2);
                               } else {
-                                balance = Math.abs(invoiceAmount - receivedAmount - adjustedAmount).toFixed(2);
+                                balance = Math.abs(invoiceAmount - receivedAmount).toFixed(2);
                               }
                             } else {
                               balance = Math.abs(invoiceAmount - (receivedAmount + adjustedAmount)).toFixed(2);
