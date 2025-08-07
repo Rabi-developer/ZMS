@@ -1277,7 +1277,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                     const totalAdvance = previousPayments
                                       .filter(
                                         (payment) =>
-                                          payment.paymentType === 'Advance' &&
+                                          payment.paymentType === 'Advance' && 
                                           payment.status === 'Approved' &&
                                           payment.seller === invoice.seller &&
                                           payment.buyer === invoice.buyer
@@ -1429,35 +1429,38 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                               <td className="p-2 md:p-3 block md:table-cell before:content-['Due_Date:'] before:font-bold before:md:hidden">
                                 {invoice.dueDate || '-'}
                               </td>
-                              <td className="p-2 md:p-3 block md:table-cell before:content-['Received_Amount:'] before:font-bold before:md:hidden">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={
-                                    watchedInvoices.find((inv) => inv.id === invoice.id)?.receivedAmount || ''
-                                  }
-                                  onChange={(e) => {
-                                    const value = e.target.value;
-                                    const updatedInvoices = [...watchedInvoices];
-                                    const invIndex = updatedInvoices.findIndex((inv) => inv.id === invoice.id);
-                                    if (invIndex >= 0) {
-                                      updatedInvoices[invIndex].receivedAmount = value;
-                                      // Don't automatically set invoiceAdjusted to the same value
-                                      updateBalance(
-                                        invIndex,
-                                        updatedInvoices[invIndex].totalAmount || invoice.invoiceValueWithGst || '0',
-                                        value,
-                                        updatedInvoices[invIndex].invoiceAdjusted || '0',
-                                        invoice.invoiceNumber,
-                                        invoice.seller,
-                                        invoice.buyer
-                                      );
-                                      setValue('relatedInvoices', updatedInvoices);
-                                    }
-                                  }}
-                                  className="w-full p-2 border border-gray-300 rounded"
-                                />
-                              </td>
+                             <td className="p-2 md:p-3 block md:table-cell before:content-['Received_Amount:'] before:font-bold before:md:hidden">
+  <input
+    type="number"
+    step="0.01"
+    value={
+      watchedInvoices.find((inv) => inv.id === invoice.id)?.receivedAmount || ''
+    }
+    onChange={(e) => {
+      const value = e.target.value;
+      const updatedInvoices = [...watchedInvoices];
+      const invIndex = updatedInvoices.findIndex((inv) => inv.id === invoice.id);
+      if (invIndex >= 0) {
+        updatedInvoices[invIndex].receivedAmount = value;
+        // Auto-fill Invoice Adjusted with Received Amount when Payment Type is Payment
+        if (selectedPaymentType === 'Payment') {
+          updatedInvoices[invIndex].invoiceAdjusted = value;
+        }
+        updateBalance(
+          invIndex,
+          updatedInvoices[invIndex].totalAmount || invoice.invoiceValueWithGst || '0',
+          value,
+          updatedInvoices[invIndex].invoiceAdjusted || '0',
+          invoice.invoiceNumber,
+          invoice.seller,
+          invoice.buyer
+        );
+        setValue('relatedInvoices', updatedInvoices);
+      }
+    }}
+    className="w-full p-2 border border-gray-300 rounded"
+  />
+</td>
                               <td className="p-2 md:p-3 block md:table-cell before:content-['Inv._Amount:'] before:font-bold before:md:hidden">
                                 {invoice.invoiceValueWithGst || invoice.totalAmount || '0.00'}
                               </td>
