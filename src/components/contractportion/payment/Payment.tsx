@@ -403,8 +403,13 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             setValue('seller', sellers.find((s) => s.name === payment.seller)?.id || '', { shouldValidate: true });
             setValue('buyer', buyers.find((b) => b.name === payment.buyer)?.id || '', { shouldValidate: true });
             
-            // Set relatedInvoices and selectedInvoiceIds from API response
-            const apiRelatedInvoices = (payment.relatedInvoices || []).map((ri: any) => ({
+            // Filter out invoices with zero balance and set relatedInvoices and selectedInvoiceIds from API response
+            const filteredPaymentInvoices = (payment.relatedInvoices || []).filter((ri: any) => {
+              const balance = parseFloat(ri.balance || '0');
+              return Math.abs(balance) > 0; // Only include invoices with non-zero balance
+            });
+
+            const apiRelatedInvoices = filteredPaymentInvoices.map((ri: any) => ({
               id: ri.id || '',
               invoiceNumber: ri.invoiceNumber || '',
               invoiceDate: ri.invoiceDate || '',
@@ -516,8 +521,14 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 })[0];
 
               if (lastPayment && lastPayment.relatedInvoices && lastPayment.relatedInvoices.length > 0) {
-                // Auto-populate related invoices from the last payment
-                const apiRelatedInvoices = lastPayment.relatedInvoices.map((ri: any) => {
+                // Filter out invoices with zero balance and auto-populate related invoices from the last payment
+                const filteredRelatedInvoices = lastPayment.relatedInvoices.filter((ri: any) => {
+                  const balance = parseFloat(ri.balance || '0');
+                  return Math.abs(balance) > 0; // Only include invoices with non-zero balance
+                });
+
+                if (filteredRelatedInvoices.length > 0) {
+                  const apiRelatedInvoices = filteredRelatedInvoices.map((ri: any) => {
                   // Find the actual invoice to get the correct total amount
                   const actualInvoice = invoices.find((inv) => 
                     inv.invoiceNumber === ri.invoiceNumber &&
@@ -576,6 +587,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 setSelectedInvoiceIds(matchingInvoiceIds);
                 
                 toast(`Auto-loaded invoices from last payment (${lastPayment.paymentNumber || 'Previous Payment'})`, { type: 'info' });
+                } else {
+                  // Clear invoices if no invoices with non-zero balance found
+                  setValue('relatedInvoices', []);
+                  setSelectedInvoiceIds([]);
+                }
               } else {
                 // Clear invoices if no matching payment found
                 setValue('relatedInvoices', []);
