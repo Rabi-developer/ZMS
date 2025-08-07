@@ -1402,7 +1402,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           const watchedInvoice = watchedInvoices.find((inv) => inv.id === invoice.id);
                           const receivedAmount = parseFloat(watchedInvoice?.receivedAmount || invoice.receivedAmount || '0');
                           const adjustedAmount = parseFloat(watchedInvoice?.invoiceAdjusted || invoice.invoiceAdjusted || '0');
-                          
+                          //
                           // Use balance from form data (which is calculated by updateBalance function)
                           let balance = '0.00';
                           if (watchedInvoice && watchedInvoice.balance !== undefined) {
