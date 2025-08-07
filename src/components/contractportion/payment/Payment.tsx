@@ -47,6 +47,7 @@ const PaymentSchema = z.object({
         totalAmount: z.string(),
         receivedAmount: z.string().optional(),
         balance: z.string().optional(),
+        originalBalance: z.string().optional(),
         invoiceAdjusted: z.string().optional(),
       })
     )
@@ -65,6 +66,7 @@ interface ExtendedInvoice {
   totalAmount: string;
   receivedAmount: string;
   balance: string;
+  originalBalance?: string;
   invoiceAdjusted: string;
   isSelected?: boolean;
   invoiceValueWithGst?: string;
@@ -503,7 +505,14 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                   payment.status === 'Approved' &&
                   (payment.paymentType === 'Payment' || payment.paymentType === 'Income Tax')
                 )
-                .sort((a: any, b: any) => new Date(b.paymentDate || '').getTime() - new Date(a.paymentDate || '').getTime())[0];
+                .sort((a: any, b: any) => {
+                  // First sort by payment date
+                  const dateComparison = new Date(b.paymentDate || '').getTime() - new Date(a.paymentDate || '').getTime();
+                  if (dateComparison !== 0) return dateComparison;
+                  
+                  // If payment dates are the same, sort by creation date to get the latest entry
+                  return new Date(b.creationDate || '').getTime() - new Date(a.creationDate || '').getTime();
+                })[0];
 
               if (lastPayment && lastPayment.relatedInvoices && lastPayment.relatedInvoices.length > 0) {
                 // Auto-populate related invoices from the last payment
@@ -533,7 +542,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                     totalAmount: correctInvoiceAmount.toString(),
                     receivedAmount: '', // Keep blank for user input
                     balance: correctBalance, // Use balance directly from API response
-                    invoiceAdjusted: ri.invoiceAdjusted || '0',
+                    originalBalance: correctBalance, // Store original balance for calculations
+                    invoiceAdjusted: '0', // Don't auto-populate, start with 0
                   };
                 });
                 
@@ -614,9 +624,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         (sum, inv) => sum + (parseFloat(inv.invoiceAdjusted || '0') || 0),
         0
       );
+      
+      // Invoice Adjustment reduces Advance Received: advance - adjustment = new advance
       const remainingAdvance = totalAdvance - totalInvoiceAdjusted;
 
-      setValue('advanceReceived', (remainingAdvance < 0 ? 0 : remainingAdvance).toFixed(2), { shouldValidate: true });
+      setValue('advanceReceived', Math.max(0, remainingAdvance).toFixed(2), { shouldValidate: true });
     } else {
       setValue('advanceReceived', '', { shouldValidate: true });
     }
@@ -709,16 +721,10 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       if (paymentInvoiceData && paymentInvoiceData.balance !== undefined) {
         // Use data from Payment# selection but keep received amount blank for user input
         receivedAmount = existingInvoice?.receivedAmount || ''; // Keep blank unless user has entered something
-        adjustedAmount = parseFloat(paymentInvoiceData.invoiceAdjusted || '0');
-        // Show the original balance from API when no received amount entered
-        if (!receivedAmount || receivedAmount === '') {
-          balance = Math.abs(parseFloat(paymentInvoiceData.balance || '0')).toFixed(2);
-        } else {
-          // Subtract user's received amount from original balance
-          const originalBalance = Math.abs(parseFloat(paymentInvoiceData.balance || '0'));
-          const userReceivedAmount = parseFloat(receivedAmount || '0');
-          balance = Math.max(0, originalBalance - userReceivedAmount).toFixed(2);
-        }
+        adjustedAmount = parseFloat(existingInvoice?.invoiceAdjusted || '0'); // Don't auto-populate from payment data
+        // Always use the original balance from API, store it for calculations
+        const originalBalance = paymentInvoiceData.originalBalance || paymentInvoiceData.balance;
+        balance = Math.abs(parseFloat(originalBalance || '0')).toFixed(2);
       } else {
         // Calculate balance for newly added invoices
         receivedAmount = existingInvoice?.receivedAmount || '0'; // Don't use invoice.receivedAmount
@@ -750,6 +756,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         totalAmount: invoice.totalAmount || invoice.invoiceValueWithGst || '0',
         receivedAmount,
         balance,
+        originalBalance: paymentInvoiceData ? (paymentInvoiceData.originalBalance || paymentInvoiceData.balance) : undefined, // Store original balance for calculations
         invoiceAdjusted: adjustedAmount.toString(),
       };
     });
@@ -842,14 +849,29 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         0
       );
 
+    // Get the current invoice from relatedInvoices to check if it has original balance from API
+    const currentInvoice = watchedInvoices[index];
+    const adjustedAmount = parseFloat(invoiceAdjusted || '0');
+    const receivedAmountValue = parseFloat(receivedAmount || '0');
+
     let balance = '0.00';
+    
     if (selectedPaymentType === 'Income Tax') {
       // For Income Tax, balance = invoiceAdjusted - invoiceAmount
-      balance = Math.abs(parseFloat(invoiceAdjusted || '0') - invoiceAmount).toFixed(2); // Remove negative sign
+      balance = Math.abs(adjustedAmount - invoiceAmount).toFixed(2);
     } else if (selectedPaymentType === 'Payment') {
-      const adjustedAmount = parseFloat(invoiceAdjusted || '0');
-      balance = Math.abs(invoiceAmount - (parseFloat(receivedAmount || '0') + adjustedAmount)).toFixed(2);
+      // Check if this invoice has original balance from Payment# or seller/buyer selection
+      if (currentInvoice && currentInvoice.balance && !receivedAmount) {
+        // Use original balance from API and subtract Invoice Adjustment
+        // invoice adjust - balance = new balance
+        const originalBalance = parseFloat(currentInvoice.balance || '0');
+        balance = Math.abs(originalBalance - adjustedAmount).toFixed(2);
+      } else {
+        // Calculate normally for user-added invoices or when received amount is entered
+        balance = Math.abs(invoiceAmount - (receivedAmountValue + adjustedAmount)).toFixed(2);
+      }
 
+      // Update Advance Received: Calculate total adjustments and subtract from total advance
       const totalInvoiceAdjusted = (watch('relatedInvoices') || []).reduce(
         (sum, inv, idx) => {
           if (idx === index) {
@@ -859,10 +881,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         },
         0
       );
+      // invoice adjust - advance received = new advance received
       const remainingAdvance = totalAdvance - totalInvoiceAdjusted;
-      setValue('advanceReceived', (remainingAdvance < 0 ? 0 : remainingAdvance).toFixed(2), { shouldValidate: true });
+      setValue('advanceReceived', Math.max(0, remainingAdvance).toFixed(2), { shouldValidate: true });
     } else {
-      balance = Math.abs(invoiceAmount - (parseFloat(receivedAmount || '0') + parseFloat(invoiceAdjusted || '0'))).toFixed(2);
+      // For other payment types
+      balance = Math.abs(invoiceAmount - (receivedAmountValue + adjustedAmount)).toFixed(2);
     }
 
     const updatedInvoices = [...watchedInvoices];
@@ -888,6 +912,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         totalAmount?: string;
         receivedAmount?: string;
         balance?: string;
+        originalBalance?: string;
         invoiceAdjusted?: string;
       }[] = [];
       if (selectedPaymentType === 'Income Tax' || selectedPaymentType === 'Payment') {
@@ -1241,9 +1266,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                   let balance = '0.00';
                                   
                                   if (paymentInvoiceData) {
-                                    // Use data from Payment# selection but don't auto-populate received amount
+                                    // Use data from Payment# selection but don't auto-populate received amount or invoice adjusted
                                     receivedAmount = '0'; // Don't auto-populate, start with 0
-                                    adjustedAmount = parseFloat(paymentInvoiceData.invoiceAdjusted || '0');
+                                    adjustedAmount = 0; // Don't auto-populate Invoice Adjusted, start with 0
                                     // Use original balance from payment data but remove negative sign
                                     balance = Math.abs(parseFloat(paymentInvoiceData.balance || '0')).toFixed(2);
                                   } else {
