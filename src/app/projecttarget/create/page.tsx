@@ -11,7 +11,7 @@ const createProjectTarget = () => {
     branchId: '',
   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <ProjectTarget branchId={null} initialData={initialData} />
     </MainLayout>
   )

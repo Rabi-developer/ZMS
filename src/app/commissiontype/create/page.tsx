@@ -5,7 +5,7 @@ import CommissionType from '@/components/valuemanagement/commissiontype/Commissi
 const UnitOfMeasure = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
            <CommissionType/>
         </MainLayout>
     )

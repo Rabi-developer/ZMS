@@ -5,7 +5,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const Organization = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <OtherIncome/>
         </MainLayout>
     )

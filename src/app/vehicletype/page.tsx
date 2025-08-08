@@ -5,7 +5,7 @@ import VehicleTypeList from '@/components/valuemanagement/transportercompany/Tra
 const UnitOfMeasure = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
            <VehicleTypeList/>
         </MainLayout>
     )

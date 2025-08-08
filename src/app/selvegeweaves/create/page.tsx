@@ -10,7 +10,7 @@ const  CreateSelvegeWeavesPage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <SelvegeWeavesForm/>
     </MainLayout>
   )

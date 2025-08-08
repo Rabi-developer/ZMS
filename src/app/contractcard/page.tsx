@@ -5,7 +5,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const ContractCard = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
            <ContractSummaryCard/>
         </MainLayout>
     )

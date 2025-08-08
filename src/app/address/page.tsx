@@ -4,7 +4,7 @@ import AddressList from '@/components/address/AddressList'
 const Organization = () => {
 
     return (
-        <MainLayout>
+      <MainLayout activeInterface="ZMS">
             <AddressList />
         </MainLayout>
     )

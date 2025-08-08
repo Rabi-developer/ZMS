@@ -4,7 +4,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const SelvegeWidthPage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <SelvegeWidthList/>
         </MainLayout>
     )

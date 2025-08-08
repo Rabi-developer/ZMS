@@ -5,7 +5,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const StuffPage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <StuffList/>
         </MainLayout>
     )

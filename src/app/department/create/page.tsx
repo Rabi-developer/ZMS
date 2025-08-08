@@ -10,7 +10,7 @@ const createDepartment = () => {
     branchId: '',
   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <Department branchId={null} initialData={initialData} />
     </MainLayout>
   )

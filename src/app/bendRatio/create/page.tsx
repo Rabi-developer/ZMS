@@ -11,7 +11,7 @@ const  CreateBlendRatioPage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <BlendRatioForm  />
     </MainLayout>
   )

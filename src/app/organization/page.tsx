@@ -4,7 +4,7 @@ import OrganizationList from '@/components/Organization/Commpany/OrganizationLis
 const Organization = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <OrganizationList />
         </MainLayout>
     )

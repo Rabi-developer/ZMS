@@ -27,7 +27,7 @@ const UpdateDispatchNotePage = () => {
   }, [id]);
 
   return (
-    <MainLayout>
+    <MainLayout activeInterface="ZMS">
       {!initialData ? (
         <Loader />
       ) : (

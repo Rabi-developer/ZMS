@@ -5,7 +5,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const CommissionForm = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
            <CommissionFormList/>
         </MainLayout>
     )

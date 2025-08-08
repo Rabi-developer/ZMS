@@ -27,7 +27,7 @@ const UpdateBlendRatioPage = () => {
   }, [id]);
 
   return (
-    <MainLayout>
+    <MainLayout activeInterface="ZMS">
       {
         !initialData ? <Loader /> :
           <div>

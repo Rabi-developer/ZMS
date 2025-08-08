@@ -17,7 +17,7 @@ const CreateBranch = () => {
     organizationId:"",
   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <Branch />
     </MainLayout>
   )

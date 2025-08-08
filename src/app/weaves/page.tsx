@@ -5,7 +5,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const WeavesPage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <WeavesList/>
         </MainLayout>
     )

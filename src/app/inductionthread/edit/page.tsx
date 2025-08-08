@@ -5,7 +5,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const Inductionthread = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <InductionThreadForm/>
         </MainLayout>
     )

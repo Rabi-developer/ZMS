@@ -4,7 +4,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const PackingPage = () => {
 
     return (
-        <MainLayout>
+      <MainLayout activeInterface="ZMS">
          <PaymentForm/>
         </MainLayout>
     )

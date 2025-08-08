@@ -4,7 +4,7 @@ import GeneralSaleTextType from '@/components/generalsaletexttype/GeneralSaleTex
 const GeneralSaleTextTypePage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
            <GeneralSaleTextType/>
         </MainLayout>
     )

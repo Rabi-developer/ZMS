@@ -6,7 +6,7 @@ import Saller from '@/components/Saller/SellerForm';
 const Organization = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <Saller/>
         </MainLayout>
     )

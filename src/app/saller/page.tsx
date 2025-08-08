@@ -7,7 +7,7 @@ import SellerList from '@/components/Saller/SellerList';
 const Organization = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <SellerList/>
         </MainLayout>
     )

@@ -28,7 +28,7 @@ const UpdateDepartmentPage = () => {
     }, [id]);
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             {
                 !initialData ? <Loader /> :
                     <Department id={id} initialData={initialData} />

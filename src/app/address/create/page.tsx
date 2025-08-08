@@ -10,8 +10,8 @@ const createAddress = () => {
     branchId: '',
   };
   return (
-    <MainLayout>  
-        <Address branchId={null} initialData={initialData} />
+    <MainLayout activeInterface="ZMS">       
+    <Address branchId={null} initialData={initialData} />
     </MainLayout>
   )
 }

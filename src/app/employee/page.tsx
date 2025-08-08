@@ -5,7 +5,7 @@ import EmployeeList from "@/components/Employee/EmployeeList";
 const page = () => {
   return (
     <div>
-      <MainLayout>
+      <MainLayout activeInterface="ZMS">
           <EmployeeList/>
       </MainLayout>
     </div>

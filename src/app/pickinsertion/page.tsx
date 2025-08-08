@@ -4,7 +4,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const PickInsertionPage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <PickInsertionList/>
         </MainLayout>
     )

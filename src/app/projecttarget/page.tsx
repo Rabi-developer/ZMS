@@ -5,7 +5,7 @@ import ProjectTargetList from '@/components/projecttarget/ProjectTargetList'
 const Organization = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <ProjectTargetList/>
         </MainLayout>
     )

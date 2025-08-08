@@ -5,7 +5,7 @@ import DeliveryTerm from '@/components/valuemanagement/deliveryterm/DeliveryTerm
 const UnitOfMeasure = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
            <DeliveryTerm/>
         </MainLayout>
     )

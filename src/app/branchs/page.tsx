@@ -4,7 +4,7 @@ import BranchList from '@/components/branches/BranchList'
 const Branches = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <BranchList />
         </MainLayout>
     )

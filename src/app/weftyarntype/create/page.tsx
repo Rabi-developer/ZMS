@@ -10,7 +10,7 @@ const  CreateWeftYarnTypePage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <WeftYarnType/>
     </MainLayout>
   )

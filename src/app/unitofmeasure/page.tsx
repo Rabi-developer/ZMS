@@ -5,7 +5,7 @@ import UnitOfMeasureList from '@/components/valuemanagement/unitofmeasure/UnitOf
 const UnitOfMeasure = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
            <UnitOfMeasureList/>
         </MainLayout>
     )

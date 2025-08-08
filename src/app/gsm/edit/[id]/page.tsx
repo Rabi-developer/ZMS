@@ -5,7 +5,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const Gsm = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
           <GSMForm/>
         </MainLayout>
     )

@@ -28,7 +28,7 @@ const buttonVariants = {
 
 const GST = () => {
   return (
-    <MainLayout>
+    <MainLayout activeInterface="ZMS">
       <div className="container mx-auto px-4 py-12">
         {/* Header */}
         <div className="relative mb-12">

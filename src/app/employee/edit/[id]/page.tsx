@@ -28,7 +28,7 @@ const UpdateEmployeePage = () => {
     }, [id]);
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             {
                 !initialData ? <Loader /> :
                     <EmployeeForm id={id} initialData={initialData} />

@@ -5,7 +5,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const Invoice = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <InvoiceList/>
         </MainLayout>
     )

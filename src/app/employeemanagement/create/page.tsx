@@ -10,7 +10,7 @@ const createEmployeeManagement = () => {
     branchId: '',
   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <EmployeeManagementForm/>
     </MainLayout>
   )

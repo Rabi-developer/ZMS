@@ -16,7 +16,7 @@ const CreateOrg = () => {
     zip: ''
   };
   return (
-    <MainLayout>
+    <MainLayout activeInterface="ZMS">
       <Organization organizationId={null} initialData={initialData} />
     </MainLayout>
   )

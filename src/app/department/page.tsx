@@ -4,7 +4,7 @@ import DepartmentList from '@/components/department/DepartmentList'
 const Organization = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <DepartmentList />
         </MainLayout>
     )

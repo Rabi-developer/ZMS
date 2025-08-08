@@ -4,7 +4,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const SelvegePage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <SelvegeThicknessList/>
         </MainLayout>
     )

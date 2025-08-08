@@ -10,7 +10,7 @@ const  CreatePickInsertionPage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <PickInsertion  />
     </MainLayout>
   )

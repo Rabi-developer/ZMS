@@ -5,7 +5,7 @@ import Supplier from '@/components/supplier/Supplier';
 const Organization = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
           <Supplier/>
         </MainLayout>
     )

@@ -28,7 +28,7 @@ const UpdateAddressPage = () => {
     }, [id]);
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             {
                 !initialData ? <Loader /> :
                     <Address id={id} initialData={initialData} />

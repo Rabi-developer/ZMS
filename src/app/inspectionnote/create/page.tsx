@@ -6,7 +6,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const InspectNote = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <InspectionNote/>
         </MainLayout>
     )

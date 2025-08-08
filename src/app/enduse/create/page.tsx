@@ -10,7 +10,7 @@ const  CreateEndUsePage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
       <EndUse/>
     </MainLayout>
   )

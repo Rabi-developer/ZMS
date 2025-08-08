@@ -10,7 +10,7 @@ const  CreateWrapYarnTypePage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <WrapYarnType/>
     </MainLayout>
   )

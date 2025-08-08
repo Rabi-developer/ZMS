@@ -4,7 +4,7 @@ import PaymentTermList from '@/components/valuemanagement/paymentterm/PaymentTer
 const PaymentTermPage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
            <PaymentTermList/>
         </MainLayout>
     )

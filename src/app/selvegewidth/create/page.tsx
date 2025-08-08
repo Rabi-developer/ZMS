@@ -10,7 +10,7 @@ const  CreateSelvegeWidthPage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <SelvegeWidthForm/>
     </MainLayout>
   )

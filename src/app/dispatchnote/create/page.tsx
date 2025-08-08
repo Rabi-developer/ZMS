@@ -4,7 +4,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const DescriptionPage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <DispatchNote/>
         </MainLayout>
     )

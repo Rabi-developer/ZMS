@@ -10,7 +10,7 @@ const  CreateFinalPage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <Final  />
     </MainLayout>
   )

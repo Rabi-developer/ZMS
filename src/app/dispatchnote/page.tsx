@@ -4,7 +4,7 @@ import DispatchNoteList from '@/components/dispatchnote/DispatchNoteList'
 const DescriptionPage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <DispatchNoteList/>
         </MainLayout>
     )

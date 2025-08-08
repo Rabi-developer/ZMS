@@ -30,7 +30,7 @@ const UpdateProjectTarget = () => {
     }, [id]);
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             {
                 !initialData ? <Loader /> :
                     <ProjectTarget id={id} initialData={initialData} />

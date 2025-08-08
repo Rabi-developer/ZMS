@@ -4,7 +4,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const FabricTypePage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <FabricTypeList/>
         </MainLayout>
     )

@@ -5,7 +5,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const WeftYarnTypePage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <WeftYarnTypeList/>
         </MainLayout>
     )

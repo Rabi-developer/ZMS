@@ -28,7 +28,7 @@ const UpdateBranchPage = () => {
     }, [id]);
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             {
                 !initialData ? <Loader /> :
                     <Branch id={id} initialData={initialData} />

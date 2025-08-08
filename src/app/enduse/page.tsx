@@ -5,7 +5,7 @@ import FinalList from '@/components/item/final/FinalList'
  const EndUsePage = () => {
  
      return (
-         <MainLayout>
+         <MainLayout activeInterface="ZMS">
              <EndUseList/>
          </MainLayout>
      )

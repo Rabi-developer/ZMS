@@ -10,7 +10,7 @@ const  CreatePackingPage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <PackingForm  />
     </MainLayout>
   )

@@ -4,7 +4,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const PeiceLengthPage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <PeiceLengthList/>
         </MainLayout>
     )

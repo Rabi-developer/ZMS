@@ -7,7 +7,7 @@ import BuyerList from '@/components/Buyer/BuyerList';
 const Organization = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <BuyerList />
         </MainLayout>
     )

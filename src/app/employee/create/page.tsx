@@ -10,7 +10,7 @@ const createEmployee = () => {
     branchId: '',
   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <EmployeeForm branchId={null} initialData={initialData} />
     </MainLayout>
   )

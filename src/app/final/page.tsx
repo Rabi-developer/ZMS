@@ -4,7 +4,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const FinalPage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <FinalList/>
         </MainLayout>
     )

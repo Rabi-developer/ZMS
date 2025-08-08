@@ -4,7 +4,7 @@ import MainLayout from '@/components/MainLayout/MainLayout'
 const WrapYarnTypePage = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <WrapYarnTypeList/>
         </MainLayout>
     )

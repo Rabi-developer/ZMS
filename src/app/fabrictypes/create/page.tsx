@@ -10,7 +10,7 @@ const  CreateFabricTypePage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <FabricTypeForm/>
     </MainLayout>
   )

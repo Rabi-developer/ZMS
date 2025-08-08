@@ -10,7 +10,7 @@ const  CreateSelvegePage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <SelvegeForm/>
     </MainLayout>
   )

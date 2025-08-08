@@ -10,7 +10,7 @@ const  CreateStuffPage  = () => {
 //     branchId: '',
 //   };
   return (
-    <MainLayout>  
+    <MainLayout activeInterface="ZMS">  
         <StuffForm/>
     </MainLayout>
   )
