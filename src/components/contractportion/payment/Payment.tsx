@@ -130,6 +130,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const [previousPayments, setPreviousPayments] = useState<PaymentData[]>([]);
   const [paymentNumbers, setPaymentNumbers] = useState<{ id: string; name: string }[]>([]);
   const [advanceRemarks, setAdvanceRemarks] = useState('');
+  
+  // Store original Payment# data to preserve balance in selection panel
+  const [originalPaymentData, setOriginalPaymentData] = useState<{[invoiceNumber: string]: {balance: string, receivedAmount: string, invoiceAdjusted: string}}>({})
 
   // Static options for Payment Type, Mode, and Bank Name
   const paymentTypes = [
@@ -415,7 +418,19 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               receivedAmount: '', // Keep blank for user input
               balance: ri.balance || '0', // Use balance from API response
               invoiceAdjusted: ri.invoiceAdjusted || '0',
+              originalBalance: ri.balance || '0', // Store original balance
             }));
+            
+            // Store original Payment# data for selection panel
+            const originalData: {[invoiceNumber: string]: {balance: string, receivedAmount: string, invoiceAdjusted: string}} = {};
+            apiRelatedInvoices.forEach((inv: any) => {
+              originalData[inv.invoiceNumber] = {
+                balance: inv.balance || '0',
+                receivedAmount: '',
+                invoiceAdjusted: inv.invoiceAdjusted || '0'
+              };
+            });
+            setOriginalPaymentData(originalData);
             
             setValue('relatedInvoices', apiRelatedInvoices);
             
@@ -781,38 +796,41 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   // Handle invoice selection
   const handleInvoiceSelect = (invoice: ExtendedInvoice) => {
     setSelectedInvoiceIds((prev) => {
-      // Check if an invoice with the same invoice number is already selected
+      // Check if an invoice with the same invoice number is already selected in the table
       const selectedInvoices = invoices.filter(inv => prev.includes(inv.id));
       const duplicateInSelectedInvoices = selectedInvoices.find((inv) => inv.invoiceNumber === invoice.invoiceNumber);
       
-      // Also check against invoices already in the Related Invoices form data
+      // Also check against invoices already in the Related Invoices form data that are currently selected
       const currentRelatedInvoices = watch('relatedInvoices') || [];
-      const duplicateInRelatedInvoices = currentRelatedInvoices.find((inv: any) => inv.invoiceNumber === invoice.invoiceNumber);
+      const duplicateInRelatedInvoices = currentRelatedInvoices.find((inv: any) => 
+        inv.invoiceNumber === invoice.invoiceNumber && prev.includes(inv.id)
+      );
       
       if (duplicateInSelectedInvoices || duplicateInRelatedInvoices) {
-        // Invoice with same number already exists, show warning and don't add
+        // Invoice with same number already exists and is currently selected, show warning and don't add
         toast(`Invoice ${invoice.invoiceNumber} is already selected`, { type: 'warning' });
         return prev;
       }
       
-      // When adding new invoice, check if there's payment data for this invoice number
+      // When adding new invoice, check if there's preserved payment data for this invoice number
       const paymentInvoiceData = currentRelatedInvoices.find((inv: any) => inv.invoiceNumber === invoice.invoiceNumber);
       
       if (paymentInvoiceData) {
-        // If there's payment data, preserve it when adding the invoice
+        // If there's preserved payment data, restore it when adding the invoice back
         const updatedRelatedInvoices = [...currentRelatedInvoices];
         const existingIndex = updatedRelatedInvoices.findIndex((inv: any) => inv.invoiceNumber === invoice.invoiceNumber);
         
         if (existingIndex >= 0) {
-          // Update existing invoice with current invoice data but preserve payment balance data
+          // Update existing invoice with current invoice data but preserve original payment balance data
           updatedRelatedInvoices[existingIndex] = {
             ...updatedRelatedInvoices[existingIndex],
-            id: invoice.id,
+            id: invoice.id, // Update with the current invoice ID
             invoiceDate: invoice.invoiceDate,
             dueDate: invoice.dueDate,
             seller: invoice.seller,
             buyer: invoice.buyer,
             totalAmount: invoice.totalAmount || invoice.invoiceValueWithGst || '0',
+            // Keep the preserved data (receivedAmount, invoiceAdjusted, balance, originalBalance)
           };
           setValue('relatedInvoices', updatedRelatedInvoices);
         }
@@ -826,6 +844,10 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   // Handle invoice removal
   const handleRemoveInvoice = (invoiceId: string) => {
     setSelectedInvoiceIds((prev) => prev.filter((id) => id !== invoiceId));
+    
+    // For invoice removal, we just remove from selectedInvoiceIds
+    // The relatedInvoices should keep the original data intact for the selection panel
+    // Don't modify relatedInvoices here - let the useEffect handle the proper data management
   };
 
   // Update balance and synchronize receivedAmount and invoiceAdjusted
@@ -1331,12 +1353,18 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                   let adjustedAmount = 0;
                                   let balance = '0.00';
                                   
-                                  if (paymentInvoiceData) {
+                                  if (paymentInvoiceData || originalPaymentData[invoice.invoiceNumber]) {
                                     // Use data from Payment# selection but don't auto-populate received amount or invoice adjusted
                                     receivedAmount = '0'; // Don't auto-populate, start with 0
                                     adjustedAmount = 0; // Don't auto-populate Invoice Adjusted, start with 0
-                                    // Use original balance from payment data but remove negative sign
-                                    balance = Math.abs(parseFloat(paymentInvoiceData.balance || '0')).toFixed(2);
+                                    // Always use original balance from stored payment data
+                                    const originalData = originalPaymentData[invoice.invoiceNumber];
+                                    if (originalData) {
+                                      balance = Math.abs(parseFloat(originalData.balance || '0')).toFixed(2);
+                                    } else {
+                                      const originalBalance = paymentInvoiceData?.originalBalance || paymentInvoiceData?.balance;
+                                      balance = Math.abs(parseFloat(originalBalance || '0')).toFixed(2);
+                                    }
                                   } else {
                                     // Calculate balance for invoices not from Payment# selection
                                     const totalAdvance = previousPayments
@@ -1436,55 +1464,23 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                       <tbody>
                         {filteredInvoices
                           .filter((invoice) => {
-                            // Calculate balance to determine if invoice should be hidden
-                            const totalAdvance = previousPayments
-                              .filter(
-                                (payment) =>
-                                  payment.paymentType === 'Advance' &&
-                                  payment.status === 'Approved' &&
-                                  payment.seller === invoice.seller &&
-                                  payment.buyer === invoice.buyer
-                              )
-                              .reduce(
-                                (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
-                                0
-                              );
-                            const invoiceAmount = parseFloat(invoice.invoiceValueWithGst || invoice.totalAmount || '0');
+                            // Only hide invoices that have zero balance from API data (Payment# selection)
+                            // Don't hide invoices that become zero due to user input
                             const watchedInvoice = watchedInvoices.find((inv) => inv.id === invoice.id);
-                            const receivedAmount = parseFloat(watchedInvoice?.receivedAmount || invoice.receivedAmount || '0');
-                            const adjustedAmount = parseFloat(watchedInvoice?.invoiceAdjusted || invoice.invoiceAdjusted || '0');
                             
-                            // Calculate balance to check if it's zero
-                            let balance = 0;
                             if (watchedInvoice && watchedInvoice.balance !== undefined) {
-                              // For Payment# selected invoices, show original balance if no received amount entered
+                              // For Payment# selected invoices, check if the original balance from API is zero
+                              const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
                               const userReceivedAmount = watchedInvoice.receivedAmount || '';
-                              if (!userReceivedAmount || userReceivedAmount === '') {
-                                // Show original balance from API (absolute value)
-                                balance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                              } else {
-                                // Subtract user's received amount from original balance
-                                const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                                const enteredAmount = parseFloat(userReceivedAmount || '0');
-                                balance = Math.max(0, originalBalance - enteredAmount);
-                              }
-                            } else {
-                              // Calculate balance for manually added invoices
-                              if (selectedPaymentType === 'Income Tax') {
-                                balance = Math.abs(adjustedAmount - invoiceAmount);
-                              } else if (selectedPaymentType === 'Payment') {
-                                if (totalAdvance > 0) {
-                                  balance = Math.abs(totalAdvance + adjustedAmount - invoiceAmount);
-                                } else {
-                                  balance = Math.abs(invoiceAmount - receivedAmount);
-                                }
-                              } else {
-                                balance = Math.abs(invoiceAmount - (receivedAmount + adjustedAmount));
+                              
+                              // Only hide if original balance is zero AND no user input has been made
+                              if (originalBalance === 0 && (!userReceivedAmount || userReceivedAmount === '')) {
+                                return false; // Hide only if originally zero and no user interaction
                               }
                             }
                             
-                            // Hide invoices with zero balance
-                            return balance > 0;
+                            // Show all other invoices (including those that become zero due to user input)
+                            return true;
                           })
                           .map((invoice, index) => {
                           const totalAdvance = previousPayments
@@ -1631,48 +1627,18 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           <td className="p-2 md:p-3">
                             {filteredInvoices
                               .filter((invoice) => {
-                                // Apply same filter logic as above to calculate totals only for visible invoices
-                                const totalAdvance = previousPayments
-                                  .filter(
-                                    (payment) =>
-                                      payment.paymentType === 'Advance' &&
-                                      payment.status === 'Approved' &&
-                                      payment.seller === invoice.seller &&
-                                      payment.buyer === invoice.buyer
-                                  )
-                                  .reduce(
-                                    (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
-                                    0
-                                  );
-                                const invoiceAmount = parseFloat(invoice.invoiceValueWithGst || invoice.totalAmount || '0');
+                                // Apply same filter logic - only hide invoices with original zero balance
                                 const watchedInvoice = watchedInvoices.find((inv) => inv.id === invoice.id);
-                                const receivedAmount = parseFloat(watchedInvoice?.receivedAmount || invoice.receivedAmount || '0');
-                                const adjustedAmount = parseFloat(watchedInvoice?.invoiceAdjusted || invoice.invoiceAdjusted || '0');
                                 
-                                let balance = 0;
                                 if (watchedInvoice && watchedInvoice.balance !== undefined) {
+                                  const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
                                   const userReceivedAmount = watchedInvoice.receivedAmount || '';
-                                  if (!userReceivedAmount || userReceivedAmount === '') {
-                                    balance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                                  } else {
-                                    const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                                    const enteredAmount = parseFloat(userReceivedAmount || '0');
-                                    balance = Math.max(0, originalBalance - enteredAmount);
-                                  }
-                                } else {
-                                  if (selectedPaymentType === 'Income Tax') {
-                                    balance = Math.abs(adjustedAmount - invoiceAmount);
-                                  } else if (selectedPaymentType === 'Payment') {
-                                    if (totalAdvance > 0) {
-                                      balance = Math.abs(totalAdvance + adjustedAmount - invoiceAmount);
-                                    } else {
-                                      balance = Math.abs(invoiceAmount - receivedAmount);
-                                    }
-                                  } else {
-                                    balance = Math.abs(invoiceAmount - (receivedAmount + adjustedAmount));
+                                  
+                                  if (originalBalance === 0 && (!userReceivedAmount || userReceivedAmount === '')) {
+                                    return false;
                                   }
                                 }
-                                return balance > 0;
+                                return true;
                               })
                               .reduce(
                               (sum, inv) =>
@@ -1687,48 +1653,18 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           <td className="p-2 md:p-3">
                             {filteredInvoices
                               .filter((invoice) => {
-                                // Apply same filter logic as above to calculate totals only for visible invoices
-                                const totalAdvance = previousPayments
-                                  .filter(
-                                    (payment) =>
-                                      payment.paymentType === 'Advance' &&
-                                      payment.status === 'Approved' &&
-                                      payment.seller === invoice.seller &&
-                                      payment.buyer === invoice.buyer
-                                  )
-                                  .reduce(
-                                    (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
-                                    0
-                                  );
-                                const invoiceAmount = parseFloat(invoice.invoiceValueWithGst || invoice.totalAmount || '0');
+                                // Apply same filter logic - only hide invoices with original zero balance
                                 const watchedInvoice = watchedInvoices.find((inv) => inv.id === invoice.id);
-                                const receivedAmount = parseFloat(watchedInvoice?.receivedAmount || invoice.receivedAmount || '0');
-                                const adjustedAmount = parseFloat(watchedInvoice?.invoiceAdjusted || invoice.invoiceAdjusted || '0');
                                 
-                                let balance = 0;
                                 if (watchedInvoice && watchedInvoice.balance !== undefined) {
+                                  const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
                                   const userReceivedAmount = watchedInvoice.receivedAmount || '';
-                                  if (!userReceivedAmount || userReceivedAmount === '') {
-                                    balance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                                  } else {
-                                    const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                                    const enteredAmount = parseFloat(userReceivedAmount || '0');
-                                    balance = Math.max(0, originalBalance - enteredAmount);
-                                  }
-                                } else {
-                                  if (selectedPaymentType === 'Income Tax') {
-                                    balance = Math.abs(adjustedAmount - invoiceAmount);
-                                  } else if (selectedPaymentType === 'Payment') {
-                                    if (totalAdvance > 0) {
-                                      balance = Math.abs(totalAdvance + adjustedAmount - invoiceAmount);
-                                    } else {
-                                      balance = Math.abs(invoiceAmount - receivedAmount);
-                                    }
-                                  } else {
-                                    balance = Math.abs(invoiceAmount - (receivedAmount + adjustedAmount));
+                                  
+                                  if (originalBalance === 0 && (!userReceivedAmount || userReceivedAmount === '')) {
+                                    return false;
                                   }
                                 }
-                                return balance > 0;
+                                return true;
                               })
                               .reduce(
                               (sum, inv) =>
@@ -1740,48 +1676,18 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           <td className="p-2 md:p-3">
                             {filteredInvoices
                               .filter((invoice) => {
-                                // Apply same filter logic as above to calculate totals only for visible invoices
-                                const totalAdvance = previousPayments
-                                  .filter(
-                                    (payment) =>
-                                      payment.paymentType === 'Advance' &&
-                                      payment.status === 'Approved' &&
-                                      payment.seller === invoice.seller &&
-                                      payment.buyer === invoice.buyer
-                                  )
-                                  .reduce(
-                                    (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
-                                    0
-                                  );
-                                const invoiceAmount = parseFloat(invoice.invoiceValueWithGst || invoice.totalAmount || '0');
+                                // Apply same filter logic - only hide invoices with original zero balance
                                 const watchedInvoice = watchedInvoices.find((inv) => inv.id === invoice.id);
-                                const receivedAmount = parseFloat(watchedInvoice?.receivedAmount || invoice.receivedAmount || '0');
-                                const adjustedAmount = parseFloat(watchedInvoice?.invoiceAdjusted || invoice.invoiceAdjusted || '0');
                                 
-                                let balance = 0;
                                 if (watchedInvoice && watchedInvoice.balance !== undefined) {
+                                  const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
                                   const userReceivedAmount = watchedInvoice.receivedAmount || '';
-                                  if (!userReceivedAmount || userReceivedAmount === '') {
-                                    balance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                                  } else {
-                                    const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                                    const enteredAmount = parseFloat(userReceivedAmount || '0');
-                                    balance = Math.max(0, originalBalance - enteredAmount);
-                                  }
-                                } else {
-                                  if (selectedPaymentType === 'Income Tax') {
-                                    balance = Math.abs(adjustedAmount - invoiceAmount);
-                                  } else if (selectedPaymentType === 'Payment') {
-                                    if (totalAdvance > 0) {
-                                      balance = Math.abs(totalAdvance + adjustedAmount - invoiceAmount);
-                                    } else {
-                                      balance = Math.abs(invoiceAmount - receivedAmount);
-                                    }
-                                  } else {
-                                    balance = Math.abs(invoiceAmount - (receivedAmount + adjustedAmount));
+                                  
+                                  if (originalBalance === 0 && (!userReceivedAmount || userReceivedAmount === '')) {
+                                    return false;
                                   }
                                 }
-                                return balance > 0;
+                                return true;
                               })
                               .reduce((sum, inv) => {
                               const watchedInvoice = watchedInvoices.find((i) => i.id === inv.id);
@@ -1810,48 +1716,18 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           <td className="p-2 md:p-3">
                             {filteredInvoices
                               .filter((invoice) => {
-                                // Apply same filter logic as above to calculate totals only for visible invoices
-                                const totalAdvance = previousPayments
-                                  .filter(
-                                    (payment) =>
-                                      payment.paymentType === 'Advance' &&
-                                      payment.status === 'Approved' &&
-                                      payment.seller === invoice.seller &&
-                                      payment.buyer === invoice.buyer
-                                  )
-                                  .reduce(
-                                    (sum, payment) => sum + (parseFloat(payment.advanceReceived || '0') || 0),
-                                    0
-                                  );
-                                const invoiceAmount = parseFloat(invoice.invoiceValueWithGst || invoice.totalAmount || '0');
+                                // Apply same filter logic - only hide invoices with original zero balance
                                 const watchedInvoice = watchedInvoices.find((inv) => inv.id === invoice.id);
-                                const receivedAmount = parseFloat(watchedInvoice?.receivedAmount || invoice.receivedAmount || '0');
-                                const adjustedAmount = parseFloat(watchedInvoice?.invoiceAdjusted || invoice.invoiceAdjusted || '0');
                                 
-                                let balance = 0;
                                 if (watchedInvoice && watchedInvoice.balance !== undefined) {
+                                  const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
                                   const userReceivedAmount = watchedInvoice.receivedAmount || '';
-                                  if (!userReceivedAmount || userReceivedAmount === '') {
-                                    balance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                                  } else {
-                                    const originalBalance = Math.abs(parseFloat(watchedInvoice.balance) || 0);
-                                    const enteredAmount = parseFloat(userReceivedAmount || '0');
-                                    balance = Math.max(0, originalBalance - enteredAmount);
-                                  }
-                                } else {
-                                  if (selectedPaymentType === 'Income Tax') {
-                                    balance = Math.abs(adjustedAmount - invoiceAmount);
-                                  } else if (selectedPaymentType === 'Payment') {
-                                    if (totalAdvance > 0) {
-                                      balance = Math.abs(totalAdvance + adjustedAmount - invoiceAmount);
-                                    } else {
-                                      balance = Math.abs(invoiceAmount - receivedAmount);
-                                    }
-                                  } else {
-                                    balance = Math.abs(invoiceAmount - (receivedAmount + adjustedAmount));
+                                  
+                                  if (originalBalance === 0 && (!userReceivedAmount || userReceivedAmount === '')) {
+                                    return false;
                                   }
                                 }
-                                return balance > 0;
+                                return true;
                               })
                               .reduce(
                               (sum, inv) =>
