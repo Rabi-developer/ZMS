@@ -36,7 +36,7 @@ import { getAllPaymentTerms } from "@/apis/paymentterm"
 import { getAllUnitOfMeasures } from "@/apis/unitofmeasure"
 import { getAllGeneralSaleTextTypes } from "@/apis/generalSaleTextType"
 import { getAllSelvegeThicknesss } from "@/apis/selvegethickness"
-import { getAllInductionThreads } from "@/apis/Inductionthread"
+import { getAllInductionThreads } from "@/apis/inductionthread"
 import { getAllGSMs } from "@/apis/gsm"
 
 // Schema definitions  scema for validation

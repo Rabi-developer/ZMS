@@ -25,13 +25,13 @@
   --text-muted-light: #9ca3af;
   --border-light: #374151;
 }
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background-light: #f6f6f6;
     --foreground-light: #171717;
     --background-dark: #030630;
     --foreground-dark: white;
-  
     --background: var(--background-light);
     --foreground: var(--foreground-light);
   }
@@ -41,14 +41,13 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
-  
 }
-/* Add additional styles for dark mode elements */
+
 body.dark {
   --background: var(--background-dark);
   --foreground: var(--foreground-dark);
 }
-  
+
 .sidebar {
   background-color: #ededf0;
 }
@@ -56,32 +55,30 @@ body.dark {
 @layer utilities {
   /* Scrollbar Styling */
   .scrollbar-thin {
-    scrollbar-width: thin; 
-    scrollbar-color: rgba(110, 117, 187, 0.5) rgba(24, 95, 153, 0.1); 
+    scrollbar-width: thin;
+    scrollbar-color: rgba(110, 117, 187, 0.5) transparent;
   }
 
-  .scrollbar-thin::-webkit-scrollbar { 
-    width: 8px; 
-    height: 8px;
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px; /* Reduced from 8px for smaller scrollbar */
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    border-radius: 4px;
+    border-radius: 3px; /* Adjusted for smaller width */
     background-color: rgba(22, 34, 90, 0.5); /* Thumb color */
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
-    border-radius: 4px;
-    background-color: white; /* Track color */
+    background: transparent; /* Transparent track for clean look */
   }
 
   /* Rounded Scrollbar */
   .scrollbar-rounded::-webkit-scrollbar-thumb {
-    border-radius: 8px; /* More rounded thumb */
+    border-radius: 3px; /* Adjusted for smaller scrollbar */
   }
 
   .scrollbar-rounded::-webkit-scrollbar-track {
-    border-radius: 8px; /* More rounded track */
+    border-radius: 3px;
   }
 
   /* Custom Utilities for Overflow */
@@ -94,38 +91,43 @@ body.dark {
     overflow: hidden;
   }
 }
+
+/* Align custom-scrollbar with sidebar styles */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
+  width: 6px; /* Match scrollbar-thin */
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
+  background: transparent; /* Match sidebar */
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
+  background-color: rgba(22, 34, 90, 0.5); /* Match sidebar thumb */
+  border-radius: 3px; /* Match rounded style */
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.5);
+  background-color: rgba(22, 34, 90, 0.7); /* Slightly darker on hover */
 }
+
 .auto-calculated-field {
-     background-color: #d9f0f4;
-     color: #4dacc3;
-  }
-  input:-webkit-autofill,
-  input:-webkit-autofill:hover,
-  input:-webkit-autofill:focus,
-  input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px #e0f7fa inset !important;
-    -webkit-text-fill-color: #7bacc6 !important;
-    transition: background-color 5000s ease-in-out 0s;
-  }
-  input.auto-calculated-field:-webkit-autofill,
-  input.auto-calculated-field:-webkit-autofill:hover,
-  input.auto-calculated-field:-webkit-autofill:focus,
-  input.auto-calculated-field:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px #b9ecfe inset !important;
-    -webkit-text-fill-color: #00a2da !important;
-  }
+  background-color: #d9f0f4;
+  color: #4dacc3;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #e0f7fa inset !important;
+  -webkit-text-fill-color: #7bacc6 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+input.auto-calculated-field:-webkit-autofill,
+input.auto-calculated-field:-webkit-autofill:hover,
+input.auto-calculated-field:-webkit-autofill:focus,
+input.auto-calculated-field:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #b9ecfe inset !important;
+  -webkit-text-fill-color: #00a2da !important;
+}
