@@ -10,22 +10,22 @@ export const ablSideBarItems = [
   },
   {
     text: 'Dashboard',
-    href: '/abl/dashboard',
+    href: '/ABLDashboardlayout',
     icon: MdOutlineDashboard,
     color: '#1a5f3a',
   },
   {
-    text: 'SETUP',
+    text: 'ABL',
     type: 'heading',
   },
   {
-    text: 'Company Setup',
+    text: 'Chart Of Accounts',
     icon: FaUsers,
     color: '#1a5f3a',
     sub_menu: [
       {
-        text: 'Company',
-        href: '/abl/company',
+        text: 'Equality',
+        href: '/equality',
         icon: FaUsers,
         color: '#1a5f3a',
       },

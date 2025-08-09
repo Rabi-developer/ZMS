@@ -69,7 +69,7 @@ interface PaymentData {
   seller?: string;
   buyer?: string;
   status?: string;
-  paymentType?: string;
+  paymentType?: string; // 'Payment' or 'Advance'
   advanceReceived?: string;
   relatedInvoices?: {
     invoiceNumber?: string;
@@ -230,7 +230,7 @@ const CommissionInvoiceForm = () => {
     }
   };
 
-  // Fetch previous payments
+  // Fetch previous payments (including advances)
   const fetchPreviousPayments = async () => {
     try {
       setFetchingPayments(true);
@@ -335,6 +335,40 @@ const CommissionInvoiceForm = () => {
     } catch (error) {
       toast(`Error creating commission invoice: ${(error as Error).message}`, { type: 'error' });
     }
+  };
+
+  // Check if selection is valid based on commissionFrom
+  const isSelectionValid = () => {
+    if (commissionFrom === 'Seller') return !!selectedSeller;
+    if (commissionFrom === 'Buyer') return !!selectedBuyer;
+    if (commissionFrom === 'Both') return !!selectedSeller && !!selectedBuyer;
+    return false;
+  };
+
+  // Get zero-balance invoice numbers from payments
+  const getZeroBalanceInvoiceNumbers = (): Set<string> => {
+    const zeroBalanceInvoices = new Set<string>();
+    previousPayments
+      .filter((payment) => {
+        // Filter payments by status and seller/buyer based on commissionFrom
+        const sellerMatch =
+          commissionFrom === 'Seller' || commissionFrom === 'Both'
+            ? payment.seller === sellers.find((s) => s.id === selectedSeller)?.name
+            : true;
+        const buyerMatch =
+          commissionFrom === 'Buyer' || commissionFrom === 'Both'
+            ? payment.buyer === buyers.find((b) => b.id === selectedBuyer)?.name
+            : true;
+        return (payment.status === 'Approved' || payment.status === 'Pending') && sellerMatch && buyerMatch;
+      })
+      .forEach((payment) => {
+        (payment.relatedInvoices || []).forEach((ri) => {
+          if (ri.invoiceNumber && Math.abs(parseFloat(ri.balance || '0')) < 0.01) {
+            zeroBalanceInvoices.add(ri.invoiceNumber);
+          }
+        });
+      });
+    return zeroBalanceInvoices;
   };
 
   return (
@@ -455,7 +489,7 @@ const CommissionInvoiceForm = () => {
             type="button"
             onClick={() => setShowInvoiceSelection(true)}
             className="mb-2 px-4 py-2 bg-[#06b6d4] text-white rounded hover:bg-[#0891b2] font-semibold"
-            disabled={loading || fetchingSellers || fetchingBuyers || fetchingPayments || !((commissionFrom === 'Seller' && selectedSeller) || (commissionFrom === 'Buyer' && selectedBuyer) || (commissionFrom === 'Both' && selectedSeller && selectedBuyer))}
+            disabled={loading || fetchingSellers || fetchingBuyers || fetchingPayments || !isSelectionValid()}
           >
             Select Invoice
           </Button>
@@ -489,35 +523,30 @@ const CommissionInvoiceForm = () => {
                   </thead>
                   <tbody>
                     {(() => {
-                      // Find all payment relatedInvoices with balance 0 for selected seller/buyer
-                      const zeroBalanceInvoices = previousPayments
-                        .filter((payment) => {
-                          // Match seller/buyer as per commissionFrom
+                      // Get zero-balance invoice numbers from payments/advances
+                      const zeroBalanceInvoiceNumbers = getZeroBalanceInvoiceNumbers();
+
+                      // Filter invoices that are completed, have zero balance, and match seller/buyer
+                      return invoices
+                        .filter((invoice) => {
+                          // Only show completed invoices
+                          if (invoice.status !== 'Completed') return false;
+
+                          // Check if invoice has zero balance
+                          const isZeroBalance = zeroBalanceInvoiceNumbers.has(invoice.invoiceNumber);
+
+                          // Match seller and buyer based on commissionFrom
                           const sellerMatch =
                             commissionFrom === 'Seller' || commissionFrom === 'Both'
-                              ? payment.seller === sellers.find((s) => s.id === selectedSeller)?.name
+                              ? invoice.seller === sellers.find((s) => s.id === selectedSeller)?.name
                               : true;
                           const buyerMatch =
                             commissionFrom === 'Buyer' || commissionFrom === 'Both'
-                              ? payment.buyer === buyers.find((b) => b.id === selectedBuyer)?.name
+                              ? invoice.buyer === buyers.find((b) => b.id === selectedBuyer)?.name
                               : true;
-                          return sellerMatch && buyerMatch;
-                        })
-                        .flatMap((payment) =>
-                          (payment.relatedInvoices || []).filter((ri) => {
-                            // Only those with balance 0
-                            return Math.abs(parseFloat(ri.balance || '0')) < 0.01;
-                          })
-                        );
 
-                      // Now, for each invoice in invoices, show only if its invoiceNumber and invoiceDate match a zeroBalanceInvoice
-                      return invoices
-                        .filter((inv) =>
-                          zeroBalanceInvoices.some(
-                            (ri) =>
-                              ri.invoiceNumber === inv.invoiceNumber
-                          )
-                        )
+                          return isZeroBalance && sellerMatch && buyerMatch;
+                        })
                         .map((invoice) => {
                           const commissionPercent = parseFloat(invoice.commissionPercent || '0');
                           const invoiceValue = parseFloat(invoice.invoiceValue || '0');
@@ -549,24 +578,26 @@ const CommissionInvoiceForm = () => {
                     })()}
                   </tbody>
                 </table>
-                {invoices.filter((inv) => {
-                  const isCompleted = inv.status === 'Completed';
-                  const balance = calculateInvoiceBalance(inv, previousPayments);
-                  const isZeroBalance = Math.abs(balance) < 0.01;
-                  const sellerMatch =
-                    commissionFrom === 'Seller' || commissionFrom === 'Both'
-                      ? inv.seller === sellers.find((s) => s.id === selectedSeller)?.name
-                      : true;
-                  const buyerMatch =
-                    commissionFrom === 'Buyer' || commissionFrom === 'Both'
-                      ? inv.buyer === buyers.find((b) => b.id === selectedBuyer)?.name
-                      : true;
-                  return isCompleted && isZeroBalance && sellerMatch && buyerMatch;
-                }).length === 0 && (
-                  <p className="text-gray-500 text-sm md:text-base mt-2">
-                    No completed invoices with zero balance found for the selected {commissionFrom}.
-                  </p>
-                )}
+                {(() => {
+                  const zeroBalanceInvoiceNumbers = getZeroBalanceInvoiceNumbers();
+                  const matchingInvoices = invoices.filter((inv) => {
+                    const isZeroBalance = zeroBalanceInvoiceNumbers.has(inv.invoiceNumber);
+                    const sellerMatch =
+                      commissionFrom === 'Seller' || commissionFrom === 'Both'
+                        ? inv.seller === sellers.find((s) => s.id === selectedSeller)?.name
+                        : true;
+                    const buyerMatch =
+                      commissionFrom === 'Buyer' || commissionFrom === 'Both'
+                        ? inv.buyer === buyers.find((b) => b.id === selectedBuyer)?.name
+                        : true;
+                    return inv.status === 'Completed' && isZeroBalance && sellerMatch && buyerMatch;
+                  });
+                  return matchingInvoices.length === 0 ? (
+                    <p className="text-gray-500 text-sm md:text-base mt-2">
+                      No completed invoices with zero balance found for the selected {commissionFrom}.
+                    </p>
+                  ) : null;
+                })()}
               </div>
               <div className="flex justify-end mt-4">
                 <Button

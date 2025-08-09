@@ -908,7 +908,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       // Check if total adjustments exceed available advance
       if (totalAdjustments > currentAdvance) {
         const maxAllowedAdjustment = currentAdvance - otherInvoiceAdjustments;
-        toast(`Invoice Adjusted cannot exceed available advance. Maximum allowed: ${Math.max(0, maxAllowedAdjustment).toFixed(2)}`, { type: 'warning' });
+        // toast(`Invoice Adjusted cannot exceed available advance. Maximum allowed: ${Math.max(0, maxAllowedAdjustment).toFixed(2)}`, { type: 'warning' });
         
         // Reset to the maximum allowed amount
         invoiceAdjusted = Math.max(0, maxAllowedAdjustment).toString();

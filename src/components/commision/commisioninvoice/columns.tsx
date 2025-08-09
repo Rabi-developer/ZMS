@@ -144,6 +144,10 @@ export const columns = (
     header: 'Remarks',
   },
   {
+    accessorKey: 'name',
+    header: '',
+  },
+  {
     header: 'Actions',
     id: 'actions',
     cell: ({ row }) => {

@@ -131,3 +131,31 @@ input.auto-calculated-field:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 30px #b9ecfe inset !important;
   -webkit-text-fill-color: #00a2da !important;
 }
+@keyframes slideIn {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.5s ease-in-out forwards;
+}
+@keyframes slideIn {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.5s ease-in-out forwards;
+}

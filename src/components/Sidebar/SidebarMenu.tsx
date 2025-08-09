@@ -162,7 +162,7 @@ const SidebarMenu: React.FC<{
                     ${
                       activeSubMenu === subItem.text
                         ? activeInterface === 'ABL'
-                          ? 'bg-[#e6f0e8] text-[#1a5f3a] dark:bg-[#3a9f5a] dark:text-white'
+                          ? 'bg-[#3b5a42] text-[#1a5f3a] dark:bg-[#3a9f5a] dark:text-white'
                           : 'bg-cyan-50 text-[#06b6d4] dark:bg-[#387fbf] dark:text-[#e2ecf7]'
                         : activeInterface === 'ABL'
                         ? 'text-white hover:bg-[#e6f0e8] hover:text-[#d4a017] dark:hover:bg-[#3a9f5a] dark:hover:text-white'

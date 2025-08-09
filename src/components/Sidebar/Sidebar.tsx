@@ -27,7 +27,7 @@ const Sidebar = ({
             className="rounded-full p-2 focus:outline-none mt-3"
             aria-label="Toggle Sidebar"
           >
-            <FiMenu size={27} className={activeInterface === 'ABL' ? 'text-[#d4a017]' : ''} />
+            <FiMenu size={27} className={activeInterface === 'ABL' ? 'text-[#9abba6]' : ''} />
           </button>
         </div>
         <div className="mt-2 ml-4 flex-1">

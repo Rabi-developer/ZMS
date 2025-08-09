@@ -65,13 +65,13 @@ const Headers = ({
       <div>
          <AccountToggle isCollapsed={isCollapsed} activeInterface={activeInterface} />
       </div>
-      <div className="flex items-center ml-[35vh] gap-4 max-w-7xl w-full justify-between">
+      <div className="flex items-center ml-[55vh] gap-4 max-w-7xl w-full justify-between">
         <div className="flex-grow">
           <div className="relative w-full max-w-lg">
             <FiSearch
               className={`absolute left-3 top-1/2 -translate-y-1/2 ${
                 activeInterface === 'ABL'
-                  ? 'text-[#d4a017] dark:text-[#d4a017]'
+                  ? 'text-[#6e997f] dark:text-[#d4a017]'
                   : 'text-gray-500 dark:text-gray-400'
               }`}
               size={20}
@@ -82,20 +82,20 @@ const Headers = ({
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full pl-10 pr-4 py-2 rounded-full border ${
                 activeInterface === 'ABL'
-                  ? 'border-[#d4a017] focus:ring-[#d4a017] dark:focus:ring-[#d4a017]'
+                  ? 'border-[#6e997f] focus:ring-[#6e997f] dark:focus:ring-[#d4a017]'
                   : 'border-gray-300 dark:border-gray-700 focus:ring-[#33a4d8]'
               } bg-transparent text-gray-700 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2`}
             />
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex  gap-3 ">
        
           <div className="relative">
             <motion.button
               ref={buttonRef}
               className={`relative group p-2 rounded-full shadow-md hover:shadow-lg transition-all duration-200 ${
                 activeInterface === 'ABL'
-                  ? 'bg-gradient-to-r from-[#1a5f3a] to-[#d4a017]'
+                  ? 'bg-gradient-to-r from-[#1a5f3a] to-[#6e997f]'
                   : 'bg-gradient-to-r from-[#33a4d8] to-[#0891b2]'
               }`}
               onClick={toggleDropdown}
@@ -191,13 +191,13 @@ const Headers = ({
           </div>
           <DarkMode />
           {userName ? (
-            <DropdownUser />
+           <DropdownUser activeInterface={activeInterface} />
           ) : (
             <Link
               href="/signin"
               className={`text-white font-medium rounded-full px-4 py-2 text-sm ${
                 activeInterface === 'ABL'
-                  ? 'bg-[#1a5f3a] hover:bg-[#d4a017] dark:hover:bg-[#d4a017]'
+                  ? 'bg-[#3a614c] hover:bg-[#d4a017] dark:hover:bg-[#d4a017]'
                   : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
