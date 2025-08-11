@@ -2,6 +2,14 @@ import { FaTruck, FaMapMarkerAlt, FaGasPump, FaUsers, FaFileInvoice, FaTools } f
 import { MdOutlineSettings, MdOutlineDashboard } from 'react-icons/md';
 import { GiRoad } from 'react-icons/gi';
 import { IoIosTimer } from 'react-icons/io';
+import { PiEqualizerDuotone } from "react-icons/pi";
+import { LiaAccusoft } from "react-icons/lia";
+import { GiTakeMyMoney } from "react-icons/gi";
+import { RiEdgeNewFill } from "react-icons/ri";
+
+
+
+
 
 export const ablSideBarItems = [
   {
@@ -26,19 +34,30 @@ export const ablSideBarItems = [
       {
         text: 'Equality',
         href: '/equality',
-        icon: FaUsers,
+        icon: PiEqualizerDuotone,
         color: '#1a5f3a',
       },
       {
-        text: 'Branch',
-        href: '/abl/branch',
-        icon: FaMapMarkerAlt,
+        text: 'Liabilities',
+        href: '/ablLiabilities',
+        icon: LiaAccusoft,
         color: '#1a5f3a',
       },
+      { text: 'Assets',
+        href: '/ablAssests',
+        icon: FaGasPump,
+        color: '#1a5f3a',
+      },
+      { 
+        text: 'Expenses',
+        href: '/ablExpense',
+        icon: GiTakeMyMoney,  
+        color: '#1a5f3a',
+      },  
       {
-        text: 'Settings',
-        href: '/abl/settings',
-        icon: MdOutlineSettings,
+        text: 'Revenue',
+        href: '/ablRevenue',
+        icon: RiEdgeNewFill,
         color: '#1a5f3a',
       },
     ],

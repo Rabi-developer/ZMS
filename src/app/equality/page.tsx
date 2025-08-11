@@ -3,7 +3,7 @@ import EqualityForm from '@/components/ablsoftware/chartsofaccount/Equality/Equa
 import CapitalAccount from '@/components/account/accountcapital/CapitalAccount';
 import MainLayout from '@/components/MainLayout/MainLayout'
 
-const Organization = () => {
+const ABL = () => {
 
     return (
         <MainLayout activeInterface="ABL">
@@ -12,4 +12,4 @@ const Organization = () => {
     )
 }
 
-export default Organization
+export default ABL

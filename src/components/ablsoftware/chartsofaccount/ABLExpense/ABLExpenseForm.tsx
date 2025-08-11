@@ -9,7 +9,7 @@ import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import { Button } from '@/components/ui/button';
 import { FaRegListAlt, FaArrowLeft, FaArrowRight, FaTimes } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
-import { createEquality, getAllEquality, updateEquality, deleteEquality } from '@/apis/equality';
+import { createAblExpense, getAllAblExpense, updateAblExpense, deleteAblExpense } from '@/apis/ablExpense';
 
 // Zod schema for form validation
 const accountSchema = z.object({
@@ -66,7 +66,7 @@ interface ABLCustomInputProps {
   disabled?: boolean;
 }
 
-const EqualityForm = () => {
+const AblExpenseForm = () => {
   const [loading, setLoading] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -167,10 +167,10 @@ const EqualityForm = () => {
     return rootAccounts;
   };
 
-  const fetchEquality = async () => {
+  const fetchAblExpense = async () => {
     try {
       setLoading(true);
-      const response: ApiResponse<Account[]> = await getAllEquality(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      const response: ApiResponse<Account[]> = await getAllAblExpense(pageIndex === 0 ? 1 : pageIndex, pageSize);
       const hierarchicalAccounts = buildHierarchy(response.data);
       setTotalPages(response.misc.totalPages);
       setAccounts(hierarchicalAccounts);
@@ -187,7 +187,7 @@ const EqualityForm = () => {
   };
 
   useEffect(() => {
-    fetchEquality();
+    fetchAblExpense();
   }, [pageIndex, pageSize]);
 
   const checkDueDates = (accounts: Account[]) => {
@@ -293,12 +293,12 @@ const EqualityForm = () => {
   }, []);
 
   useEffect(() => {
-    const initialAccountExists = accounts.some(account => account.listid === '0');
+    const initialAccountExists = accounts.some(account => account.listid === '4');
     if (!initialAccountExists) {
       const initialAccount: Account = {
         id: '',
-        listid: '0',
-        description: 'Equality',
+        listid: '4',
+        description: 'Expense',
         parentAccountId: null,
         children: [],
         dueDate: '',
@@ -327,7 +327,7 @@ const EqualityForm = () => {
             listid: accountToUpdate.listid,
             paid: accountToUpdate.paid,
           };
-          response = await updateEquality(editingId, updateData);
+          response = await updateAblExpense(editingId, updateData);
           setAccounts((prevAccounts) => updateAccount(prevAccounts, editingId, updateData));
           setEditingId(null);
           toast.success('Account updated successfully!', {
@@ -346,7 +346,7 @@ const EqualityForm = () => {
           fixedAmount: processedData.fixedAmount,
           paid: 'false',
         };
-        response = await createEquality(newAccount);
+        response = await createAblExpense(newAccount);
         setAccounts((prevAccounts) =>
           parentIdForChild
             ? addChildAccount(prevAccounts, parentIdForChild, response.data)
@@ -361,7 +361,7 @@ const EqualityForm = () => {
       }
       setShowForm(false);
       reset();
-      fetchEquality();
+      fetchAblExpense();
     } catch (error) {
       console.error('Error submitting form:', error);
       toast.error('Failed to process request. Please try again.', {
@@ -399,7 +399,7 @@ const EqualityForm = () => {
       setShowForm(true);
     } else if (action === 'delete') {
       try {
-        await deleteEquality(id);
+        await deleteAblExpense(id);
         setAccounts((prevAccounts) => removeAccount(prevAccounts, id));
         setHighlightedItems((prev) => {
           const newHighlights = { ...prev };
@@ -425,7 +425,7 @@ const EqualityForm = () => {
         const account = findAccount(accounts, id);
         if (account) {
           const updatedAccount = { ...account, paid: 'true' };
-          await updateEquality(id, updatedAccount);
+          await updateAblExpense(id, updatedAccount);
           setAccounts((prevAccounts) => updateAccount(prevAccounts, id, { paid: 'true' }));
           setAlerts((prevAlerts) => prevAlerts.filter(alert => alert.id !== id));
           setHighlightedItems((prev) => {
@@ -962,7 +962,7 @@ const EqualityForm = () => {
         <div className="w-full bg-[#3a614c] h-[7vh] rounded-lg dark:bg-[#2e4c3d] mb-4 pt-2">
           <h1 className="text-[24px] font-mono ml-10 pt-2 text-white flex gap-2">
             <FaRegListAlt size={30} />
-            <span className="">LIST OF ACCOUNT-EQUALITY</span>
+            <span className="">LIST OF ACCOUNT-Expense</span>
           </h1>
         </div>
 
@@ -1009,4 +1009,4 @@ const EqualityForm = () => {
   );
 };
 
-export default EqualityForm;
+export default AblExpenseForm;
