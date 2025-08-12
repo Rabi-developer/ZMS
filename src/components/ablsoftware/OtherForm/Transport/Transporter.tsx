@@ -18,7 +18,7 @@ import { FiSave, FiX, FiUser, FiMapPin, FiDollarSign, FiPhone, FiMail, FiGlobe }
 
 // Define the schema for transporter form validation
 const transporterSchema = z.object({
-  id: z.string().optional(),
+  TransporterNumber: z.string().optional(),
   name: z.string().min(1, 'Transporter Name is required'),
   currency: z.string().min(1, 'Currency is required'),
   address: z.string().min(1, 'Address is required'),
@@ -49,7 +49,7 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   } = useForm<TransporterFormData>({
     resolver: zodResolver(transporterSchema),
     defaultValues: {
-      id: '',
+      TransporterNumber: '',
       name: '',
       currency: '',
       address: '',
@@ -92,7 +92,7 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const response = await getAllTransporter(id);
             const transporter = response.data;
             if (transporter) {
-              setValue('id', transporter.id || '');
+              setValue('TransporterNumber', transporter.id || '');
               setValue('name', transporter.name || '');
               setValue('currency', transporter.currency || '');
               setValue('address', transporter.address || '');
@@ -128,13 +128,13 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateTransporter(data.id!, data);
+        await updateTransporter(data.TransporterNumber!, data);
         toast.success('Transporter updated successfully!');
       } else {
         await createTransporter(data);
         toast.success('Transporter created successfully!');
       }
-      router.push('/transporters');
+      router.push('/transporter');
     } catch (error) {
       console.error('Error saving transporter:', error);
       toast.error('An error occurred while saving the transporter');
@@ -229,7 +229,7 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   
                   <div className="space-y-5">
                     <Controller
-                      name="id"
+                      name="TransporterNumber"
                       control={control}
                       render={({ field }) => (
                         <div className="relative">
@@ -239,7 +239,7 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             type="text"
                             placeholder="Auto"
                             register={register}
-                            error={errors.id?.message}
+                            error={errors.TransporterNumber?.message}
                             id="id"
                             disabled
                           />

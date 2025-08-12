@@ -28,14 +28,14 @@ export const columns = (
   handleViewOpen: (id: string) => void
 ): ColumnDef<TransporterType>[] => [
   {
-    accessorKey: 'id',
+    accessorKey: 'transporterNumber',
     header: ({ column }: any) => {
       return (
         <Button
           variant='ghost'
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          ID
+         Transporter Number
           <ArrowUpDown className='ml-2 h-4 w-4' />
         </Button>
       );
