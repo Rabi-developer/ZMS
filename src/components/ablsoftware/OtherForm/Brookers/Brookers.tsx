@@ -14,7 +14,7 @@ import Link from 'next/link';
 
 // Define the schema for brooker form validation
 const brookerSchema = z.object({
-  id: z.string().optional(),
+  BrookerNumber : z.string().optional(),
   name: z.string().min(1, 'Brooker Name is required'),
   mobile: z.string().min(1, 'Mobile Number is required'),
   address: z.string().min(1, 'Address is required'),
@@ -33,7 +33,7 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   } = useForm<BrookerFormData>({
     resolver: zodResolver(brookerSchema),
     defaultValues: {
-      id: '',
+      BrookerNumber: '',
       name: '',
       mobile: '',
       address: '',
@@ -53,7 +53,7 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const response = await getAllBrooker(id);
             const brooker = response.data;
             if (brooker) {
-              setValue('id', brooker.id || '');
+              setValue('BrookerNumber', brooker.id || '');
               setValue('name', brooker.name || '');
               setValue('mobile', brooker.mobile || '');
               setValue('address', brooker.address || '');
@@ -77,7 +77,7 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateBrooker(data.id!, data);
+        await updateBrooker(data.BrookerNumber!, data);
         toast.success('Brooker updated successfully!');
       } else {
         await createBrooker(data);
@@ -150,7 +150,7 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 
                 <div className="space-y-5">
                   <Controller
-                    name="id"
+                    name="BrookerNumber"
                     control={control}
                     render={({ field }) => (
                       <ABLCustomInput
@@ -159,7 +159,7 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         type="text"
                         placeholder="Auto"
                         register={register}
-                        error={errors.id?.message}
+                        error={errors.BrookerNumber?.message}
                         id="id"
                         disabled
                       />

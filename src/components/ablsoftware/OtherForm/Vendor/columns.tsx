@@ -24,14 +24,14 @@ export const columns = (
   handleViewOpen: (id: string) => void
 ): ColumnDef<VendorType>[] => [
   {
-    accessorKey: 'id',
+    accessorKey: 'vendorNumber',
     header: ({ column }: any) => {
       return (
         <Button
           variant='ghost'
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          ID
+          Vendor Number
           <ArrowUpDown className='ml-2 h-4 w-4' />
         </Button>
       );

@@ -14,7 +14,7 @@ import Link from 'next/link';
 
 // Define the schema for business associate form validation
 const businessAssociateSchema = z.object({
-  id: z.string().optional(),
+  BusinessAssociateNumber: z.string().optional(),
   name: z.string().min(1, 'Business Associate Name is required'),
   mobile: z.string().min(1, 'Mobile Number is required'),
   address: z.string().min(1, 'Address is required'),
@@ -33,7 +33,7 @@ const BusinessAssociateForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   } = useForm<BusinessAssociateFormData>({
     resolver: zodResolver(businessAssociateSchema),
     defaultValues: {
-      id: '',
+      BusinessAssociateNumber: '',
       name: '',
       mobile: '',
       address: '',
@@ -53,13 +53,13 @@ const BusinessAssociateForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const response = await getAllBusinessAssociate(id);
             const businessAssociate = response.data;
             if (businessAssociate) {
-              setValue('id', businessAssociate.id || '');
+              setValue('BusinessAssociateNumber', businessAssociate.id || '');
               setValue('name', businessAssociate.name || '');
               setValue('mobile', businessAssociate.mobile || '');
               setValue('address', businessAssociate.address || '');
             } else {
               toast.error('Business Associate not found');
-              router.push('/businessAssociates');
+              router.push('/businessassociate');
             }
           } catch (error) {
             console.error('Error fetching business associate:', error);
@@ -77,7 +77,7 @@ const BusinessAssociateForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateBusinessAssociate(data.id!, data);
+        await updateBusinessAssociate(data.BusinessAssociateNumber!, data);
         toast.success('Business Associate updated successfully!');
       } else {
         await createBusinessAssociate(data);
@@ -150,7 +150,7 @@ const BusinessAssociateForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 
                 <div className="space-y-5">
                   <Controller
-                    name="id"
+                    name="BusinessAssociateNumber"
                     control={control}
                     render={({ field }) => (
                       <ABLCustomInput
@@ -159,7 +159,7 @@ const BusinessAssociateForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         type="text"
                         placeholder="Auto"
                         register={register}
-                        error={errors.id?.message}
+                        error={errors.BusinessAssociateNumber?.message}
                         id="id"
                         disabled
                       />

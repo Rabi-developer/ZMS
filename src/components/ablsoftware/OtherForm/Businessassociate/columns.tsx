@@ -16,14 +16,14 @@ export const columns = (
   handleViewOpen: (id: string) => void
 ): ColumnDef<BusinessAssociateType>[] => [
   {
-    accessorKey: 'id',
+    accessorKey: 'businessAssociateNumber',
     header: ({ column }: any) => {
       return (
         <Button
           variant='ghost'
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          ID
+            Business Associate Number
           <ArrowUpDown className='ml-2 h-4 w-4' />
         </Button>
       );

@@ -16,14 +16,14 @@ export const columns = (
   handleViewOpen: (id: string) => void
 ): ColumnDef<BrookerType>[] => [
   {
-    accessorKey: 'id',
+    accessorKey: 'brookerNumber',
     header: ({ column }: any) => {
       return (
         <Button
           variant='ghost'
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          ID
+          Brooker Number
           <ArrowUpDown className='ml-2 h-4 w-4' />
         </Button>
       );

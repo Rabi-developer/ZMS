@@ -19,7 +19,7 @@ import { FiSave, FiX, FiUser, FiMapPin, FiPhone, FiMail } from 'react-icons/fi';
 
 // Define the schema for vendor form validation
 const vendorSchema = z.object({
-  id: z.string().optional(),
+  VendorNumber: z.string().optional(),
   name: z.string().min(1, 'Vendor Name is required'),
   address: z.string().min(1, 'Address is required'),
   country: z.string().min(1, 'Country is required'),
@@ -58,7 +58,7 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   } = useForm<VendorFormData>({
     resolver: zodResolver(vendorSchema),
     defaultValues: {
-      id: '',
+      VendorNumber: '',
       name: '',
       address: '',
       country: '',
@@ -124,7 +124,7 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const response = await getAllVendor(id);
             const vendor = response.data;
             if (vendor) {
-              setValue('id', vendor.id || '');
+              setValue('VendorNumber', vendor.id || '');
               setValue('name', vendor.name || '');
               setValue('address', vendor.address || '');
               setValue('country', vendor.country || '');
@@ -138,7 +138,7 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               setValue('payableCode', vendor.payableCode || '');
             } else {
               toast.error('Vendor not found');
-              router.push('/vendors');
+              router.push('/vendor');
             }
           } catch (error) {
             console.error('Error fetching vendor:', error);
@@ -162,7 +162,7 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         await createVendor(data);
         toast.success('Vendor created successfully!');
       }
-      router.push('/vendors');
+      router.push('/vendor');
     } catch (error) {
       console.error('Error saving vendor:', error);
       toast.error('An error occurred while saving the vendor');
@@ -257,7 +257,7 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   
                   <div className="space-y-5">
                     <Controller
-                      name="id"
+                      name="VendorNumber"
                       control={control}
                       render={({ field }) => (
                         <div className="relative">
@@ -267,7 +267,7 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             type="text"
                             placeholder="Auto"
                             register={register}
-                            error={errors.id?.message}
+                            error={errors.VendorNumber?.message}
                             id="id"
                             disabled
                           />
