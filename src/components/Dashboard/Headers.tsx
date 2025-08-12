@@ -21,8 +21,11 @@ const Headers = ({
 }) => {
   const [userName, setUserName] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSubDropdownOpen, setIsSubDropdownOpen] = useState(false); // New state for sub-dropdown
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const subDropdownRef = useRef<HTMLDivElement>(null); // Ref for sub-dropdown
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const maintenanceButtonRef = useRef<HTMLDivElement>(null); // Ref for Maintenance link
 
   useEffect(() => {
     const storedUserName = localStorage.getItem('userName');
@@ -35,9 +38,14 @@ const Headers = ({
         dropdownRef.current &&
         buttonRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
-        !buttonRef.current.contains(event.target as Node)
+        !buttonRef.current.contains(event.target as Node) &&
+        subDropdownRef.current &&
+        !subDropdownRef.current.contains(event.target as Node) &&
+        maintenanceButtonRef.current &&
+        !maintenanceButtonRef.current.contains(event.target as Node)
       ) {
         setIsDropdownOpen(false);
+        setIsSubDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -46,12 +54,23 @@ const Headers = ({
 
   const toggleDropdown = () => {
     setIsDropdownOpen((prev) => !prev);
+    setIsSubDropdownOpen(false); // Close sub-dropdown when main dropdown toggles
+  };
+
+  const toggleSubDropdown = () => {
+    setIsSubDropdownOpen((prev) => !prev);
   };
 
   const dropdownVariants = {
     hidden: { opacity: 0, y: -10 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
     exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
+  };
+
+  const subDropdownVariants = {
+    hidden: { opacity: 0, x: 10 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: 'easeOut' } },
+    exit: { opacity: 0, x: 10, transition: { duration: 0.2 } },
   };
 
   return (
@@ -63,7 +82,7 @@ const Headers = ({
       } dark:text-white`}
     >
       <div>
-         <AccountToggle isCollapsed={isCollapsed} activeInterface={activeInterface} />
+        <AccountToggle isCollapsed={isCollapsed} activeInterface={activeInterface} />
       </div>
       <div className="flex items-center ml-[55vh] gap-4 max-w-7xl w-full justify-between">
         <div className="flex-grow">
@@ -88,14 +107,13 @@ const Headers = ({
             />
           </div>
         </div>
-        <div className="flex  gap-3 ">
-       
+        <div className="flex gap-3 mt-3  mr-6">
           <div className="relative">
             <motion.button
               ref={buttonRef}
               className={`relative group p-2 rounded-full shadow-md hover:shadow-lg transition-all duration-200 ${
                 activeInterface === 'ABL'
-                  ? 'bg-gradient-to-r from-[#1a5f3a] to-[#6e997f]'
+                  ? 'bg-gradient-to-r from-[#1a5f3a] to-[#6e997f] '
                   : 'bg-gradient-to-r from-[#33a4d8] to-[#0891b2]'
               }`}
               onClick={toggleDropdown}
@@ -147,18 +165,68 @@ const Headers = ({
                     </>
                   ) : (
                     <>
-                      <Link href="/abl/vehicles" onClick={() => setIsDropdownOpen(false)}>
+                      <div className="relative">
                         <div
-                          className={`flex items-center gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-gradient-to-r hover:from-[#1a5f3a] hover:to-[#d4a017] hover:text-white rounded-t-lg transition-all duration-200`}
+                          ref={maintenanceButtonRef}
+                          className={`flex items-center  gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-gradient-to-r hover:from-[#1a5f3a] hover:to-[#d4a017] hover:text-white rounded-t-lg transition-all duration-200 cursor-pointer`}
+                          onClick={toggleSubDropdown}
                         >
                           <FiPackage
                             className={`text-lg ${
                               activeInterface === 'ABL' ? 'dark:text-[#d4a017]' : ''
                             }`}
                           />
-                          <span>Add Vehicle</span>
+                          <span>Maintenance</span>
                         </div>
-                      </Link>
+                        <AnimatePresence>
+                          {isSubDropdownOpen && (
+                            <motion.div
+                              ref={subDropdownRef}
+                              className={`absolute left-full mt-2 top-0 w-56 rounded-lg shadow-xl border z-50 ${
+                                activeInterface === 'ABL'
+                                  ? 'bg-[#e6f0e8] dark:bg-[#1a2a22]/90 border-[#d4a017]'
+                                  : 'bg-[#e4f1fa] dark:bg-[#030630]/40 border-gray-200 dark:border-gray-700'
+                              } backdrop-blur-xl ml-2`}
+                              variants={subDropdownVariants}
+                              initial="hidden"
+                              animate="visible"
+                              exit="exit"
+                            >
+                              {[
+                                { name: 'Parties', path: '/party' },
+                                { name: 'Transporters', path: '/transporter' },
+                                { name: 'Vendors', path: '/vendor' },
+                                { name: 'Brokers', path: '/brookers' },
+                                { name: 'Business Associates', path: '/businessassociate' },
+                                { name: 'Munshyana/Charges', path: '/munshyana'},
+                                { name: 'Sale Taxes', path: '/salestexes' },
+                              ].map((item, index) => (
+                                <Link
+                                  key={item.name}
+                                  href={item.path}
+                                  onClick={() => {
+                                    setIsDropdownOpen(false);
+                                    setIsSubDropdownOpen(false);
+                                  }}
+                                >
+                                  <div
+                                    className={`flex items-center gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-[#3a614c] hover:text-white ${
+                                      index === 0 ? 'rounded-t-lg' : ''
+                                    } ${index === 6 ? 'rounded-b-lg' : ''} transition-all duration-200`}
+                                  >
+                                    <FiPackage
+                                      className={`text-lg ${
+                                        activeInterface === 'ABL' ? 'dark:text-[#d4a017]' : ''
+                                      }`}
+                                    />
+                                    <span>{item.name}</span>
+                                  </div>
+                                </Link>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                       <Link href="/abl/routes" onClick={() => setIsDropdownOpen(false)}>
                         <div
                           className={`flex items-center gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-gradient-to-r hover:from-[#1a5f3a] hover:to-[#d4a017] hover:text-white transition-all duration-200`}
@@ -191,7 +259,7 @@ const Headers = ({
           </div>
           <DarkMode />
           {userName ? (
-           <DropdownUser activeInterface={activeInterface} />
+            <DropdownUser activeInterface={activeInterface} />
           ) : (
             <Link
               href="/signin"

@@ -9,8 +9,7 @@ const createVehicleType = async (VehicleType: any) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(VehicleType),
-    }, true);
-    return response;
+    }, true);    return response;
   } catch (error: any) {
     throw error;
   }
