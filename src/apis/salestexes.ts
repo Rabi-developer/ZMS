@@ -3,7 +3,7 @@ import apiFetch from "@/components/utils/fetchInstance";
 // SaleTexes-create
 const createSaleTexes = async (SaleTexes : any) => {
   try {
-    const response = await apiFetch('SaleTexes', {
+    const response = await apiFetch('SalesTax', {
       method: 'POST',
       headers: {}, 
       body: JSON.stringify(SaleTexes),
@@ -17,7 +17,7 @@ const createSaleTexes = async (SaleTexes : any) => {
 // SaleTexes-list
 const getAllSaleTexes  = async (pageIndex:any=1,pageSize:any=10) => {
   try {
-    const response = await apiFetch(`SaleTexes?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    const response = await apiFetch(`SalesTax?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
       method: 'GET',
       headers: {}, 
     }, true);
@@ -29,7 +29,7 @@ const getAllSaleTexes  = async (pageIndex:any=1,pageSize:any=10) => {
 
 const getAllSaleTexesPositions = async (pageIndex: any = 1, pageSize: any = 10) => {
   try {
-    const response = await apiFetch(`SaleTexesPositions?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    const response = await apiFetch(`SalesTaxPositions?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
       method: 'GET',
       headers: {}, 
     }, true);
@@ -42,7 +42,7 @@ const getAllSaleTexesPositions = async (pageIndex: any = 1, pageSize: any = 10) 
 // get-single-SaleTexes-data
 const getSingleSaleTexes  = async (id: string) => {
   try {
-    const response = await apiFetch(`SaleTexes/${id}`, {
+    const response = await apiFetch(`SalesTax/${id}`, {
       method: 'GET',
       headers: {}, 
     }, true);
@@ -54,7 +54,7 @@ const getSingleSaleTexes  = async (id: string) => {
 
 const updateSaleTexes = async (SaleTexes: any, data: { taxName: string; taxType: "Sale Tax" | "WHT Tax" | "SBR Tax" | "%"; receivable: { accountId: string; description: string; }; payable: { accountId: string; description: string; }; id?: string | undefined; }) => {
   try {
-    const response = await apiFetch(`SaleTexes`, {
+    const response = await apiFetch(`SalesTax`, {
       method: 'PUT',
       headers: {},
       body: JSON.stringify(SaleTexes),
@@ -68,7 +68,7 @@ const updateSaleTexes = async (SaleTexes: any, data: { taxName: string; taxType:
 // delete-single-SaleTexes-data
 const deleteSaleTexes  = async (id: string) => {
   try {
-    const response = await apiFetch(`SaleTexes/${id}`, {
+    const response = await apiFetch(`SalesTax/${id}`, {
       method: 'DELETE',
       headers: {}, 
     }, true);
@@ -79,7 +79,7 @@ const deleteSaleTexes  = async (id: string) => {
 };
 const updateSaleTexesStatus = async (SaleTexesStatus: { id: string; status: string }) => {
   try {
-    const response = await apiFetch('SaleTexes/status', {
+    const response = await apiFetch('SalesTax/status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
