@@ -17,7 +17,7 @@ import Link from 'next/link';
 
 // Define the schema for munshyana form validation
 const munshyanaSchema = z.object({
-  id: z.string().optional(),
+  MunshyanaNumber: z.string().optional(),
   chargesDesc: z.string().min(1, 'Charges Description is required'),
   chargesType: z.enum(['Payable', 'Receivable'], { 
     required_error: 'Charges Type is required' 
@@ -51,7 +51,7 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   } = useForm<MunshyanaFormData>({
     resolver: zodResolver(munshyanaSchema),
     defaultValues: {
-      id: '',
+      MunshyanaNumber: '',
       chargesDesc: '',
       chargesType: undefined,
       accountId: '',
@@ -132,7 +132,7 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const response = await getAllMunshyana(id);
             const munshyana = response.data;
             if (munshyana) {
-              setValue('id', munshyana.id || '');
+              setValue('MunshyanaNumber', munshyana.id || '');
               setValue('chargesDesc', munshyana.chargesDesc || '');
               setValue('chargesType', munshyana.chargesType || undefined);
               setValue('accountId', munshyana.accountId || '');
@@ -162,7 +162,7 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateMunshyana(data.id!, data);
+        await updateMunshyana(data.MunshyanaNumber!, data);
         toast.success('Munshyana updated successfully!');
       } else {
         await createMunshyana(data);
@@ -235,7 +235,7 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 
                 <div className="space-y-5">
                   <Controller
-                    name="id"
+                    name="MunshyanaNumber"
                     control={control}
                     render={({ field }) => (
                       <ABLCustomInput
@@ -244,7 +244,7 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         type="text"
                         placeholder="Auto"
                         register={register}
-                        error={errors.id?.message}
+                        error={errors.MunshyanaNumber?.message}
                         id="id"
                         disabled
                       />

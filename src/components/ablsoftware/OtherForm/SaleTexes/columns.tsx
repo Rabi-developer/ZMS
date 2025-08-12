@@ -18,14 +18,14 @@ export const columns = (
   handleViewOpen: (id: string) => void
 ): ColumnDef<SalesTaxType>[] => [
   {
-    accessorKey: 'id',
+    accessorKey: 'salesTexNumber',
     header: ({ column }: any) => {
       return (
         <Button
           variant='ghost'
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          ID
+          Sales Tax Number
           <ArrowUpDown className='ml-2 h-4 w-4' />
         </Button>
       );

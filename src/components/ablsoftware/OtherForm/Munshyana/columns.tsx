@@ -17,14 +17,14 @@ export const columns = (
   handleViewOpen: (id: string) => void
 ): ColumnDef<MunshyanaType>[] => [
   {
-    accessorKey: 'id',
+    accessorKey: 'munshyanaNumber',
     header: ({ column }: any) => {
       return (
         <Button
           variant='ghost'
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          ID
+          Munshyana Number
           <ArrowUpDown className='ml-2 h-4 w-4' />
         </Button>
       );

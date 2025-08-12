@@ -17,7 +17,7 @@ import Link from 'next/link';
 
 // Define the schema for sales tax form validation
 const salesTaxSchema = z.object({
-  id: z.string().optional(),
+  SalesTexNumber: z.string().optional(),
   taxName: z.string().min(1, 'Tax Name is required'),
   taxType: z.enum(['Sale Tax', 'WHT Tax', 'SBR Tax', '%'], { 
     required_error: 'Tax Type is required' 
@@ -72,7 +72,7 @@ const SalesTaxesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   } = useForm<SalesTaxFormData>({
     resolver: zodResolver(salesTaxSchema),
     defaultValues: {
-      id: '',
+      SalesTexNumber: '',
       taxName: '',
       taxType: undefined,
       percentage: '',
@@ -168,7 +168,7 @@ const SalesTaxesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const response = await getAllSaleTexes(id);
             const salesTax = response.data;
             if (salesTax) {
-              setValue('id', salesTax.id || '');
+              setValue('SalesTexNumber', salesTax.id || '');
               setValue('taxName', salesTax.taxName || '');
               setValue('taxType', salesTax.taxType || undefined);
               setValue('percentage', salesTax.percentage || '');
@@ -182,7 +182,7 @@ const SalesTaxesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               setExtractedPercentage(percentage);
             } else {
               toast.error('Sales Tax not found');
-              router.push('/salesTaxes');
+              router.push('/salestexes');
             }
           } catch (error) {
             console.error('Error fetching sales tax:', error);
@@ -200,13 +200,13 @@ const SalesTaxesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateSaleTexes(data.id!, data);
+        await updateSaleTexes(data.SalesTexNumber!, data);
         toast.success('Sales Tax updated successfully!');
       } else {
         await createSaleTexes(data);
         toast.success('Sales Tax created successfully!');
       }
-      router.push('/salesTaxes');
+      router.push('/salestexes');
     } catch (error) {
       console.error('Error saving sales tax:', error);
       toast.error('An error occurred while saving the sales tax');
@@ -274,7 +274,7 @@ const SalesTaxesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 
                 <div className="space-y-5">
                   <Controller
-                    name="id"
+                    name="SalesTexNumber"
                     control={control}
                     render={({ field }) => (
                       <ABLCustomInput
@@ -283,7 +283,7 @@ const SalesTaxesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         type="text"
                         placeholder="Auto"
                         register={register}
-                        error={errors.id?.message}
+                        error={errors.SalesTexNumber?.message}
                         id="id"
                         disabled
                       />
