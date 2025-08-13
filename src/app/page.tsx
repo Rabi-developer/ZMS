@@ -87,7 +87,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-[url('/warehouse-bg.jpg')] bg-cover bg-center opacity-10"></div>
                 <div className="relative z-10">
                   <div className="flex items-center gap-4 mb-4">
-                  <img src="/ZMS-Logo.png" alt="ZMS Logo" className="h-40 w-40" />
+                  <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1755069630/ZMS-logo_nrn49l.png" alt="ZMS Logo" className="h-40 w-40" />
                     <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                       ZMS - Commision Based
                     </h3>
@@ -123,7 +123,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-[url('/transport-bg.jpg')] bg-cover bg-center opacity-10"></div>
                 <div className="relative z-10">
                   <div className="flex items-center gap-4 mb-4">
-                   <img src="/ABL-Logo.png" alt="ABL Logo" className="h-13 w-13" />
+                   <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1755069630/ABL-Logo_lxhwah.png" alt="ABL Logo" className="h-13 w-13" />
                     <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                       ABL - Transport Logistics
                     </h3>
