@@ -5,7 +5,7 @@ const AccountToggle = ({ isCollapsed, activeInterface }: { isCollapsed: boolean;
   return (
     <div className="mb-12 mt-4 ml-4 pb-4 border-stone-300 h-6 dark:text-white">
       <img
-        src={activeInterface === 'ZMS' ? '/ZMS-Logo.png' : '/ABL-Logo.png'}
+        src={activeInterface === 'ZMS' ? 'https://res.cloudinary.com/dxqvklctk/image/upload/v1755069630/ZMS-logo_nrn49l.png' : 'https://res.cloudinary.com/dxqvklctk/image/upload/v1755069630/ABL-Logo_lxhwah.png'}
         className={`h-[8vh] w-24 ${isCollapsed ? 'hidden' : 'block'}`}
         alt={activeInterface === 'ZMS' ? 'ZMS Logo' : 'ABL Logo'}
       />
