@@ -1,11 +1,6 @@
 import React from "react";
 import StatCard from "./StatCard";
 import { UserPlus } from "lucide-react";
-type StatCardProps = {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-};
 
 const TotalCustomerCard: React.FC = () => {
   return  <StatCard 

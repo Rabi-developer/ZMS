@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { getSingleBlendRatio} from '@/apis/blendratio';
 import Loader from '@/components/ui/Loader';
 import MainLayout from '@/components/MainLayout/MainLayout'
-import BlendRatioForm from '@/components/item/BlendRatio/BlendRatioForm';
+import BlendRatioForm from '@/components/item/blendratio/BlendRatioForm';
 
 const UpdateBlendRatioPage = () => {
   const { id } = useParams<{ id: string }>(); 

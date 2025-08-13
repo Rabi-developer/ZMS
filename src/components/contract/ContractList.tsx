@@ -7,7 +7,6 @@ import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
-import ContractPDFExport from './ContractPDFExport';
 import DietPDFExport from './DietPDFExport';
 import SignatureCanvas from 'react-signature-canvas';
 import ConversionPDFExport from './ConversionPDFExport';
@@ -272,15 +271,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
               type: 'sale', // or 'purchase', depending on your logic
             });
           } else if (type === 'single') {
-            await ContractPDFExport.exportToPDF({
-              contract,
-              zmsSignature: zmsSignature || '',
-              sellerSignature: undefined,
-              buyerSignature: undefined,
-              sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
-              buyerAddress: undefined,
-              type: 'purchase',
-            });
+            // ContractPDFExport removed - functionality not available
           } else if (type === 'conversion') {
             await ConversionPDFExport.exportToPDF({
               contract,
@@ -331,15 +322,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
       for (const id of selectedContractIds) {
         const contract = contracts.find((c) => c.id === id);
         if (contract) {
-          await ContractPDFExport.exportToPDF({
-            contract,
-            zmsSignature,
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
-            buyerAddress: undefined,
-            type: 'purchase',
-          });
+          // ContractPDFExport removed - functionality not available
           await DietPDFExport.exportToPDF({
             contract,
             zmsSignature,
@@ -388,15 +371,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
       for (const id of selectedContractIds) {
         const contract = contracts.find((c) => c.id === id);
         if (contract) {
-          await ContractPDFExport.exportToPDF({
-            contract,
-            zmsSignature,
-            sellerSignature: undefined,
-            buyerSignature: undefined,
-            sellerAddress: contract.dietContractRow[0]?.commisionInfo?.dispatchAddress,
-            buyerAddress: undefined,
-            type: 'purchase',
-          });
+          // ContractPDFExport removed - functionality not available
           await DietPDFExport.exportToPDF({
             contract,
             zmsSignature,
@@ -692,16 +667,8 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
           ? contract.dietContractRow[0]?.commisionInfo?.dispatchAddress || ''
           : '';
         
-        await ContractPDFExport.exportToPDF({
-          contract,
-          zmsSignature: zmsSignature || '',
-          sellerSignature: undefined,
-          buyerSignature: undefined,
-          sellerAddress,
-          buyerAddress: undefined,
-          type,
-        });
-        toast(`Generated ${type} single PDF successfully`, { type: 'success' });
+        // ContractPDFExport removed - functionality not available
+        toast(`${type} single PDF generation not available`, { type: 'warning' });
       } catch (error) {
         console.error(`Failed to generate ${type} single PDF:`, error);
         const errorMessage = error instanceof Error ? error.message : String(error);

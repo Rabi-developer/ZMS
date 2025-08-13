@@ -1,5 +1,5 @@
 import MainLayout from '@/components/MainLayout/MainLayout'
-import BlendRatioList from '@/components/item/BlendRatio/BlendRatioList'
+import BlendRatioList from '@/components/item/blendratio/BlendRatioList'
 
 const Branches = () => {
 

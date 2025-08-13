@@ -1,8 +1,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 // Update the path below to the correct relative path if needed
 import { Checkbox } from "@/components/ui/checkbox";
-import { FaEye, FaTrash } from "react-icons/fa";
-import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
+import { Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 

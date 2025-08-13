@@ -1,8 +1,8 @@
 'use client';
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
+import { ArrowUpDown,  Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+
 
 export type DispatchNote = {
   id: string;
@@ -76,7 +76,6 @@ export const columns = (
         checked={table.getIsAllRowsSelected()}
         onChange={(e) => {
           table.toggleAllRowsSelected(e.target.checked);
-          const rowIds = e.target.checked ? table.getRowModel().rows.map((row) => row.original.id) : [];
           handleCheckboxChange('all', e.target.checked);
         }}
         className="h-4 w-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"

@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
@@ -95,7 +95,6 @@ const CommissionInvoiceForm = () => {
   const [fetchingPayments, setFetchingPayments] = useState(false);
 
   const {
-    control,
     register,
     handleSubmit,
     formState: { errors },
@@ -120,37 +119,6 @@ const CommissionInvoiceForm = () => {
   const commissionFrom = watch('commissionFrom');
   const selectedSeller = watch('seller');
   const selectedBuyer = watch('buyer');
-
-  // Calculate invoice balance
-  const calculateInvoiceBalance = (invoice: Invoice, payments: PaymentData[]): number => {
-    const invoiceAmount = parseFloat(invoice.invoiceValue || '0');
-    const totalReceived = payments
-      .filter(
-        (payment) =>
-          (payment.status === 'Approved' || payment.status === 'Pending') &&
-          (commissionFrom === 'Seller' || commissionFrom === 'Both'
-            ? payment.seller === sellers.find((s) => s.id === selectedSeller)?.name
-            : true) &&
-          (commissionFrom === 'Buyer' || commissionFrom === 'Both'
-            ? payment.buyer === buyers.find((b) => b.id === selectedBuyer)?.name
-            : payment.buyer === invoice.buyer)
-      )
-      .reduce((sum, payment) => {
-        const invoiceData = (payment.relatedInvoices || []).find(
-          (ri) => ri.invoiceNumber === invoice.invoiceNumber
-        );
-        if (invoiceData) {
-          return (
-            sum +
-            (parseFloat(invoiceData.receivedAmount || '0') || 0) +
-            (parseFloat(invoiceData.invoiceAdjusted || '0') || 0)
-          );
-        }
-        return sum;
-      }, 0);
-
-    return invoiceAmount - totalReceived;
-  };
 
   // Fetch sellers
   const fetchSellers = async () => {

@@ -1,6 +1,5 @@
 import MainLayout from '@/components/MainLayout/MainLayout'
-import Address from '@/components/address/Address';
-import BlendRatioForm from '@/components/item/BlendRatio/BlendRatioForm';
+import BlendRatioForm from '@/components/item/blendratio/BlendRatioForm';
 
 const  CreateBlendRatioPage  = () => {
 //   const initialData = {

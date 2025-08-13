@@ -5,10 +5,9 @@ import { columns, DispatchNote } from './columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllDispatchNotes, deleteDispatchNote, updateDispatchNoteStatus } from '@/apis/dispatchnote';
-import { MdLocalShipping } from 'react-icons/md';
 import DispatchPDFExport from './DispatchPDFExport';
 import { FiDownload } from 'react-icons/fi';
-import { FaCheck, FaFileExcel } from 'react-icons/fa';
+import { FaCheck } from 'react-icons/fa';
 
 const DispatchNoteList = () => {
   const [dispatchNotes, setDispatchNotes] = React.useState<DispatchNote[]>([]);

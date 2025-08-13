@@ -145,6 +145,11 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
   // Fetch data (sellers, buyers, dispatch notes, employees, and invoice if needed)
   useEffect(() => {
     const fetchData = async () => {
+      // Skip API calls during SSR/prerendering
+      if (typeof window === 'undefined') {
+        return;
+      }
+      
       setLoading(true);
       try {
         const [sellersResponse, buyersResponse, dispatchNotesResponse, employeesResponse] = await Promise.all([
@@ -170,7 +175,7 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
         })) || []);
 
         // Handle invoiceId after data is loaded
-        const invoiceId = searchParams.get('invoiceId');
+        const invoiceId = searchParams?.get('invoiceId');
         if (invoiceId && !isEdit) {
           try {
             const invoiceResponse = await getAllInvoice(1, 100); // Replace with getInvoiceById if available
@@ -228,8 +233,13 @@ const InspectionNote = ({ isEdit = false, initialData }: InspectionNoteProps) =>
 
   // Handle dispatchNoteId query parameter (for backward compatibility)
   useEffect(() => {
-    const dispatchNoteId = searchParams.get('dispatchNoteId');
-    if (dispatchNoteId && dispatchNotes.length > 0 && !isEdit && !searchParams.get('invoiceId')) {
+    // Skip during SSR/prerendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
+    const dispatchNoteId = searchParams?.get('dispatchNoteId');
+    if (dispatchNoteId && dispatchNotes.length > 0 && !isEdit && !searchParams?.get('invoiceId')) {
       const selectedDispatchNote = dispatchNotes.find((dn) => dn.id === dispatchNoteId);
       if (selectedDispatchNote) {
         setValue('DispatchNoteId', selectedDispatchNote.id, { shouldValidate: true });

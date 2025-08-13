@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { getAllInductionThreads, deleteInductionThread } from '@/apis/Inductionthread'; 
+import { getAllInductionThreads, deleteInductionThread } from '@/apis/inductionthread'; 
 import { columns, InductionThreadType } from '@/components/item/inductionthread/columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';

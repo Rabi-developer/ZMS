@@ -1,5 +1,5 @@
 import { FaTruck, FaMapMarkerAlt, FaGasPump, FaUsers, FaFileInvoice, FaTools } from 'react-icons/fa';
-import { MdOutlineSettings, MdOutlineDashboard } from 'react-icons/md';
+import {  MdOutlineDashboard } from 'react-icons/md';
 import { GiRoad } from 'react-icons/gi';
 import { IoIosTimer } from 'react-icons/io';
 import { PiEqualizerDuotone } from "react-icons/pi";

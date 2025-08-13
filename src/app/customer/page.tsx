@@ -4,7 +4,7 @@ import CustomerForm from '@/components/customer/CustomerForm'
 const Organization = () => {
 
     return (
-        <MainLayout>
+        <MainLayout activeInterface="ZMS">
             <CustomerForm/>
        </MainLayout>
     )

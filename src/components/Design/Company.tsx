@@ -1,9 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import CustomInput from '@/components/ui/CustomInput';
-import CustomDropdown from '@/components/ui/CustomDropdown';
-import CustomInputDropdown from '../ui/CustomeInputDropdown';
 import CustomButton from '../ui/CustomeButton';
 import CustomCheckbox from '@/components/ui/CustomeCheckbox';  
 import CheckboxGroup from '@/components/ui/CheckboxGroup';
@@ -21,11 +18,6 @@ const Company = () => {
   const handleCountryChange = (value: string) => {
     setSelectedCountry(value);
   };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputText(e.target.value);
-  };
-
   const handleCheckboxChange = (checked: boolean) => {
     setIsChecked(checked);  // Update checkbox state
   };
@@ -36,8 +28,6 @@ const Company = () => {
       [name]: checked,  
     }));
   };
-
-  const countryOptions = ['United States', 'Canada', 'Australia', 'Germany', 'United Kingdom'];
 
   const handleSubmit = () => {
     console.log('Submitted Data:');

@@ -10,6 +10,7 @@ import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllInvoice, deleteInvoice, updateInvoiceStatus } from '@/apis/invoice';
 import { deleteInspectionNote, getAllInspectionNote, updateInspectionNoteStatus } from '@/apis/inspectnote';
+import { getAllDispatchNotes } from '@/apis/dispatchnote';
 import { Edit, Trash } from 'lucide-react';
 import { columns, getStatusStyles, Invoice } from './columns';
 
@@ -54,6 +55,7 @@ const InspectionNoteList = () => {
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [fetchingNotes, setFetchingNotes] = useState<{ [invoiceId: string]: boolean }>({});
+  const [dispatchNotes, setDispatchNotes] = useState<any[]>([]);
 
   const statusOptions = ['All', 'Approved Inspection', 'UnApproved Inspection', 'Active'];
   const statusOptionsConfig = [
@@ -64,9 +66,19 @@ const InspectionNoteList = () => {
 
   // Fetch approved invoices and their inspection notes with related contracts
   const fetchInvoicesAndInspectionNotes = async () => {
+    // Skip API calls during SSR/prerendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     try {
       setLoading(true);
-      const invoiceResponse = await getAllInvoice(pageIndex + 1, pageSize);
+      const [invoiceResponse, dispatchNotesResponse] = await Promise.all([
+        getAllInvoice(pageIndex + 1, pageSize),
+        getAllDispatchNotes(1, 1000)
+      ]);
+      
+      setDispatchNotes(dispatchNotesResponse?.data || []);
       const approvedInvoices = invoiceResponse?.data.filter((invoice: Invoice) => invoice.status === 'Approved') || [];
 
       // Clear existing inspection notes to prevent data bleeding
@@ -154,6 +166,10 @@ const InspectionNoteList = () => {
   };
 
   useEffect(() => {
+    // Skip during SSR/prerendering
+    if (typeof window === 'undefined') {
+      return;
+    }
     fetchInvoicesAndInspectionNotes();
   }, [pageIndex, pageSize]);
 
@@ -169,7 +185,12 @@ const InspectionNoteList = () => {
   }, [invoices, selectedStatusFilter]);
 
   useEffect(() => {
-    if (searchParams.get('refresh') === 'true') {
+    // Skip during SSR/prerendering
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
+    if (searchParams?.get('refresh') === 'true') {
       fetchInvoicesAndInspectionNotes();
       // Clear the refresh parameter from URL
       const newUrl = new URL(window.location.href);
@@ -428,7 +449,7 @@ const InspectionNoteList = () => {
         <DataTable
           columns={columns(handleDeleteOpen, handleViewOpen, (invoiceId, checked) => {
             handleCheckboxChange(invoiceId, checked);
-          })}
+          }, dispatchNotes)}
           data={filteredInvoices}
           loading={loading}
           link=""

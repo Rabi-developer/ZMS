@@ -4,7 +4,6 @@ import { ArrowUpDown, Eye, Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { getAllDispatchNotes } from '@/apis/dispatchnote';
-import { useState, useEffect } from 'react';
 
 export interface Invoice {
   id: string;
@@ -72,21 +71,9 @@ export const getStatusStyles = (status: string) => {
 export const columns = (
   handleDeleteOpen: (id: string) => void,
   handleViewOpen: (id: string) => void,
-  handleCheckboxChange: (invoiceId: string, checked: boolean) => void
+  handleCheckboxChange: (invoiceId: string, checked: boolean) => void,
+  dispatchNotes: DispatchNote[] = []
 ): ColumnDef<Invoice>[] => {
-  const [dispatchNotes, setDispatchNotes] = useState<DispatchNote[]>([]);
-
-  useEffect(() => {
-    const fetchDispatchNotes = async () => {
-      try {
-        const response = await getAllDispatchNotes(1, 1000);
-        setDispatchNotes(response?.data || []);
-      } catch (error) {
-        console.error('Failed to fetch dispatch notes:', error);
-      }
-    };
-    fetchDispatchNotes();
-  }, []);
 
   return [
     {

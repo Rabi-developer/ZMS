@@ -14,8 +14,7 @@ import { MdInfo, MdLocationOn, MdPhone, MdEmail, MdBusiness } from 'react-icons/
 import { FaMoneyBillWave, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
-import { BiSolidErrorAlt } from 'react-icons/bi';
-import { FiSave, FiX, FiUser, FiMapPin, FiPhone, FiMail } from 'react-icons/fi';
+import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
 // Define the schema for vendor form validation
 const vendorSchema = z.object({

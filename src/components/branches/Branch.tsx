@@ -32,7 +32,6 @@ type FormData = z.infer<typeof Schema>;
 
 const Branch = ({ id, initialData }: { id?: string; initialData?: FormData }) => {
   const [organizations, setOrganizations] = useState<{ id: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(false);
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<FormData>({
     resolver: zodResolver(Schema),
     defaultValues: initialData || {},
@@ -42,13 +41,10 @@ const Branch = ({ id, initialData }: { id?: string; initialData?: FormData }) =>
 
   const fetchOrganizations = async () => {
     try {
-      setLoading(true);
       const response = await getAllOrganization(1, 100);
       setOrganizations(response.data);
     } catch (error) {
       console.error(error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -59,7 +55,7 @@ const Branch = ({ id, initialData }: { id?: string; initialData?: FormData }) =>
     }
   }, [initialData, reset]);
 
-  const onSubmit = async (data: any) => {
+  const onSubmit = async (data: FormData) => {
     try {
       let response;
       if (id) {
@@ -180,7 +176,7 @@ const Branch = ({ id, initialData }: { id?: string; initialData?: FormData }) =>
           />
           <CustomInputDropdown
             label="Organization"
-            options={organizations.map((org: any) => ({
+            options={organizations.map((org) => ({
               id: org.id,
               name: org.name,
             }))}

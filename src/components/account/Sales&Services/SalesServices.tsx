@@ -8,7 +8,6 @@ import CustomInput from '@/components/ui/CustomInput';
 import { Button } from '@/components/ui/button';
 import { FaRegListAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
-import Link from 'next/link';
 
 const accountSchema = z.object({
   id: z.string(),

@@ -7,9 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
 import { Button } from '@/components/ui/button';
-import { FaRegListAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaRegListAlt } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
-import Link from 'next/link';
 import { createRevenue, updateRevenue, getAllRevenue, deleteRevenue } from '@/apis/revenue';
 
 // Zod schema for form validation

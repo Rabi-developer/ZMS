@@ -10,12 +10,11 @@ import { createParty, updateParty, getAllPartys } from '@/apis/party';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { MdAddBusiness, MdLocalShipping, MdInfo, MdLocationOn, MdPhone, MdEmail, MdBusiness } from 'react-icons/md';
+import {MdInfo, MdLocationOn, MdPhone, MdBusiness } from 'react-icons/md';
 import { FaRegBuilding, FaMoneyBillWave, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
-import { BiSolidErrorAlt } from 'react-icons/bi';
-import { FiSave, FiX, FiUser, FiMapPin, FiDollarSign, FiPhone, FiMail, FiGlobe } from 'react-icons/fi';
+import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
 // Define the schema for party form validation
 const partySchema = z.object({

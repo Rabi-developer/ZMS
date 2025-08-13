@@ -76,7 +76,6 @@ const CommissionInvoiceForm = () => {
   const [fetchingBuyers, setFetchingBuyers] = useState(false);
 
   const {
-    control,
     register,
     handleSubmit,
     formState: { errors },

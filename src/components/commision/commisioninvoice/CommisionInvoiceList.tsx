@@ -10,7 +10,6 @@ import { FaFileInvoice } from 'react-icons/fa';
 import { FaCheck } from 'react-icons/fa';
 
 const CommissionInvoiceList = () => {
-  const router = useRouter();
   const [invoices, setInvoices] = useState<CommissionInvoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<CommissionInvoice[]>([]);
   const [loading, setLoading] = useState(false);

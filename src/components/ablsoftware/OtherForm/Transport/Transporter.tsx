@@ -9,12 +9,11 @@ import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { createTransporter, updateTransporter, getAllTransporter } from '@/apis/transporter';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { MdAddBusiness, MdLocalShipping, MdInfo, MdLocationOn, MdPhone, MdEmail, MdBusiness } from 'react-icons/md';
+import {  MdLocalShipping, MdInfo, MdLocationOn, MdPhone} from 'react-icons/md';
 import { FaRegBuilding, FaMoneyBillWave, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
-import { BiSolidErrorAlt } from 'react-icons/bi';
-import { FiSave, FiX, FiUser, FiMapPin, FiDollarSign, FiPhone, FiMail, FiGlobe } from 'react-icons/fi';
+import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
 // Define the schema for transporter form validation
 const transporterSchema = z.object({

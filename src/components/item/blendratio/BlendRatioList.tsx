@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { getAllBlendRatios, deleteBlendRatio } from '@/apis/blendratio'; 
-import { columns, BlendRatioType } from '@/components/item/BlendRatio/columns';
+import { columns, BlendRatioType } from '@/components/item/blendratio/columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { FiArrowRight } from 'react-icons/fi';

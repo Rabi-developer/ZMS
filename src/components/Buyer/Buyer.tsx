@@ -19,6 +19,28 @@ type Seller = {
   sellerName: string; 
 };
 
+// Type for API data (camelCase from backend)
+type BuyerApiData = {
+  buyerName?: string;
+  buyerType?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  phoneNumber?: string;
+  emailAddress?: string;
+  mobileNumber?: string;
+  faxNumber?: string;
+  stn?: string;
+  mtn?: string;
+  payableCode?: string;
+  accountNo?: string;
+  paymentStatus?: string;
+  orderDate?: string;
+  deliveryDate?: string;
+  payableid?: string;
+  seller?: string;
+};
+
 // Zod schema expects accountNo as a string for API
 const Schema = z.object({
   BuyerName: z.string().min(1, "Buyer Name is required"),
@@ -46,11 +68,11 @@ type FormData = z.infer<typeof Schema>;
 // UI state type for accountNos
 type BuyerFormUIProps = {
   id?: string;
-  initialData?: any; // Accepts API data directly (camelCase)
+  initialData?: BuyerApiData; // Accepts API data directly (camelCase)
 };
 
 // Mapping function: API camelCase -> Form PascalCase
-function mapBuyerApiToForm(apiData: any): FormData {
+function mapBuyerApiToForm(apiData: BuyerApiData): FormData {
   return {
     BuyerName: apiData.buyerName || "",
     BuyerType: apiData.buyerType || "",
@@ -76,7 +98,6 @@ function mapBuyerApiToForm(apiData: any): FormData {
 const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
   // UI state for account numbers as array
   const [accountNos, setAccountNos] = useState<string[]>(['']);
-  const [text, setText] = useState("");
   const [sellers, setSellers] = useState<Seller[]>([]);
 
   const router = useRouter();
@@ -170,6 +191,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
         }
       }
     } catch (error) {
+      console.error("Error submitting form:", error);
       toast("An error occurred while submitting the form", { type: "error" });
     }
   };
@@ -384,16 +406,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
             </div>
           </div>
 
-          <div className="p-5 ml-7 bg-white shadow-md rounded-lg mx-auto">
-            <textarea
-              id="message"
-              className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="Any additional notes or comments about the Buyer's work details"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            ></textarea>
-            <p className="text-gray-500 mt-2">Character Count: {text.length}</p>
-          </div>
+
         </div>
 
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">

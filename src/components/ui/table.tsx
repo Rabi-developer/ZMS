@@ -1,11 +1,6 @@
 "use client";
-import { motion } from "framer-motion";
-import { motion as motion$1 } from "framer-motion"; 
-import { FaFilter, FaArrowLeft, FaArrowRight } from "react-icons/fa";
-import { IoIosCreate } from "react-icons/io";
-import { MdManageSearch } from "react-icons/md";
+import { FaFilter } from "react-icons/fa";
 import { cn } from "@/components/lib/StaticData/utils";
-import { GrFolderCycle } from "react-icons/gr";
 import { FaPersonCircleXmark } from "react-icons/fa6";
 import { LuGitPullRequestCreateArrow } from "react-icons/lu";
 import { VscGoToSearch } from "react-icons/vsc";

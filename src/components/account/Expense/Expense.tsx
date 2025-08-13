@@ -7,9 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
 import { Button } from '@/components/ui/button';
-import { FaRegListAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaRegListAlt } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
-import Link from 'next/link';
 import { createExpense, updateExpense, getAllExpense, deleteExpense } from '@/apis/Expense';
 
 // Zod schema for form validation
@@ -57,7 +56,6 @@ const Expenses = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [flatExpenses, setFlatExpenses] = useState<Expense[]>([]);
 
-  const router = useRouter();
   const {
     register,
     handleSubmit,

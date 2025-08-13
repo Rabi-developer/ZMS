@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import CustomInput from '@/components/ui/CustomInput';
-import { createInductionThread, updateInductionThread, getAllInductionThreads } from '@/apis/Inductionthread';
+import { createInductionThread, updateInductionThread, getAllInductionThreads } from '@/apis/inductionthread';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdAddBusiness, MdAdd, MdDelete } from 'react-icons/md';

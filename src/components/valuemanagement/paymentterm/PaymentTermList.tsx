@@ -126,7 +126,7 @@ const PaymentTermList = () => {
                         Details
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedPaymentTerm.subDescription}
+                        {selectedPaymentTerm.descriptions}
                       </div>
                     </div>
                   </div>

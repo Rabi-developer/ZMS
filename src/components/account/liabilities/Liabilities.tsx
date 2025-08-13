@@ -7,9 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'react-toastify';
 import CustomInput from '@/components/ui/CustomInput';
 import { Button } from '@/components/ui/button';
-import { FaRegListAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
+import { FaRegListAlt } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
-import Link from 'next/link';
 import { createLiabilities, updateLiabilities, getAllLiabilities, deleteLiabilities } from '@/apis/liabilities';
 
 // Zod schema for form validation
@@ -55,9 +54,7 @@ const Liabilities = () => {
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
   const [totalPages, setTotalPages] = useState(1);
-  const [flatLiabilities, setFlatLiabilities] = useState<Liability[]>([]);
 
-  const router = useRouter();
   const {
     register,
     handleSubmit,

@@ -8,7 +8,7 @@ import CustomInput from '@/components/ui/CustomInput';
 import { Button } from '@/components/ui/button';
 import { FaRegListAlt, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { VscGoToSearch } from 'react-icons/vsc';
-import Link from 'next/link';
+
 
 const accountSchema = z.object({
   id: z.string(),
@@ -193,14 +193,6 @@ const OtherIncome = () => {
       [id]: !prev[id],
     }));
   };
-
-  // Filter accounts based on search query
-  const filteredAccounts = accounts.filter((account) => {
-    return (
-      account.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      account.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  });
 
   // Paginate accounts based on saved data (accounts state)
   const paginatedAccounts = accounts.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);

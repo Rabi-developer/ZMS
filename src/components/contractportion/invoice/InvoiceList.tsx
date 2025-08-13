@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { toast } from 'react-toastify';
-import { columns, Invoice, getStatusStyles } from './columns';
+import { columns, Invoice } from './columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllInvoice, deleteInvoice, updateInvoiceStatus } from '@/apis/invoice';

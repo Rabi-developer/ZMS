@@ -55,9 +55,6 @@ const formatFabricDetails = (contract: Contract): string => {
 const DispatchPDFExport = {
   exportToPDF: async ({
     dispatchNote,
-    sellerSignature,
-    buyerSignature,
-    zmsSignature,
     sellerAddress,
     buyerAddress,
   }: ExportToPDFProps) => {

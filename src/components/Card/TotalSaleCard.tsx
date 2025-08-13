@@ -2,11 +2,6 @@ import React from "react";
 import StatCard from "./StatCard";
 import { ShoppingCart } from "lucide-react";
 
-type StatCardProps = {
-  label: string;
-  value: string;
-  icon: React.ReactNode;
-};
 
 const TotalSaleCard: React.FC = () => {
   return <StatCard 
