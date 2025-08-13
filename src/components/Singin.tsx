@@ -56,7 +56,7 @@
     </div>
     <div className="">
   <Link
-    href="/signup"
+    href="/signin"
     className="inline-block px-10 py-5 bg-[#0899b2] text-white  text-xl rounded-2xl shadow-lg hover:bg-[#0899b2] hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
   >
     Get Started
