@@ -1,79 +1,93 @@
-  "use client";
-  import React, { useState } from "react";
-  import Link from "next/link";
-  import { login } from "../apis/auth";
-  import { FiMail, FiLock, FiUser } from "react-icons/fi";
+"use client";
+import React, { useState } from "react";
+import Link from "next/link";
+import { login } from "../apis/auth";
+import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from "react-icons/fi";
 
-  const SignIn: React.FC = () => {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState<string | null>(null);
+const SignIn: React.FC = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-    const handleSignIn = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError(null);
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
 
-      try {
-        // Map email to Username for the API request
-        const response = await login({ Username: email, password });
+    try {
+      // Map email to Username for the API request
+      const response = await login({ Username: email, password });
 
-        if (response.statusCode === 200) {
-          // Save token and username to localStorage
-          localStorage.setItem("token", response?.data?.token);
-          localStorage.setItem("userName", response?.data?.userName);
+      if (response.statusCode === 200) {
+        // Save token and username to localStorage
+        localStorage.setItem("token", response?.data?.token);
+        localStorage.setItem("userName", response?.data?.userName);
 
-          // Redirect to the home page
-          window.location.href = "/";
-        } else {
-          setError(response.message || "Login failed. Please try again.");
-        }
-      } catch (err: any) {
-        setError(err.message || "An error occurred. Please try again.");
+        // Redirect to the home page
+        window.location.href = "/";
+      } else {
+        setError(response.message || "Login failed. Please try again.");
       }
-    };
+    } catch (err: any) {
+      setError(err.message || "An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    return (
-      <div className="min-h-screen  bg-gradient-to-t from-[#22c1c3] via-[#3ab4c1] to-[#2d8efd] w-full
-    flex items-center justify-center">
-      <div className="grid grid-cols-2 gap-1 w-full ">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#22c1c3] via-[#3ab4c1] to-[#2d8efd] w-full flex items-center justify-center p-4">
+      <div className="w-full max-w-7xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
 
-      
-       <div className=" w-full px-6 py-8 ml-2 mt-20">
-     <h1 className="text-4xl font-extrabold text-white mb-4 ml-10">
-      Welcome In  <span className="border-b-2 "> ZMS</span>!
-     </h1>
-   
-    <div className="space-y-3 mb-6">
-      <div className="text-lg text-white font-semibold">
-        <span role="img" aria-label="check-mark">✅</span> Discover seamless solutions for sales and purchases.
-      </div>
-      <div className="text-lg text-white font-semibold">
-        <span role="img" aria-label="check-mark">✅</span> Unlock commission-based earnings for every deal.
-      </div>
-      <div className="text-lg text-white font-semibold">
-        <span role="img" aria-label="check-mark">✅</span> Scale your business with the trusted ZMS platform.
-      </div>
-    </div>
-    <div className="">
-  <Link
-    href="/signin"
-    className="inline-block px-10 py-5 bg-[#0899b2] text-white  text-xl rounded-2xl shadow-lg hover:bg-[#0899b2] hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
-  >
-    Get Started
-  </Link>
-</div>
-
-       </div>
-
-        <div className="max-w-lg w-full bg-[#0899b2] ml-20 p-10  rounded-xl shadow-2xl shadow-t-2xl">
-          <div className="text-center mb-8">
-            <Link href="/">
-              <h2 className="text-4xl font-bold text-white  ">
-              Sign <span className="border-b-2 border-[#165863]">in</span>
-              </h2>
-            </Link>
-            
+          
+          {/* Left Side - Welcome Section */}
+          <div className="w-full px-4 lg:px-8 py-8 order-2 lg:order-1">
+            <div className="text-center lg:text-left">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-6 lg:mb-8">
+                Welcome to <span className="border-b-4 border-white pb-1">ZMS</span>!
+              </h1>
+              
+              <div className="space-y-4 mb-8 lg:mb-10">
+                <div className="flex items-start space-x-3 text-base sm:text-lg text-white font-semibold">
+                  <span className="text-2xl flex-shrink-0" role="img" aria-label="check-mark">✅</span>
+                  <span>Discover seamless solutions for sales and purchases.</span>
+                </div>
+                <div className="flex items-start space-x-3 text-base sm:text-lg text-white font-semibold">
+                  <span className="text-2xl flex-shrink-0" role="img" aria-label="check-mark">✅</span>
+                  <span>Unlock commission-based earnings for every deal.</span>
+                </div>
+                <div className="flex items-start space-x-3 text-base sm:text-lg text-white font-semibold">
+                  <span className="text-2xl flex-shrink-0" role="img" aria-label="check-mark">✅</span>
+                  <span>Scale your business with the trusted ZMS platform.</span>
+                </div>
+              </div>
+              
+              <div className="hidden lg:block">
+                <Link
+                  href="/"
+                  className="inline-block px-8 py-4 bg-[#0899b2] text-white text-lg font-semibold rounded-2xl shadow-lg hover:bg-[#0a8ca3] hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                >
+                  Learn More
+                </Link>
+              </div>
+            </div>
           </div>
+
+          {/* Right Side - Sign In Form */}
+          <div className="w-full max-w-md mx-auto lg:max-w-lg order-1 lg:order-2">
+            <div className="bg-[#0899b2] backdrop-blur-sm p-6 sm:p-8 lg:p-10 rounded-2xl shadow-2xl border border-white/10">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <Link href="/">
+                  <h2 className="text-3xl sm:text-4xl font-bold text-white">
+                    Sign <span className="border-b-2 border-[#165863]">In</span>
+                  </h2>
+                </Link>
+                <p className="text-white/80 mt-2 text-sm sm:text-base">Welcome back! Please sign in to your account</p>
+              </div>
 
           {error && (
             <p className="text-red-500 mb-4 text-center font-medium">{error}</p>
@@ -148,6 +162,8 @@
         </div>
         </div>
       </div>
+      </div>
+    </div>
     );
   };
 

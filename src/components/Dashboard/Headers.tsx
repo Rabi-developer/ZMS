@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { FiSearch, FiGrid, FiPackage } from 'react-icons/fi';
+import { FiSearch, FiGrid, FiPackage, FiMenu } from 'react-icons/fi';
 import { GiMoneyStack } from 'react-icons/gi';
 import DarkMode from '@/components/DarkMood/DarkMode';
 import DropdownUser from '@/components/Header/DropdownUser';
@@ -81,6 +81,19 @@ const Headers = ({
           : 'bg-white dark:bg-[#030630]'
       } dark:text-white`}
     >
+      {/* Mobile Menu Button */}
+      <button
+        onClick={toggleSidebar}
+        className={`md:hidden mr-3 p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
+          activeInterface === 'ABL'
+            ? 'text-[#9abba6] hover:bg-[#2a3a32]'
+            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+        }`}
+        aria-label="Toggle Mobile Menu"
+      >
+        <FiMenu size={24} />
+      </button>
+
       <div>
         <AccountToggle isCollapsed={isCollapsed} activeInterface={activeInterface} />
       </div>

@@ -52,7 +52,7 @@ const getSingleBookingOrder  = async (id: string) => {
   }
 };
 
-const updateBookingOrder = async (BookingOrder : any) => {
+const updateBookingOrder = async (BookingOrder: any, data: { orderDate: string; transporter: string; vendor: string; vehicleNo: string; vehicleType: string; driverName: string; cargoWeight: string; fromLocation: string; toLocation: string; orderNo?: string | undefined; containerNo?: string | undefined; remarks?: string | undefined; contactNo?: string | undefined; munshayana?: string | undefined; bookedDays?: string | undefined; detentionDays?: string | undefined; departureDate?: string | undefined; via1?: string | undefined; via2?: string | undefined; expectedReachedDate?: string | undefined; reachedDate?: string | undefined; vehicleMunshyana?: string | undefined; contractOwner?: string | undefined; }) => {
   try {
     const response = await apiFetch(`BookingOrder`, {
       method: 'PUT',

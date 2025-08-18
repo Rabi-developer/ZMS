@@ -1,657 +1,634 @@
-// 'use client';
-// import React, { useState, useEffect } from 'react';
-// import { useRouter, useSearchParams } from 'next/navigation';
-// import { useForm } from 'react-hook-form';
-// import { z } from 'zod';
-// import { zodResolver } from '@hookform/resolvers/zod';
-// import { toast } from 'react-toastify';
-// import CustomInput from '@/components/ui/CustomInput';
-// import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
-// import CustomSingleDatePicker from '@/components/ui/CustomDateRangePicker';
-// import { MdOutlineAssignment } from 'react-icons/md';
-// import { BiSolidErrorAlt } from 'react-icons/bi';
-// import Link from 'next/link';
-// import { Button } from '@/components/ui/button';
-// // Assume these APIs exist
-// import { getAllOrganization } from '@/apis/organization';
-// import { getAllBranch } from '@/apis/branchs';
-// import { getAllTransporter } from '@/apis/transporter';
-// import { getAllVendor } from '@/apis/vendors';
-// import { getAllVehicleTypes } from '@/apis/vehicletype';
-// import { getAllLocations } from '@/apis/location';
-// import { getAllContractOwners } from '@/apis/contractOwner'; // Assume API for contract owners (e.g., employees)
-// import { createBookingOrder, updateBookingOrder } from '@/apis/bookingorder';
-// import { getAllConsignment } from '@/apis/consignment';
+'use client';
+import React, { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import ABLCustomInput from '@/components/ui/ABLCustomInput';
+import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
+import { createBookingOrder, updateBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
+import { getAllTransporter } from '@/apis/transporter';
+import { getAllVendor } from '@/apis/vendors';
+import { getAllVehicleTypes } from '@/apis/vehicletype';
+import { getAllMunshyana } from '@/apis/munshyana';
+import { getAllConsignment } from '@/apis/consignment';
+import { toast } from 'react-toastify';
+import { useRouter } from 'next/navigation';
+import { MdLocalShipping, MdInfo, MdLocationOn, MdPhone } from 'react-icons/md';
+import { FaRegBuilding, FaMoneyBillWave, FaIdCard } from 'react-icons/fa';
+import { HiDocumentText } from 'react-icons/hi';
+import Link from 'next/link';
+import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
-// // Schema for form validation
-// const BookingOrderSchema = z.object({
-//   OrderNo: z.string().optional(),
-//   OrderDate: z.string().min(1, 'Order date is required'),
-//   Company: z.string().min(1, 'Company is required'),
-//   Branch: z.string().min(1, 'Branch is required'),
-//   TotalBookValue: z.string().min(1, 'Total book value is required'),
-//   Transporter: z.string().min(1, 'Transporter is required'),
-//   Vendor: z.string().min(1, 'Vendor is required'),
-//   TotalAmountReceived: z.string().optional(),
-//   VehicleNo: z.string().min(1, 'Vehicle No is required'),
-//   VehicleType: z.string().min(1, 'Vehicle Type is required'),
-//   TotalCharges: z.string().min(1, 'Total Charges is required'),
-//   DriverName: z.string().min(1, 'Driver Name is required'),
-//   ContactNo: z.string().min(1, 'Contact No is required'),
-//   Munshayana: z.string().optional(),
-//   CargoWeight: z.string().min(1, 'Cargo Weight is required'),
-//   BookedDays: z.string().min(1, 'Booked Days is required'),
-//   DetentionDays: z.string().optional(),
-//   NetProfitLoss: z.string().optional(),
-//   FromLocation: z.string().min(1, 'From Location is required'),
-//   DepartureDate: z.string().min(1, 'Departure Date is required'),
-//   Via1: z.string().optional(),
-//   Via2: z.string().optional(),
-//   ToLocation: z.string().min(1, 'To Location is required'),
-//   ExpectedReachedDate: z.string().min(1, 'Expected Reached Date is required'),
-//   ReachedDate: z.string().optional(),
-//   VehicleMunshyana: z.string().optional(),
-//   Remarks: z.string().optional(),
-//   ContractOwner: z.string().min(1, 'Contract Owner is required'),
-// });
+// Interfaces
+interface DropdownOption {
+  id: string;
+  name: string;
+}
 
-// type FormData = z.infer<typeof BookingOrderSchema>;
+interface Consignment {
+  biltyNo: string;
+  receiptNo: string;
+  consignor: string;
+  consignee: string;
+  item: string;
+  qty: number;
+  totalAmount: number;
+  recvAmount: number;
+  delDate: string;
+  status: string;
+}
 
-// interface ExtendedConsignment {
-//   id: string;
-//   biltyNo: string;
-//   receiptNo: string;
-//   consignor: string;
-//   consignee: string;
-//   item: string;
-//   qty: string;
-//   totalAmount: string;
-//   receivedAmount: string;
-//   deliveryDate: string;
-//   status: string;
-// }
+// Define the schema for booking order form validation
+const bookingOrderSchema = z.object({
+  orderNo: z.string().optional(),
+  orderDate: z.string().optional(),
+  transporter: z.string().optional(),
+  vendor: z.string().optional(),
+  vehicleNo: z.string().optional(),
+  containerNo: z.string().optional(),
+  vehicleType: z.string().optional(),
+  driverName: z.string().optional(),
+  contactNo: z.string().optional(),
+  munshayana: z.string().optional(),
+  cargoWeight: z.string().optional(),
+  bookedDays: z.string().optional(),
+  detentionDays: z.string().optional(),
+  fromLocation: z.string().optional(),
+  departureDate: z.string().optional(),
+  via1: z.string().optional(),
+  via2: z.string().optional(),
+  toLocation: z.string().optional(),
+  expectedReachedDate: z.string().optional(),
+  reachedDate: z.string().optional(),
+  vehicleMunshyana: z.string().optional(),
+  remarks: z.string().optional(),
+  contractOwner: z.string().optional(),
+});
 
-// interface BookingOrderData {
-//   id?: string;
-//   orderNo?: string;
-//   orderDate?: string;
-//   company?: string;
-//   branch?: string;
-//   totalBookValue?: string;
-//   transporter?: string;
-//   vendor?: string;
-//   totalAmountReceived?: string;
-//   vehicleNo?: string;
-//   vehicleType?: string;
-//   totalCharges?: string;
-//   driverName?: string;
-//   contactNo?: string;
-//   munshayana?: string;
-//   cargoWeight?: string;
-//   bookedDays?: string;
-//   detentionDays?: string;
-//   netProfitLoss?: string;
-//   fromLocation?: string;
-//   departureDate?: string;
-//   via1?: string;
-//   via2?: string;
-//   toLocation?: string;
-//   expectedReachedDate?: string;
-//   reachedDate?: string;
-//   vehicleMunshyana?: string;
-//   remarks?: string;
-//   contractOwner?: string;
-//   relatedConsignments?: ExtendedConsignment[];
-// }
+type BookingOrderFormData = z.infer<typeof bookingOrderSchema>;
 
-// interface BookingOrderProps {
-//   isEdit?: boolean;
-//   initialData?: BookingOrderData;
-// }
+const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+  const router = useRouter();
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+  } = useForm<BookingOrderFormData>({
+    resolver: zodResolver(bookingOrderSchema),
+    defaultValues: {
+      orderNo: '',
+      orderDate: '',
+      transporter: '',
+      vendor: '',
+      vehicleNo: '',
+      containerNo: '',
+      vehicleType: '',
+      driverName: '',
+      contactNo: '',
+      munshayana: '',
+      cargoWeight: '',
+      bookedDays: '',
+      detentionDays: '',
+      fromLocation: '',
+      departureDate: '',
+      via1: '',
+      via2: '',
+      toLocation: '',
+      expectedReachedDate: '',
+      reachedDate: '',
+      vehicleMunshyana: '',
+      remarks: '',
+      contractOwner: '',
+    },
+  });
 
-// const BookingOrder = ({ isEdit = false, initialData }: BookingOrderProps) => {
-//   const router = useRouter();
-//   const searchParams = useSearchParams();
-//   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
-//   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
-//   const [transporters, setTransporters] = useState<{ id: string; name: string }[]>([]);
-//   const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
-//   const [vehicleTypes, setVehicleTypes] = useState<{ id: string; name: string }[]>([]);
-//   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
-//   const [contractOwners, setContractOwners] = useState<{ id: string; name: string }[]>([]);
-//   const [filteredConsignments, setFilteredConsignments] = useState<ExtendedConsignment[]>([]);
-//   const [loading, setLoading] = useState(false);
-//   const [orderFocused, setOrderFocused] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
+  const [transporters, setTransporters] = useState<DropdownOption[]>([]);
+  const [vendors, setVendors] = useState<DropdownOption[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<DropdownOption[]>([]);
+  const [munshayanas, setMunshayanas] = useState<DropdownOption[]>([]);
+  const [consignments, setConsignments] = useState<Consignment[]>([]);
+  const [locations, setLocations] = useState<DropdownOption[]>([]); // Dummy locations
 
-//   const {
-//     register,
-//     handleSubmit,
-//     formState: { errors },
-//     reset,
-//     setValue,
-//     watch,
-//   } = useForm<FormData>({
-//     resolver: zodResolver(BookingOrderSchema),
-//     defaultValues: {
-//       OrderNo: isEdit && initialData?.orderNo ? initialData.orderNo : '',
-//       OrderDate: new Date().toISOString().split('T')[0],
-//       Company: '',
-//       Branch: '',
-//       TotalBookValue: '',
-//       Transporter: '',
-//       Vendor: '',
-//       TotalAmountReceived: '',
-//       VehicleNo: '',
-//       VehicleType: '',
-//       TotalCharges: '',
-//       DriverName: '',
-//       ContactNo: '',
-//       Munshayana: '',
-//       CargoWeight: '',
-//       BookedDays: '',
-//       DetentionDays: '',
-//       NetProfitLoss: '',
-//       FromLocation: '',
-//       DepartureDate: new Date().toISOString().split('T')[0],
-//       Via1: '',
-//       Via2: '',
-//       ToLocation: '',
-//       ExpectedReachedDate: new Date().toISOString().split('T')[0],
-//       ReachedDate: '',
-//       VehicleMunshyana: '',
-//       Remarks: '',
-//       ContractOwner: '',
-//     },
-//   });
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [transRes, vendRes, vehRes, munRes] = await Promise.all([
+          getAllTransporter(),
+          getAllVendor(),
+          getAllVehicleTypes(),
+          getAllMunshyana(),
+        ]);
+        setTransporters(transRes.data.map((t: any) => ({ id: t.id, name: t.name })));
+        setVendors(vendRes.data.map((v: any) => ({ id: v.id, name: v.name })));
+        setVehicleTypes(vehRes.data.map((vt: any) => ({ id: vt.id, name: vt.name })));
+        setMunshayanas(munRes.data.map((m: any) => ({ id: m.id, name: m.name })));
 
-//   // Fetch data
-//   useEffect(() => {
-//     const fetchData = async () => {
-//       setLoading(true);
-//       try {
-//         const [companiesRes, branchesRes, transportersRes, vendorsRes, vehicleTypesRes, locationsRes, ownersRes] = await Promise.all([
-//           getAllOrganization(),
-//           getAllBranch(),
-//           getAllTransporter(),
-//           getAllVendor(),
-//           getAllVehicleTypes(),
-//           getAllLocation(),
-//           getAllContractOwner(),
-//         ]);
+        // Dummy locations
+        const dummyLocations = ['Karachi', 'Lahore', 'Islamabad'].map(loc => ({ id: loc, name: loc }));
+        setLocations(dummyLocations);
 
-//         setCompanies(companiesRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setBranches(branchesRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setTransporters(transportersRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setVendors(vendorsRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setVehicleTypes(vehicleTypesRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setLocations(locationsRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setContractOwners(ownersRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//       } catch (error) {
-//         toast('Failed to fetch data', { type: 'error' });
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
+        // Fetch consignments (filter by order if possible; assume all for now)
+        const consRes = await getAllConsignment(1, 10, { orderNo: '' });
+        setConsignments(consRes.data); // Filter by orderNo if API supports
+      } catch (error) {
+        toast.error('Failed to load dropdown data');
+      }
+    };
+    fetchData();
 
-//     fetchData();
-//   }, []);
+    if (isEdit) {
+      const fetchBookingOrder = async () => {
+        setIsLoading(true);
+        const id = window.location.pathname.split('/').pop();
+        if (id) {
+          try {
+            const response = await getAllBookingOrder(); // Assume API returns all, then find
+            const booking = response.data.find((b: any) => b.id === id);
+            if (booking) {
+              Object.keys(booking).forEach((key) => {
+                setValue(key as keyof BookingOrderFormData, booking[key]);
+              });
+            } else {
+              toast.error('Booking Order not found');
+              router.push('/bookingorders');
+            }
+          } catch (error) {
+            toast.error('Failed to load booking order data');
+          } finally {
+            setIsLoading(false);
+          }
+        }
+      };
+      fetchBookingOrder();
+    }
+  }, [isEdit, setValue, router]);
 
-//   // Initialize form with initialData when editing
-//   useEffect(() => {
-//     if (isEdit && initialData) {
-//       setValue('OrderNo', initialData.orderNo || '');
-//       setValue('OrderDate', initialData.orderDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
-//       setValue('Company', companies.find((c) => c.name === initialData.company)?.id || '');
-//       setValue('Branch', branches.find((b) => b.name === initialData.branch)?.id || '');
-//       setValue('TotalBookValue', initialData.totalBookValue || '');
-//       setValue('Transporter', transporters.find((t) => t.name === initialData.transporter)?.id || '');
-//       setValue('Vendor', vendors.find((v) => v.name === initialData.vendor)?.id || '');
-//       setValue('TotalAmountReceived', initialData.totalAmountReceived || '');
-//       setValue('VehicleNo', initialData.vehicleNo || '');
-//       setValue('VehicleType', vehicleTypes.find((vt) => vt.name === initialData.vehicleType)?.id || '');
-//       setValue('TotalCharges', initialData.totalCharges || '');
-//       setValue('DriverName', initialData.driverName || '');
-//       setValue('ContactNo', initialData.contactNo || '');
-//       setValue('Munshayana', initialData.munshayana || '');
-//       setValue('CargoWeight', initialData.cargoWeight || '');
-//       setValue('BookedDays', initialData.bookedDays || '');
-//       setValue('DetentionDays', initialData.detentionDays || '');
-//       setValue('NetProfitLoss', initialData.netProfitLoss || '');
-//       setValue('FromLocation', locations.find((l) => l.name === initialData.fromLocation)?.id || '');
-//       setValue('DepartureDate', initialData.departureDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
-//       setValue('Via1', initialData.via1 || '');
-//       setValue('Via2', initialData.via2 || '');
-//       setValue('ToLocation', locations.find((l) => l.name === initialData.toLocation)?.id || '');
-//       setValue('ExpectedReachedDate', initialData.expectedReachedDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
-//       setValue('ReachedDate', initialData.reachedDate?.split('T')[0] || '');
-//       setValue('VehicleMunshyana', initialData.vehicleMunshyana || '');
-//       setValue('Remarks', initialData.remarks || '');
-//       setValue('ContractOwner', contractOwners.find((o) => o.name === initialData.contractOwner)?.id || '');
+  const onSubmit = async (data: BookingOrderFormData) => {
+    setIsSubmitting(true);
+    try {
+      if (isEdit) {
+        await updateBookingOrder(data.orderNo!, data);
+        toast.success('Booking Order updated successfully!');
+      } else {
+        await createBookingOrder(data);
+        toast.success('Booking Order created successfully!');
+      }
+      router.push('/bookingorders');
+    } catch (error) {
+      toast.error('An error occurred while saving the booking order');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-//       setFilteredConsignments(initialData.relatedConsignments || []);
-//     }
-//   }, [isEdit, initialData, companies, branches, transporters, vendors, vehicleTypes, locations, contractOwners, setValue]);
+  // Function to update status
+  const updateStatus = (index: number, newStatus: string) => {
+    // Implement API call to update status
+    // For now, update local state
+    const updatedConsignments = [...consignments];
+    updatedConsignments[index].status = newStatus;
+    setConsignments(updatedConsignments);
+  };
 
-//   // Fetch related consignments if editing
-//   useEffect(() => {
-//     if (isEdit && initialData?.orderNo) {
-//       const fetchConsignments = async () => {
-//         try {
-//           const response = await getAllConsignments(1, 100); // Filter by orderNo if API supports
-//           const related = response?.data.filter((c: ExtendedConsignment) => c.orderNo === initialData.orderNo) || [];
-//           setFilteredConsignments(related);
-//         } catch (error) {
-//           toast('Failed to fetch consignments', { type: 'error' });
-//         }
-//       };
-//       fetchConsignments();
-//     }
-//   }, [isEdit, initialData]);
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto">
+        {isLoading && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">Loading booking order data...</span>
+              </div>
+            </div>
+          </div>
+        )}
 
-//   const onSubmit = async (data: FormData) => {
-//     try {
-//       const payload = {
-//         ...(isEdit && initialData?.id ? { id: initialData.id } : {}),
-//         orderNo: data.OrderNo,
-//         orderDate: data.OrderDate,
-//         company: companies.find((c) => c.id === data.Company)?.name || '',
-//         branch: branches.find((b) => b.id === data.Branch)?.name || '',
-//         totalBookValue: data.TotalBookValue,
-//         transporter: transporters.find((t) => t.id === data.Transporter)?.name || '',
-//         vendor: vendors.find((v) => v.id === data.Vendor)?.name || '',
-//         totalAmountReceived: data.TotalAmountReceived,
-//         vehicleNo: data.VehicleNo,
-//         vehicleType: vehicleTypes.find((vt) => vt.id === data.VehicleType)?.name || '',
-//         totalCharges: data.TotalCharges,
-//         driverName: data.DriverName,
-//         contactNo: data.ContactNo,
-//         munshayana: data.Munshayana,
-//         cargoWeight: data.CargoWeight,
-//         bookedDays: data.BookedDays,
-//         detentionDays: data.DetentionDays,
-//         netProfitLoss: data.NetProfitLoss,
-//         fromLocation: locations.find((l) => l.id === data.FromLocation)?.name || '',
-//         departureDate: data.DepartureDate,
-//         via1: data.Via1,
-//         via2: data.Via2,
-//         toLocation: locations.find((l) => l.id === data.ToLocation)?.name || '',
-//         expectedReachedDate: data.ExpectedReachedDate,
-//         reachedDate: data.ReachedDate,
-//         vehicleMunshyana: data.VehicleMunshyana,
-//         remarks: data.Remarks,
-//         contractOwner: contractOwners.find((o) => o.id === data.ContractOwner)?.name || '',
-//         // relatedConsignments not submitted, as they are linked separately
-//       };
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-lg">
+                  <MdLocalShipping className="text-2xl" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold">
+                    {isEdit ? 'Edit Booking Order' : 'Add New Booking Order'}
+                  </h1>
+                  <p className="text-white/90 mt-1 text-sm">
+                    {isEdit ? 'Update booking order information' : 'Create a new booking order record'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-3">
+                <Link href="/bookingorders">
+                  <Button
+                    type="button"
+                    className="bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 border border-white/20 backdrop-blur-sm px-4 py-2 shadow-lg hover:shadow-xl"
+                  >
+                    <FiX className="mr-2" /> Cancel
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
 
-//       if (isEdit) {
-//         await updateBookingOrder(payload);
-//         toast('Booking Order Updated Successfully', { type: 'success' });
-//       } else {
-//         await createBookingOrder(payload);
-//         toast('Booking Order Created Successfully', { type: 'success' });
-//       }
+          <div className="flex border-b border-gray-200 dark:border-gray-700 px-8 bg-gray-50 dark:bg-gray-850">
+            <button
+              className={`py-4 px-6 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === 'basic'
+                  ? 'border-[#3a614c] text-[#3a614c] dark:text-[#3a614c] font-semibold'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+              onClick={() => setActiveTab('basic')}
+            >
+              <FiUser className={activeTab === 'basic' ? 'text-[#3a614c]' : 'text-gray-400'} />
+              Basic Information
+            </button>
+            <button
+              className={`py-4 px-6 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === 'additional'
+                  ? 'border-[#3a614c] text-[#3a614c] dark:text-[#3a614c] font-semibold'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+              onClick={() => setActiveTab('additional')}
+            >
+              <HiDocumentText className={activeTab === 'additional' ? 'text-[#3a614c]' : 'text-gray-400'} />
+              Additional Details
+            </button>
+          </div>
 
-//       reset();
-//       router.push('/bookingorder');
-//     } catch (error) {
-//       toast(`Error ${isEdit ? 'updating' : 'creating'} booking order`, { type: 'error' });
-//     }
-//   };
+          <form onSubmit={handleSubmit(onSubmit)} className="p-8">
+            {activeTab === 'basic' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 mb-5">
+                    <FaIdCard className="text-[#3a614c] text-xl" />
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                      Order Details
+                    </h3>
+                  </div>
+                  <div className="space-y-5">
+                    <ABLCustomInput
+                      label="Order No"
+                      type="text"
+                      placeholder="Auto"
+                      register={register}
+                      error={errors.orderNo?.message}
+                      id="orderNo"
+                      disabled
+                    />
+                    <ABLCustomInput
+                      label="Order Date"
+                      type="date"
+                      placeholder="Enter order date"
+                      register={register}
+                      error={errors.orderDate?.message}
+                      id="orderDate"
+                    />
+                    <Controller
+                      name="transporter"
+                      control={control}
+                      render={({ field }) => (
+                        <AblCustomDropdown
+                          label="Transporter"
+                          options={transporters}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('transporter', value)}
+                          error={errors.transporter?.message}
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="vendor"
+                      control={control}
+                      render={({ field }) => (
+                        <AblCustomDropdown
+                          label="Vendor"
+                          options={vendors}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('vendor', value)}
+                          error={errors.vendor?.message}
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 mb-5">
+                    <MdLocalShipping className="text-[#3a614c] text-xl" />
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                      Vehicle Details
+                    </h3>
+                  </div>
+                  <div className="space-y-5">
+                    <ABLCustomInput
+                      label="Vehicle No"
+                      type="text"
+                      placeholder="Enter vehicle no"
+                      register={register}
+                      error={errors.vehicleNo?.message}
+                      id="vehicleNo"
+                    />
+                    <ABLCustomInput
+                      label="Container No"
+                      type="text"
+                      placeholder="Enter container no"
+                      register={register}
+                      error={errors.containerNo?.message}
+                      id="containerNo"
+                    />
+                    <Controller
+                      name="vehicleType"
+                      control={control}
+                      render={({ field }) => (
+                        <AblCustomDropdown
+                          label="Vehicle Type"
+                          options={vehicleTypes}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('vehicleType', value)}
+                          error={errors.vehicleType?.message}
+                        />
+                      )}
+                    />
+                    <ABLCustomInput
+                      label="Driver Name"
+                      type="text"
+                      placeholder="Enter driver name"
+                      register={register}
+                      error={errors.driverName?.message}
+                      id="driverName"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 mb-5">
+                    <MdPhone className="text-[#3a614c] text-xl" />
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                      Contact & Cargo
+                    </h3>
+                  </div>
+                  <div className="space-y-5">
+                    <ABLCustomInput
+                      label="Contact No"
+                      type="tel"
+                      placeholder="Enter contact no"
+                      register={register}
+                      error={errors.contactNo?.message}
+                      id="contactNo"
+                    />
+                    <Controller
+                      name="munshayana"
+                      control={control}
+                      render={({ field }) => (
+                        <AblCustomDropdown
+                          label="Munshayana"
+                          options={munshayanas}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('munshayana', value)}
+                          error={errors.munshayana?.message}
+                        />
+                      )}
+                    />
+                    <ABLCustomInput
+                      label="Cargo Weight"
+                      type="text"
+                      placeholder="Enter cargo weight"
+                      register={register}
+                      error={errors.cargoWeight?.message}
+                      id="cargoWeight"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'additional' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 mb-5">
+                    <MdLocationOn className="text-[#3a614c] text-xl" />
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                      Location Details
+                    </h3>
+                  </div>
+                  <div className="space-y-5">
+                    <Controller
+                      name="fromLocation"
+                      control={control}
+                      render={({ field }) => (
+                        <AblCustomDropdown
+                          label="From Location"
+                          options={locations}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('fromLocation', value)}
+                          error={errors.fromLocation?.message}
+                        />
+                      )}
+                    />
+                    <ABLCustomInput
+                      label="Departure Date"
+                      type="date"
+                      placeholder="Enter departure date"
+                      register={register}
+                      error={errors.departureDate?.message}
+                      id="departureDate"
+                    />
+                    <Controller
+                      name="via1"
+                      control={control}
+                      render={({ field }) => (
+                        <AblCustomDropdown
+                          label="Via 1"
+                          options={locations}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('via1', value)}
+                          error={errors.via1?.message}
+                        />
+                      )}
+                    />
+                  </div>
+                </div>
+                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 mb-5">
+                    <MdLocationOn className="text-[#3a614c] text-xl" />
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                      Route Details
+                    </h3>
+                  </div>
+                  <div className="space-y-5">
+                    <Controller
+                      name="via2"
+                      control={control}
+                      render={({ field }) => (
+                        <AblCustomDropdown
+                          label="Via 2"
+                          options={locations}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('via2', value)}
+                          error={errors.via2?.message}
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="toLocation"
+                      control={control}
+                      render={({ field }) => (
+                        <AblCustomDropdown
+                          label="To Location"
+                          options={locations}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('toLocation', value)}
+                          error={errors.toLocation?.message}
+                        />
+                      )}
+                    />
+                    <ABLCustomInput
+                      label="Expected Reached Date"
+                      type="date"
+                      placeholder="Enter expected reached date"
+                      register={register}
+                      error={errors.expectedReachedDate?.message}
+                      id="expectedReachedDate"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 mb-5">
+                    <FaRegBuilding className="text-[#3a614c] text-xl" />
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                      Other Details
+                    </h3>
+                  </div>
+                  <div className="space-y-5">
+                    <ABLCustomInput
+                      label="Reached Date"
+                      type="date"
+                      placeholder="Enter reached date"
+                      register={register}
+                      error={errors.reachedDate?.message}
+                      id="reachedDate"
+                    />
+                    <ABLCustomInput
+                      label="Vehicle Munshyana"
+                      type="text"
+                      placeholder="Enter vehicle munshyana"
+                      register={register}
+                      error={errors.vehicleMunshyana?.message}
+                      id="vehicleMunshyana"
+                    />
+                    <ABLCustomInput
+                      label="Remarks"
+                      type="text"
+                      placeholder="Enter remarks"
+                      register={register}
+                      error={errors.remarks?.message}
+                      id="remarks"
+                    />
+                    <ABLCustomInput
+                      label="Contract Owner"
+                      type="text"
+                      placeholder="Enter contract owner"
+                      register={register}
+                      error={errors.contractOwner?.message}
+                      id="contractOwner"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
-//   return (
-//     <div className="container mx-auto bg-white shadow-lg rounded dark:bg-[#030630] p-4 md:p-6">
-//       <div className="w-full bg-[#06b6d4] h-16 md:h-[7vh] rounded dark:bg-[#387fbf] flex items-center">
-//         <h1 className="text-lg md:text-[23px] font-mono ml-4 md:ml-10 text-white flex items-center gap-2">
-//           <MdOutlineAssignment />
-//           {isEdit ? 'UPDATE BOOKING ORDER' : 'ADD BOOKING ORDER'}
-//         </h1>
-//       </div>
+            <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700 mt-8">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
+              >
+                <div className="flex items-center gap-2">
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiSave className="text-lg" />
+                      <span>{isEdit ? 'Update Booking Order' : 'Create Booking Order'}</span>
+                    </>
+                  )}
+                </div>
+              </Button>
+            </div>
+          </form>
+        </div>
 
-//       <form onSubmit={handleSubmit(onSubmit)}>
-//         <div className="p-2 md:p-4">
-//           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-//             <div className="relative group" onMouseEnter={() => setOrderFocused(true)} onMouseLeave={() => setOrderFocused(false)}>
-//               <CustomInput
-//                 type="text"
-//                 variant="floating"
-//                 borderThickness="2"
-//                 label="Order No"
-//                 id="OrderNo"
-//                 {...register('OrderNo')}
-//                 disabled
-//                 error={errors.OrderNo?.message}
-//                 className="w-full"
-//               />
-//               {orderFocused && (
-//                 <>
-//                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-//                     <BiSolidErrorAlt className="text-red-500 text-xl cursor-pointer" />
-//                   </div>
-//                   <div className="absolute bottom-full right-0 h-8 w-max text-large text-black bg-[#d5e4ff] rounded px-3 py-1 shadow-lg z-10 animate-fade-in">
-//                     Order No is provided by the system
-//                   </div>
-//                 </>
-//               )}
-//             </div>
-//             <CustomSingleDatePicker
-//               label="Order Date"
-//               selectedDate={watch('OrderDate') || ''}
-//               onChange={(date: string) => setValue('OrderDate', date, { shouldValidate: true })}
-//               error={errors.OrderDate?.message}
-//               register={register}
-//               name="OrderDate"
-//               variant="floating"
-//               borderThickness="2"
-//             />
-//             <CustomInputDropdown
-//               label="Company"
-//               options={companies}
-//               selectedOption={watch('Company') || ''}
-//               onChange={(value) => setValue('Company', value, { shouldValidate: true })}
-//               error={errors.Company?.message}
-//               register={register}
-//             />
-//             <CustomInputDropdown
-//               label="Branch"
-//               options={branches}
-//               selectedOption={watch('Branch') || ''}
-//               onChange={(value) => setValue('Branch', value, { shouldValidate: true })}
-//               error={errors.Branch?.message}
-//               register={register}
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Total Book Value"
-//               id="TotalBookValue"
-//               {...register('TotalBookValue')}
-//               error={errors.TotalBookValue?.message}
-//               className="w-full"
-//             />
-//             <CustomInputDropdown
-//               label="Transporter"
-//               options={transporters}
-//               selectedOption={watch('Transporter') || ''}
-//               onChange={(value) => setValue('Transporter', value, { shouldValidate: true })}
-//               error={errors.Transporter?.message}
-//               register={register}
-//             />
-//             <CustomInputDropdown
-//               label="Vendor"
-//               options={vendors}
-//               selectedOption={watch('Vendor') || ''}
-//               onChange={(value) => setValue('Vendor', value, { shouldValidate: true })}
-//               error={errors.Vendor?.message}
-//               register={register}
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Total Amount Received"
-//               id="TotalAmountReceived"
-//               {...register('TotalAmountReceived')}
-//               error={errors.TotalAmountReceived?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Vehicle No"
-//               id="VehicleNo"
-//               {...register('VehicleNo')}
-//               error={errors.VehicleNo?.message}
-//               className="w-full"
-//             />
-//             <CustomInputDropdown
-//               label="Vehicle Type"
-//               options={vehicleTypes}
-//               selectedOption={watch('VehicleType') || ''}
-//               onChange={(value) => setValue('VehicleType', value, { shouldValidate: true })}
-//               error={errors.VehicleType?.message}
-//               register={register}
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Total Charges"
-//               id="TotalCharges"
-//               {...register('TotalCharges')}
-//               error={errors.TotalCharges?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Driver Name"
-//               id="DriverName"
-//               {...register('DriverName')}
-//               error={errors.DriverName?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Contact No"
-//               id="ContactNo"
-//               {...register('ContactNo')}
-//               error={errors.ContactNo?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Munshayana"
-//               id="Munshayana"
-//               {...register('Munshayana')}
-//               error={errors.Munshayana?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Cargo Weight"
-//               id="CargoWeight"
-//               {...register('CargoWeight')}
-//               error={errors.CargoWeight?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Booked Days"
-//               id="BookedDays"
-//               {...register('BookedDays')}
-//               error={errors.BookedDays?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Detention Days"
-//               id="DetentionDays"
-//               {...register('DetentionDays')}
-//               error={errors.DetentionDays?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Net Profit / Loss"
-//               id="NetProfitLoss"
-//               {...register('NetProfitLoss')}
-//               error={errors.NetProfitLoss?.message}
-//               className="w-full"
-//             />
-//             <CustomInputDropdown
-//               label="From Location"
-//               options={locations}
-//               selectedOption={watch('FromLocation') || ''}
-//               onChange={(value) => setValue('FromLocation', value, { shouldValidate: true })}
-//               error={errors.FromLocation?.message}
-//               register={register}
-//             />
-//             <CustomSingleDatePicker
-//               label="Departure Date"
-//               selectedDate={watch('DepartureDate') || ''}
-//               onChange={(date: string) => setValue('DepartureDate', date, { shouldValidate: true })}
-//               error={errors.DepartureDate?.message}
-//               register={register}
-//               name="DepartureDate"
-//               variant="floating"
-//               borderThickness="2"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Via1"
-//               id="Via1"
-//               {...register('Via1')}
-//               error={errors.Via1?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Via2"
-//               id="Via2"
-//               {...register('Via2')}
-//               error={errors.Via2?.message}
-//               className="w-full"
-//             />
-//             <CustomInputDropdown
-//               label="To Location"
-//               options={locations}
-//               selectedOption={watch('ToLocation') || ''}
-//               onChange={(value) => setValue('ToLocation', value, { shouldValidate: true })}
-//               error={errors.ToLocation?.message}
-//               register={register}
-//             />
-//             <CustomSingleDatePicker
-//               label="Expected Reached Date"
-//               selectedDate={watch('ExpectedReachedDate') || ''}
-//               onChange={(date: string) => setValue('ExpectedReachedDate', date, { shouldValidate: true })}
-//               error={errors.ExpectedReachedDate?.message}
-//               register={register}
-//               name="ExpectedReachedDate"
-//               variant="floating"
-//               borderThickness="2"
-//             />
-//             <CustomSingleDatePicker
-//               label="Reached Date"
-//               selectedDate={watch('ReachedDate') || ''}
-//               onChange={(date: string) => setValue('ReachedDate', date, { shouldValidate: true })}
-//               error={errors.ReachedDate?.message}
-//               register={register}
-//               name="ReachedDate"
-//               variant="floating"
-//               borderThickness="2"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Vehicle Munshyana"
-//               id="VehicleMunshyana"
-//               {...register('VehicleMunshyana')}
-//               error={errors.VehicleMunshyana?.message}
-//               className="w-full"
-//             />
-//             <CustomInputDropdown
-//               label="Contract Owner"
-//               options={contractOwners}
-//               selectedOption={watch('ContractOwner') || ''}
-//               onChange={(value) => setValue('ContractOwner', value, { shouldValidate: true })}
-//               error={errors.ContractOwner?.message}
-//               register={register}
-//             />
-//             <div className="col-span-1 md:col-span-3">
-//               <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Remarks</h2>
-//               <textarea
-//                 className="w-full p-2 border-[#06b6d4] border rounded text-sm md:text-base"
-//                 rows={4}
-//                 {...register('Remarks')}
-//                 placeholder="Enter any remarks"
-//               />
-//               {errors.Remarks && <p className="text-red-500 text-sm">{errors.Remarks.message}</p>}
-//             </div>
-//           </div>
-//         </div>
+        {/* Consignment Table */}
+        <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
+          <h2 className="text-lg font-semibold mb-4">Consignments</h2>
+          <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+              <tr>
+                <th className="px-6 py-3">Bilty No</th>
+                <th className="px-6 py-3">Receipt No</th>
+                <th className="px-6 py-3">Consignor</th>
+                <th className="px-6 py-3">Consignee</th>
+                <th className="px-6 py-3">Item</th>
+                <th className="px-6 py-3">Qty</th>
+                <th className="px-6 py-3">Total Amount</th>
+                <th className="px-6 py-3">Recv. Amount</th>
+                <th className="px-6 py-3">Del Date</th>
+                <th className="px-6 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {consignments.map((cons, index) => (
+                <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                  <td className="px-6 py-4">{cons.biltyNo}</td>
+                  <td className="px-6 py-4">{cons.receiptNo}</td>
+                  <td className="px-6 py-4">{cons.consignor}</td>
+                  <td className="px-6 py-4">{cons.consignee}</td>
+                  <td className="px-6 py-4">{cons.item}</td>
+                  <td className="px-6 py-4">{cons.qty}</td>
+                  <td className="px-6 py-4">{cons.totalAmount}</td>
+                  <td className="px-6 py-4">{cons.recvAmount}</td>
+                  <td className="px-6 py-4">{cons.delDate}</td>
+                  <td className="px-6 py-4">
+                    <AblCustomDropdown
+                      label="Status"
+                      options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map(s => ({ id: s, name: s }))}
+                      selectedOption={cons.status}
+                      onChange={(value) => updateStatus(index, value)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="flex justify-end gap-4 mt-4">
+            <Button onClick={() => router.push(`/consignment/create?fromBooking=true`)}>Add Consignment</Button>
+            <Button onClick={() => router.push(`/charges/create?fromBooking=true`)}>Add Charges</Button>
+          </div>
+        </div>
 
-//         <div className="p-2 md:p-4">
-//           <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Related Consignments</h2>
-//           <div className="mt-2">
-//             <Link href={`/consignment/create?orderNo=${initialData?.orderNo || searchParams.get('orderNo')}`}>
-//               <Button className="mb-4 bg-[#06b6d4] hover:bg-[#0891b2] text-white">Add Consignment</Button>
-//             </Link>
-//             {loading ? (
-//               <p className="text-gray-500 text-sm md:text-base">Loading...</p>
-//             ) : filteredConsignments.length > 0 ? (
-//               <table className="w-full text-left border-collapse text-sm md:text-base">
-//                 <thead>
-//                   <tr className="bg-[#06b6d4] text-white">
-//                     <th className="p-2 md:p-3 font-medium">Bilty No</th>
-//                     <th className="p-2 md:p-3 font-medium">Receipt No</th>
-//                     <th className="p-2 md:p-3 font-medium">Consignor</th>
-//                     <th className="p-2 md:p-3 font-medium">Consignee</th>
-//                     <th className="p-2 md:p-3 font-medium">Item</th>
-//                     <th className="p-2 md:p-3 font-medium">Qty</th>
-//                     <th className="p-2 md:p-3 font-medium">Total Amount</th>
-//                     <th className="p-2 md:p-3 font-medium">Recv. Amount</th>
-//                     <th className="p-2 md:p-3 font-medium">Del. Date</th>
-//                     <th className="p-2 md:p-3 font-medium">Status</th>
-//                   </tr>
-//                 </thead>
-//                 <tbody>
-//                   {filteredConsignments.map((consignment) => (
-//                     <tr key={consignment.id} className="border-b hover:bg-gray-100">
-//                       <td className="p-2 md:p-3">{consignment.biltyNo || '-'}</td>
-//                       <td className="p-2 md:p-3">{consignment.receiptNo || '-'}</td>
-//                       <td className="p-2 md:p-3">{consignment.consignor || '-'}</td>
-//                       <td className="p-2 md:p-3">{consignment.consignee || '-'}</td>
-//                       <td className="p-2 md:p-3">{consignment.item || '-'}</td>
-//                       <td className="p-2 md:p-3">{consignment.qty || '-'}</td>
-//                       <td className="p-2 md:p-3">{consignment.totalAmount || '-'}</td>
-//                       <td className="p-2 md:p-3">{consignment.receivedAmount || '-'}</td>
-//                       <td className="p-2 md:p-3">{consignment.deliveryDate || '-'}</td>
-//                       <td className="p-2 md:p-3">{consignment.status || '-'}</td>
-//                     </tr>
-//                   ))}
-//                 </tbody>
-//               </table>
-//             ) : (
-//               <p className="text-gray-500 text-sm md:text-base">No consignments found.</p>
-//             )}
-//           </div>
-//         </div>
+        <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+              <MdInfo className="text-[#3a614c]" />
+              <span className="text-sm">Fill in all required fields marked with an asterisk (*)</span>
+            </div>
+            <Link href="/bookingorders" className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors">
+              Back to Booking Orders List
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-//         <div className="p-2 md:p-4">
-//           <Link href={`/charges/create?orderNo=${initialData?.orderNo || searchParams.get('orderNo')}`}>
-//             <Button className="bg-[#06b6d4] hover:bg-[#0891b2] text-white">Add Charges</Button>
-//           </Link>
-//         </div>
-
-//         <div className="w-full h-16 md:h-[8vh] flex flex-col md:flex-row justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7] p-2 md:p-4">
-//           <Button type="submit" className="w-full md:w-[160px] bg-[#0e7d90] hover:bg-[#0891b2] text-white">Save</Button>
-//           <Link href="/bookingorder">
-//             <Button type="button" className="w-full md:w-[160px] bg-black hover:bg-[#b0b0b0] text-white">Cancel</Button>
-//           </Link>
-//         </div>
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default BookingOrder;
+export default BookingOrderForm;

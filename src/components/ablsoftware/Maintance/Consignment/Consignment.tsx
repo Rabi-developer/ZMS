@@ -1,644 +1,923 @@
-// 'use client';
-// import React, { useState, useEffect } from 'react';
-// import { useRouter, useSearchParams } from 'next/navigation';
-// import { useForm } from 'react-hook-form';
-// import { z } from 'zod';
-// import { zodResolver } from '@hookform/resolvers/zod';
-// import { toast } from 'react-toastify';
-// import CustomInput from '@/components/ui/CustomInput';
-// import CustomInputDropdown from '@/components/ui/CustomeInputDropdown';
-// import CustomSingleDatePicker from '@/components/ui/CustomDateRangePicker';
-// import { MdOutlineAssignment } from 'react-icons/md';
-// import { BiSolidErrorAlt } from 'react-icons/bi';
-// import Link from 'next/link';
-// import { Button } from '@/components/ui/button';
-// // Assume these APIs exist
-// import { getAllBookingOrders } from '@/apis/bookingOrder';
-// import { getAllConsignors } from '@/apis/consignor';
-// import { getAllConsignees } from '@/apis/consignee';
-// import { getAllShippingLines } from '@/apis/shippingLine';
-// import { getAllPorts } from '@/apis/port';
-// import { getAllDestinations } from '@/apis/destination';
-// import { createConsignment, updateConsignment } from '@/apis/consignment';
+'use client';
+import React, { useState, useEffect } from 'react';
+import { useForm, Controller, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import ABLCustomInput from '@/components/ui/ABLCustomInput';
+import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
+import { createConsignment, updateConsignment } from '@/apis/consignment'; // Assume APIs
+import { getAllPartys } from '@/apis/party'; // Assuming this is correct
+import { getAllBookingOrder } from '@/apis/bookingorder'; // Assume
+import { toast } from 'react-toastify';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { MdLocalShipping, MdInfo, MdPhone } from 'react-icons/md';
+import { FaIdCard, FaMoneyBillWave } from 'react-icons/fa';
+import { HiDocumentText } from 'react-icons/hi';
+import Link from 'next/link';
+import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
-// // Schema for form validation
-// const ConsignmentSchema = z.object({
-//   ReceiptNo: z.string().optional(),
-//   OrderNo: z.string().min(1, 'Order No is required'),
-//   BiltyNo: z.string().min(1, 'Bilty No is required'),
-//   Date: z.string().min(1, 'Date is required'),
-//   ConsignmentNo: z.string().min(1, 'Consignment No is required'),
-//   Consignor: z.string().min(1, 'Consignor is required'),
-//   ConsignmentDate: z.string().min(1, 'Consignment Date is required'),
-//   Consignee: z.string().min(1, 'Consignee is required'),
-//   ReceiverName: z.string().min(1, 'Receiver Name is required'),
-//   ReceiverContactNo: z.string().min(1, 'Receiver Contact No is required'),
-//   ShippingLine: z.string().optional(),
-//   ContainerNo: z.string().optional(),
-//   Port: z.string().optional(),
-//   Destination: z.string().min(1, 'Destination is required'),
-//   Items: z.string().min(1, 'Items is required'),
-//   ItemDesc: z.string().optional(),
-//   Qty: z.string().min(1, 'Qty is required'),
-//   Weight: z.string().min(1, 'Weight is required'),
-//   TotalQty: z.string().min(1, 'Total Qty is required'),
-//   Freight: z.string().min(1, 'Freight is required'),
-//   SRBTax: z.string().optional(),
-//   SRBAmount: z.string().optional(),
-//   DeliveryCharges: z.string().optional(),
-//   InsuranceCharges: z.string().optional(),
-//   TollTax: z.string().optional(),
-//   OtherCharges: z.string().optional(),
-//   TotalAmount: z.string().min(1, 'Total Amount is required'),
-//   ReceivedAmount: z.string().optional(),
-//   IncomeTaxDed: z.string().optional(),
-//   IncomeTaxAmount: z.string().optional(),
-//   DeliveryDate: z.string().optional(),
-//   FreightFrom: z.string().optional(),
-//   Remarks: z.string().optional(),
-// });
+// Interfaces
+interface DropdownOption {
+  id: string;
+  name: string;
+}
 
-// type FormData = z.infer<typeof ConsignmentSchema>;
+interface BookingOrder {
+  id: string;
+  // Add other fields if needed
+}
 
-// interface ConsignmentData {
-//   id?: string;
-//   receiptNo?: string;
-//   orderNo?: string;
-//   biltyNo?: string;
-//   date?: string;
-//   consignmentNo?: string;
-//   consignor?: string;
-//   consignmentDate?: string;
-//   consignee?: string;
-//   receiverName?: string;
-//   receiverContactNo?: string;
-//   shippingLine?: string;
-//   containerNo?: string;
-//   port?: string;
-//   destination?: string;
-//   items?: string;
-//   itemDesc?: string;
-//   qty?: string;
-//   weight?: string;
-//   totalQty?: string;
-//   freight?: string;
-//   srbTax?: string;
-//   srbAmount?: string;
-//   deliveryCharges?: string;
-//   insuranceCharges?: string;
-//   tollTax?: string;
-//   otherCharges?: string;
-//   totalAmount?: string;
-//   receivedAmount?: string;
-//   incomeTaxDed?: string;
-//   incomeTaxAmount?: string;
-//   deliveryDate?: string;
-//   freightFrom?: string;
-//   remarks?: string;
-// }
+interface Item {
+  desc: string;
+  qty: number;
+  qtyUnit: string;
+  weight: number;
+  weightUnit: string;
+}
 
-// interface ConsignmentProps {
-//   isEdit?: boolean;
-//   initialData?: ConsignmentData;
-// }
+// Define the schema for consignment form validation
+const consignmentSchema = z.object({
+  consignmentMode: z.string().optional(),
+  receiptNo: z.string().optional(),
+  orderNo: z.string().optional(),
+  biltyNo: z.string().optional(),
+  date: z.string().optional(),
+  consignmentNo: z.string().optional(),
+  consignor: z.string().optional(),
+  consignmentDate: z.string().optional(),
+  consignee: z.string().optional(),
+  receiverName: z.string().optional(),
+  receiverContactNo: z.string().optional(),
+  shippingLine: z.string().optional(),
+  containerNo: z.string().optional(),
+  port: z.string().optional(),
+  destination: z.string().optional(),
+  freightFrom: z.string().optional(),
+  items: z.array(z.object({
+    desc: z.string().optional(),
+    qty: z.number().optional(),
+    qtyUnit: z.string().optional(),
+    weight: z.number().optional(),
+    weightUnit: z.string().optional(),
+  })),
+  totalQty: z.number().optional(),
+  freight: z.number().optional(),
+  sbrTax: z.string().optional(),
+  sprAmount: z.number().optional(),
+  deliveryCharges: z.number().optional(),
+  insuranceCharges: z.number().optional(),
+  tollTax: z.number().optional(),
+  otherCharges: z.number().optional(),
+  totalAmount: z.number().optional(),
+  receivedAmount: z.number().optional(),
+  incomeTaxDed: z.number().optional(),
+  incomeTaxAmount: z.number().optional(),
+  deliveryDate: z.string().optional(),
+  remarks: z.string().optional(),
+});
 
-// const Consignment = ({ isEdit = false, initialData }: ConsignmentProps) => {
-//   const router = useRouter();
-//   const searchParams = useSearchParams();
-//   const [bookingOrders, setBookingOrders] = useState<{ id: string; name: string }[]>([]);
-//   const [consignors, setConsignors] = useState<{ id: string; name: string }[]>([]);
-//   const [consignees, setConsignees] = useState<{ id: string; name: string }[]>([]);
-//   const [shippingLines, setShippingLines] = useState<{ id: string; name: string }[]>([]);
-//   const [ports, setPorts] = useState<{ id: string; name: string }[]>([]);
-//   const [destinations, setDestinations] = useState<{ id: string; name: string }[]>([]);
-//   const [loading, setLoading] = useState(false);
-//   const [receiptFocused, setReceiptFocused] = useState(false);
+type ConsignmentFormData = z.infer<typeof consignmentSchema>;
 
-//   const {
-//     register,
-//     handleSubmit,
-//     formState: { errors },
-//     reset,
-//     setValue,
-//     watch,
-//   } = useForm<FormData>({
-//     resolver: zodResolver(ConsignmentSchema),
-//     defaultValues: {
-//       ReceiptNo: isEdit && initialData?.receiptNo ? initialData.receiptNo : '',
-//       OrderNo: searchParams.get('orderNo') || '',
-//       BiltyNo: '',
-//       Date: new Date().toISOString().split('T')[0],
-//       ConsignmentNo: '',
-//       Consignor: '',
-//       ConsignmentDate: new Date().toISOString().split('T')[0],
-//       Consignee: '',
-//       ReceiverName: '',
-//       ReceiverContactNo: '',
-//       ShippingLine: '',
-//       ContainerNo: '',
-//       Port: '',
-//       Destination: '',
-//       Items: '',
-//       ItemDesc: '',
-//       Qty: '',
-//       Weight: '',
-//       TotalQty: '',
-//       Freight: '',
-//       SRBTax: '',
-//       SRBAmount: '',
-//       DeliveryCharges: '',
-//       InsuranceCharges: '',
-//       TollTax: '',
-//       OtherCharges: '',
-//       TotalAmount: '',
-//       ReceivedAmount: '',
-//       IncomeTaxDed: '',
-//       IncomeTaxAmount: '',
-//       DeliveryDate: '',
-//       FreightFrom: '',
-//       Remarks: '',
-//     },
-//   });
+const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromBooking = searchParams.get('fromBooking') === 'true';
+  const {
+    control,
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+  } = useForm<ConsignmentFormData>({
+    resolver: zodResolver(consignmentSchema),
+    defaultValues: {
+      consignmentMode: '',
+      receiptNo: '',
+      orderNo: '',
+      biltyNo: '',
+      date: '',
+      consignmentNo: '',
+      consignor: '',
+      consignmentDate: '',
+      consignee: '',
+      receiverName: '',
+      receiverContactNo: '',
+      shippingLine: '',
+      containerNo: '',
+      port: '',
+      destination: '',
+      freightFrom: '',
+      items: Array(3).fill({ desc: '', qty: 0, qtyUnit: '', weight: 0, weightUnit: '' }),
+      totalQty: 0,
+      freight: 0,
+      sbrTax: '',
+      sprAmount: 0,
+      deliveryCharges: 0,
+      insuranceCharges: 0,
+      tollTax: 0,
+      otherCharges: 0,
+      totalAmount: 0,
+      receivedAmount: 0,
+      incomeTaxDed: 0,
+      incomeTaxAmount: 0,
+      deliveryDate: '',
+      remarks: '',
+    },
+  });
 
-//   // Fetch data
-//   useEffect(() => {
-//     const fetchData = async () => {
-//       setLoading(true);
-//       try {
-//         const [ordersRes, consignorsRes, consigneesRes, linesRes, portsRes, destRes] = await Promise.all([
-//           getAllBookingOrders(),
-//           getAllConsignors(),
-//           getAllConsignees(),
-//           getAllShippingLines(),
-//           getAllPorts(),
-//           getAllDestinations(),
-//         ]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
+  const [parties, setParties] = useState<DropdownOption[]>([]);
+  const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
+  const [showOrderPopup, setShowOrderPopup] = useState(false);
+  const shippingLines: DropdownOption[] = [{ id: 'MRSK', name: 'MRSK' }]; // Dummy
+  const freightFromOptions: DropdownOption[] = [{ id: 'Consignor', name: 'Consignor' }, { id: 'Consignee', name: 'Consignee' }];
+  const units: DropdownOption[] = ['Meter', 'Yard', 'Bags', 'KG', 'Cartin'].map(u => ({ id: u, name: u }));
+  const sbrTaxes: DropdownOption[] = ['SRB 15%', 'WHT 20% ON SRB', 'SRB 0%'].map(t => ({ id: t, name: t }));
+  const consignmentModes: DropdownOption[] = [{ id: 'Emry Moda', name: 'Emry Moda' }]; // Assuming dummy
+  const items = watch('items');
+  const freight = watch('freight');
+  const sbrTax = watch('sbrTax');
+  const deliveryCharges = watch('deliveryCharges');
+  const insuranceCharges = watch('insuranceCharges');
+  const tollTax = watch('tollTax');
+  const otherCharges = watch('otherCharges');
 
-//         setBookingOrders(ordersRes?.data?.map((item: any) => ({ id: String(item.id), name: item.orderNo })) || []);
-//         setConsignors(consignorsRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setConsignees(consigneesRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setShippingLines(linesRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setPorts(portsRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//         setDestinations(destRes?.data?.map((item: any) => ({ id: String(item.id), name: item.name })) || []);
-//       } catch (error) {
-//         toast('Failed to fetch data', { type: 'error' });
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [partRes, bookRes] = await Promise.all([
+          getAllPartys(),
+          getAllBookingOrder(),
+        ]);
+        setParties(partRes.data.map((p: any) => ({ id: p.id, name: p.name })));
+        setBookingOrders(bookRes.data);
+      } catch (error) {
+        toast.error('Failed to load data');
+      }
+    };
+    fetchData();
 
-//     fetchData();
-//   }, []);
+    if (isEdit) {
+      const fetchConsignment = async () => {
+        setIsLoading(true);
+        const id = window.location.pathname.split('/').pop();
+        if (id) {
+          try {
+            // Assume getConsignmentById API exists
+            // const response = await getConsignmentById(id);
+            // const consignment = response.data;
+            // Object.keys(consignment).forEach((key) => setValue(key as keyof ConsignmentFormData, consignment[key]));
+          } catch (error) {
+            toast.error('Failed to load consignment data');
+          } finally {
+            setIsLoading(false);
+          }
+        }
+      };
+      fetchConsignment();
+    } else {
+      // Generate auto receipt number for new consignment
+      const generateReceiptNo = () => {
+        const prefix = 'REC';
+        const timestamp = Date.now().toString().slice(-6);
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `${prefix}${timestamp}${random}`;
+      };
+      
+      const autoReceiptNo = generateReceiptNo();
+      setValue('receiptNo', autoReceiptNo);
+    }
+  }, [isEdit, setValue]);
 
-//   // Initialize form with initialData when editing
-//   useEffect(() => {
-//     if (isEdit && initialData) {
-//       setValue('ReceiptNo', initialData.receiptNo || '');
-//       setValue('OrderNo', initialData.orderNo || '');
-//       setValue('BiltyNo', initialData.biltyNo || '');
-//       setValue('Date', initialData.date?.split('T')[0] || new Date().toISOString().split('T')[0]);
-//       setValue('ConsignmentNo', initialData.consignmentNo || '');
-//       setValue('Consignor', consignors.find((c) => c.name === initialData.consignor)?.id || '');
-//       setValue('ConsignmentDate', initialData.consignmentDate?.split('T')[0] || new Date().toISOString().split('T')[0]);
-//       setValue('Consignee', consignees.find((c) => c.name === initialData.consignee)?.id || '');
-//       setValue('ReceiverName', initialData.receiverName || '');
-//       setValue('ReceiverContactNo', initialData.receiverContactNo || '');
-//       setValue('ShippingLine', shippingLines.find((sl) => sl.name === initialData.shippingLine)?.id || '');
-//       setValue('ContainerNo', initialData.containerNo || '');
-//       setValue('Port', ports.find((p) => p.name === initialData.port)?.id || '');
-//       setValue('Destination', destinations.find((d) => d.name === initialData.destination)?.id || '');
-//       setValue('Items', initialData.items || '');
-//       setValue('ItemDesc', initialData.itemDesc || '');
-//       setValue('Qty', initialData.qty || '');
-//       setValue('Weight', initialData.weight || '');
-//       setValue('TotalQty', initialData.totalQty || '');
-//       setValue('Freight', initialData.freight || '');
-//       setValue('SRBTax', initialData.srbTax || '');
-//       setValue('SRBAmount', initialData.srbAmount || '');
-//       setValue('DeliveryCharges', initialData.deliveryCharges || '');
-//       setValue('InsuranceCharges', initialData.insuranceCharges || '');
-//       setValue('TollTax', initialData.tollTax || '');
-//       setValue('OtherCharges', initialData.otherCharges || '');
-//       setValue('TotalAmount', initialData.totalAmount || '');
-//       setValue('ReceivedAmount', initialData.receivedAmount || '');
-//       setValue('IncomeTaxDed', initialData.incomeTaxDed || '');
-//       setValue('IncomeTaxAmount', initialData.incomeTaxAmount || '');
-//       setValue('DeliveryDate', initialData.deliveryDate?.split('T')[0] || '');
-//       setValue('FreightFrom', initialData.freightFrom || '');
-//       setValue('Remarks', initialData.remarks || '');
-//     }
-//   }, [isEdit, initialData, consignors, consignees, shippingLines, ports, destinations, setValue]);
+  useEffect(() => {
+    const totalQty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
+    setValue('totalQty', totalQty);
 
-//   const onSubmit = async (data: FormData) => {
-//     try {
-//       const payload = {
-//         ...(isEdit && initialData?.id ? { id: initialData.id } : {}),
-//         receiptNo: data.ReceiptNo,
-//         orderNo: data.OrderNo,
-//         biltyNo: data.BiltyNo,
-//         date: data.Date,
-//         consignmentNo: data.ConsignmentNo,
-//         consignor: consignors.find((c) => c.id === data.Consignor)?.name || '',
-//         consignmentDate: data.ConsignmentDate,
-//         consignee: consignees.find((c) => c.id === data.Consignee)?.name || '',
-//         receiverName: data.ReceiverName,
-//         receiverContactNo: data.ReceiverContactNo,
-//         shippingLine: shippingLines.find((sl) => sl.id === data.ShippingLine)?.name || '',
-//         containerNo: data.ContainerNo,
-//         port: ports.find((p) => p.id === data.Port)?.name || '',
-//         destination: destinations.find((d) => d.id === data.Destination)?.name || '',
-//         items: data.Items,
-//         itemDesc: data.ItemDesc,
-//         qty: data.Qty,
-//         weight: data.Weight,
-//         totalQty: data.TotalQty,
-//         freight: data.Freight,
-//         srbTax: data.SRBTax,
-//         srbAmount: data.SRBAmount,
-//         deliveryCharges: data.DeliveryCharges,
-//         insuranceCharges: data.InsuranceCharges,
-//         tollTax: data.TollTax,
-//         otherCharges: data.OtherCharges,
-//         totalAmount: data.TotalAmount,
-//         receivedAmount: data.ReceivedAmount,
-//         incomeTaxDed: data.IncomeTaxDed,
-//         incomeTaxAmount: data.IncomeTaxAmount,
-//         deliveryDate: data.DeliveryDate,
-//         freightFrom: data.FreightFrom,
-//         remarks: data.Remarks,
-//       };
+    let taxPercent = 0;
+    if (sbrTax) {
+      const match = sbrTax.match(/\d+/);
+      if (match) {
+        taxPercent = parseFloat(match[0]) / 100;
+      }
+    }
+    const spr = (freight || 0) * taxPercent;
+    setValue('sprAmount', spr);
 
-//       if (isEdit) {
-//         await updateConsignment(payload);
-//         toast('Consignment Updated Successfully', { type: 'success' });
-//       } else {
-//         await createConsignment(payload);
-//         toast('Consignment Created Successfully', { type: 'success' });
-//       }
+    const total = (deliveryCharges || 0) + (insuranceCharges || 0) + (tollTax || 0) + (otherCharges || 0);
+    setValue('totalAmount', total);
 
-//       reset();
-//       router.push('/consignment');
-//     } catch (error) {
-//       toast(`Error ${isEdit ? 'updating' : 'creating'} consignment`, { type: 'error' });
-//     }
-//   };
+    // For auto fields, assuming some calculations, but since not specified, leave as is or set to 0
+    setValue('receivedAmount', 0); // Placeholder
+    setValue('incomeTaxDed', 0);
+    setValue('incomeTaxAmount', 0);
+  }, [items, freight, sbrTax, deliveryCharges, insuranceCharges, tollTax, otherCharges, setValue]);
 
-//   return (
-//     <div className="container mx-auto bg-white shadow-lg rounded dark:bg-[#030630] p-4 md:p-6">
-//       <div className="w-full bg-[#06b6d4] h-16 md:h-[7vh] rounded dark:bg-[#387fbf] flex items-center">
-//         <h1 className="text-lg md:text-[23px] font-mono ml-4 md:ml-10 text-white flex items-center gap-2">
-//           <MdOutlineAssignment />
-//           {isEdit ? 'UPDATE CONSIGNMENT' : 'ADD CONSIGNMENT'}
-//         </h1>
-//       </div>
+  const selectOrder = (order: BookingOrder) => {
+    setValue('orderNo', order.id);
+    setShowOrderPopup(false);
+  };
 
-//       <form onSubmit={handleSubmit(onSubmit)}>
-//         <div className="p-2 md:p-4">
-//           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-//             <div className="relative group" onMouseEnter={() => setReceiptFocused(true)} onMouseLeave={() => setReceiptFocused(false)}>
-//               <CustomInput
-//                 type="text"
-//                 variant="floating"
-//                 borderThickness="2"
-//                 label="Receipt No"
-//                 id="ReceiptNo"
-//                 {...register('ReceiptNo')}
-//                 disabled
-//                 error={errors.ReceiptNo?.message}
-//                 className="w-full"
-//               />
-//               {receiptFocused && (
-//                 <>
-//                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-//                     <BiSolidErrorAlt className="text-red-500 text-xl cursor-pointer" />
-//                   </div>
-//                   <div className="absolute bottom-full right-0 h-8 w-max text-large text-black bg-[#d5e4ff] rounded px-3 py-1 shadow-lg z-10 animate-fade-in">
-//                     Receipt No is provided by the system
-//                   </div>
-//                 </>
-//               )}
-//             </div>
-//             <CustomInputDropdown
-//               label="Order No"
-//               options={bookingOrders}
-//               selectedOption={watch('OrderNo') || ''}
-//               onChange={(value) => setValue('OrderNo', value, { shouldValidate: true })}
-//               error={errors.OrderNo?.message}
-//               register={register}
-//               disabled={!!searchParams.get('orderNo')}
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Bilty No"
-//               id="BiltyNo"
-//               {...register('BiltyNo')}
-//               error={errors.BiltyNo?.message}
-//               className="w-full"
-//             />
-//             <CustomSingleDatePicker
-//               label="Date"
-//               selectedDate={watch('Date') || ''}
-//               onChange={(date: string) => setValue('Date', date, { shouldValidate: true })}
-//               error={errors.Date?.message}
-//               register={register}
-//               name="Date"
-//               variant="floating"
-//               borderThickness="2"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Consignment No"
-//               id="ConsignmentNo"
-//               {...register('ConsignmentNo')}
-//               error={errors.ConsignmentNo?.message}
-//               className="w-full"
-//             />
-//             <CustomInputDropdown
-//               label="Consignor"
-//               options={consignors}
-//               selectedOption={watch('Consignor') || ''}
-//               onChange={(value) => setValue('Consignor', value, { shouldValidate: true })}
-//               error={errors.Consignor?.message}
-//               register={register}
-//             />
-//             <CustomSingleDatePicker
-//               label="Consignment Date"
-//               selectedDate={watch('ConsignmentDate') || ''}
-//               onChange={(date: string) => setValue('ConsignmentDate', date, { shouldValidate: true })}
-//               error={errors.ConsignmentDate?.message}
-//               register={register}
-//               name="ConsignmentDate"
-//               variant="floating"
-//               borderThickness="2"
-//             />
-//             <CustomInputDropdown
-//               label="Consignee"
-//               options={consignees}
-//               selectedOption={watch('Consignee') || ''}
-//               onChange={(value) => setValue('Consignee', value, { shouldValidate: true })}
-//               error={errors.Consignee?.message}
-//               register={register}
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Receiver Name"
-//               id="ReceiverName"
-//               {...register('ReceiverName')}
-//               error={errors.ReceiverName?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Receiver Contact No"
-//               id="ReceiverContactNo"
-//               {...register('ReceiverContactNo')}
-//               error={errors.ReceiverContactNo?.message}
-//               className="w-full"
-//             />
-//             <CustomInputDropdown
-//               label="Shipping Line"
-//               options={shippingLines}
-//               selectedOption={watch('ShippingLine') || ''}
-//               onChange={(value) => setValue('ShippingLine', value, { shouldValidate: true })}
-//               error={errors.ShippingLine?.message}
-//               register={register}
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Container No"
-//               id="ContainerNo"
-//               {...register('ContainerNo')}
-//               error={errors.ContainerNo?.message}
-//               className="w-full"
-//             />
-//             <CustomInputDropdown
-//               label="Port"
-//               options={ports}
-//               selectedOption={watch('Port') || ''}
-//               onChange={(value) => setValue('Port', value, { shouldValidate: true })}
-//               error={errors.Port?.message}
-//               register={register}
-//             />
-//             <CustomInputDropdown
-//               label="Destination"
-//               options={destinations}
-//               selectedOption={watch('Destination') || ''}
-//               onChange={(value) => setValue('Destination', value, { shouldValidate: true })}
-//               error={errors.Destination?.message}
-//               register={register}
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Items"
-//               id="Items"
-//               {...register('Items')}
-//               error={errors.Items?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Item Desc"
-//               id="ItemDesc"
-//               {...register('ItemDesc')}
-//               error={errors.ItemDesc?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Qty"
-//               id="Qty"
-//               {...register('Qty')}
-//               error={errors.Qty?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Weight"
-//               id="Weight"
-//               {...register('Weight')}
-//               error={errors.Weight?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Total Qty"
-//               id="TotalQty"
-//               {...register('TotalQty')}
-//               error={errors.TotalQty?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Freight"
-//               id="Freight"
-//               {...register('Freight')}
-//               error={errors.Freight?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="SRB Tax"
-//               id="SRBTax"
-//               {...register('SRBTax')}
-//               error={errors.SRBTax?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="SRB Amount"
-//               id="SRBAmount"
-//               {...register('SRBAmount')}
-//               error={errors.SRBAmount?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Delivery Charges"
-//               id="DeliveryCharges"
-//               {...register('DeliveryCharges')}
-//               error={errors.DeliveryCharges?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Insurance Charges"
-//               id="InsuranceCharges"
-//               {...register('InsuranceCharges')}
-//               error={errors.InsuranceCharges?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Toll Tax"
-//               id="TollTax"
-//               {...register('TollTax')}
-//               error={errors.TollTax?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Other Charges"
-//               id="OtherCharges"
-//               {...register('OtherCharges')}
-//               error={errors.OtherCharges?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Total Amount"
-//               id="TotalAmount"
-//               {...register('TotalAmount')}
-//               error={errors.TotalAmount?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Received Amount"
-//               id="ReceivedAmount"
-//               {...register('ReceivedAmount')}
-//               error={errors.ReceivedAmount?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Income Tax Ded."
-//               id="IncomeTaxDed"
-//               {...register('IncomeTaxDed')}
-//               error={errors.IncomeTaxDed?.message}
-//               className="w-full"
-//             />
-//             <CustomInput
-//               type="number"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Income Tax Amount"
-//               id="IncomeTaxAmount"
-//               {...register('IncomeTaxAmount')}
-//               error={errors.IncomeTaxAmount?.message}
-//               className="w-full"
-//             />
-//             <CustomSingleDatePicker
-//               label="Delivery Date"
-//               selectedDate={watch('DeliveryDate') || ''}
-//               onChange={(date: string) => setValue('DeliveryDate', date, { shouldValidate: true })}
-//               error={errors.DeliveryDate?.message}
-//               register={register}
-//               name="DeliveryDate"
-//               variant="floating"
-//               borderThickness="2"
-//             />
-//             <CustomInput
-//               type="text"
-//               variant="floating"
-//               borderThickness="2"
-//               label="Freight From"
-//               id="FreightFrom"
-//               {...register('FreightFrom')}
-//               error={errors.FreightFrom?.message}
-//               className="w-full"
-//             />
-//             <div className="col-span-1 md:col-span-3">
-//               <h2 className="text-lg md:text-xl text-[#06b6d4] font-bold dark:text-white">Remarks</h2>
-//               <textarea
-//                 className="w-full p-2 border-[#06b6d4] border rounded text-sm md:text-base"
-//                 rows={4}
-//                 {...register('Remarks')}
-//                 placeholder="Enter any remarks"
-//               />
-//               {errors.Remarks && <p className="text-red-500 text-sm">{errors.Remarks.message}</p>}
-//             </div>
-//           </div>
-//         </div>
+  const onSubmit = async (data: ConsignmentFormData) => {
+    setIsSubmitting(true);
+    try {
+      if (isEdit) {
+        await updateConsignment(data.consignmentNo || '', data);
+        toast.success('Consignment updated successfully!');
+      } else {
+        await createConsignment(data);
+        toast.success('Consignment created successfully!');
+      }
+      router.push('/consignment');
+    } catch (error) {
+      toast.error('An error occurred while saving the consignment');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-//         <div className="w-full h-16 md:h-[8vh] flex flex-col md:flex-row justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7] p-2 md:p-4">
-//           <Button type="submit" className="w-full md:w-[160px] bg-[#0e7d90] hover:bg-[#0891b2] text-white">Save</Button>
-//           <Link href="/consignment">
-//             <Button type="button" className="w-full md:w-[160px] bg-black hover:bg-[#b0b0b0] text-white">Cancel</Button>
-//           </Link>
-//         </div>
-//       </form>
-//     </div>
-//   );
-// };
+  const isFieldDisabled = (field: string) => {
+    if (!fromBooking) return false;
+    // When coming from booking, only allow consignor and consignee to be edited
+    return !['consignor', 'consignee'].includes(field);
+  };
 
-// export default Consignment;
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4">
+      <div className="w-full">
+        {isLoading && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-gray-700 dark:text-gray-300 font-medium">Loading consignment data...</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-lg">
+                  <MdLocalShipping className="text-2xl" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold">
+                    {isEdit ? 'Edit Consignment' : 'Add New Consignment'}
+                  </h1>
+                  <p className="text-white/90 mt-1 text-sm">
+                    {isEdit ? 'Update consignment information' : 'Create a new consignment record'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-3">
+                <Link href="/consignment">
+                  <Button
+                    type="button"
+                    className="bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 border border-white/20 backdrop-blur-sm px-4 py-2 shadow-lg hover:shadow-xl"
+                  >
+                    <FiX className="mr-2" /> Cancel
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex border-b border-gray-200 dark:border-gray-700 px-8 bg-gray-50 dark:bg-gray-850">
+            <button
+              className={`py-4 px-6 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === 'basic'
+                  ? 'border-[#3a614c] text-[#3a614c] dark:text-[#3a614c] font-semibold'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+              onClick={() => setActiveTab('basic')}
+            >
+              <FiUser className={activeTab === 'basic' ? 'text-[#3a614c]' : 'text-gray-400'} />
+              Basic Information
+            </button>
+            <button
+              className={`py-4 px-6 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === 'items'
+                  ? 'border-[#3a614c] text-[#3a614c] dark:text-[#3a614c] font-semibold'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+              onClick={() => setActiveTab('items')}
+            >
+              <HiDocumentText className={activeTab === 'items' ? 'text-[#3a614c]' : 'text-gray-400'} />
+              Items & Financial Details
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="p-8">
+            {fromBooking && (
+              <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                  <MdInfo className="text-xl" />
+                  <span className="font-medium">Restricted Mode</span>
+                </div>
+                <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
+                  You can only edit Consignor and Consignee fields when creating from booking order.
+                </p>
+              </div>
+            )}
+
+            {activeTab === 'basic' && (
+              <>
+                {/* Section 1: Basic & Party Information - Card Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+              {/* Basic Information Card */}
+              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-5">
+                  <FaIdCard className="text-[#3a614c] text-xl" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    Basic Details
+                  </h3>
+                  {fromBooking && (
+                    <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                  )}
+                </div>
+                <div className="space-y-5">
+                  <ABLCustomInput
+                    label="Receipt No"
+                    type="text"
+                    placeholder="Auto Generated"
+                    register={register}
+                    error={errors.receiptNo?.message}
+                    id="receiptNo"
+                    disabled
+                  />
+                  <ABLCustomInput
+                    label="Bilty No"
+                    type="text"
+                    placeholder="Enter bilty number"
+                    register={register}
+                    error={errors.biltyNo?.message}
+                    id="biltyNo"
+                    disabled={isFieldDisabled('biltyNo')}
+                  />
+                  <ABLCustomInput
+                    label="Date"
+                    type="date"
+                    register={register}
+                    error={errors.date?.message}
+                    id="date"
+                    disabled={isFieldDisabled('date')}
+                  />
+                  <ABLCustomInput
+                    label="Consignment No"
+                    type="text"
+                    placeholder="Enter consignment number"
+                    register={register}
+                    error={errors.consignmentNo?.message}
+                    id="consignmentNo"
+                    disabled={isFieldDisabled('consignmentNo')}
+                  />
+                </div>
+                 <div className="flex items-center gap-2 mb-5">
+                  <MdPhone className="text-[#3a614c] text-xl" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    Receiver Details
+                  </h3>
+                </div>
+                <div className="space-y-5">
+                  <ABLCustomInput
+                    label="Receiver Name"
+                    type="text"
+                    placeholder="Enter receiver name"
+                    register={register}
+                    error={errors.receiverName?.message}
+                    id="receiverName"
+                    disabled={isFieldDisabled('receiverName')}
+                  />
+                  <ABLCustomInput
+                    label="Receiver Contact No"
+                    type="text"
+                    placeholder="Enter contact number"
+                    register={register}
+                    error={errors.receiverContactNo?.message}
+                    id="receiverContactNo"
+                    disabled={isFieldDisabled('receiverContactNo')}
+                  />
+                </div>
+              </div>
+
+              {/* Party Information Card */}
+              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-5">
+                  <FiUser className="text-[#3a614c] text-xl" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    Party Details
+                  </h3>
+                  {fromBooking && (
+                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Editable</span>
+                  )}
+                </div>
+                <div className="space-y-5">
+                  <div>
+                    <Button 
+                      type="button" 
+                      onClick={() => setShowOrderPopup(true)}
+                      className="mb-3 w-full bg-[#3a614c] hover:bg-[#3a614c]/90 text-white"
+                      disabled={isFieldDisabled('orderNo')}
+                    >
+                      Select Order No
+                    </Button>
+                    <ABLCustomInput
+                      label="Order No"
+                      type="text"
+                      placeholder="Select from orders"
+                      register={register}
+                      error={errors.orderNo?.message}
+                      id="orderNo"
+                      disabled
+                    />
+                  </div>
+                  <Controller
+                    name="consignor"
+                    control={control}
+                    render={({ field }) => (
+                      <AblCustomDropdown
+                        label="Consignor"
+                        options={parties}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('consignor', value)}
+                        error={errors.consignor?.message}
+                        disabled={isFieldDisabled('consignor')}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="consignee"
+                    control={control}
+                    render={({ field }) => (
+                      <AblCustomDropdown
+                        label="Consignee"
+                        options={parties}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('consignee', value)}
+                        error={errors.consignee?.message}
+                        disabled={isFieldDisabled('consignee')}
+                      />
+                    )}
+                  />
+                  <ABLCustomInput
+                    label="Consignment Date"
+                    type="date"
+                    register={register}
+                    error={errors.consignmentDate?.message}
+                    id="consignmentDate"
+                    disabled={isFieldDisabled('consignmentDate')}
+                  />
+                </div>
+              </div>
+
+              {/* Receiver Information Card */}
+              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+               
+                
+                 <div className="flex items-center gap-2 mb-5">
+                <MdLocalShipping className="text-[#3a614c] text-xl" />
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                  Shipping Information
+                </h3>
+                {fromBooking && (
+                  <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                )}
+              </div>
+              <Controller
+                  name="shippingLine"
+                  control={control}
+                  render={({ field }) => (
+                    <AblCustomDropdown
+                      label="Shipping Line"
+                      options={shippingLines}
+                      selectedOption={field.value || ''}
+                      onChange={field.onChange}
+                      error={errors.shippingLine?.message}
+                      disabled={isFieldDisabled('shippingLine')}
+                    />
+                  )}
+                />
+                <ABLCustomInput
+                  label="Container No"
+                  type="text"
+                  register={register}
+                  error={errors.containerNo?.message}
+                  id="containerNo"
+                  disabled={isFieldDisabled('containerNo')}
+                />
+                <ABLCustomInput
+                  label="Port"
+                  type="text"
+                  register={register}
+                  error={errors.port?.message}
+                  id="port"
+                  disabled={isFieldDisabled('port')}
+                />
+                <Controller
+                  name="destination"
+                  control={control}
+                  render={({ field }) => (
+                    <AblCustomDropdown
+                      label="Destination"
+                      options={parties}
+                      selectedOption={field.value || ''}
+                      onChange={field.onChange}
+                      error={errors.destination?.message}
+                      disabled={isFieldDisabled('destination')}
+                    />
+                  )}
+                />
+                <Controller
+                  name="freightFrom"
+                  control={control}
+                  render={({ field }) => (
+                    <AblCustomDropdown
+                      label="Freight From"
+                      options={freightFromOptions}
+                      selectedOption={field.value || ''}
+                      onChange={field.onChange}
+                      error={errors.freightFrom?.message}
+                      disabled={isFieldDisabled('freightFrom')}
+                    />
+                  )}
+                />
+              </div>
+              
+            </div>
+              </>
+            )}
+
+            {activeTab === 'items' && (
+              <>
+                {/* Section 3: Items Details - Card Layout */}
+            <div className="col-span-1 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+              <div className="flex items-center gap-2 ">
+
+                {fromBooking && (
+                  <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                )}
+              </div>
+              
+              <div className="p-3">
+                <div className="overflow-x-auto">
+                  <table className="w-full md:w-4/5 sm:w-3/4 text-sm mx-auto">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          #
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          Item Description
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          Qty
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          Unit
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          Weight
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide">
+                          W.Unit
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {items.map((_, index) => (
+                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center justify-center w-6 h-6 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
+                              {index + 1}
+                            </div>
+                          </td>
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <input
+                              {...register(`items.${index}.desc`)}
+                              disabled={isFieldDisabled('items')}
+                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                              placeholder="Item description"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <input
+                              type="number"
+                              {...register(`items.${index}.qty`, { valueAsNumber: true })}
+                              disabled={isFieldDisabled('items')}
+                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
+                              placeholder="0"
+                              min="0"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <Controller
+                              name={`items.${index}.qtyUnit`}
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  {...field}
+                                  disabled={isFieldDisabled('items')}
+                                  className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                                >
+                                  <option value="">Unit</option>
+                                  {units.map((unit) => (
+                                    <option key={unit.id} value={unit.id}>
+                                      {unit.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <input
+                              type="number"
+                              step="0.01"
+                              {...register(`items.${index}.weight`, { valueAsNumber: true })}
+                              disabled={isFieldDisabled('items')}
+                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
+                              placeholder="0.0"
+                              min="0"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <Controller
+                              name={`items.${index}.weightUnit`}
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  {...field}
+                                  disabled={isFieldDisabled('items')}
+                                  className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                                >
+                                  <option value="">Unit</option>
+                                  {units.map((unit) => (
+                                    <option key={unit.id} value={unit.id}>
+                                      {unit.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Compact Summary */}
+                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Summary</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Qty:</label>
+                        <input
+                          {...register('totalQty')}
+                          disabled
+                          className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-gray-100 dark:bg-gray-700 text-center font-semibold"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 4: Financial Information - Card Layout */}
+            <div className="">
+              <div className="flex items-center gap-2 mb-5">
+                
+                {fromBooking && (
+                  <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                )}
+              </div>
+              
+              <div className="space-y-4">
+                
+                {/* Row 1: Freight, SBR Tax, SPR Amount */}
+                <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 ">
+                    <div className="w-2 h-2 bg-[#3a614c] rounded-full"></div>
+                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Tax & Freight Details</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <ABLCustomInput
+                      label="Freight"
+                      type="number"
+                      register={register}
+                      error={errors.freight?.message}
+                      id="freight"
+                      disabled={isFieldDisabled('freight')}
+                    />
+                    <Controller
+                      name="sbrTax"
+                      control={control}
+                      render={({ field }) => (
+                        <AblCustomDropdown
+                          label="SBR Tax"
+                          options={sbrTaxes}
+                          selectedOption={field.value || ''}
+                          onChange={field.onChange}
+                          error={errors.sbrTax?.message}
+                          disabled={isFieldDisabled('sbrTax')}
+                        />
+                      )}
+                    />
+                    <ABLCustomInput
+                      label="SPR Amount"
+                      type="number"
+                      register={register}
+                      error={errors.sprAmount?.message}
+                      id="sprAmount"
+                      disabled
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-1">
+                    <ABLCustomInput
+                      label="Delivery Charges"
+                      type="number"
+                      register={register}
+                      error={errors.deliveryCharges?.message}
+                      id="deliveryCharges"
+                      disabled={isFieldDisabled('deliveryCharges')}
+                    />
+                    <ABLCustomInput
+                      label="Insurance Charges"
+                      type="number"
+                      register={register}
+                      error={errors.insuranceCharges?.message}
+                      id="insuranceCharges"
+                      disabled={isFieldDisabled('insuranceCharges')}
+                    />
+                    <ABLCustomInput
+                      label="Toll Tax"
+                      type="number"
+                      register={register}
+                      error={errors.tollTax?.message}
+                      id="tollTax"
+                      disabled={isFieldDisabled('tollTax')}
+                    />
+                    <ABLCustomInput
+                      label="Other Charges"
+                      type="number"
+                      register={register}
+                      error={errors.otherCharges?.message}
+                      id="otherCharges"
+                      disabled={isFieldDisabled('otherCharges')}
+                    />
+                    <div className="relative">
+                      <ABLCustomInput
+                        label="Total Amount"
+                        type="number"
+                        register={register}
+                        error={errors.totalAmount?.message}
+                        id="totalAmount"
+                        disabled
+                      />
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    </div>
+                    <ABLCustomInput
+                      label="Delivery Date"
+                      type="date"
+                      register={register}
+                      error={errors.deliveryDate?.message}
+                      id="deliveryDate"
+                      disabled={isFieldDisabled('deliveryDate')}
+                    />
+                    <ABLCustomInput
+                      label="Remarks"
+                      type="text"
+                      register={register}
+                      error={errors.remarks?.message}
+                      id="remarks"
+                      disabled={isFieldDisabled('remarks')}
+                    />
+                  </div>
+                </div>
+                
+                {/* Row 3: Received Amount, Income Tax Ded., Income Tax Amount */}
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <ABLCustomInput
+                      label="Received Amount"
+                      type="number"
+                      register={register}
+                      error={errors.receivedAmount?.message}
+                      id="receivedAmount"
+                      disabled
+                    />
+                    <ABLCustomInput
+                      label="Income Tax Ded."
+                      type="number"
+                      register={register}
+                      error={errors.incomeTaxDed?.message}
+                      id="incomeTaxDed"
+                      disabled
+                    />
+                    <ABLCustomInput
+                      label="Income Tax Amount"
+                      type="number"
+                      register={register}
+                      error={errors.incomeTaxAmount?.message}
+                      id="incomeTaxAmount"
+                      disabled
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+              </div>
+            </div>
+
+              </>
+            )}
+
+            <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700 mt-8">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
+              >
+                <div className="flex items-center gap-2">
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiSave className="text-lg" />
+                      <span>{isEdit ? 'Update Consignment' : 'Create Consignment'}</span>
+                    </>
+                  )}
+                </div>
+              </Button>
+            </div>
+          </form>
+        </div>
+                
+        <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+              <MdInfo className="text-[#3a614c]" />
+              <span className="text-sm">Fill in all required fields marked with an asterisk (*)</span>
+            </div>
+            <Link href="/consignment" className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors">
+              Back to Consignments List
+            </Link>
+          </div>
+        </div>
+
+        {/* Order Selection Popup */}
+        {showOrderPopup && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
+                <Button 
+                  onClick={() => setShowOrderPopup(false)}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                  variant="ghost"
+                >
+                  <FiX className="text-xl" />
+                </Button>
+              </div>
+              <div className="max-h-60 overflow-y-auto space-y-2">
+                {bookingOrders.map((order) => (
+                  <div 
+                    key={order.id} 
+                    onClick={() => selectOrder(order)} 
+                    className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors"
+                  >
+                    <span className="font-medium text-gray-800 dark:text-gray-200">{order.id}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end mt-4">
+                <Button 
+                  onClick={() => setShowOrderPopup(false)}
+                  className="bg-gray-500 hover:bg-gray-600 text-white"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      
+    </div>
+  );
+};
+
+export default ConsignmentForm;

@@ -72,6 +72,14 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
 
   return (
     <div className="min-h-screen h-screen bg-[#f6f6f6] flex overflow-hidden scrollbar-thin scrollbar-rounded dark:bg-black">
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          onClick={toggleMobileSidebar}
+        />
+      )}
+      
       <div
         className={`fixed top-16 left-0 h-[calc(100%-4rem)] z-30 transition-all duration-300  
           ${isSidebarCollapsed ? 'md:w-[70px]' : 'md:w-[310px]'}
@@ -83,6 +91,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
         <Sidebar
           isCollapsed={isSidebarCollapsed}
           onToggle={handleSidebarToggle}
+          onMobileToggle={toggleMobileSidebar}
           searchQuery={searchQuery}
           activeInterface={activeInterface}
         />

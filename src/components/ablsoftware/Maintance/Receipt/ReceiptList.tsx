@@ -6,60 +6,59 @@ import { FaFileExcel, FaCheck } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllCharges, deleteCharges, updateChargesStatus } from '@/apis/charges';
-import { Edit, Trash } from 'lucide-react';
-import { columns, getStatusStyles, Charge } from './columns';
+import { getAllReceipt, deleteReceipt, updateReceiptStatus } from '@/apis/receipt';
+import { columns, getStatusStyles, Receipt } from './columns';
 
-const ChargesList = () => {
+const ReceiptList = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [charges, setCharges] = useState<Charge[]>([]);
-  const [filteredCharges, setFilteredCharges] = useState<Charge[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [filteredReceipts, setFilteredReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [openView, setOpenView] = useState(false);
   const [deleteId, setDeleteId] = useState('');
-  const [selectedCharge, setSelectedCharge] = useState<Charge | null>(null);
+  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
-  const [selectedChargeIds, setSelectedChargeIds] = useState<string[]>([]);
+  const [selectedReceiptIds, setSelectedReceiptIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  const statusOptions = ['All', 'Unpaid', 'Paid'];
+  const statusOptions = ['All', 'Pending', 'Completed'];
   const statusOptionsConfig = [
-    { id: 1, name: 'Unpaid', color: '#ef4444' },
-    { id: 2, name: 'Paid', color: '#22c55e' },
+    { id: 1, name: 'Pending', color: '#ef4444' },
+    { id: 2, name: 'Completed', color: '#22c55e' },
   ];
 
-  const fetchCharges = async () => {
+  const fetchReceipts = async () => {
     try {
       setLoading(true);
-      const response = await getAllCharges(pageIndex + 1, pageSize);
-      setCharges(response?.data || []);
+      const response = await getAllReceipt(pageIndex + 1, pageSize);
+      setReceipts(response?.data || []);
     } catch (error) {
-      toast('Failed to fetch charges', { type: 'error' });
+      toast('Failed to fetch receipts', { type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCharges();
+    fetchReceipts();
   }, [pageIndex, pageSize]);
 
   useEffect(() => {
-    let filtered = charges;
+    let filtered = receipts;
     if (selectedStatusFilter !== 'All') {
-      filtered = charges.filter((c) => c.status === selectedStatusFilter);
+      filtered = receipts.filter((r) => r.status === selectedStatusFilter);
     }
-    setFilteredCharges(filtered);
-  }, [charges, selectedStatusFilter]);
+    setFilteredReceipts(filtered);
+  }, [receipts, selectedStatusFilter]);
 
   useEffect(() => {
     if (searchParams.get('refresh') === 'true') {
-      fetchCharges();
+      fetchReceipts();
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('refresh');
       router.replace(newUrl.pathname);
@@ -68,12 +67,12 @@ const ChargesList = () => {
 
   const handleDelete = async () => {
     try {
-      await deleteCharges(deleteId);
+      await deleteReceipt(deleteId);
       setOpenDelete(false);
-      toast('Charge Deleted Successfully', { type: 'success' });
-      fetchCharges();
+      toast('Receipt Deleted Successfully', { type: 'success' });
+      fetchReceipts();
     } catch (error) {
-      toast('Failed to delete charge', { type: 'error' });
+      toast('Failed to delete receipt', { type: 'error' });
     }
   };
 
@@ -87,48 +86,48 @@ const ChargesList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = (chargeId: string) => {
-    const charge = charges.find((item) => item.id === chargeId);
-    setSelectedCharge(charge || null);
+  const handleViewOpen = (receiptId: string) => {
+    const receipt = receipts.find((item) => item.id === receiptId);
+    setSelectedReceipt(receipt || null);
     setOpenView(true);
   };
 
   const handleViewClose = () => {
     setOpenView(false);
-    setSelectedCharge(null);
+    setSelectedReceipt(null);
   };
 
-  const handleCheckboxChange = (chargeId: string, checked: boolean) => {
+  const handleCheckboxChange = (receiptId: string, checked: boolean) => {
     if (checked) {
-      setSelectedChargeIds((prev) => [...prev, chargeId]);
+      setSelectedReceiptIds((prev) => [...prev, receiptId]);
     } else {
-      setSelectedChargeIds((prev) => prev.filter((id) => id !== chargeId));
+      setSelectedReceiptIds((prev) => prev.filter((id) => id !== receiptId));
     }
 
     setTimeout(() => {
-      const selected = charges.filter((c) => selectedChargeIds.includes(c.id));
-      const statuses = selected.map((c) => c.status).filter((status, index, self) => self.indexOf(status) === index);
+      const selected = receipts.filter((r) => selectedReceiptIds.includes(r.id));
+      const statuses = selected.map((r) => r.status).filter((status, index, self) => self.indexOf(status) === index);
       setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
     }, 100);
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
-    if (selectedChargeIds.length === 0) {
-      toast('Please select at least one charge', { type: 'warning' });
+    if (selectedReceiptIds.length === 0) {
+      toast('Please select at least one receipt', { type: 'warning' });
       return;
     }
     try {
       setUpdating(true);
-      const updatePromises = selectedChargeIds.map((id) =>
-        updateChargesStatus({ id, status: newStatus })
+      const updatePromises = selectedReceiptIds.map((id) =>
+        updateReceiptStatus({ id, status: newStatus })
       );
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
-      setSelectedChargeIds([]);
+      setSelectedReceiptIds([]);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
-      toast('Charge Status Updated Successfully', { type: 'success' });
-      await fetchCharges();
+      toast('Receipt Status Updated Successfully', { type: 'success' });
+      await fetchReceipts();
     } catch (error) {
       toast('Failed to update status', { type: 'error' });
     } finally {
@@ -137,42 +136,32 @@ const ChargesList = () => {
   };
 
   const exportToExcel = () => {
-    let dataToExport = selectedChargeIds.length > 0
-      ? filteredCharges.filter((c) => selectedChargeIds.includes(c.id))
-      : filteredCharges;
+    let dataToExport = selectedReceiptIds.length > 0
+      ? filteredReceipts.filter((r) => selectedReceiptIds.includes(r.id))
+      : filteredReceipts;
 
     if (dataToExport.length === 0) {
-      toast('No charges to export', { type: 'warning' });
+      toast('No receipts to export', { type: 'warning' });
       return;
     }
 
-    const formattedData = dataToExport.map((c) => ({
-      'Charge No': c.chargeNo || '-',
-      'Charge Date': c.chargeDate || '-',
-      'Order No': c.orderNo || '-',
-      'Unpaid Charges': c.unpaidCharges || '-',
-      'Payment': c.payment || '-',
-      'Charges': c.charges || '-',
-      'Bilty No': c.biltyNo || '-',
-      'Date': c.date || '-',
-      'Vehicle#': c.vehicleNo || '-',
-      'Paid to Person': c.paidToPerson || '-',
-      'Contact#': c.contactNo || '-',
-      'Remarks': c.remarks || '-',
-      'Amount': c.amount || '-',
-      'Paid Amount': c.paidAmount || '-',
-      'Bank/Cash': c.bankCash || '-',
-      'Chq No': c.chqNo || '-',
-      'Chq Date Pay. No': c.chqDate || '-',
-      'Pay No': c.payNo || '-',
-      'Total': c.total || '-',
-      'Status': c.status || 'Unpaid',
+    const formattedData = dataToExport.map((r) => ({
+      'Receipt No': r.receiptNo || '-',
+      'Receipt Date': r.receiptDate || '-',
+      'Party': r.party || '-',
+      'Payment Mode': r.paymentMode || '-',
+      'Bank Name': r.bankName || '-',
+      'Cheque No': r.chequeNo || '-',
+      'Cheque Date': r.chequeDate || '-',
+      'Receipt Amount': r.receiptAmount || '-',
+      'Total Amount': r.totalAmount || '-',
+      'Status': r.status || 'Pending',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Charges');
-    XLSX.writeFile(workbook, 'Charges.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Receipts');
+    XLSX.writeFile(workbook, 'Receipts.xlsx');
   };
 
   return (
@@ -194,7 +183,7 @@ const ChargesList = () => {
             </select>
           </div>
           <button
-            onClick={fetchCharges}
+            onClick={fetchReceipts}
             className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
           >
             Refresh Data
@@ -211,9 +200,9 @@ const ChargesList = () => {
       <div>
         <DataTable
           columns={columns(handleDeleteOpen, handleViewOpen)}
-          data={filteredCharges}
+          data={filteredReceipts}
           loading={loading}
-          link="/charges/create"
+          link="/receipt/create"
           setPageIndex={setPageIndex}
           pageIndex={pageIndex}
           pageSize={pageSize}
@@ -227,35 +216,26 @@ const ChargesList = () => {
           isOpen={openDelete}
         />
       )}
-      {openView && selectedCharge && (
+      {openView && selectedReceipt && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
           <div className="bg-white w-full max-w-4xl rounded-2xl p-6 max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-[#06b6d4]">Charge Details</h2>
+              <h2 className="text-2xl font-bold text-[#06b6d4]">Receipt Details</h2>
               <button onClick={handleViewClose} className="text-2xl font-bold">×</button>
             </div>
             <div className="flex-1 overflow-y-auto pr-2">
               <div className="grid grid-cols-2 gap-4">
-                <div><strong>Charge No:</strong> {selectedCharge.chargeNo || '-'}</div>
-                <div><strong>Charge Date:</strong> {selectedCharge.chargeDate || '-'}</div>
-                <div><strong>Order No:</strong> {selectedCharge.orderNo || '-'}</div>
-                <div><strong>Unpaid Charges:</strong> {selectedCharge.unpaidCharges || '-'}</div>
-                <div><strong>Payment:</strong> {selectedCharge.payment || '-'}</div>
-                <div><strong>Charges:</strong> {selectedCharge.charges || '-'}</div>
-                <div><strong>Bilty No:</strong> {selectedCharge.biltyNo || '-'}</div>
-                <div><strong>Date:</strong> {selectedCharge.date || '-'}</div>
-                <div><strong>Vehicle#:</strong> {selectedCharge.vehicleNo || '-'}</div>
-                <div><strong>Paid to Person:</strong> {selectedCharge.paidToPerson || '-'}</div>
-                <div><strong>Contact#:</strong> {selectedCharge.contactNo || '-'}</div>
-                <div><strong>Remarks:</strong> {selectedCharge.remarks || '-'}</div>
-                <div><strong>Amount:</strong> {selectedCharge.amount || '-'}</div>
-                <div><strong>Paid Amount:</strong> {selectedCharge.paidAmount || '-'}</div>
-                <div><strong>Bank/Cash:</strong> {selectedCharge.bankCash || '-'}</div>
-                <div><strong>Chq No:</strong> {selectedCharge.chqNo || '-'}</div>
-                <div><strong>Chq Date Pay. No:</strong> {selectedCharge.chqDate || '-'}</div>
-                <div><strong>Pay No:</strong> {selectedCharge.payNo || '-'}</div>
-                <div><strong>Total:</strong> {selectedCharge.total || '-'}</div>
-                <div><strong>Status:</strong> <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(selectedCharge.status || 'Unpaid')}`}>{selectedCharge.status || 'Unpaid'}</span></div>
+                <div><strong>Receipt No:</strong> {selectedReceipt.receiptNo || '-'}</div>
+                <div><strong>Receipt Date:</strong> {selectedReceipt.receiptDate || '-'}</div>
+                <div><strong>Party:</strong> {selectedReceipt.party || '-'}</div>
+                <div><strong>Payment Mode:</strong> {selectedReceipt.paymentMode || '-'}</div>
+                <div><strong>Bank Name:</strong> {selectedReceipt.bankName || '-'}</div>
+                <div><strong>Cheque No:</strong> {selectedReceipt.chequeNo || '-'}</div>
+                <div><strong>Cheque Date:</strong> {selectedReceipt.chequeDate || '-'}</div>
+                <div><strong>Receipt Amount:</strong> {selectedReceipt.receiptAmount || '-'}</div>
+                <div><strong>Remarks:</strong> {selectedReceipt.remarks || '-'}</div>
+                <div><strong>Total Amount:</strong> {selectedReceipt.totalAmount || '-'}</div>
+                <div><strong>Status:</strong> <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(selectedReceipt.status || 'Pending')}`}>{selectedReceipt.status || 'Pending'}</span></div>
               </div>
             </div>
           </div>
@@ -271,7 +251,7 @@ const ChargesList = () => {
                 onClick={() => handleBulkStatusUpdate(option.name)}
                 disabled={updating}
                 className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-                  ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
+                  ${isSelected ? `border-[${option.color}] bg-gradientto-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
                   ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span className="text-sm font-semibold text-center">{option.name}</span>
@@ -285,4 +265,4 @@ const ChargesList = () => {
   );
 };
 
-export default ChargesList;
+export default ReceiptList;

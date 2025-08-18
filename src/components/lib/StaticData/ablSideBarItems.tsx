@@ -7,10 +7,6 @@ import { LiaAccusoft } from "react-icons/lia";
 import { GiTakeMyMoney } from "react-icons/gi";
 import { RiEdgeNewFill } from "react-icons/ri";
 
-
-
-
-
 export const ablSideBarItems = [
   {
     text: 'HOME',
@@ -58,6 +54,70 @@ export const ablSideBarItems = [
         text: 'Revenue',
         href: '/ablRevenue',
         icon: RiEdgeNewFill,
+        color: '#1a5f3a',
+      },
+    ],
+  },
+  {
+    text: 'Transactions',
+    type: 'heading',
+  },
+  {
+    text: 'Transport',
+    icon: FaFileInvoice,
+    color: '#1a5f3a',
+    sub_menu: [
+      {
+        text: 'Booking Order',
+        href: '/bookingorder',
+        icon: FaFileInvoice,
+        color: '#1a5f3a',
+      },
+      {
+        text: 'Consignment',
+        href: '/consignment',
+        icon: FaFileInvoice,
+        color: '#1a5f3a',
+      },
+      {
+        text: 'Charges',
+        href: '/charges',
+        icon: FaFileInvoice,
+        color: '#1a5f3a',
+      },
+      {
+        text: 'Receipt',
+        href: '/receipt',
+        icon: FaFileInvoice,
+        color: '#1a5f3a',
+      }
+    ],
+  },
+  {
+    text: 'Reports',
+    type: 'heading',
+  },
+  {
+    text: 'Reports',
+    icon: FaFileInvoice,
+    color: '#1a5f3a',
+    sub_menu: [
+      {
+        text: 'Financial Reports',
+        href: '/abl/financial-reports',
+        icon: FaFileInvoice,
+        color: '#1a5f3a',
+      },
+      {
+        text: 'Operational Reports',
+        href: '/abl/operational-reports',
+        icon: FaFileInvoice,
+        color: '#1a5f3a',
+      },
+      {
+        text: 'Custom Reports',
+        href: '/abl/custom-reports',
+        icon: FaFileInvoice,
         color: '#1a5f3a',
       },
     ],

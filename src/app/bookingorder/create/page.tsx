@@ -1,12 +1,11 @@
 "use client";
-import ChargesForm from '@/components/ablsoftware/Maintance/Charges/Charges';
 import MainLayout from '@/components/MainLayout/MainLayout'
-
+import BookingOrderForm from '@/components/ablsoftware/Maintance/BookingOrder.tsx/BookingOrder';
 const ABL = () => {
 
     return (
         <MainLayout activeInterface="ABL">
-              <ChargesForm/>
+              <BookingOrderForm />
         </MainLayout>
     )
 }

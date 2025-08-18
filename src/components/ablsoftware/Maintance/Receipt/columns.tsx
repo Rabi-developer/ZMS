@@ -3,35 +3,26 @@ import { ArrowUpDown, Eye, Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export interface Charge {
+export interface Receipt {
   id: string;
-  chargeNo: string;
-  chargeDate: string;
-  orderNo: string;
-  unpaidCharges: string;
-  payment: string;
-  charges: string;
-  biltyNo: string;
-  date: string;
-  vehicleNo: string;
-  paidToPerson: string;
-  contactNo: string;
+  receiptNo: string;
+  receiptDate: string;
+  party: string;
+  paymentMode: string;
+  bankName: string;
+  chequeNo: string;
+  chequeDate: string;
+  receiptAmount: string;
   remarks: string;
-  amount: string;
-  paidAmount: string;
-  bankCash: string;
-  chqNo: string;
-  chqDate: string;
-  payNo: string;
-  total: string;
+  totalAmount: string;
   status: string;
 }
 
 export const getStatusStyles = (status: string) => {
   switch (status) {
-    case 'Unpaid':
+    case 'Pending':
       return 'bg-red-100 text-red-800 border-red-300';
-    case 'Paid':
+    case 'Completed':
       return 'bg-green-100 text-green-800 border-green-300';
     default:
       return 'bg-gray-100 text-gray-800 border-gray-300';
@@ -41,61 +32,52 @@ export const getStatusStyles = (status: string) => {
 export const columns = (
   handleDeleteOpen: (id: string) => void,
   handleViewOpen: (id: string) => void
-): ColumnDef<Charge>[] => [
+): ColumnDef<Receipt>[] => [
   {
-    accessorKey: 'chargeNo',
+    accessorKey: 'receiptNo',
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        Charge No
+        Receipt No
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div>{row.original.chargeNo || '-'}</div>,
+    cell: ({ row }) => <div>{row.original.receiptNo || '-'}</div>,
   },
   {
-    accessorKey: 'chargeDate',
+    accessorKey: 'receiptDate',
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
       >
-        Charge Date
+        Receipt Date
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
-    cell: ({ row }) => <div>{row.original.chargeDate || '-'}</div>,
+    cell: ({ row }) => <div>{row.original.receiptDate || '-'}</div>,
   },
   {
-    accessorKey: 'orderNo',
-    header: 'Order No',
-    cell: ({ row }) => <div>{row.original.orderNo || '-'}</div>,
+    accessorKey: 'party',
+    header: 'Party',
+    cell: ({ row }) => <div>{row.original.party || '-'}</div>,
   },
   {
-    accessorKey: 'paidToPerson',
-    header: 'Paid to Person',
-    cell: ({ row }) => <div>{row.original.paidToPerson || '-'}</div>,
+    accessorKey: 'paymentMode',
+    header: 'Payment Mode',
+    cell: ({ row }) => <div>{row.original.paymentMode || '-'}</div>,
   },
   {
-    accessorKey: 'amount',
-    header: 'Amount',
-    cell: ({ row }) => <div>{row.original.amount || '-'}</div>,
+    accessorKey: 'receiptAmount',
+    header: 'Receipt Amount',
+    cell: ({ row }) => <div>{row.original.receiptAmount || '-'}</div>,
   },
   {
-    accessorKey: 'paidAmount',
-    header: 'Paid Amount',
-    cell: ({ row }) => <div>{row.original.paidAmount || '-'}</div>,
-  },
-  {
-    accessorKey: 'total',
-    header: 'Total',
-    cell: ({ row }) => <div>{row.original.total || '-'}</div>,
-  },
-    {
-    accessorKey: 'name',
-    header: '',
+    accessorKey: 'totalAmount',
+    header: 'Total Amount',
+    cell: ({ row }) => <div>{row.original.totalAmount || '-'}</div>,
   },
   {
     accessorKey: 'status',
@@ -103,10 +85,10 @@ export const columns = (
     cell: ({ row }) => (
       <span
         className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
-          row.original.status || 'Unpaid'
+          row.original.status || 'Pending'
         )}`}
       >
-        {row.original.status || 'Unpaid'}
+        {row.original.status || 'Pending'}
       </span>
     ),
   },
@@ -114,17 +96,17 @@ export const columns = (
     header: 'Actions',
     id: 'actions',
     cell: ({ row }) => {
-      const chargeId = row.original.id;
+      const receiptId = row.original.id;
       return (
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleViewOpen(chargeId)}
+            onClick={() => handleViewOpen(receiptId)}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className=" h-4 w-4" />
           </Button>
-          <Link href={`/charges/edit/${chargeId}`}>
+          <Link href={`/receipts/edit/${receiptId}`}>
             <Button variant="outline" size="sm">
               <Edit className="h-4 w-4" />
             </Button>
@@ -132,7 +114,7 @@ export const columns = (
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDeleteOpen(chargeId)}
+            onClick={() => handleDeleteOpen(receiptId)}
           >
             <Trash className="h-4 w-4" />
           </Button>
