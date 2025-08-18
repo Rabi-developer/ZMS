@@ -1,5 +1,5 @@
 import { FaTruck, FaMapMarkerAlt, FaGasPump, FaUsers, FaFileInvoice, FaTools } from 'react-icons/fa';
-import {  MdOutlineDashboard } from 'react-icons/md';
+import {  MdOutlineDashboard, MdPayment } from 'react-icons/md';
 import { GiRoad } from 'react-icons/gi';
 import { IoIosTimer } from 'react-icons/io';
 import { PiEqualizerDuotone } from "react-icons/pi";
@@ -83,6 +83,12 @@ export const ablSideBarItems = [
         text: 'Charges',
         href: '/charges',
         icon: FaFileInvoice,
+        color: '#1a5f3a',
+      },
+      {
+        text: 'Payment',
+        href: '/paymentABL',
+        icon: MdPayment,
         color: '#1a5f3a',
       },
       {

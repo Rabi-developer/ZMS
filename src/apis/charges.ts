@@ -15,9 +15,16 @@ const createCharges = async (Charges : any) => {
 };
 
 // Charges-list
-const getAllCharges  = async (pageIndex:any=1,pageSize:any=10) => {
+const getAllCharges  = async (pageIndex:any=1,pageSize:any=10, filters:any={}) => {
   try {
-    const response = await apiFetch(`Charges?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
+    
+    // Add filters if provided
+    if (filters.orderNo) {
+      queryParams += `&OrderNo=${filters.orderNo}`;
+    }
+    
+    const response = await apiFetch(`Charges?${queryParams}`, {
       method: 'GET',
       headers: {}, 
     }, true);
