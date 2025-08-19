@@ -16,6 +16,8 @@ interface ABLCustomInputProps {
   register?: UseFormRegister<any>;
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
   className?: string;
 }
 

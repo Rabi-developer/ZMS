@@ -9,7 +9,6 @@ import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { createBookingOrder, updateBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllTransporter } from '@/apis/transporter';
 import { getAllVendor } from '@/apis/vendors';
-import { getAllVehicleTypes } from '@/apis/vehicletype';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllConsignment } from '@/apis/consignment';
 import { toast } from 'react-toastify';
@@ -19,6 +18,20 @@ import { FaRegBuilding, FaMoneyBillWave, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
 import { FiSave, FiX, FiUser } from 'react-icons/fi';
+
+// Extend ABLCustomInputProps to include onFocus and onBlur
+interface ABLCustomInputProps {
+  label: string;
+  type: string;
+  placeholder: string;
+  register: any;
+  error?: string;
+  id: string;
+  disabled?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  [key: string]: any;
+}
 
 // Interfaces
 interface DropdownOption {
@@ -41,24 +54,24 @@ interface Consignment {
 
 // Define the schema for booking order form validation
 const bookingOrderSchema = z.object({
-  orderNo: z.string().optional(),
-  orderDate: z.string().optional(),
-  transporter: z.string().optional(),
-  vendor: z.string().optional(),
-  vehicleNo: z.string().optional(),
+  OrderNo: z.string().optional(),
+  orderDate: z.string().min(1, 'Order Date is required'),
+  transporter: z.string().min(1, 'Transporter is required'),
+  vendor: z.string().min(1, 'Vendor is required'),
+  vehicleNo: z.string().min(1, 'Vehicle No is required'),
   containerNo: z.string().optional(),
-  vehicleType: z.string().optional(),
-  driverName: z.string().optional(),
+  vehicleType: z.string().min(1, 'Vehicle Type is required'),
+  driverName: z.string().min(1, 'Driver Name is required'),
   contactNo: z.string().optional(),
   munshayana: z.string().optional(),
-  cargoWeight: z.string().optional(),
+  cargoWeight: z.string().min(1, 'Cargo Weight is required'),
   bookedDays: z.string().optional(),
   detentionDays: z.string().optional(),
-  fromLocation: z.string().optional(),
+  fromLocation: z.string().min(1, 'From Location is required'),
   departureDate: z.string().optional(),
   via1: z.string().optional(),
   via2: z.string().optional(),
-  toLocation: z.string().optional(),
+  toLocation: z.string().min(1, 'To Location is required'),
   expectedReachedDate: z.string().optional(),
   reachedDate: z.string().optional(),
   vehicleMunshyana: z.string().optional(),
@@ -79,7 +92,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   } = useForm<BookingOrderFormData>({
     resolver: zodResolver(bookingOrderSchema),
     defaultValues: {
-      orderNo: '',
+      OrderNo: '',
       orderDate: '',
       transporter: '',
       vendor: '',
@@ -113,67 +126,122 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [vehicleTypes, setVehicleTypes] = useState<DropdownOption[]>([]);
   const [munshayanas, setMunshayanas] = useState<DropdownOption[]>([]);
   const [consignments, setConsignments] = useState<Consignment[]>([]);
-  const [locations, setLocations] = useState<DropdownOption[]>([]); // Dummy locations
+  const [locations, setLocations] = useState<DropdownOption[]>([]);
+  const [idFocused, setIdFocused] = useState(false); // State to manage OrderNo focus
 
   useEffect(() => {
     const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const [transRes, vendRes, vehRes, munRes] = await Promise.all([
+        const [transRes, vendRes, munRes] = await Promise.all([
           getAllTransporter(),
           getAllVendor(),
-          getAllVehicleTypes(),
           getAllMunshyana(),
         ]);
-        setTransporters(transRes.data.map((t: any) => ({ id: t.id, name: t.name })));
-        setVendors(vendRes.data.map((v: any) => ({ id: v.id, name: v.name })));
-        setVehicleTypes(vehRes.data.map((vt: any) => ({ id: vt.id, name: vt.name })));
-        setMunshayanas(munRes.data.map((m: any) => ({ id: m.id, name: m.name })));
 
-        // Dummy locations
-        const dummyLocations = ['Karachi', 'Lahore', 'Islamabad'].map(loc => ({ id: loc, name: loc }));
-        setLocations(dummyLocations);
+        const transportersData = transRes.data.map((t: any) => ({ id: t.id, name: t.name })) || [];
+        const vendorsData = vendRes.data.map((v: any) => ({ id: v.id, name: v.name })) || [];
+        const munshayanasData = munRes.data.map((m: any) => ({ id: m.id, name: m.chargesDesc })) || [];
 
-        // Fetch consignments (filter by order if possible; assume all for now)
-        const consRes = await getAllConsignment(1, 10, { orderNo: '' });
-        setConsignments(consRes.data); // Filter by orderNo if API supports
-      } catch (error) {
-        toast.error('Failed to load dropdown data');
-      }
-    };
-    fetchData();
+        // Dummy data for vehicle types
+        const vehicleTypesData = [
+          { id: '1', name: 'Truck' },
+          { id: '2', name: 'Van' },
+          { id: '3', name: 'Container' },
+          { id: '4', name: 'Trailer' },
+          { id: '5', name: 'Pickup' },
+        ];
 
-    if (isEdit) {
-      const fetchBookingOrder = async () => {
-        setIsLoading(true);
-        const id = window.location.pathname.split('/').pop();
-        if (id) {
-          try {
-            const response = await getAllBookingOrder(); // Assume API returns all, then find
-            const booking = response.data.find((b: any) => b.id === id);
-            if (booking) {
-              Object.keys(booking).forEach((key) => {
-                setValue(key as keyof BookingOrderFormData, booking[key]);
-              });
-            } else {
-              toast.error('Booking Order not found');
-              router.push('/bookingorders');
+        // Dummy data for locations (using Pakistan cities as example)
+        const locationsData = [
+          { id: '1', name: 'Karachi' },
+          { id: '2', name: 'Lahore' },
+          { id: '3', name: 'Faisalabad' },
+          { id: '4', name: 'Rawalpindi' },
+          { id: '5', name: 'Multan' },
+          { id: '6', name: 'Hyderabad' },
+          { id: '7', name: 'Quetta' },
+          { id: '8', name: 'Peshawar' },
+          { id: '9', name: 'Islamabad' },
+          { id: '10', name: 'Sialkot' },
+          { id: '11', name: 'Gujranwala' },
+          { id: '12', name: 'Sargodha' },
+        ];
+
+        setTransporters(transportersData);
+        setVendors(vendorsData);
+        setVehicleTypes(vehicleTypesData);
+        setMunshayanas(munshayanasData);
+        setLocations(locationsData);
+
+        if (isEdit) {
+          const id = window.location.pathname.split('/').pop();
+          if (id) {
+            try {
+              const response = await getAllBookingOrder();
+              const booking = response.data.find((b: any) => b.id === id);
+              if (booking) {
+                setValue('OrderNo', booking.orderNo || booking.id || '');
+                setValue('orderDate', booking.orderDate || '');
+                setValue('transporter', booking.transporter || '');
+                setValue('vendor', booking.vendor || '');
+                setValue('vehicleNo', booking.vehicleNo || '');
+                setValue('containerNo', booking.containerNo || '');
+                setValue('vehicleType', booking.vehicleType || '');
+                setValue('driverName', booking.driverName || '');
+                setValue('contactNo', booking.contactNo || '');
+                setValue('munshayana', booking.munshayana || '');
+                setValue('cargoWeight', booking.cargoWeight || '');
+                setValue('bookedDays', booking.bookedDays || '');
+                setValue('detentionDays', booking.detentionDays || '');
+                setValue('fromLocation', booking.fromLocation || '');
+                setValue('departureDate', booking.departureDate || '');
+                setValue('via1', booking.via1 || '');
+                setValue('via2', booking.via2 || '');
+                setValue('toLocation', booking.toLocation || '');
+                setValue('expectedReachedDate', booking.expectedReachedDate || '');
+                setValue('reachedDate', booking.reachedDate || '');
+                setValue('vehicleMunshyana', booking.vehicleMunshyana || '');
+                setValue('remarks', booking.remarks || '');
+                setValue('contractOwner', booking.contractOwner || '');
+
+                // Fetch consignments for this order
+                const consRes = await getAllConsignment(1, 10, { orderNo: booking.orderNo || id });
+                setConsignments(consRes.data || []);
+              } else {
+                toast.error('Booking Order not found');
+                router.push('/bookingorder');
+              }
+            } catch (error) {
+              toast.error('Failed to load booking order data');
+              console.error('Error fetching booking order:', error);
             }
+          }
+        } else {
+          // For create mode, fetch all consignments
+          try {
+            const consRes = await getAllConsignment(1, 10, { orderNo: '' });
+            setConsignments(consRes.data || []);
           } catch (error) {
-            toast.error('Failed to load booking order data');
-          } finally {
-            setIsLoading(false);
+            console.error('Error fetching consignments:', error);
           }
         }
-      };
-      fetchBookingOrder();
-    }
+      } catch (error) {
+        toast.error('Failed to load data');
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, [isEdit, setValue, router]);
 
   const onSubmit = async (data: BookingOrderFormData) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateBookingOrder(data.orderNo!, data);
+        await updateBookingOrder(data.OrderNo!, data);
         toast.success('Booking Order updated successfully!');
       } else {
         await createBookingOrder(data);
@@ -182,6 +250,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       router.push('/bookingorders');
     } catch (error) {
       toast.error('An error occurred while saving the booking order');
+      console.error('Error saving booking order:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -275,14 +344,30 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     </h3>
                   </div>
                   <div className="space-y-5">
-                    <ABLCustomInput
-                      label="Order No"
-                      type="text"
-                      placeholder="Auto"
-                      register={register}
-                      error={errors.orderNo?.message}
-                      id="orderNo"
-                      disabled
+                    <Controller
+                      name="OrderNo"
+                      control={control}
+                      render={({ field }) => (
+                        <div className="relative">
+                          <ABLCustomInput
+                            {...field}
+                            label="Order No"
+                            type="text"
+                            placeholder="Auto"
+                            register={register}
+                            error={errors.OrderNo?.message}
+                            id="orderNo"
+                            disabled
+                            onFocus={() => setIdFocused(true)}
+                            onBlur={() => setIdFocused(false)}
+                          />
+                          {idFocused && (
+                            <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
+                              Auto-generated
+                            </div>
+                          )}
+                        </div>
+                      )}
                     />
                     <ABLCustomInput
                       label="Order Date"
@@ -300,7 +385,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           label="Transporter"
                           options={transporters}
                           selectedOption={field.value || ''}
-                          onChange={(value) => setValue('transporter', value)}
+                          onChange={(value) => setValue('transporter', value, { shouldValidate: true })}
                           error={errors.transporter?.message}
                         />
                       )}
@@ -313,7 +398,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           label="Vendor"
                           options={vendors}
                           selectedOption={field.value || ''}
-                          onChange={(value) => setValue('vendor', value)}
+                          onChange={(value) => setValue('vendor', value, { shouldValidate: true })}
                           error={errors.vendor?.message}
                         />
                       )}
@@ -352,7 +437,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           label="Vehicle Type"
                           options={vehicleTypes}
                           selectedOption={field.value || ''}
-                          onChange={(value) => setValue('vehicleType', value)}
+                          onChange={(value) => setValue('vehicleType', value, { shouldValidate: true })}
                           error={errors.vehicleType?.message}
                         />
                       )}
@@ -391,7 +476,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           label="Munshayana"
                           options={munshayanas}
                           selectedOption={field.value || ''}
-                          onChange={(value) => setValue('munshayana', value)}
+                          onChange={(value) => setValue('munshayana', value, { shouldValidate: true })}
                           error={errors.munshayana?.message}
                         />
                       )}
@@ -426,7 +511,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           label="From Location"
                           options={locations}
                           selectedOption={field.value || ''}
-                          onChange={(value) => setValue('fromLocation', value)}
+                          onChange={(value) => setValue('fromLocation', value, { shouldValidate: true })}
                           error={errors.fromLocation?.message}
                         />
                       )}
@@ -447,7 +532,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           label="Via 1"
                           options={locations}
                           selectedOption={field.value || ''}
-                          onChange={(value) => setValue('via1', value)}
+                          onChange={(value) => setValue('via1', value, { shouldValidate: true })}
                           error={errors.via1?.message}
                         />
                       )}
@@ -470,7 +555,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           label="Via 2"
                           options={locations}
                           selectedOption={field.value || ''}
-                          onChange={(value) => setValue('via2', value)}
+                          onChange={(value) => setValue('via2', value, { shouldValidate: true })}
                           error={errors.via2?.message}
                         />
                       )}
@@ -483,7 +568,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           label="To Location"
                           options={locations}
                           selectedOption={field.value || ''}
-                          onChange={(value) => setValue('toLocation', value)}
+                          onChange={(value) => setValue('toLocation', value, { shouldValidate: true })}
                           error={errors.toLocation?.message}
                         />
                       )}
@@ -567,7 +652,6 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           </form>
         </div>
 
-        {/* Consignment Table */}
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
           <h2 className="text-lg font-semibold mb-4">Consignments</h2>
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
@@ -586,27 +670,33 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               </tr>
             </thead>
             <tbody>
-              {consignments.map((cons, index) => (
-                <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                  <td className="px-6 py-4">{cons.biltyNo}</td>
-                  <td className="px-6 py-4">{cons.receiptNo}</td>
-                  <td className="px-6 py-4">{cons.consignor}</td>
-                  <td className="px-6 py-4">{cons.consignee}</td>
-                  <td className="px-6 py-4">{cons.item}</td>
-                  <td className="px-6 py-4">{cons.qty}</td>
-                  <td className="px-6 py-4">{cons.totalAmount}</td>
-                  <td className="px-6 py-4">{cons.recvAmount}</td>
-                  <td className="px-6 py-4">{cons.delDate}</td>
-                  <td className="px-6 py-4">
-                    <AblCustomDropdown
-                      label="Status"
-                      options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map(s => ({ id: s, name: s }))}
-                      selectedOption={cons.status}
-                      onChange={(value) => updateStatus(index, value)}
-                    />
-                  </td>
+              {consignments.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="px-6 py-4 text-center">No consignments found for this order</td>
                 </tr>
-              ))}
+              ) : (
+                consignments.map((cons, index) => (
+                  <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                    <td className="px-6 py-4">{cons.biltyNo}</td>
+                    <td className="px-6 py-4">{cons.receiptNo}</td>
+                    <td className="px-6 py-4">{cons.consignor}</td>
+                    <td className="px-6 py-4">{cons.consignee}</td>
+                    <td className="px-6 py-4">{cons.item}</td>
+                    <td className="px-6 py-4">{cons.qty}</td>
+                    <td className="px-6 py-4">{cons.totalAmount}</td>
+                    <td className="px-6 py-4">{cons.recvAmount}</td>
+                    <td className="px-6 py-4">{cons.delDate}</td>
+                    <td className="px-6 py-4">
+                      <AblCustomDropdown
+                        label="Status"
+                        options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map(s => ({ id: s, name: s }))}
+                        selectedOption={cons.status}
+                        onChange={(value) => updateStatus(index, value)}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
           <div className="flex justify-end gap-4 mt-4">
@@ -621,7 +711,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               <MdInfo className="text-[#3a614c]" />
               <span className="text-sm">Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/bookingorders" className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors">
+            <Link href="/bookingorder" className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors">
               Back to Booking Orders List
             </Link>
           </div>

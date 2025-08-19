@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation';
 import { MdInfo, MdLocationOn, MdPhone, MdEmail, MdBusiness } from 'react-icons/md';
 import { FaMoneyBillWave, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
-import Link from 'next/link';
+import Link from 'next/link'; 
 import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
 // Define the schema for vendor form validation

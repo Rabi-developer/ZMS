@@ -6,10 +6,11 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createCharges, updateCharges , getAllCharges } from '@/apis/charges'; // Assume
+import { createCharges, updateCharges, getAllCharges } from '@/apis/charges';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllConsignment } from '@/apis/consignment';
 import { getAllBusinessAssociate } from '@/apis/businessassociate';
+import { getAllBookingOrder } from '@/apis/bookingorder';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MdLocalShipping, MdInfo, MdPayment, MdAccountBalance } from 'react-icons/md';
@@ -21,13 +22,21 @@ import { FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
 interface DropdownOption {
   id: string;
   name: string;
-  contact?: string; // For business associates
+  contact?: string;
 }
 
 interface Consignment {
   id: string;
   biltyNo: string;
-  // Other fields if needed
+}
+
+interface BookingOrder {
+  id: string;
+  vehicleNo: string;
+  cargoWeight: string;
+  orderDate: string;
+  vendor: string;
+  vendorName: string;
 }
 
 interface ChargeLine {
@@ -93,7 +102,7 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       chargeDate: '',
       orderNo: '',
       lines: [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
-      payments: [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }], // Initialize with one payment row
+      payments: [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }],
     },
   });
 
@@ -101,7 +110,9 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [munshyanas, setMunshyanas] = useState<DropdownOption[]>([]);
   const [consignments, setConsignments] = useState<Consignment[]>([]);
   const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
+  const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
   const [showBiltyPopup, setShowBiltyPopup] = useState(false);
+  const [showOrderPopup, setShowOrderPopup] = useState(false);
   const [selectedLineIndex, setSelectedLineIndex] = useState(0);
   const lines = watch('lines');
   const payments = watch('payments');
@@ -115,14 +126,25 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [munRes, consRes, baRes] = await Promise.all([
+        const [munRes, consRes, baRes, bookRes] = await Promise.all([
           getAllMunshyana(),
-          getAllConsignment(1, 100), // Get first 100 consignments
+          getAllConsignment(1, 100),
           getAllBusinessAssociate(),
+          getAllBookingOrder(),
         ]);
         setMunshyanas(munRes.data.map((m: any) => ({ id: m.id, name: m.name })));
         setConsignments(consRes.data);
         setBusinessAssociates(baRes.data.map((ba: any) => ({ id: ba.id, name: ba.name, contact: ba.contact })));
+        setBookingOrders(
+          bookRes.data.map((b: any) => ({
+            id: b.id,
+            vehicleNo: b.vehicleNo || '',
+            cargoWeight: b.cargoWeight || '',
+            orderDate: b.orderDate || '',
+            vendor: b.vendor || '',
+            vendorName: b.vendorName || b.vendor || 'Unknown',
+          }))
+        );
       } catch (error) {
         toast.error('Failed to load data');
       }
@@ -130,12 +152,10 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     fetchData();
 
     if (isEdit) {
-      // Fetch charges data
       const fetchCharges = async () => {
         const id = window.location.pathname.split('/').pop();
         if (id) {
           try {
-            // Assume getChargesById exists
             const response = await getAllCharges(id);
             const charges = response.data;
             Object.keys(charges).forEach(key => setValue(key as keyof ChargesFormData, charges[key]));
@@ -153,11 +173,18 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setShowBiltyPopup(false);
   };
 
+  const selectOrder = (order: BookingOrder) => {
+    setValue('orderNo', order.id);
+    setShowOrderPopup(false);
+  };
+
   const handlePaidToChange = (value: string, index: number) => {
     setValue(`lines.${index}.paidTo`, value);
     const associate = businessAssociates.find(ba => ba.id === value);
     if (associate) {
       setValue(`lines.${index}.contact`, associate.contact || '');
+    } else {
+      setValue(`lines.${index}.contact`, '');
     }
   };
 
@@ -203,19 +230,18 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   const isFieldDisabled = (field: string) => {
     if (!fromBooking) return false;
-    // When coming from booking, only allow charges and amount fields in the table to be edited
     return !['charge', 'amount'].includes(field);
   };
 
   const totalCharges = lines.reduce((sum, line) => sum + (line.amount || 0), 0);
   const totalPayments = payments.reduce((sum, payment) => sum + (payment.paidAmount || 0), 0);
   const balance = totalCharges - totalPayments;
+  const maxRows = Math.max(lines.length, payments.length);
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-3 overflow-hidden">
       <div className="h-full w-full flex flex-col">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-full flex flex-col">
-          {/* Compact Header */}
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -244,7 +270,7 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
           <form onSubmit={handleSubmit(onSubmit)} className="flex-1 p-4 overflow-hidden flex flex-col">
             {fromBooking && (
-              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
                   <MdInfo className="text-lg" />
                   <span className="font-medium text-sm">Restricted Mode</span>
@@ -255,7 +281,6 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               </div>
             )}
 
-            {/* Basic Information - Compact Row */}
             <div className="mb-4 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-2 mb-3">
                 <FaReceipt className="text-gray-600 text-lg" />
@@ -280,287 +305,330 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   id="chargeDate"
                   disabled={isFieldDisabled('chargeDate')}
                 />
-                <ABLCustomInput
-                  label="Order No"
-                  type="text"
-                  register={register}
-                  error={errors.orderNo?.message}
-                  id="orderNo"
-                  disabled={isFieldDisabled('orderNo')}
-                />
+                <div>
+                  <Button
+                    type="button"
+                    onClick={() => setShowOrderPopup(true)}
+                    className="mb-3 w-full bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs"
+                    disabled={isFieldDisabled('orderNo')}
+                  >
+                    Select Order No
+                  </Button>
+                  <ABLCustomInput
+                    label="Order No"
+                    type="text"
+                    register={register}
+                    error={errors.orderNo?.message}
+                    id="orderNo"
+                    disabled
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Two Tables Side by Side */}
-            <div className="flex-1 grid grid-cols-2 gap-4 overflow-hidden">
-              {/* Charges Table */}
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-3 rounded-xl border border-orange-200 dark:border-orange-700 flex flex-col">
+            {/* Combined Charges + Payments Table */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="bg-white dark:bg-gray-900 p-3 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <MdLocalShipping className="text-orange-600 text-lg" />
-                    <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Charges Details</h3>
+                    <MdLocalShipping className="text-gray-600 text-lg" />
+                    <MdPayment className="text-gray-600 text-lg" />
+                    <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Charges & Payments</h3>
                     {fromBooking && <span className="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">Charges & Amount Editable</span>}
                   </div>
-                  <Button 
-                    type="button" 
-                    onClick={addLine}
-                    className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-2 py-1"
-                  >
-                    <FiPlus className="mr-1" /> Add Line
-                  </Button>
-                </div>
-                
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-orange-200 dark:border-orange-700 flex-1 flex flex-col overflow-hidden">
-                  <div className="flex-1 overflow-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-orange-600 text-white sticky top-0">
-                        <tr>
-                          <th className="px-2 py-2 text-left font-medium">Charges</th>
-                          <th className="px-2 py-2 text-left font-medium">Bilty No</th>
-                          <th className="px-2 py-2 text-left font-medium">Date</th>
-                          <th className="px-2 py-2 text-left font-medium">Vehicle#</th>
-                          <th className="px-2 py-2 text-left font-medium">Paid to</th>
-                          <th className="px-2 py-2 text-left font-medium">Contact#</th>
-                          <th className="px-2 py-2 text-left font-medium">Remarks</th>
-                          <th className="px-2 py-2 text-left font-medium">Amount</th>
-                          <th className="px-2 py-2 text-left font-medium">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white dark:bg-gray-800">
-                        {lines.map((line, index) => (
-                          <tr key={index} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750">
-                            <td className="px-2 py-2">
-                              <Controller
-                                name={`lines.${index}.charge`}
-                                control={control}
-                                render={({ field }) => (
-                                  <select
-                                    {...field}
-                                    disabled={isFieldDisabled('charge')}
-                                    className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                                  >
-                                    <option value="">Select</option>
-                                    {munshyanas.map(mun => (
-                                      <option key={mun.id} value={mun.id}>{mun.name}</option>
-                                    ))}
-                                  </select>
-                                )}
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <div className="space-y-1">
-                                <Button 
-                                  type="button" 
-                                  onClick={() => { setShowBiltyPopup(true); setSelectedLineIndex(index); }}
-                                  className="bg-orange-600 hover:bg-orange-700 text-white text-xs px-2 py-0.5 w-full"
-                                  disabled={isFieldDisabled('biltyNo')}
-                                >
-                                  Select
-                                </Button>
-                                <input 
-                                  {...register(`lines.${index}.biltyNo`)} 
-                                  disabled 
-                                  className="w-full px-1 py-1 border border-gray-300 rounded text-xs bg-gray-50"
-                                />
-                              </div>
-                            </td>
-                            <td className="px-2 py-2">
-                              <input 
-                                type="date" 
-                                {...register(`lines.${index}.date`)} 
-                                disabled={isFieldDisabled('date')}
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <input 
-                                {...register(`lines.${index}.vehicle`)} 
-                                disabled={isFieldDisabled('vehicle')}
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <Controller
-                                name={`lines.${index}.paidTo`}
-                                control={control}
-                                render={({ field }) => (
-                                  <select
-                                    {...field}
-                                    onChange={(e) => handlePaidToChange(e.target.value, index)}
-                                    disabled={isFieldDisabled('paidTo')}
-                                    className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                                  >
-                                    <option value="">Select</option>
-                                    {businessAssociates.map(ba => (
-                                      <option key={ba.id} value={ba.id}>{ba.name}</option>
-                                    ))}
-                                  </select>
-                                )}
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <input 
-                                {...register(`lines.${index}.contact`)} 
-                                disabled 
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-xs bg-gray-50"
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <input 
-                                {...register(`lines.${index}.remarks`)} 
-                                disabled={isFieldDisabled('remarks')}
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <input 
-                                type="number" 
-                                {...register(`lines.${index}.amount`, { valueAsNumber: true })} 
-                                disabled={isFieldDisabled('amount')}
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <Button 
-                                type="button" 
-                                onClick={() => removeLine(index)}
-                                className="bg-red-500 hover:bg-red-600 text-white text-xs px-1 py-1"
-                                disabled={lines.length <= 1}
-                              >
-                                <FiTrash2 />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="bg-orange-100 dark:bg-orange-900/30 p-2 border-t border-orange-200 dark:border-orange-700">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Total Charges:</span>
-                      <span className="text-lg font-bold text-orange-600">${totalCharges.toFixed(2)}</span>
-                    </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button" 
+                      onClick={addLine}
+                      className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 rounded-md"
+                    >
+                      <FiPlus className="mr-1" /> Add Line
+                    </Button>
+                    <Button 
+                      type="button" 
+                      onClick={addPayment}
+                      className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 rounded-md"
+                    >
+                      <FiPlus className="mr-1" /> Add Payment
+                    </Button>
                   </div>
                 </div>
-              </div>
 
-              {/* Payment Table */}
-              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/20 p-3 rounded-xl border border-emerald-200 dark:border-emerald-700 flex flex-col">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <MdPayment className="text-emerald-600 text-lg" />
-                    <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Payment Information</h3>
-                  </div>
-                  <Button 
-                    type="button" 
-                    onClick={addPayment}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-2 py-1"
-                  >
-                    <FiPlus className="mr-1" /> Add Payment
-                  </Button>
-                </div>
-                
-                <div className="bg-white dark:bg-gray-800 rounded-lg border border-emerald-200 dark:border-emerald-700 flex-1 flex flex-col overflow-hidden">
+                <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 flex-1 flex flex-col overflow-hidden shadow-sm">
                   <div className="flex-1 overflow-auto">
-                    <table className="w-full text-xs">
-                      <thead className="bg-emerald-600 text-white sticky top-0">
-                        <tr>
-                          <th className="px-2 py-2 text-left font-medium">Paid Amount</th>
-                          <th className="px-2 py-2 text-left font-medium">Bank/Cash</th>
-                          <th className="px-2 py-2 text-left font-medium">Chq No</th>
-                          <th className="px-2 py-2 text-left font-medium">Chq Date</th>
-                          <th className="px-2 py-2 text-left font-medium">Pay. No</th>
-                          <th className="px-2 py-2 text-left font-medium">Action</th>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                          <th className="px-3 py-2 text-left font-semibold" colSpan={8}>Charges Details</th>
+                          <th className="px-3 py-2 text-left font-semibold border-l-2 border-gray-300 dark:border-gray-600" colSpan={5}>Payment Information</th>
+                          <th className="px-3 py-2 text-left font-semibold" colSpan={1}>Actions</th>
+                        </tr>
+                        <tr className="bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 sticky top-0">
+                          {/* Charges Columns */}
+                          <th className="px-3 py-2 text-left font-medium">Charges</th>
+                          <th className="px-3 py-2 text-left font-medium">Bilty No</th>
+                          <th className="px-3 py-2 text-left font-medium">Date</th>
+                          <th className="px-3 py-2 text-left font-medium">Vehicle#</th>
+                          <th className="px-3 py-2 text-left font-medium">Paid to</th>
+                          <th className="px-3 py-2 text-left font-medium">Contact#</th>
+                          <th className="px-3 py-2 text-left font-medium">Remarks</th>
+                          <th className="px-3 py-2 text-left font-medium ">Amount</th>
+                          {/* Payment Columns */}
+                          <th className="px-3 py-2 text-left font-medium border-l-2 border-gray-300 dark:border-gray-600">Paid Amount</th>
+                          <th className="px-3 py-2 text-left font-medium">Bank/Cash</th>
+                          <th className="px-3 py-2 text-left font-medium">Chq No</th>
+                          <th className="px-3 py-2 text-left font-medium">Chq Date</th>
+                          <th className="px-3 py-2 text-left font-medium">Pay. No</th>
+                          {/* Actions */}
+                          <th className="px-3 py-2 text-left font-medium">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white dark:bg-gray-800">
-                        {payments.map((payment, index) => (
-                          <tr key={index} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750">
-                            <td className="px-2 py-2">
-                              <input 
-                                type="number" 
-                                {...register(`payments.${index}.paidAmount`, { valueAsNumber: true })} 
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <Controller
-                                name={`payments.${index}.bankCash`}
-                                control={control}
-                                render={({ field }) => (
-                                  <select
-                                    {...field}
-                                    className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                                  >
-                                    <option value="">Select</option>
-                                    {bankCashOptions.map(option => (
-                                      <option key={option.id} value={option.id}>{option.name}</option>
-                                    ))}
-                                  </select>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {Array.from({ length: maxRows }).map((_, index) => {
+                          const hasLine = index < lines.length;
+                          const hasPayment = index < payments.length;
+                          return (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                              {/* Charges Cells */}
+                              <td className="px-3 py-2">
+                                {hasLine ? (
+                                  <Controller
+                                    name={`lines.${index}.charge`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <select
+                                        {...field}
+                                        disabled={isFieldDisabled('charge')}
+                                        className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c]"
+                                      >
+                                        <option value="">Select</option>
+                                        {munshyanas.map(mun => (
+                                          <option key={mun.id} value={mun.id}>{mun.name}</option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
                                 )}
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <input 
-                                {...register(`payments.${index}.chqNo`)} 
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <input 
-                                type="date" 
-                                {...register(`payments.${index}.chqDate`)} 
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <input 
-                                {...register(`payments.${index}.payNo`)} 
-                                className="w-full px-1 py-1 border border-gray-300 rounded text-xs"
-                              />
-                            </td>
-                            <td className="px-2 py-2">
-                              <Button 
-                                type="button" 
-                                onClick={() => removePayment(index)}
-                                className="bg-red-500 hover:bg-red-600 text-white text-xs px-1 py-1"
-                                disabled={payments.length <= 1}
-                              >
-                                <FiTrash2 />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasLine ? (
+                                  <div className="space-y-1">
+                                    <Button 
+                                      type="button" 
+                                      onClick={() => { setShowBiltyPopup(true); setSelectedLineIndex(index); }}
+                                      className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 w-full rounded-md"
+                                      disabled={isFieldDisabled('biltyNo')}
+                                    >
+                                      Select
+                                    </Button>
+                                    <input 
+                                      {...register(`lines.${index}.biltyNo`)} 
+                                      disabled 
+                                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasLine ? (
+                                  <input 
+                                    type="date" 
+                                    {...register(`lines.${index}.date`)} 
+                                    disabled={isFieldDisabled('date')}
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasLine ? (
+                                  <input 
+                                    {...register(`lines.${index}.vehicle`)} 
+                                    disabled={isFieldDisabled('vehicle')}
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasLine ? (
+                                  <Controller
+                                    name={`lines.${index}.paidTo`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <select
+                                        {...field}
+                                        onChange={(e) => handlePaidToChange(e.target.value, index)}
+                                        disabled={isFieldDisabled('paidTo')}
+                                        className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c]"
+                                      >
+                                        <option value="">Select</option>
+                                        {businessAssociates.map(ba => (
+                                          <option key={ba.id} value={ba.id}>{ba.name}</option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasLine ? (
+                                  <input 
+                                    {...register(`lines.${index}.contact`)} 
+                                    disabled 
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasLine ? (
+                                  <input 
+                                    {...register(`lines.${index}.remarks`)} 
+                                    disabled={isFieldDisabled('remarks')}
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasLine ? (
+                                  <input 
+                                    type="number" 
+                                    {...register(`lines.${index}.amount`, { valueAsNumber: true })} 
+                                    disabled={isFieldDisabled('amount')}
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+
+                              {/* Payment Cells */}
+                              <td className="px-3 py-2 border-l-2 border-gray-300 dark:border-gray-600">
+                                {hasPayment ? (
+                                  <input 
+                                    type="number" 
+                                    {...register(`payments.${index}.paidAmount`, { valueAsNumber: true })} 
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasPayment ? (
+                                  <Controller
+                                    name={`payments.${index}.bankCash`}
+                                    control={control}
+                                    render={({ field }) => (
+                                      <select
+                                        {...field}
+                                        className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c]"
+                                      >
+                                        <option value="">Select</option>
+                                        {bankCashOptions.map(option => (
+                                          <option key={option.id} value={option.id}>{option.name}</option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasPayment ? (
+                                  <input 
+                                    {...register(`payments.${index}.chqNo`)} 
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasPayment ? (
+                                  <input 
+                                    type="date" 
+                                    {...register(`payments.${index}.chqDate`)} 
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {hasPayment ? (
+                                  <input 
+                                    {...register(`payments.${index}.payNo`)} 
+                                    className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  />
+                                ) : (
+                                  <div className="text-gray-400 text-xs">—</div>
+                                )}
+                              </td>
+
+                              {/* Actions */}
+                              <td className="px-3 py-2">
+                                <div className="flex items-center gap-2">
+                                  {hasLine && (
+                                    <Button 
+                                      type="button" 
+                                      onClick={() => removeLine(index)}
+                                      className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
+                                      disabled={lines.length <= 1}
+                                    >
+                                      <FiTrash2 />
+                                    </Button>
+                                  )}
+                                  {hasPayment && (
+                                    <Button 
+                                      type="button" 
+                                      onClick={() => removePayment(index)}
+                                      className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
+                                      disabled={payments.length <= 1}
+                                    >
+                                      <FiTrash2 />
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
+                      <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                        <tr>
+                          <td className="px-3 py-2 font-semibold text-gray-800 dark:text-gray-200" colSpan={7}>Total Charges:</td>
+                          <td className="px-3 py-2 font-bold text-gray-900 dark:text-gray-100">${totalCharges.toFixed(2)}</td>
+                          <td className="px-3 py-2"></td>
+                        </tr>
+                      </tfoot>
                     </table>
-                  </div>
-                  <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 border-t border-emerald-200 dark:border-emerald-700">
-                    <div className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Total Payments:</span>
-                        <span className="text-lg font-bold text-emerald-600">${totalPayments.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Balance:</span>
-                        <span className={`text-lg font-bold ${balance >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          ${Math.abs(balance).toFixed(2)} {balance >= 0 ? '(Due)' : '(Excess)'}
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Bilty Selection Popup */}
             {showBiltyPopup && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-                <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-md w-full mx-4">
+                <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-md w-full mx-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Bilty</h3>
                     <Button 
                       onClick={() => setShowBiltyPopup(false)}
-                      className="text-gray-400 hover:text-gray-600 p-1"
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
                       variant="ghost"
                     >
                       <FiX className="text-xl" />
@@ -571,7 +639,7 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       <div 
                         key={cons.id} 
                         onClick={() => selectBilty(cons, selectedLineIndex)} 
-                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors"
+                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors"
                       >
                         <span className="font-medium text-gray-800 dark:text-gray-200">{cons.biltyNo}</span>
                       </div>
@@ -580,7 +648,7 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   <div className="flex justify-end mt-4">
                     <Button 
                       onClick={() => setShowBiltyPopup(false)}
-                      className="bg-gray-500 hover:bg-gray-600 text-white"
+                      className="bg-gray-500 hover:bg-gray-600 text-white rounded-md"
                     >
                       Cancel
                     </Button>
@@ -589,7 +657,63 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               </div>
             )}
 
-            {/* Submit Button */}
+            {showOrderPopup && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+                <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
+                    <Button 
+                      onClick={() => setShowOrderPopup(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
+                      variant="ghost"
+                    >
+                      <FiX className="text-xl" />
+                    </Button>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {bookingOrders.map((order) => (
+                      <div 
+                        key={order.id} 
+                        onClick={() => selectOrder(order)} 
+                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+                      >
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex items-center gap-2">
+                            <MdLocalShipping className="text-[#3a614c] text-lg" />
+                            <span className="font-medium text-gray-800 dark:text-gray-200">Order No: {order.id}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FaCreditCard className="text-[#3a614c] text-lg" />
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Vehicle No: {order.vehicleNo}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FaMoneyBillWave className="text-[#3a614c] text-lg" />
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Cargo Weight: {order.cargoWeight}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MdAccountBalance className="text-[#3a614c] text-lg" />
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Order Date: {order.orderDate}</span>
+                          </div>
+                          <div className="flex items-center gap-2 col-span-2">
+                            <MdPayment className="text-[#3a614c] text-lg" />
+                            <span className="text-sm text-gray-600 dark:text-gray-400">Vendor: {order.vendorName}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-end mt-4">
+                    <Button 
+                      onClick={() => setShowOrderPopup(false)}
+                      className="bg-gray-500 hover:bg-gray-600 text-white rounded-md"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
               <Button
                 type="submit"

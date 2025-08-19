@@ -9,6 +9,8 @@ import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllCharges, deleteCharges, updateChargesStatus } from '@/apis/charges';
 import { Edit, Trash } from 'lucide-react';
 import { columns, getStatusStyles, Charge } from './columns';
+import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
+import { getAllConsignment } from '@/apis/consignment';
 
 const ChargesList = () => {
   const router = useRouter();
@@ -17,15 +19,15 @@ const ChargesList = () => {
   const [filteredCharges, setFilteredCharges] = useState<Charge[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-  const [openView, setOpenView] = useState(false);
   const [deleteId, setDeleteId] = useState('');
-  const [selectedCharge, setSelectedCharge] = useState<Charge | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedChargeIds, setSelectedChargeIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [consignments, setConsignments] = useState<any[]>([]);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row
 
   const statusOptions = ['All', 'Unpaid', 'Paid'];
   const statusOptionsConfig = [
@@ -87,15 +89,17 @@ const ChargesList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = (chargeId: string) => {
+  const handleViewOpen = async (chargeId: string) => {
+    setSelectedRowId((prev) => (prev === chargeId ? null : chargeId));
     const charge = charges.find((item) => item.id === chargeId);
-    setSelectedCharge(charge || null);
-    setOpenView(true);
-  };
-
-  const handleViewClose = () => {
-    setOpenView(false);
-    setSelectedCharge(null);
+    if (charge?.orderNo) {
+      try {
+        const response = await getAllConsignment(1, 100, { orderNo: charge.orderNo });
+        setConsignments(response?.data || []);
+      } catch (error) {
+        toast('Failed to fetch consignments', { type: 'error' });
+      }
+    }
   };
 
   const handleCheckboxChange = (chargeId: string, checked: boolean) => {
@@ -220,45 +224,14 @@ const ChargesList = () => {
           setPageSize={setPageSize}
         />
       </div>
-      {openDelete && (
-        <DeleteConfirmModel
-          handleDeleteclose={handleDeleteClose}
-          handleDelete={handleDelete}
-          isOpen={openDelete}
-        />
-      )}
-      {openView && selectedCharge && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <div className="bg-white w-full max-w-4xl rounded-2xl p-6 max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-[#06b6d4]">Charge Details</h2>
-              <button onClick={handleViewClose} className="text-2xl font-bold">×</button>
-            </div>
-            <div className="flex-1 overflow-y-auto pr-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div><strong>Charge No:</strong> {selectedCharge.chargeNo || '-'}</div>
-                <div><strong>Charge Date:</strong> {selectedCharge.chargeDate || '-'}</div>
-                <div><strong>Order No:</strong> {selectedCharge.orderNo || '-'}</div>
-                <div><strong>Unpaid Charges:</strong> {selectedCharge.unpaidCharges || '-'}</div>
-                <div><strong>Payment:</strong> {selectedCharge.payment || '-'}</div>
-                <div><strong>Charges:</strong> {selectedCharge.charges || '-'}</div>
-                <div><strong>Bilty No:</strong> {selectedCharge.biltyNo || '-'}</div>
-                <div><strong>Date:</strong> {selectedCharge.date || '-'}</div>
-                <div><strong>Vehicle#:</strong> {selectedCharge.vehicleNo || '-'}</div>
-                <div><strong>Paid to Person:</strong> {selectedCharge.paidToPerson || '-'}</div>
-                <div><strong>Contact#:</strong> {selectedCharge.contactNo || '-'}</div>
-                <div><strong>Remarks:</strong> {selectedCharge.remarks || '-'}</div>
-                <div><strong>Amount:</strong> {selectedCharge.amount || '-'}</div>
-                <div><strong>Paid Amount:</strong> {selectedCharge.paidAmount || '-'}</div>
-                <div><strong>Bank/Cash:</strong> {selectedCharge.bankCash || '-'}</div>
-                <div><strong>Chq No:</strong> {selectedCharge.chqNo || '-'}</div>
-                <div><strong>Chq Date Pay. No:</strong> {selectedCharge.chqDate || '-'}</div>
-                <div><strong>Pay No:</strong> {selectedCharge.payNo || '-'}</div>
-                <div><strong>Total:</strong> {selectedCharge.total || '-'}</div>
-                <div><strong>Status:</strong> <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(selectedCharge.status || 'Unpaid')}`}>{selectedCharge.status || 'Unpaid'}</span></div>
-              </div>
-            </div>
-          </div>
+      {selectedRowId && (
+        <div className="mt-4">
+          <h3 className="text-lg font-semibold text-[#06b6d4]">Order Progress</h3>
+          <OrderProgress
+            orderNo={charges.find((c) => c.id === selectedRowId)?.orderNo}
+            bookingStatus={null} // Charges don't have booking status
+            consignments={consignments}
+          />
         </div>
       )}
       <div className="mt-4 space-y-2 h-[18vh]">
@@ -281,6 +254,13 @@ const ChargesList = () => {
           })}
         </div>
       </div>
+      {openDelete && (
+        <DeleteConfirmModel
+          handleDeleteclose={handleDeleteClose}
+          handleDelete={handleDelete}
+          isOpen={openDelete}
+        />
+      )}
     </div>
   );
 };

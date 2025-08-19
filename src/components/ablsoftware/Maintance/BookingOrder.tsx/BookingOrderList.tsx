@@ -12,6 +12,7 @@ import { getAllBookingOrder, deleteBookingOrder, updateBookingOrderStatus } from
 import { getAllConsignment, deleteConsignment } from '@/apis/consignment';
 import { Edit, Trash } from 'lucide-react';
 import { columns, getStatusStyles, BookingOrder } from './columns';
+import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
 interface Consignment {
   orderNo: any;
@@ -40,9 +41,7 @@ const BookingOrderList = () => {
   const [consignments, setConsignments] = useState<{ [orderId: string]: Consignment[] }>({});
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-  const [openView, setOpenView] = useState(false);
   const [deleteId, setDeleteId] = useState('');
-  const [selectedOrder, setSelectedOrder] = useState<ExtendedBookingOrder | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
@@ -50,6 +49,7 @@ const BookingOrderList = () => {
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [fetchingConsignments, setFetchingConsignments] = useState<{ [orderId: string]: boolean }>({});
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row
 
   const statusOptions = ['All', 'Pending', 'In Transit', 'Delivered'];
   const statusOptionsConfig = [
@@ -139,18 +139,10 @@ const BookingOrderList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = (orderId: string) => {
-    const order = bookingOrders.find((item) => item.id === orderId);
-    setSelectedOrder(order || null);
-    setOpenView(true);
-    if (order) {
-      fetchConsignments(order.id);
-    }
-  };
-
-  const handleViewClose = () => {
-    setOpenView(false);
-    setSelectedOrder(null);
+  const handleViewOpen = async (orderId: string) => {
+    // Toggle selection: if same row is clicked, deselect; otherwise, select new row
+    setSelectedRowId((prev) => (prev === orderId ? null : orderId));
+    await fetchConsignments(orderId); // Fetch consignments for the selected order
   };
 
   const handleCheckboxChange = async (orderId: string, checked: boolean) => {
@@ -204,7 +196,7 @@ const BookingOrderList = () => {
 
     const formattedData = dataToExport.flatMap((order) => {
       const cons = consignments[order.id] || [];
-      
+
       if (cons.length === 0) {
         return [{
           'Order No': order.orderNo || '-',
@@ -297,16 +289,31 @@ const BookingOrderList = () => {
           setPageSize={setPageSize}
         />
       </div>
+      {selectedRowId && (
+        <div className="mt-4">
+          <h3 className="text-lg font-semibold text-[#06b6d4]">Order Progress</h3>
+          <OrderProgress
+            orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
+            bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
+            consignments={consignments[selectedRowId] || []}
+          />
+        </div>
+      )}
       {selectedOrderIds.length > 0 && (
         <div className="mt-4">
           <h3 className="text-lg font-semibold text-[#06b6d4]">Selected Orders and Consignments</h3>
           {selectedOrderIds.map((orderId) => {
             const order = bookingOrders.find((o) => o.id === orderId);
             const cons = consignments[orderId] || [];
-            
+
             return (
               <div key={orderId} className="mt-4">
                 <h4 className="text-md font-medium">Order: {order?.orderNo || '-'}</h4>
+                <OrderProgress
+                  orderNo={order?.orderNo}
+                  bookingStatus={order?.status}
+                  consignments={cons}
+                />
                 <table className="w-full text-left border-collapse text-sm md:text-base mt-2">
                   <thead>
                     <tr className="bg-[#06b6d4] text-white">
@@ -386,97 +393,6 @@ const BookingOrderList = () => {
           handleDelete={handleDelete}
           isOpen={openDelete}
         />
-      )}
-      {openView && selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <div className="bg-white w-full max-w-4xl rounded-2xl p-6 max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-[#06b6d4]">Booking Order Details</h2>
-              <button onClick={handleViewClose} className="text-2xl font-bold">×</button>
-            </div>
-            <div className="flex-1 overflow-y-auto pr-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div><strong>Order No:</strong> {selectedOrder.orderNo || '-'}</div>
-                <div><strong>Order Date:</strong> {selectedOrder.orderDate || '-'}</div>
-                <div><strong>Company:</strong> {selectedOrder.company || '-'}</div>
-                <div><strong>Branch:</strong> {selectedOrder.branch || '-'}</div>
-                <div><strong>Status:</strong> <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(selectedOrder.status || 'Pending')}`}>{selectedOrder.status || 'Pending'}</span></div>
-                <div className="col-span-2"><strong>Remarks:</strong> {selectedOrder.remarks || '-'}</div>
-              </div>
-              <div className="mt-4 overflow-x-auto">
-                <h3 className="text-lg font-semibold">Consignments</h3>
-                {fetchingConsignments[selectedOrder.id] ? (
-                  <p className="text-gray-500">Loading consignments...</p>
-                ) : consignments[selectedOrder.id]?.length > 0 ? (
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-[#06b6d4] text-white">
-                        <th className="p-3">Bilty No</th>
-                        <th className="p-3">Receipt No</th>
-                        <th className="p-3">Consignor</th>
-                        <th className="p-3">Consignee</th>
-                        <th className="p-3">Item</th>
-                        <th className="p-3">Qty</th>
-                        <th className="p-3">Total Amount</th>
-                        <th className="p-3">Recv. Amount</th>
-                        <th className="p-3">Del. Date</th>
-                        <th className="p-3">Status</th>
-                        <th className="p-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {consignments[selectedOrder.id].map((c) => (
-                        <tr key={c.id} className="border-b">
-                          <td className="p-3">{c.biltyNo || '-'}</td>
-                          <td className="p-3">{c.receiptNo || '-'}</td>
-                          <td className="p-3">{c.consignor || '-'}</td>
-                          <td className="p-3">{c.consignee || '-'}</td>
-                          <td className="p-3">{c.item || '-'}</td>
-                          <td className="p-3">{c.qty || '-'}</td>
-                          <td className="p-3">{c.totalAmount || '-'}</td>
-                          <td className="p-3">{c.receivedAmount || '-'}</td>
-                          <td className="p-3">{c.deliveryDate || '-'}</td>
-                          <td className="p-3">{c.status || '-'}</td>
-                          <td className="p-3">
-                            <div className="flex gap-2">
-                              <Link href={`/consignment/edit/${c.id}`}>
-                                <Button variant="outline" size="sm">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </Link>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    await deleteConsignment(c.id);
-                                    toast('Consignment Deleted Successfully', { type: 'success' });
-                                    fetchConsignments(selectedOrder.id);
-                                  } catch (error) {
-                                    toast('Failed to delete consignment', { type: 'error' });
-                                  }
-                                }}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="text-gray-500">No consignments found for this order.</p>
-                )}
-              </div>
-            </div>
-            <Link href={`/consignment/create?orderNo=${selectedOrder.orderNo}`}>
-              <Button className="mt-4 bg-[#06b6d4] hover:bg-[#0891b2] text-white">
-                Create Consignment
-              </Button>
-            </Link>
-          </div>
-        </div>
       )}
     </div>
   );

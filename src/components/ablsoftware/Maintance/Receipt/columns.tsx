@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 export interface Receipt {
+  orderNo: string;
   id: string;
   receiptNo: string;
   receiptDate: string;

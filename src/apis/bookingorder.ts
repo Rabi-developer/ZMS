@@ -15,7 +15,7 @@ const createBookingOrder = async (BookingOrder : any) => {
 };
 
 // BookingOrder-list
-const getAllBookingOrder  = async (pageIndex:any=1,pageSize:any=10) => {
+const getAllBookingOrder  = async (pageIndex: any = 1, pageSize: any = 10, p0?: { orderNo: string; }) => {
   try {
     const response = await apiFetch(`BookingOrder?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
       method: 'GET',

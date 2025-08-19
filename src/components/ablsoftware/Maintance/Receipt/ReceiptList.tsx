@@ -8,6 +8,9 @@ import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllReceipt, deleteReceipt, updateReceiptStatus } from '@/apis/receipt';
 import { columns, getStatusStyles, Receipt } from './columns';
+import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
+import { getAllConsignment } from '@/apis/consignment';
+import { getAllBookingOrder } from '@/apis/bookingorder';
 
 const ReceiptList = () => {
   const router = useRouter();
@@ -16,15 +19,16 @@ const ReceiptList = () => {
   const [filteredReceipts, setFilteredReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-  const [openView, setOpenView] = useState(false);
   const [deleteId, setDeleteId] = useState('');
-  const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedReceiptIds, setSelectedReceiptIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [consignments, setConsignments] = useState<any[]>([]);
+  const [bookingStatus, setBookingStatus] = useState<string | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row
 
   const statusOptions = ['All', 'Pending', 'Completed'];
   const statusOptionsConfig = [
@@ -86,15 +90,20 @@ const ReceiptList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = (receiptId: string) => {
+  const handleViewOpen = async (receiptId: string) => {
+    setSelectedRowId((prev) => (prev === receiptId ? null : receiptId));
     const receipt = receipts.find((item) => item.id === receiptId);
-    setSelectedReceipt(receipt || null);
-    setOpenView(true);
-  };
-
-  const handleViewClose = () => {
-    setOpenView(false);
-    setSelectedReceipt(null);
+    if (receipt?.orderNo) {
+      try {
+        const consResponse = await getAllConsignment(1, 100, { orderNo: receipt.orderNo });
+        setConsignments(consResponse?.data || []);
+        const bookingResponse = await getAllBookingOrder(1, 100, { orderNo: receipt.orderNo });
+        const booking = bookingResponse?.data.find((b: any) => b.orderNo === receipt.orderNo);
+        setBookingStatus(booking?.status || null);
+      } catch (error) {
+        toast('Failed to fetch related data', { type: 'error' });
+      }
+    }
   };
 
   const handleCheckboxChange = (receiptId: string, checked: boolean) => {
@@ -209,36 +218,14 @@ const ReceiptList = () => {
           setPageSize={setPageSize}
         />
       </div>
-      {openDelete && (
-        <DeleteConfirmModel
-          handleDeleteclose={handleDeleteClose}
-          handleDelete={handleDelete}
-          isOpen={openDelete}
-        />
-      )}
-      {openView && selectedReceipt && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <div className="bg-white w-full max-w-4xl rounded-2xl p-6 max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-[#06b6d4]">Receipt Details</h2>
-              <button onClick={handleViewClose} className="text-2xl font-bold">×</button>
-            </div>
-            <div className="flex-1 overflow-y-auto pr-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div><strong>Receipt No:</strong> {selectedReceipt.receiptNo || '-'}</div>
-                <div><strong>Receipt Date:</strong> {selectedReceipt.receiptDate || '-'}</div>
-                <div><strong>Party:</strong> {selectedReceipt.party || '-'}</div>
-                <div><strong>Payment Mode:</strong> {selectedReceipt.paymentMode || '-'}</div>
-                <div><strong>Bank Name:</strong> {selectedReceipt.bankName || '-'}</div>
-                <div><strong>Cheque No:</strong> {selectedReceipt.chequeNo || '-'}</div>
-                <div><strong>Cheque Date:</strong> {selectedReceipt.chequeDate || '-'}</div>
-                <div><strong>Receipt Amount:</strong> {selectedReceipt.receiptAmount || '-'}</div>
-                <div><strong>Remarks:</strong> {selectedReceipt.remarks || '-'}</div>
-                <div><strong>Total Amount:</strong> {selectedReceipt.totalAmount || '-'}</div>
-                <div><strong>Status:</strong> <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(selectedReceipt.status || 'Pending')}`}>{selectedReceipt.status || 'Pending'}</span></div>
-              </div>
-            </div>
-          </div>
+      {selectedRowId && (
+        <div className="mt-4">
+          <h3 className="text-lg font-semibold text-[#06b6d4]">Order Progress</h3>
+          <OrderProgress
+            orderNo={receipts.find((r) => r.id === selectedRowId)?.orderNo}
+            bookingStatus={bookingStatus}
+            consignments={consignments}
+          />
         </div>
       )}
       <div className="mt-4 space-y-2 h-[18vh]">
@@ -251,7 +238,7 @@ const ReceiptList = () => {
                 onClick={() => handleBulkStatusUpdate(option.name)}
                 disabled={updating}
                 className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-                  ${isSelected ? `border-[${option.color}] bg-gradientto-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
+                  ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
                   ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span className="text-sm font-semibold text-center">{option.name}</span>
@@ -261,6 +248,13 @@ const ReceiptList = () => {
           })}
         </div>
       </div>
+      {openDelete && (
+        <DeleteConfirmModel
+          handleDeleteclose={handleDeleteClose}
+          handleDelete={handleDelete}
+          isOpen={openDelete}
+        />
+      )}
     </div>
   );
 };

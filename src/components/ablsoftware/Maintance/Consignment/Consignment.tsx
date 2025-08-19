@@ -6,9 +6,12 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createConsignment, updateConsignment } from '@/apis/consignment'; // Assume APIs
-import { getAllPartys } from '@/apis/party'; // Assuming this is correct
-import { getAllBookingOrder } from '@/apis/bookingorder'; // Assume
+import { createConsignment, updateConsignment } from '@/apis/consignment';
+import { getAllPartys } from '@/apis/party';
+import { getAllBookingOrder } from '@/apis/bookingorder';
+import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
+import { getAllSaleTexes } from '@/apis/salestexes';
+import { getAllTransporter } from '@/apis/transporter';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MdLocalShipping, MdInfo, MdPhone } from 'react-icons/md';
@@ -16,6 +19,20 @@ import { FaIdCard, FaMoneyBillWave } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
 import { FiSave, FiX, FiUser } from 'react-icons/fi';
+
+// Extend ABLCustomInputProps to include onFocus and onBlur
+interface ABLCustomInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  type: string;
+  placeholder: string;
+  register: any;
+  error?: string;
+  id: string;
+  disabled?: boolean;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  [key: string]: any;
+}
 
 // Interfaces
 interface DropdownOption {
@@ -25,7 +42,10 @@ interface DropdownOption {
 
 interface BookingOrder {
   id: string;
-  // Add other fields if needed
+  vehicleNo: string;
+  cargoWeight: string;
+  orderDate: string;
+  vendor: string;
 }
 
 interface Item {
@@ -41,12 +61,12 @@ const consignmentSchema = z.object({
   consignmentMode: z.string().optional(),
   receiptNo: z.string().optional(),
   orderNo: z.string().optional(),
-  biltyNo: z.string().optional(),
-  date: z.string().optional(),
+  biltyNo: z.string().min(1, 'Bilty No is required'),
+  date: z.string().min(1, 'Date is required'),
   consignmentNo: z.string().optional(),
-  consignor: z.string().optional(),
+  consignor: z.string().min(1, 'Consignor is required'),
   consignmentDate: z.string().optional(),
-  consignee: z.string().optional(),
+  consignee: z.string().min(1, 'Consignee is required'),
   receiverName: z.string().optional(),
   receiverContactNo: z.string().optional(),
   shippingLine: z.string().optional(),
@@ -54,21 +74,23 @@ const consignmentSchema = z.object({
   port: z.string().optional(),
   destination: z.string().optional(),
   freightFrom: z.string().optional(),
-  items: z.array(z.object({
-    desc: z.string().optional(),
-    qty: z.number().optional(),
-    qtyUnit: z.string().optional(),
-    weight: z.number().optional(),
-    weightUnit: z.string().optional(),
-  })),
+  items: z.array(
+    z.object({
+      desc: z.string().optional(),
+      qty: z.number().optional(),
+      qtyUnit: z.string().optional(),
+      weight: z.number().optional(),
+      weightUnit: z.string().optional(),
+    })
+  ),
   totalQty: z.number().optional(),
-  freight: z.number().optional(),
+  freight: z.string().optional(),
   sbrTax: z.string().optional(),
   sprAmount: z.number().optional(),
-  deliveryCharges: z.number().optional(),
-  insuranceCharges: z.number().optional(),
-  tollTax: z.number().optional(),
-  otherCharges: z.number().optional(),
+  deliveryCharges: z.string().optional(),
+  insuranceCharges: z.string().optional(),
+  tollTax: z.string().optional(),
+  otherCharges: z.string().optional(),
   totalAmount: z.number().optional(),
   receivedAmount: z.number().optional(),
   incomeTaxDed: z.number().optional(),
@@ -111,13 +133,13 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       freightFrom: '',
       items: Array(3).fill({ desc: '', qty: 0, qtyUnit: '', weight: 0, weightUnit: '' }),
       totalQty: 0,
-      freight: 0,
+      freight: '',
       sbrTax: '',
       sprAmount: 0,
-      deliveryCharges: 0,
-      insuranceCharges: 0,
-      tollTax: 0,
-      otherCharges: 0,
+      deliveryCharges: '',
+      insuranceCharges: '',
+      tollTax: '',
+      otherCharges: '',
       totalAmount: 0,
       receivedAmount: 0,
       incomeTaxDed: 0,
@@ -133,11 +155,15 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [parties, setParties] = useState<DropdownOption[]>([]);
   const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
   const [showOrderPopup, setShowOrderPopup] = useState(false);
-  const shippingLines: DropdownOption[] = [{ id: 'MRSK', name: 'MRSK' }]; // Dummy
-  const freightFromOptions: DropdownOption[] = [{ id: 'Consignor', name: 'Consignor' }, { id: 'Consignee', name: 'Consignee' }];
-  const units: DropdownOption[] = ['Meter', 'Yard', 'Bags', 'KG', 'Cartin'].map(u => ({ id: u, name: u }));
-  const sbrTaxes: DropdownOption[] = ['SRB 15%', 'WHT 20% ON SRB', 'SRB 0%'].map(t => ({ id: t, name: t }));
-  const consignmentModes: DropdownOption[] = [{ id: 'Emry Moda', name: 'Emry Moda' }]; // Assuming dummy
+  const [shippingLines, setShippingLines] = useState<DropdownOption[]>([]);
+  const [units, setUnits] = useState<DropdownOption[]>([]);
+  const [sbrTaxes, setSbrTaxes] = useState<DropdownOption[]>([]);
+  const [consignmentModes, setConsignmentModes] = useState<DropdownOption[]>([]);
+  const [receiptNoFocused, setReceiptNoFocused] = useState(false);
+  const freightFromOptions: DropdownOption[] = [
+    { id: 'Consignor', name: 'Consignor' },
+    { id: 'Consignee', name: 'Consignee' },
+  ];
   const items = watch('items');
   const freight = watch('freight');
   const sbrTax = watch('sbrTax');
@@ -149,14 +175,36 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [partRes, bookRes] = await Promise.all([
+        const [partRes, bookRes, unitRes, taxRes, transporterRes] = await Promise.all([
           getAllPartys(),
           getAllBookingOrder(),
+          getAllUnitOfMeasures(1, 100),
+          getAllSaleTexes(1, 100),
+          getAllTransporter(),
         ]);
         setParties(partRes.data.map((p: any) => ({ id: p.id, name: p.name })));
-        setBookingOrders(bookRes.data);
+        setBookingOrders(
+          bookRes.data.map((b: any) => ({
+            id: b.id,
+            vehicleNo: b.vehicleNo || '',
+            cargoWeight: b.cargoWeight || '',
+            orderDate: b.orderDate || '',
+            vendor: b.vendor || '',
+          }))
+        );
+        setUnits(unitRes.data.map((u: any) => ({ id: u.id, name: u.name || u.unitName || u.description })));
+        setSbrTaxes(taxRes.data.map((t: any) => ({ id: t.id, name: t.taxName || t.name })));
+        setShippingLines(transporterRes.data.map((t: any) => ({ id: t.id, name: t.name })));
+
+        setConsignmentModes([
+          { id: 'Road', name: 'Road Transport' },
+          { id: 'Sea', name: 'Sea Transport' },
+          { id: 'Air', name: 'Air Transport' },
+          { id: 'Rail', name: 'Rail Transport' },
+        ]);
       } catch (error) {
         toast.error('Failed to load data');
+        console.error('Error fetching dropdown data:', error);
       }
     };
     fetchData();
@@ -180,44 +228,47 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       };
       fetchConsignment();
     } else {
-      // Generate auto receipt number for new consignment
       const generateReceiptNo = () => {
-        const prefix = 'REC';
+        const prefix = '';
         const timestamp = Date.now().toString().slice(-6);
-        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        const random = Math.floor(Math.random() * 1000).toString().padStart(1, '0');
         return `${prefix}${timestamp}${random}`;
       };
-      
+
       const autoReceiptNo = generateReceiptNo();
-      setValue('receiptNo', autoReceiptNo);
+      setValue('receiptNo', autoReceiptNo, { shouldValidate: true });
     }
   }, [isEdit, setValue]);
 
   useEffect(() => {
     const totalQty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
-    setValue('totalQty', totalQty);
+    setValue('totalQty', totalQty, { shouldValidate: true });
 
     let taxPercent = 0;
     if (sbrTax) {
-      const match = sbrTax.match(/\d+/);
+      const match = sbrTax.match(/\d+(?:\.\d+)?/);
       if (match) {
         taxPercent = parseFloat(match[0]) / 100;
       }
     }
     const spr = (freight || 0) * taxPercent;
-    setValue('sprAmount', spr);
+    setValue('sprAmount', spr, { shouldValidate: true });
 
-    const total = (deliveryCharges || 0) + (insuranceCharges || 0) + (tollTax || 0) + (otherCharges || 0);
-    setValue('totalAmount', total);
+    const total = (
+      parseFloat(String(deliveryCharges ?? '0')) +
+      parseFloat(String(insuranceCharges ?? '0')) +
+      parseFloat(String(tollTax ?? '0')) +
+      parseFloat(String(otherCharges ?? '0'))
+    );
+    setValue('totalAmount', isNaN(total) ? 0 : total, { shouldValidate: true });
 
-    // For auto fields, assuming some calculations, but since not specified, leave as is or set to 0
-    setValue('receivedAmount', 0); // Placeholder
-    setValue('incomeTaxDed', 0);
-    setValue('incomeTaxAmount', 0);
+    setValue('receivedAmount', 0, { shouldValidate: true });
+    setValue('incomeTaxDed', 0, { shouldValidate: true });
+    setValue('incomeTaxAmount', 0, { shouldValidate: true });
   }, [items, freight, sbrTax, deliveryCharges, insuranceCharges, tollTax, otherCharges, setValue]);
 
   const selectOrder = (order: BookingOrder) => {
-    setValue('orderNo', order.id);
+    setValue('orderNo', order.id, { shouldValidate: true });
     setShowOrderPopup(false);
   };
 
@@ -225,7 +276,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateConsignment(data.consignmentNo || '', data);
+        await updateConsignment(data.consignmentNo || '', { ...data, orderNo: data.orderNo || '' });
         toast.success('Consignment updated successfully!');
       } else {
         await createConsignment(data);
@@ -241,7 +292,6 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   const isFieldDisabled = (field: string) => {
     if (!fromBooking) return false;
-    // When coming from booking, only allow consignor and consignee to be edited
     return !['consignor', 'consignee'].includes(field);
   };
 
@@ -328,517 +378,546 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
             {activeTab === 'basic' && (
               <>
-                {/* Section 1: Basic & Party Information - Card Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-              {/* Basic Information Card */}
-              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                <div className="flex items-center gap-2 mb-5">
-                  <FaIdCard className="text-[#3a614c] text-xl" />
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    Basic Details
-                  </h3>
-                  {fromBooking && (
-                    <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
-                  )}
-                </div>
-                <div className="space-y-5">
-                  <ABLCustomInput
-                    label="Receipt No"
-                    type="text"
-                    placeholder="Auto Generated"
-                    register={register}
-                    error={errors.receiptNo?.message}
-                    id="receiptNo"
-                    disabled
-                  />
-                  <ABLCustomInput
-                    label="Bilty No"
-                    type="text"
-                    placeholder="Enter bilty number"
-                    register={register}
-                    error={errors.biltyNo?.message}
-                    id="biltyNo"
-                    disabled={isFieldDisabled('biltyNo')}
-                  />
-                  <ABLCustomInput
-                    label="Date"
-                    type="date"
-                    register={register}
-                    error={errors.date?.message}
-                    id="date"
-                    disabled={isFieldDisabled('date')}
-                  />
-                  <ABLCustomInput
-                    label="Consignment No"
-                    type="text"
-                    placeholder="Enter consignment number"
-                    register={register}
-                    error={errors.consignmentNo?.message}
-                    id="consignmentNo"
-                    disabled={isFieldDisabled('consignmentNo')}
-                  />
-                </div>
-                 <div className="flex items-center gap-2 mb-5">
-                  <MdPhone className="text-[#3a614c] text-xl" />
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    Receiver Details
-                  </h3>
-                </div>
-                <div className="space-y-5">
-                  <ABLCustomInput
-                    label="Receiver Name"
-                    type="text"
-                    placeholder="Enter receiver name"
-                    register={register}
-                    error={errors.receiverName?.message}
-                    id="receiverName"
-                    disabled={isFieldDisabled('receiverName')}
-                  />
-                  <ABLCustomInput
-                    label="Receiver Contact No"
-                    type="text"
-                    placeholder="Enter contact number"
-                    register={register}
-                    error={errors.receiverContactNo?.message}
-                    id="receiverContactNo"
-                    disabled={isFieldDisabled('receiverContactNo')}
-                  />
-                </div>
-              </div>
-
-              {/* Party Information Card */}
-              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                <div className="flex items-center gap-2 mb-5">
-                  <FiUser className="text-[#3a614c] text-xl" />
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    Party Details
-                  </h3>
-                  {fromBooking && (
-                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Editable</span>
-                  )}
-                </div>
-                <div className="space-y-5">
-                  <div>
-                    <Button 
-                      type="button" 
-                      onClick={() => setShowOrderPopup(true)}
-                      className="mb-3 w-full bg-[#3a614c] hover:bg-[#3a614c]/90 text-white"
-                      disabled={isFieldDisabled('orderNo')}
-                    >
-                      Select Order No
-                    </Button>
-                    <ABLCustomInput
-                      label="Order No"
-                      type="text"
-                      placeholder="Select from orders"
-                      register={register}
-                      error={errors.orderNo?.message}
-                      id="orderNo"
-                      disabled
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+                  <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="flex items-center gap-2 mb-5">
+                      <FaIdCard className="text-[#3a614c] text-xl" />
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Basic Details</h3>
+                      {fromBooking && (
+                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                      )}
+                    </div>
+                    <div className="space-y-5">
+                      <Controller
+                        name="receiptNo"
+                        control={control}
+                        render={({ field }) => (
+                          <div className="relative">
+                            <ABLCustomInput
+                              {...field}
+                              label="Receipt No"
+                              type="text"
+                              placeholder="Auto Generated"
+                              register={register}
+                              error={errors.receiptNo?.message}
+                              id="receiptNo"
+                              disabled
+                              onFocus={() => setReceiptNoFocused(true)}
+                              onBlur={() => setReceiptNoFocused(false)}
+                            />
+                            {receiptNoFocused && (
+                              <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
+                                Auto-generated
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      />
+                      <ABLCustomInput
+                        label="Bilty No"
+                        type="text"
+                        placeholder="Enter bilty number"
+                        register={register}
+                        error={errors.biltyNo?.message}
+                        id="biltyNo"
+                        disabled={isFieldDisabled('biltyNo')}
+                      />
+                      <ABLCustomInput
+                        label="Date"
+                        type="date"
+                        placeholder="Select date"
+                        register={register}
+                        error={errors.date?.message}
+                        id="date"
+                        disabled={isFieldDisabled('date')}
+                      />
+                      <ABLCustomInput
+                        label="Consignment No"
+                        type="text"
+                        placeholder="Enter consignment number"
+                        register={register}
+                        error={errors.consignmentNo?.message}
+                        id="consignmentNo"
+                        disabled={isFieldDisabled('consignmentNo')}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 mb-5 mt-5">
+                      <MdPhone className="text-[#3a614c] text-xl" />
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Receiver Details</h3>
+                    </div>
+                    <div className="space-y-5">
+                      <ABLCustomInput
+                        label="Receiver Name"
+                        type="text"
+                        placeholder="Enter receiver name"
+                        register={register}
+                        error={errors.receiverName?.message}
+                        id="receiverName"
+                        disabled={isFieldDisabled('receiverName')}
+                      />
+                      <ABLCustomInput
+                        label="Receiver Contact No"
+                        type="text"
+                        placeholder="Enter contact number"
+                        register={register}
+                        error={errors.receiverContactNo?.message}
+                        id="receiverContactNo"
+                        disabled={isFieldDisabled('receiverContactNo')}
+                      />
+                    </div>
                   </div>
-                  <Controller
-                    name="consignor"
-                    control={control}
-                    render={({ field }) => (
-                      <AblCustomDropdown
-                        label="Consignor"
-                        options={parties}
-                        selectedOption={field.value || ''}
-                        onChange={(value) => setValue('consignor', value)}
-                        error={errors.consignor?.message}
-                        disabled={isFieldDisabled('consignor')}
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="consignee"
-                    control={control}
-                    render={({ field }) => (
-                      <AblCustomDropdown
-                        label="Consignee"
-                        options={parties}
-                        selectedOption={field.value || ''}
-                        onChange={(value) => setValue('consignee', value)}
-                        error={errors.consignee?.message}
-                        disabled={isFieldDisabled('consignee')}
-                      />
-                    )}
-                  />
-                  <ABLCustomInput
-                    label="Consignment Date"
-                    type="date"
-                    register={register}
-                    error={errors.consignmentDate?.message}
-                    id="consignmentDate"
-                    disabled={isFieldDisabled('consignmentDate')}
-                  />
-                </div>
-              </div>
 
-              {/* Receiver Information Card */}
-              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-               
-                
-                 <div className="flex items-center gap-2 mb-5">
-                <MdLocalShipping className="text-[#3a614c] text-xl" />
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                  Shipping Information
-                </h3>
-                {fromBooking && (
-                  <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
-                )}
-              </div>
-              <Controller
-                  name="shippingLine"
-                  control={control}
-                  render={({ field }) => (
-                    <AblCustomDropdown
-                      label="Shipping Line"
-                      options={shippingLines}
-                      selectedOption={field.value || ''}
-                      onChange={field.onChange}
-                      error={errors.shippingLine?.message}
-                      disabled={isFieldDisabled('shippingLine')}
-                    />
-                  )}
-                />
-                <ABLCustomInput
-                  label="Container No"
-                  type="text"
-                  register={register}
-                  error={errors.containerNo?.message}
-                  id="containerNo"
-                  disabled={isFieldDisabled('containerNo')}
-                />
-                <ABLCustomInput
-                  label="Port"
-                  type="text"
-                  register={register}
-                  error={errors.port?.message}
-                  id="port"
-                  disabled={isFieldDisabled('port')}
-                />
-                <Controller
-                  name="destination"
-                  control={control}
-                  render={({ field }) => (
-                    <AblCustomDropdown
-                      label="Destination"
-                      options={parties}
-                      selectedOption={field.value || ''}
-                      onChange={field.onChange}
-                      error={errors.destination?.message}
-                      disabled={isFieldDisabled('destination')}
-                    />
-                  )}
-                />
-                <Controller
-                  name="freightFrom"
-                  control={control}
-                  render={({ field }) => (
-                    <AblCustomDropdown
-                      label="Freight From"
-                      options={freightFromOptions}
-                      selectedOption={field.value || ''}
-                      onChange={field.onChange}
-                      error={errors.freightFrom?.message}
-                      disabled={isFieldDisabled('freightFrom')}
-                    />
-                  )}
-                />
-              </div>
-              
-            </div>
+                  <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="flex items-center gap-2 mb-5">
+                      <FiUser className="text-[#3a614c] text-xl" />
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Party Details</h3>
+                      {fromBooking && (
+                        <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Editable</span>
+                      )}
+                    </div>
+                    <div className="space-y-5">
+                      <div>
+                        <Button
+                          type="button"
+                          onClick={() => setShowOrderPopup(true)}
+                          className="mb-3 w-full bg-[#3a614c] hover:bg-[#3a614c]/90 text-white"
+                          disabled={isFieldDisabled('orderNo')}
+                        >
+                          Select Order No
+                        </Button>
+                        <ABLCustomInput
+                          label="Order No"
+                          type="text"
+                          placeholder="Select from orders"
+                          register={register}
+                          error={errors.orderNo?.message}
+                          id="orderNo"
+                          disabled
+                        />
+                      </div>
+                      <Controller
+                        name="consignor"
+                        control={control}
+                        render={({ field }) => (
+                          <AblCustomDropdown
+                            label="Consignor"
+                            options={parties}
+                            selectedOption={field.value || ''}
+                            onChange={(value) => setValue('consignor', value, { shouldValidate: true })}
+                            error={errors.consignor?.message}
+                            disabled={isFieldDisabled('consignor')}
+                          />
+                        )}
+                      />
+                      <Controller
+                        name="consignee"
+                        control={control}
+                        render={({ field }) => (
+                          <AblCustomDropdown
+                            label="Consignee"
+                            options={parties}
+                            selectedOption={field.value || ''}
+                            onChange={(value) => setValue('consignee', value, { shouldValidate: true })}
+                            error={errors.consignee?.message}
+                            disabled={isFieldDisabled('consignee')}
+                          />
+                        )}
+                      />
+                      <ABLCustomInput
+                        label="Consignment Date"
+                        type="date"
+                        placeholder="Select consignment date"
+                        register={register}
+                        error={errors.consignmentDate?.message}
+                        id="consignmentDate"
+                        disabled={isFieldDisabled('consignmentDate')}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="flex items-center gap-2 mb-5">
+                      <MdLocalShipping className="text-[#3a614c] text-xl" />
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Shipping Information</h3>
+                      {fromBooking && (
+                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                      )}
+                    </div>
+                    <div className="space-y-5">
+                      <Controller
+                        name="consignmentMode"
+                        control={control}
+                        render={({ field }) => (
+                          <AblCustomDropdown
+                            label="Consignment Mode"
+                            options={consignmentModes}
+                            selectedOption={field.value || ''}
+                            onChange={(value) => setValue('consignmentMode', value, { shouldValidate: true })}
+                            error={errors.consignmentMode?.message}
+                            disabled={isFieldDisabled('consignmentMode')}
+                          />
+                        )}
+                      />
+                      <Controller
+                        name="shippingLine"
+                        control={control}
+                        render={({ field }) => (
+                          <AblCustomDropdown
+                            label="Shipping Line"
+                            options={shippingLines}
+                            selectedOption={field.value || ''}
+                            onChange={(value) => setValue('shippingLine', value, { shouldValidate: true })}
+                            error={errors.shippingLine?.message}
+                            disabled={isFieldDisabled('shippingLine')}
+                          />
+                        )}
+                      />
+                      <ABLCustomInput
+                        label="Container No"
+                        type="text"
+                        placeholder="Enter container number"
+                        register={register}
+                        error={errors.containerNo?.message}
+                        id="containerNo"
+                        disabled={isFieldDisabled('containerNo')}
+                      />
+                      <ABLCustomInput
+                        label="Port"
+                        type="text"
+                        placeholder="Enter port"
+                        register={register}
+                        error={errors.port?.message}
+                        id="port"
+                        disabled={isFieldDisabled('port')}
+                      />
+                      <Controller
+                        name="destination"
+                        control={control}
+                        render={({ field }) => (
+                          <AblCustomDropdown
+                            label="Destination"
+                            options={parties}
+                            selectedOption={field.value || ''}
+                            onChange={(value) => setValue('destination', value, { shouldValidate: true })}
+                            error={errors.destination?.message}
+                            disabled={isFieldDisabled('destination')}
+                          />
+                        )}
+                      />
+                      <Controller
+                        name="freightFrom"
+                        control={control}
+                        render={({ field }) => (
+                          <AblCustomDropdown
+                            label="Freight From"
+                            options={freightFromOptions}
+                            selectedOption={field.value || ''}
+                            onChange={(value) => setValue('freightFrom', value, { shouldValidate: true })}
+                            error={errors.freightFrom?.message}
+                            disabled={isFieldDisabled('freightFrom')}
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
               </>
             )}
 
             {activeTab === 'items' && (
               <>
-                {/* Section 3: Items Details - Card Layout */}
-            <div className="col-span-1 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-              <div className="flex items-center gap-2 ">
+                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 p-3">
+                    <HiDocumentText className="text-[#3a614c] text-xl" />
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Items Details</h3>
+                    {fromBooking && (
+                      <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                    )}
+                  </div>
 
-                {fromBooking && (
-                  <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
-                )}
-              </div>
-              
-              <div className="p-3">
-                <div className="overflow-x-auto">
-                  <table className="w-full md:w-4/5 sm:w-3/4 text-sm mx-auto">
-                    <thead>
-                      <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
-                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                          #
-                        </th>
-                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                          Item Description
-                        </th>
-                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                          Qty
-                        </th>
-                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                          Unit
-                        </th>
-                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                          Weight
-                        </th>
-                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide">
-                          W.Unit
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {items.map((_, index) => (
-                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                            <div className="flex items-center justify-center w-6 h-6 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
-                              {index + 1}
-                            </div>
-                          </td>
-                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                            <input
-                              {...register(`items.${index}.desc`)}
-                              disabled={isFieldDisabled('items')}
-                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
-                              placeholder="Item description"
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                            <input
-                              type="number"
-                              {...register(`items.${index}.qty`, { valueAsNumber: true })}
-                              disabled={isFieldDisabled('items')}
-                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
-                              placeholder="0"
-                              min="0"
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                            <Controller
-                              name={`items.${index}.qtyUnit`}
-                              control={control}
-                              render={({ field }) => (
-                                <select
-                                  {...field}
+                  <div className="p-3">
+                    <div className="overflow-x-auto">
+                      <table className="w-full md:w-4/5 sm:w-3/4 text-sm mx-auto">
+                        <thead>
+                          <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
+                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                              #
+                            </th>
+                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                              Item Description
+                            </th>
+                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                              Qty
+                            </th>
+                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                              Unit
+                            </th>
+                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                              Weight
+                            </th>
+                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide">
+                              W.Unit
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                          {items.map((_, index) => (
+                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center justify-center w-6 h-6 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
+                                  {index + 1}
+                                </div>
+                              </td>
+                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                                <input
+                                  {...register(`items.${index}.desc`)}
                                   disabled={isFieldDisabled('items')}
-                                  className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
-                                >
-                                  <option value="">Unit</option>
-                                  {units.map((unit) => (
-                                    <option key={unit.id} value={unit.id}>
-                                      {unit.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            />
-                          </td>
-                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                            <input
-                              type="number"
-                              step="0.01"
-                              {...register(`items.${index}.weight`, { valueAsNumber: true })}
-                              disabled={isFieldDisabled('items')}
-                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
-                              placeholder="0.0"
-                              min="0"
-                            />
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <Controller
-                              name={`items.${index}.weightUnit`}
-                              control={control}
-                              render={({ field }) => (
-                                <select
-                                  {...field}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                                  placeholder="Item description"
+                                />
+                              </td>
+                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                                <input
+                                  type="number"
+                                  {...register(`items.${index}.qty`, { valueAsNumber: true })}
                                   disabled={isFieldDisabled('items')}
-                                  className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
-                                >
-                                  <option value="">Unit</option>
-                                  {units.map((unit) => (
-                                    <option key={unit.id} value={unit.id}>
-                                      {unit.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {/* Compact Summary */}
-                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Summary</span>
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
+                                  placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                                <Controller
+                                  name={`items.${index}.qtyUnit`}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <select
+                                      {...field}
+                                      disabled={isFieldDisabled('items')}
+                                      className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                                    >
+                                      <option value="">Unit</option>
+                                      {units.map((unit) => (
+                                        <option key={unit.id} value={unit.id}>
+                                          {unit.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
+                                />
+                              </td>
+                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  {...register(`items.${index}.weight`, { valueAsNumber: true })}
+                                  disabled={isFieldDisabled('items')}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
+                                  placeholder="0.0"
+                                  min="0"
+                                />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <Controller
+                                  name={`items.${index}.weightUnit`}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <select
+                                      {...field}
+                                      disabled={isFieldDisabled('items')}
+                                      className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                                    >
+                                      <option value="">Unit</option>
+                                      {units.map((unit) => (
+                                        <option key={unit.id} value={unit.id}>
+                                          {unit.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Qty:</label>
-                        <input
-                          {...register('totalQty')}
-                          disabled
-                          className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-gray-100 dark:bg-gray-700 text-center font-semibold"
-                          placeholder="0"
-                        />
+
+                    <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Summary</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Qty:</label>
+                            <input
+                              {...register('totalQty')}
+                              disabled
+                              className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-gray-100 dark:bg-gray-700 text-center font-semibold"
+                              placeholder="0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3">
+                    <div className="flex items-center gap-2 mb-5">
+                      <FaMoneyBillWave className="text-[#3a614c] text-xl" />
+                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Financial Details</h3>
+                      {fromBooking && (
+                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                      )}
+                    </div>
+                    <div className="space-y-4">
+                      <div className="p-2 border-b border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-[#3a614c] rounded-full"></div>
+                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
+                            Tax & Freight Details
+                          </h4>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <ABLCustomInput
+                            label="Freight"
+                            type="text"
+                            placeholder="Enter freight"
+                            register={register}
+                            error={errors.freight?.message}
+                            id="freight"
+                            disabled={isFieldDisabled('freight')}
+                          />
+                          <Controller
+                            name="sbrTax"
+                            control={control}
+                            render={({ field }) => (
+                              <AblCustomDropdown
+                                label="SBR Tax"
+                                options={sbrTaxes}
+                                selectedOption={field.value || ''}
+                                onChange={(value) => setValue('sbrTax', value, { shouldValidate: true })}
+                                error={errors.sbrTax?.message}
+                                disabled={isFieldDisabled('sbrTax')}
+                              />
+                            )}
+                          />
+                          <ABLCustomInput
+                            label="SPR Amount"
+                            type="text"
+                            placeholder="Auto-calculated"
+                            register={register}
+                            error={errors.sprAmount?.message}
+                            id="sprAmount"
+                            disabled
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-1">
+                          <ABLCustomInput
+                            label="Delivery Charges"
+                            type="text"
+                            placeholder="Enter delivery charges"
+                            register={register}
+                            error={errors.deliveryCharges?.message}
+                            id="deliveryCharges"
+                            disabled={isFieldDisabled('deliveryCharges')}
+                          />
+                          <ABLCustomInput
+                            label="Insurance Charges"
+                            type="text"
+                            placeholder="Enter insurance charges"
+                            register={register}
+                            error={errors.insuranceCharges?.message}
+                            id="insuranceCharges"
+                            disabled={isFieldDisabled('insuranceCharges')}
+                          />
+                          <ABLCustomInput
+                            label="Toll Tax"
+                            type="text"
+                            placeholder="Enter toll tax"
+                            register={register}
+                            error={errors.tollTax?.message}
+                            id="tollTax"
+                            disabled={isFieldDisabled('tollTax')}
+                          />
+                          <ABLCustomInput
+                            label="Other Charges"
+                            type="text"
+                            placeholder="Enter other charges"
+                            register={register}
+                            error={errors.otherCharges?.message}
+                            id="otherCharges"
+                            disabled={isFieldDisabled('otherCharges')}
+                          />
+                          <div className="relative">
+                            <ABLCustomInput
+                              label="Total Amount"
+                              type="text"
+                              placeholder="Auto-calculated"
+                              register={register}
+                              error={errors.totalAmount?.message}
+                              id="totalAmount"
+                              disabled
+                            />
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                          </div>
+                          <ABLCustomInput
+                            label="Delivery Date"
+                            type="date"
+                            placeholder="Select delivery date"
+                            register={register}
+                            error={errors.deliveryDate?.message}
+                            id="deliveryDate"
+                            disabled={isFieldDisabled('deliveryDate')}
+                          />
+                          <ABLCustomInput
+                            label="Remarks"
+                            type="text"
+                            placeholder="Enter remarks"
+                            register={register}
+                            error={errors.remarks?.message}
+                            id="remarks"
+                            disabled={isFieldDisabled('remarks')}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <ABLCustomInput
+                            label="Received Amount"
+                            type="text"
+                            placeholder="Auto-calculated"
+                            register={register}
+                            error={errors.receivedAmount?.message}
+                            id="receivedAmount"
+                            disabled
+                          />
+                          <ABLCustomInput
+                            label="Income Tax Ded."
+                            type="text"
+                            placeholder="Auto-calculated"
+                            register={register}
+                            error={errors.incomeTaxDed?.message}
+                            id="incomeTaxDed"
+                            disabled
+                          />
+                          <ABLCustomInput
+                            label="Income Tax Amount"
+                            type="text"
+                            placeholder="Auto-calculated"
+                            register={register}
+                            error={errors.incomeTaxAmount?.message}
+                            id="incomeTaxAmount"
+                            disabled
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                {/* Section 4: Financial Information - Card Layout */}
-            <div className="">
-              <div className="flex items-center gap-2 mb-5">
-                
-                {fromBooking && (
-                  <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
-                )}
-              </div>
-              
-              <div className="space-y-4">
-                
-                {/* Row 1: Freight, SBR Tax, SPR Amount */}
-                <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-2 ">
-                    <div className="w-2 h-2 bg-[#3a614c] rounded-full"></div>
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">Tax & Freight Details</h4>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <ABLCustomInput
-                      label="Freight"
-                      type="number"
-                      register={register}
-                      error={errors.freight?.message}
-                      id="freight"
-                      disabled={isFieldDisabled('freight')}
-                    />
-                    <Controller
-                      name="sbrTax"
-                      control={control}
-                      render={({ field }) => (
-                        <AblCustomDropdown
-                          label="SBR Tax"
-                          options={sbrTaxes}
-                          selectedOption={field.value || ''}
-                          onChange={field.onChange}
-                          error={errors.sbrTax?.message}
-                          disabled={isFieldDisabled('sbrTax')}
-                        />
-                      )}
-                    />
-                    <ABLCustomInput
-                      label="SPR Amount"
-                      type="number"
-                      register={register}
-                      error={errors.sprAmount?.message}
-                      id="sprAmount"
-                      disabled
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-1">
-                    <ABLCustomInput
-                      label="Delivery Charges"
-                      type="number"
-                      register={register}
-                      error={errors.deliveryCharges?.message}
-                      id="deliveryCharges"
-                      disabled={isFieldDisabled('deliveryCharges')}
-                    />
-                    <ABLCustomInput
-                      label="Insurance Charges"
-                      type="number"
-                      register={register}
-                      error={errors.insuranceCharges?.message}
-                      id="insuranceCharges"
-                      disabled={isFieldDisabled('insuranceCharges')}
-                    />
-                    <ABLCustomInput
-                      label="Toll Tax"
-                      type="number"
-                      register={register}
-                      error={errors.tollTax?.message}
-                      id="tollTax"
-                      disabled={isFieldDisabled('tollTax')}
-                    />
-                    <ABLCustomInput
-                      label="Other Charges"
-                      type="number"
-                      register={register}
-                      error={errors.otherCharges?.message}
-                      id="otherCharges"
-                      disabled={isFieldDisabled('otherCharges')}
-                    />
-                    <div className="relative">
-                      <ABLCustomInput
-                        label="Total Amount"
-                        type="number"
-                        register={register}
-                        error={errors.totalAmount?.message}
-                        id="totalAmount"
-                        disabled
-                      />
-                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                    </div>
-                    <ABLCustomInput
-                      label="Delivery Date"
-                      type="date"
-                      register={register}
-                      error={errors.deliveryDate?.message}
-                      id="deliveryDate"
-                      disabled={isFieldDisabled('deliveryDate')}
-                    />
-                    <ABLCustomInput
-                      label="Remarks"
-                      type="text"
-                      register={register}
-                      error={errors.remarks?.message}
-                      id="remarks"
-                      disabled={isFieldDisabled('remarks')}
-                    />
-                  </div>
-                </div>
-                
-                {/* Row 3: Received Amount, Income Tax Ded., Income Tax Amount */}
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <ABLCustomInput
-                      label="Received Amount"
-                      type="number"
-                      register={register}
-                      error={errors.receivedAmount?.message}
-                      id="receivedAmount"
-                      disabled
-                    />
-                    <ABLCustomInput
-                      label="Income Tax Ded."
-                      type="number"
-                      register={register}
-                      error={errors.incomeTaxDed?.message}
-                      id="incomeTaxDed"
-                      disabled
-                    />
-                    <ABLCustomInput
-                      label="Income Tax Amount"
-                      type="number"
-                      register={register}
-                      error={errors.incomeTaxAmount?.message}
-                      id="incomeTaxAmount"
-                      disabled
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-              </div>
-            </div>
-
               </>
             )}
 
@@ -865,26 +944,28 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
           </form>
         </div>
-                
+
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
               <MdInfo className="text-[#3a614c]" />
               <span className="text-sm">Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/consignment" className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors">
+            <Link
+              href="/consignment"
+              className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors"
+            >
               Back to Consignments List
             </Link>
           </div>
         </div>
 
-        {/* Order Selection Popup */}
         {showOrderPopup && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-md w-full mx-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
-                <Button 
+                <Button
                   onClick={() => setShowOrderPopup(false)}
                   className="text-gray-400 hover:text-gray-600 p-1"
                   variant="ghost"
@@ -894,17 +975,23 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               </div>
               <div className="max-h-60 overflow-y-auto space-y-2">
                 {bookingOrders.map((order) => (
-                  <div 
-                    key={order.id} 
-                    onClick={() => selectOrder(order)} 
+                  <div
+                    key={order.id}
+                    onClick={() => selectOrder(order)}
                     className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors"
                   >
-                    <span className="font-medium text-gray-800 dark:text-gray-200">{order.id}</span>
+                    <div className="flex flex-col">
+                      <span className="font-medium text-gray-800 dark:text-gray-200">Order No: {order.id}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Vehicle No: {order.vehicleNo}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Cargo Weight: {order.cargoWeight}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Order Date: {order.orderDate}</span>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Vendor: {order.vendor}</span>
+                    </div>
                   </div>
                 ))}
               </div>
               <div className="flex justify-end mt-4">
-                <Button 
+                <Button
                   onClick={() => setShowOrderPopup(false)}
                   className="bg-gray-500 hover:bg-gray-600 text-white"
                 >
@@ -915,7 +1002,6 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           </div>
         )}
       </div>
-      
     </div>
   );
 };

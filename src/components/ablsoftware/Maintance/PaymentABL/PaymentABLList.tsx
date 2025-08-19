@@ -8,6 +8,9 @@ import { MdPayment, MdEdit, MdDelete, MdAdd, MdSearch, MdFilterList } from 'reac
 import { FaMoneyBillWave, FaEye } from 'react-icons/fa';
 import Link from 'next/link';
 import { FiPlus } from 'react-icons/fi';
+import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
+import { getAllConsignment } from '@/apis/consignment';
+import { getAllBookingOrder } from '@/apis/bookingorder';
 
 interface PaymentABL {
   id: string;
@@ -33,6 +36,9 @@ const PaymentABLList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize] = useState(10);
+  const [consignments, setConsignments] = useState<any[]>([]);
+  const [bookingStatus, setBookingStatus] = useState<string | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row
 
   const statusOptions = [
     { value: '', label: 'All Status' },
@@ -97,11 +103,26 @@ const PaymentABLList = () => {
     return statusClasses[status as keyof typeof statusClasses] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
+  const handleViewOpen = async (paymentId: string) => {
+    setSelectedRowId((prev) => (prev === paymentId ? null : paymentId));
+    const payment = payments.find((item) => item.id === paymentId);
+    if (payment?.orderNo) {
+      try {
+        const consResponse = await getAllConsignment(1, 100, { orderNo: payment.orderNo });
+        setConsignments(consResponse?.data || []);
+        const bookingResponse = await getAllBookingOrder(1, 100, { orderNo: payment.orderNo });
+        const booking = bookingResponse?.data.find((b: any) => b.orderNo === payment.orderNo);
+        setBookingStatus(booking?.status || null);
+      } catch (error) {
+        toast('Failed to fetch related data', { type: 'error' });
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
-          {/* Header */}
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -120,8 +141,6 @@ const PaymentABLList = () => {
               </Link>
             </div>
           </div>
-
-          {/* Filters */}
           <div className="p-6 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850">
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
@@ -148,8 +167,6 @@ const PaymentABLList = () => {
               </div>
             </div>
           </div>
-
-          {/* Table */}
           <div className="overflow-x-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -247,14 +264,13 @@ const PaymentABLList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
-                          <Link href={`/paymentABL/${payment.id}`}>
-                            <Button
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 text-xs"
-                            >
-                              <FaEye className="mr-1" /> View
-                            </Button>
-                          </Link>
+                          <Button
+                            size="sm"
+                            onClick={() => handleViewOpen(payment.id)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 text-xs"
+                          >
+                            <FaEye className="mr-1" /> View
+                          </Button>
                           <Link href={`/paymentABL/edit/${payment.id}`}>
                             <Button
                               size="sm"
@@ -278,8 +294,6 @@ const PaymentABLList = () => {
               </table>
             )}
           </div>
-
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-850">
               <div className="flex items-center justify-between">
@@ -309,6 +323,16 @@ const PaymentABLList = () => {
             </div>
           )}
         </div>
+        {selectedRowId && (
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold text-[#3a614c]">Order Progress</h3>
+            <OrderProgress
+              orderNo={payments.find((p) => p.id === selectedRowId)?.orderNo}
+              bookingStatus={bookingStatus}
+              consignments={consignments}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

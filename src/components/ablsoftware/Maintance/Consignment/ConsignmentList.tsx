@@ -8,6 +8,8 @@ import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllConsignment, deleteConsignment, updateConsignmentStatus } from '@/apis/consignment';
 import { columns, getStatusStyles, Consignment } from './columns';
+import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
+import { getAllBookingOrder } from '@/apis/bookingorder';
 
 const ConsignmentList = () => {
   const router = useRouter();
@@ -16,15 +18,15 @@ const ConsignmentList = () => {
   const [filteredConsignments, setFilteredConsignments] = useState<Consignment[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-  const [openView, setOpenView] = useState(false);
   const [deleteId, setDeleteId] = useState('');
-  const [selectedConsignment, setSelectedConsignment] = useState<Consignment | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedConsignmentIds, setSelectedConsignmentIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [bookingStatus, setBookingStatus] = useState<string | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row
 
   const statusOptions = ['All', 'Pending', 'In Transit', 'Delivered'];
   const statusOptionsConfig = [
@@ -87,15 +89,18 @@ const ConsignmentList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = (consignmentId: string) => {
+  const handleViewOpen = async (consignmentId: string) => {
+    setSelectedRowId((prev) => (prev === consignmentId ? null : consignmentId));
     const consignment = consignments.find((item) => item.id === consignmentId);
-    setSelectedConsignment(consignment || null);
-    setOpenView(true);
-  };
-
-  const handleViewClose = () => {
-    setOpenView(false);
-    setSelectedConsignment(null);
+    if (consignment?.orderNo) {
+      try {
+        const response = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
+        const booking = response?.data.find((b: any) => b.orderNo === consignment.orderNo);
+        setBookingStatus(booking?.status || null);
+      } catch (error) {
+        toast('Failed to fetch booking status', { type: 'error' });
+      }
+    }
   };
 
   const handleCheckboxChange = (consignmentId: string, checked: boolean) => {
@@ -234,59 +239,14 @@ const ConsignmentList = () => {
           setPageSize={setPageSize}
         />
       </div>
-      {openDelete && (
-        <DeleteConfirmModel
-          handleDeleteclose={handleDeleteClose}
-          handleDelete={handleDelete}
-          isOpen={openDelete}
-        />
-      )}
-      {openView && selectedConsignment && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300">
-          <div className="bg-white w-full max-w-4xl rounded-2xl p-6 max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-[#06b6d4]">Consignment Details</h2>
-              <button onClick={handleViewClose} className="text-2xl font-bold">×</button>
-            </div>
-            <div className="flex-1 overflow-y-auto pr-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div><strong>Receipt No:</strong> {selectedConsignment.receiptNo || '-'}</div>
-                <div><strong>Order No:</strong> {selectedConsignment.orderNo || '-'}</div>
-                <div><strong>Bilty No:</strong> {selectedConsignment.biltyNo || '-'}</div>
-                <div><strong>Date:</strong> {selectedConsignment.date || '-'}</div>
-                <div><strong>Consignment No:</strong> {selectedConsignment.consignmentNo || '-'}</div>
-                <div><strong>Consignor:</strong> {selectedConsignment.consignor || '-'}</div>
-                <div><strong>Consignment Date:</strong> {selectedConsignment.consignmentDate || '-'}</div>
-                <div><strong>Consignee:</strong> {selectedConsignment.consignee || '-'}</div>
-                <div><strong>Receiver Name:</strong> {selectedConsignment.receiverName || '-'}</div>
-                <div><strong>Receiver Contact No:</strong> {selectedConsignment.receiverContactNo || '-'}</div>
-                <div><strong>Shipping Line:</strong> {selectedConsignment.shippingLine || '-'}</div>
-                <div><strong>Container No:</strong> {selectedConsignment.containerNo || '-'}</div>
-                <div><strong>Port:</strong> {selectedConsignment.port || '-'}</div>
-                <div><strong>Destination:</strong> {selectedConsignment.destination || '-'}</div>
-                <div><strong>Items:</strong> {selectedConsignment.items || '-'}</div>
-                <div><strong>Item Desc:</strong> {selectedConsignment.itemDesc || '-'}</div>
-                <div><strong>Qty:</strong> {selectedConsignment.qty || '-'}</div>
-                <div><strong>Weight:</strong> {selectedConsignment.weight || '-'}</div>
-                <div><strong>Total Qty:</strong> {selectedConsignment.totalQty || '-'}</div>
-                <div><strong>Freight:</strong> {selectedConsignment.freight || '-'}</div>
-                <div><strong>SRB Tax:</strong> {selectedConsignment.srbTax || '-'}</div>
-                <div><strong>SRB Amount:</strong> {selectedConsignment.srbAmount || '-'}</div>
-                <div><strong>Delivery Charges:</strong> {selectedConsignment.deliveryCharges || '-'}</div>
-                <div><strong>Insurance Charges:</strong> {selectedConsignment.insuranceCharges || '-'}</div>
-                <div><strong>Toll Tax:</strong> {selectedConsignment.tollTax || '-'}</div>
-                <div><strong>Other Charges:</strong> {selectedConsignment.otherCharges || '-'}</div>
-                <div><strong>Total Amount:</strong> {selectedConsignment.totalAmount || '-'}</div>
-                <div><strong>Received Amount:</strong> {selectedConsignment.receivedAmount || '-'}</div>
-                <div><strong>Income Tax Ded.:</strong> {selectedConsignment.incomeTaxDed || '-'}</div>
-                <div><strong>Income Tax Amount:</strong> {selectedConsignment.incomeTaxAmount || '-'}</div>
-                <div><strong>Delivery Date:</strong> {selectedConsignment.deliveryDate || '-'}</div>
-                <div><strong>Freight From:</strong> {selectedConsignment.freightFrom || '-'}</div>
-                <div className="col-span-2"><strong>Remarks:</strong> {selectedConsignment.remarks || '-'}</div>
-                <div><strong>Status:</strong> <span className={`inline-flex px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(selectedConsignment.status || 'Pending')}`}>{selectedConsignment.status || 'Pending'}</span></div>
-              </div>
-            </div>
-          </div>
+      {selectedRowId && (
+        <div className="mt-4">
+          <h3 className="text-lg font-semibold text-[#06b6d4]">Order Progress</h3>
+          <OrderProgress
+            orderNo={consignments.find((c) => c.id === selectedRowId)?.orderNo}
+            bookingStatus={bookingStatus}
+            consignments={[consignments.find((c) => c.id === selectedRowId)]}
+          />
         </div>
       )}
       <div className="mt-4 space-y-2 h-[18vh]">
@@ -309,6 +269,13 @@ const ConsignmentList = () => {
           })}
         </div>
       </div>
+      {openDelete && (
+        <DeleteConfirmModel
+          handleDeleteclose={handleDeleteClose}
+          handleDelete={handleDelete}
+          isOpen={openDelete}
+        />
+      )}
     </div>
   );
 };
