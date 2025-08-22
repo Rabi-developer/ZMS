@@ -481,8 +481,8 @@ const BookingOrderReportExport: React.FC = () => {
     // Set column widths
     const colWidths = colOrder.map((k) => {
       switch (k) {
-        case "serial": return { wch: 10 };
-        case "orderNo": return { wch: 16 };
+        case "serial": return { wch: 12 };
+        case "orderNo": return { wch: 18 };
         case "ablDate":
         case "orderDate": return { wch: 16 };
         case "vehicleNo": return { wch: 16 };
