@@ -49,7 +49,7 @@ const BookingOrderList = () => {
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [fetchingConsignments, setFetchingConsignments] = useState<{ [orderId: string]: boolean }>({});
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
   const statusOptions = ['All', 'Pending', 'In Transit', 'Delivered'];
   const statusOptionsConfig = [
@@ -140,9 +140,8 @@ const BookingOrderList = () => {
   };
 
   const handleViewOpen = async (orderId: string) => {
-    // Toggle selection: if same row is clicked, deselect; otherwise, select new row
     setSelectedRowId((prev) => (prev === orderId ? null : orderId));
-    await fetchConsignments(orderId); // Fetch consignments for the selected order
+    await fetchConsignments(orderId);
   };
 
   const handleCheckboxChange = async (orderId: string, checked: boolean) => {
@@ -245,7 +244,7 @@ const BookingOrderList = () => {
   };
 
   return (
-    <div className="container bg-white rounded-md p-6 h-[110vh]">
+    <div className="container   mt-4  p-6 h-[110vh]">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -279,7 +278,7 @@ const BookingOrderList = () => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen, handleViewOpen)}
+          columns={columns(handleDeleteOpen)}
           data={filteredBookingOrders}
           loading={loading}
           link="/bookingorder/create"
@@ -287,15 +286,16 @@ const BookingOrderList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
+          onRowClick={handleViewOpen}
         />
       </div>
       {selectedRowId && (
         <div className="mt-4">
-          <h3 className="text-lg font-semibold text-[#06b6d4]">Order Progress</h3>
           <OrderProgress
             orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
             bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
             consignments={consignments[selectedRowId] || []}
+            hideBookingOrderInfo
           />
         </div>
       )}
@@ -313,6 +313,7 @@ const BookingOrderList = () => {
                   orderNo={order?.orderNo}
                   bookingStatus={order?.status}
                   consignments={cons}
+                  hideBookingOrderInfo
                 />
                 <table className="w-full text-left border-collapse text-sm md:text-base mt-2">
                   <thead>

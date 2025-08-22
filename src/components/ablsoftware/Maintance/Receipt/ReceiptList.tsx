@@ -7,10 +7,10 @@ import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllReceipt, deleteReceipt, updateReceiptStatus } from '@/apis/receipt';
-import { columns, getStatusStyles, Receipt } from './columns';
-import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 import { getAllConsignment } from '@/apis/consignment';
 import { getAllBookingOrder } from '@/apis/bookingorder';
+import { columns, Receipt } from './columns';
+import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
 const ReceiptList = () => {
   const router = useRouter();
@@ -28,7 +28,7 @@ const ReceiptList = () => {
   const [updating, setUpdating] = useState(false);
   const [consignments, setConsignments] = useState<any[]>([]);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
   const statusOptions = ['All', 'Pending', 'Completed'];
   const statusOptionsConfig = [
@@ -208,7 +208,7 @@ const ReceiptList = () => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen, handleViewOpen)}
+          columns={columns(handleDeleteOpen)}
           data={filteredReceipts}
           loading={loading}
           link="/receipt/create"
@@ -216,11 +216,11 @@ const ReceiptList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
+          onRowClick={handleViewOpen}
         />
       </div>
       {selectedRowId && (
         <div className="mt-4">
-          <h3 className="text-lg font-semibold text-[#06b6d4]">Order Progress</h3>
           <OrderProgress
             orderNo={receipts.find((r) => r.id === selectedRowId)?.orderNo}
             bookingStatus={bookingStatus}

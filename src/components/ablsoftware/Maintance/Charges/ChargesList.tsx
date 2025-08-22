@@ -27,7 +27,7 @@ const ChargesList = () => {
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [consignments, setConsignments] = useState<any[]>([]);
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
   const statusOptions = ['All', 'Unpaid', 'Paid'];
   const statusOptionsConfig = [
@@ -180,7 +180,7 @@ const ChargesList = () => {
   };
 
   return (
-    <div className="container bg-white rounded-md p-6 h-[110vh]">
+    <div className="container p-6 h-[110vh]">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -214,7 +214,7 @@ const ChargesList = () => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen, handleViewOpen)}
+          columns={columns(handleDeleteOpen)}
           data={filteredCharges}
           loading={loading}
           link="/charges/create"
@@ -222,14 +222,15 @@ const ChargesList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
+          onRowClick={handleViewOpen}
         />
       </div>
       {selectedRowId && (
         <div className="mt-4">
-          <h3 className="text-lg font-semibold text-[#06b6d4]">Order Progress</h3>
+          <h3 className="text-lg font-semibold text-[#3a614c]"></h3>
           <OrderProgress
             orderNo={charges.find((c) => c.id === selectedRowId)?.orderNo}
-            bookingStatus={null} // Charges don't have booking status
+            bookingStatus={null}
             consignments={consignments}
           />
         </div>

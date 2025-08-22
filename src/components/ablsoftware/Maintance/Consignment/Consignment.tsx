@@ -42,6 +42,7 @@ interface DropdownOption {
 
 interface BookingOrder {
   id: string;
+  orderNo: string;
   vehicleNo: string;
   cargoWeight: string;
   orderDate: string;
@@ -61,12 +62,12 @@ const consignmentSchema = z.object({
   consignmentMode: z.string().optional(),
   receiptNo: z.string().optional(),
   orderNo: z.string().optional(),
-  biltyNo: z.string().min(1, 'Bilty No is required'),
-  date: z.string().min(1, 'Date is required'),
+  biltyNo: z.string().optional(),
+  date: z.string().optional(),
   consignmentNo: z.string().optional(),
-  consignor: z.string().min(1, 'Consignor is required'),
+  consignor: z.string().optional(),
   consignmentDate: z.string().optional(),
-  consignee: z.string().min(1, 'Consignee is required'),
+  consignee: z.string().optional(),
   receiverName: z.string().optional(),
   receiverContactNo: z.string().optional(),
   shippingLine: z.string().optional(),
@@ -186,6 +187,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         setBookingOrders(
           bookRes.data.map((b: any) => ({
             id: b.id,
+            orderNo: b.orderNo,
             vehicleNo: b.vehicleNo || '',
             cargoWeight: b.cargoWeight || '',
             orderDate: b.orderDate || '',
@@ -251,7 +253,8 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         taxPercent = parseFloat(match[0]) / 100;
       }
     }
-    const spr = (freight || 0) * taxPercent;
+    const freightNum = parseFloat(String(freight ?? '0'));
+    const spr = (isNaN(freightNum) ? 0 : freightNum) * taxPercent;
     setValue('sprAmount', spr, { shouldValidate: true });
 
     const total = (
@@ -268,15 +271,30 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   }, [items, freight, sbrTax, deliveryCharges, insuranceCharges, tollTax, otherCharges, setValue]);
 
   const selectOrder = (order: BookingOrder) => {
-    setValue('orderNo', order.id, { shouldValidate: true });
+    setValue('orderNo', order.orderNo, { shouldValidate: true });
     setShowOrderPopup(false);
+  };
+
+  // const formatOrderNumber = (orderId: string) => {
+  //   // Format order ID to be more readable
+  //   // You can customize this based on your requirements
+  //   if (orderId.length <= 4) {
+  //     return `ORD-${orderId.padStart(3, '0')}`;
+  //   }
+  //   return `BK-${orderId.slice(-6)}`;
+  // };
+
+  const getSelectedOrderDetails = () => {
+    const orderNo = watch('orderNo');
+    if (!orderNo) return null;
+    return bookingOrders.find(order => order.orderNo === orderNo);
   };
 
   const onSubmit = async (data: ConsignmentFormData) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateConsignment(data.consignmentNo || '', { ...data, orderNo: data.orderNo || '' });
+        await updateConsignment({ ...data, orderNo: data.orderNo || '' } as any);
         toast.success('Consignment updated successfully!');
       } else {
         await createConsignment(data);
@@ -494,6 +512,35 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           id="orderNo"
                           disabled
                         />
+                        {getSelectedOrderDetails() && (
+                          <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-600">
+                            <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Selected Order Details</h4>
+                            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                              <tbody>
+                                <tr className="border-b dark:border-gray-700">
+                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Order No</td>
+                                  <td className="py-2 px-3"> {getSelectedOrderDetails()?.orderNo}</td>
+                                </tr>
+                                <tr className="border-b dark:border-gray-700">
+                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Vehicle No</td>
+                                  <td className="py-2 px-3">{getSelectedOrderDetails()?.vehicleNo}</td>
+                                </tr>
+                                <tr className="border-b dark:border-gray-700">
+                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Cargo Weight</td>
+                                  <td className="py-2 px-3">{getSelectedOrderDetails()?.cargoWeight}</td>
+                                </tr>
+                                <tr className="border-b dark:border-gray-700">
+                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Order Date</td>
+                                  <td className="py-2 px-3">{getSelectedOrderDetails()?.orderDate}</td>
+                                </tr>
+                                <tr>
+                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Vendor</td>
+                                  <td className="py-2 px-3">{getSelectedOrderDetails()?.vendor}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </div>
                       <Controller
                         name="consignor"
@@ -981,7 +1028,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors"
                   >
                     <div className="flex flex-col">
-                      <span className="font-medium text-gray-800 dark:text-gray-200">Order No: {order.id}</span>
+                      <span className="font-medium text-gray-800 dark:text-gray-200">Order No: {order.orderNo}</span>
                       <span className="text-sm text-gray-600 dark:text-gray-400">Vehicle No: {order.vehicleNo}</span>
                       <span className="text-sm text-gray-600 dark:text-gray-400">Cargo Weight: {order.cargoWeight}</span>
                       <span className="text-sm text-gray-600 dark:text-gray-400">Order Date: {order.orderDate}</span>

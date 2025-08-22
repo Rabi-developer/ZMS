@@ -52,12 +52,12 @@ const getSingleConsignment  = async (id: string) => {
   }
 };
 
-const updateConsignment = async (Consignment: any, data: { orderNo: string; biltyNo: string; date: string; consignor: string; consignee: string; items: { desc?: string | undefined; qty?: number | undefined; qtyUnit?: string | undefined; weight?: number | undefined; weightUnit?: string | undefined; }[]; consignmentMode?: string | undefined; receiptNo?: string | undefined; consignmentNo?: string | undefined; consignmentDate?: string | undefined; receiverName?: string | undefined; receiverContactNo?: string | undefined; shippingLine?: string | undefined; containerNo?: string | undefined; port?: string | undefined; destination?: string | undefined; freightFrom?: string | undefined; totalQty?: number | undefined; freight?: number | undefined; sbrTax?: string | undefined; sprAmount?: number | undefined; deliveryCharges?: number | undefined; insuranceCharges?: number | undefined; tollTax?: number | undefined; otherCharges?: number | undefined; totalAmount?: number | undefined; receivedAmount?: number | undefined; incomeTaxDed?: number | undefined; incomeTaxAmount?: number | undefined; deliveryDate?: string | undefined; remarks?: string | undefined; }) => {
+const updateConsignment = async (consignment: any) => {
   try {
     const response = await apiFetch(`Consignment`, {
       method: 'PUT',
       headers: {},
-      body: JSON.stringify(Consignment),
+      body: JSON.stringify(consignment),
     }, true);
     return response;
   } catch (error: any) {

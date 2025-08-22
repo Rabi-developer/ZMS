@@ -1,10 +1,20 @@
-import { ColumnDef } from '@tanstack/react-table';
-import { ArrowUpDown, Eye, Edit, Trash } from 'lucide-react';
+import { Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { Row } from '@tanstack/react-table';
+
+export const getStatusStyles = (status: string) => {
+  switch (status) {
+    case 'Pending':
+      return 'bg-red-100 text-red-800';
+    case 'Completed':
+      return 'bg-green-100 text-green-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
 
 export interface Receipt {
-  orderNo: string;
   id: string;
   receiptNo: string;
   receiptDate: string;
@@ -14,113 +24,58 @@ export interface Receipt {
   chequeNo: string;
   chequeDate: string;
   receiptAmount: string;
-  remarks: string;
   totalAmount: string;
   status: string;
+  orderNo?: string;
 }
 
-export const getStatusStyles = (status: string) => {
-  switch (status) {
-    case 'Pending':
-      return 'bg-red-100 text-red-800 border-red-300';
-    case 'Completed':
-      return 'bg-green-100 text-green-800 border-green-300';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-300';
-  }
-};
-
-export const columns = (
-  handleDeleteOpen: (id: string) => void,
-  handleViewOpen: (id: string) => void
-): ColumnDef<Receipt>[] => [
+export const columns = (handleDeleteOpen: (id: string) => void) => [
   {
+    header: 'Receipt No',
     accessorKey: 'receiptNo',
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-      >
-        Receipt No
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => <div>{row.original.receiptNo || '-'}</div>,
   },
   {
+    header: 'Receipt Date',
     accessorKey: 'receiptDate',
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-      >
-        Receipt Date
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
-    cell: ({ row }) => <div>{row.original.receiptDate || '-'}</div>,
   },
   {
-    accessorKey: 'party',
     header: 'Party',
-    cell: ({ row }) => <div>{row.original.party || '-'}</div>,
+    accessorKey: 'party',
   },
   {
-    accessorKey: 'paymentMode',
     header: 'Payment Mode',
-    cell: ({ row }) => <div>{row.original.paymentMode || '-'}</div>,
+    accessorKey: 'paymentMode',
   },
   {
-    accessorKey: 'receiptAmount',
-    header: 'Receipt Amount',
-    cell: ({ row }) => <div>{row.original.receiptAmount || '-'}</div>,
-  },
-  {
-    accessorKey: 'totalAmount',
-    header: 'Total Amount',
-    cell: ({ row }) => <div>{row.original.totalAmount || '-'}</div>,
-  },
-  {
-    accessorKey: 'status',
     header: 'Status',
-    cell: ({ row }) => (
-      <span
-        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusStyles(
-          row.original.status || 'Pending'
-        )}`}
-      >
+    accessorKey: 'status',
+    cell: ({ row }: { row: Row<Receipt> }) => (
+      <span className={`px-2 py-1 rounded-full ${getStatusStyles(row.original.status || 'Pending')}`}>
         {row.original.status || 'Pending'}
       </span>
     ),
   },
   {
     header: 'Actions',
-    id: 'actions',
-    cell: ({ row }) => {
-      const receiptId = row.original.id;
-      return (
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleViewOpen(receiptId)}
-          >
-            <Eye className=" h-4 w-4" />
+    accessorKey: 'actions',
+    cell: ({ row }: { row: Row<Receipt> }) => (
+      <div className="flex space-x-2">
+        <Link href={`/receipt/edit/${row.original.id}`}>
+          <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600">
+            <Edit size={16} />
           </Button>
-          <Link href={`/receipts/edit/${receiptId}`}>
-            <Button variant="outline" size="sm">
-              <Edit className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDeleteOpen(receiptId)}
-          >
-            <Trash className="h-4 w-4" />
-          </Button>
-        </div>
-      );
-    },
+        </Link>
+        <Button
+          size="sm"
+          className="bg-red-500 hover:bg-red-600"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteOpen(row.original.id);
+          }}
+        >
+          <Trash size={16} />
+        </Button>
+      </div>
+    ),
   },
 ];

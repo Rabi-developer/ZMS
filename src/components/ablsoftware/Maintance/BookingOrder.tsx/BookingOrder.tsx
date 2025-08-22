@@ -129,6 +129,31 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [locations, setLocations] = useState<DropdownOption[]>([]);
   const [idFocused, setIdFocused] = useState(false); // State to manage OrderNo focus
 
+  // Backward compatibility: map legacy numeric values to human-readable text for dummy datasets
+  const vehicleTypeMap: Record<string, string> = {
+    '1': 'Truck',
+    '2': 'Van',
+    '3': 'Container',
+    '4': 'Trailer',
+    '5': 'Pickup',
+  };
+  const locationMap: Record<string, string> = {
+    '1': 'Karachi',
+    '2': 'Lahore',
+    '3': 'Faisalabad',
+    '4': 'Rawalpindi',
+    '5': 'Multan',
+    '6': 'Hyderabad',
+    '7': 'Quetta',
+    '8': 'Peshawar',
+    '9': 'Islamabad',
+    '10': 'Sialkot',
+    '11': 'Gujranwala',
+    '12': 'Sargodha',
+  };
+  const mapVehicleTypeIdToName = (v?: string) => (v && vehicleTypeMap[v]) ? vehicleTypeMap[v] : (v || '');
+  const mapLocationIdToName = (v?: string) => (v && locationMap[v]) ? locationMap[v] : (v || '');
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -145,27 +170,27 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
         // Dummy data for vehicle types
         const vehicleTypesData = [
-          { id: '1', name: 'Truck' },
-          { id: '2', name: 'Van' },
-          { id: '3', name: 'Container' },
-          { id: '4', name: 'Trailer' },
-          { id: '5', name: 'Pickup' },
+          { id: 'Truck', name: 'Truck' },
+          { id: 'Van', name: 'Van' },
+          { id: 'Container', name: 'Container' },
+          { id: 'Trailer', name: 'Trailer' },
+          { id: 'Pickup', name: 'Pickup' },
         ];
 
         // Dummy data for locations (using Pakistan cities as example)
         const locationsData = [
-          { id: '1', name: 'Karachi' },
-          { id: '2', name: 'Lahore' },
-          { id: '3', name: 'Faisalabad' },
-          { id: '4', name: 'Rawalpindi' },
-          { id: '5', name: 'Multan' },
-          { id: '6', name: 'Hyderabad' },
-          { id: '7', name: 'Quetta' },
-          { id: '8', name: 'Peshawar' },
-          { id: '9', name: 'Islamabad' },
-          { id: '10', name: 'Sialkot' },
-          { id: '11', name: 'Gujranwala' },
-          { id: '12', name: 'Sargodha' },
+          { id: 'Karachi', name: 'Karachi' },
+          { id: 'Lahore', name: 'Lahore' },
+          { id: 'Faisalabad', name: 'Faisalabad' },
+          { id: 'Rawalpindi', name: 'Rawalpindi' },
+          { id: 'Multan', name: 'Multan' },
+          { id: 'Hyderabad', name: 'Hyderabad' },
+          { id: 'Quetta', name: 'Quetta' },
+          { id: 'Peshawar', name: 'Peshawar' },
+          { id: 'Islamabad', name: 'Islamabad' },
+          { id: 'Sialkot', name: 'Sialkot' },
+          { id: 'Gujranwala', name: 'Gujranwala' },
+          { id: 'Sargodha', name: 'Sargodha' },
         ];
 
         setTransporters(transportersData);
@@ -187,18 +212,18 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 setValue('vendor', booking.vendor || '');
                 setValue('vehicleNo', booking.vehicleNo || '');
                 setValue('containerNo', booking.containerNo || '');
-                setValue('vehicleType', booking.vehicleType || '');
+                setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType));
                 setValue('driverName', booking.driverName || '');
                 setValue('contactNo', booking.contactNo || '');
                 setValue('munshayana', booking.munshayana || '');
                 setValue('cargoWeight', booking.cargoWeight || '');
                 setValue('bookedDays', booking.bookedDays || '');
                 setValue('detentionDays', booking.detentionDays || '');
-                setValue('fromLocation', booking.fromLocation || '');
+                setValue('fromLocation', mapLocationIdToName(booking.fromLocation));
                 setValue('departureDate', booking.departureDate || '');
-                setValue('via1', booking.via1 || '');
-                setValue('via2', booking.via2 || '');
-                setValue('toLocation', booking.toLocation || '');
+                setValue('via1', mapLocationIdToName(booking.via1));
+                setValue('via2', mapLocationIdToName(booking.via2));
+                setValue('toLocation', mapLocationIdToName(booking.toLocation));
                 setValue('expectedReachedDate', booking.expectedReachedDate || '');
                 setValue('reachedDate', booking.reachedDate || '');
                 setValue('vehicleMunshyana', booking.vehicleMunshyana || '');
@@ -247,7 +272,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         await createBookingOrder(data);
         toast.success('Booking Order created successfully!');
       }
-      router.push('/bookingorders');
+      router.push('/bookingorder');
     } catch (error) {
       toast.error('An error occurred while saving the booking order');
       console.error('Error saving booking order:', error);

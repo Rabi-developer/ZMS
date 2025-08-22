@@ -7,9 +7,9 @@ import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllConsignment, deleteConsignment, updateConsignmentStatus } from '@/apis/consignment';
-import { columns, getStatusStyles, Consignment } from './columns';
-import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 import { getAllBookingOrder } from '@/apis/bookingorder';
+import { columns, Consignment } from './columns';
+import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
 const ConsignmentList = () => {
   const router = useRouter();
@@ -26,7 +26,7 @@ const ConsignmentList = () => {
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null); // Track selected row
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
   const statusOptions = ['All', 'Pending', 'In Transit', 'Delivered'];
   const statusOptionsConfig = [
@@ -195,7 +195,7 @@ const ConsignmentList = () => {
   };
 
   return (
-    <div className="container bg-white rounded-md p-6 h-[110vh]">
+    <div className="container p-6 ">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -229,7 +229,7 @@ const ConsignmentList = () => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen, handleViewOpen)}
+          columns={columns(handleDeleteOpen)}
           data={filteredConsignments}
           loading={loading}
           link="/consignment/create"
@@ -237,15 +237,15 @@ const ConsignmentList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
+          onRowClick={handleViewOpen}
         />
       </div>
       {selectedRowId && (
         <div className="mt-4">
-          <h3 className="text-lg font-semibold text-[#06b6d4]">Order Progress</h3>
           <OrderProgress
             orderNo={consignments.find((c) => c.id === selectedRowId)?.orderNo}
             bookingStatus={bookingStatus}
-            consignments={[consignments.find((c) => c.id === selectedRowId)]}
+            consignments={consignments.filter((c) => c.id === selectedRowId)}
           />
         </div>
       )}

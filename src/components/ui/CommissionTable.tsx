@@ -1,18 +1,17 @@
 "use client";
 import { motion } from "framer-motion";
-import { 
-  FaFilter, 
-  FaAngleLeft, 
-  FaAngleRight, 
+import {
+  FaFilter,
+  FaAngleLeft,
+  FaAngleRight,
   FaSearch,
   FaTimes,
   FaSortAmountDown,
   FaSortAmountUp,
   FaEye,
-  FaEyeSlash
+  FaEyeSlash,
 } from "react-icons/fa";
 import { LuGitPullRequestCreateArrow } from "react-icons/lu";
-import { VscGoToSearch } from "react-icons/vsc";
 import { FaPersonCircleXmark } from "react-icons/fa6";
 import { HiOutlineAdjustmentsHorizontal } from "react-icons/hi2";
 import { BiSearchAlt2 } from "react-icons/bi";
@@ -29,6 +28,16 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useRouter } from "next/navigation";
+import Loader from "@/components/ui/Loader";
 
 const Table = React.forwardRef<
   HTMLTableElement,
@@ -63,21 +72,6 @@ const TableBody = React.forwardRef<
   />
 ));
 TableBody.displayName = "TableBody";
-
-const TableFooter = React.forwardRef<
-  HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <tfoot
-    ref={ref}
-    className={cn(
-      "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
-      className
-    )}
-    {...props}
-  />
-));
-TableFooter.displayName = "TableFooter";
 
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
@@ -124,30 +118,7 @@ const TableCell = React.forwardRef<
 ));
 TableCell.displayName = "TableCell";
 
-const TableCaption = React.forwardRef<
-  HTMLTableCaptionElement,
-  React.HTMLAttributes<HTMLTableCaptionElement>
->(({ className, ...props }, ref) => (
-  <caption
-    ref={ref}
-    className={cn("mt-4 text-sm text-muted-foreground", className)}
-    {...props}
-  />
-));
-TableCaption.displayName = "TableCaption";
-
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useRouter } from "next/navigation";
-import Loader from "@/components/ui/Loader";
-
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData extends { id: string }, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   loading: boolean;
@@ -158,20 +129,18 @@ interface DataTableProps<TData, TValue> {
   pageIndex: number;
   setPageSize: React.Dispatch<React.SetStateAction<number>>;
   pageSize: number;
+  onRowClick?: (id: string) => void; // Added prop for row click
 }
 
-// Global filter function for multi-column search
 function globalFilterFn(row: any, columnId: string, value: string) {
   const search = value.toLowerCase();
-  
-  // Search across all visible columns
   return Object.values(row.original).some((cellValue: any) => {
     if (cellValue == null) return false;
     return String(cellValue).toLowerCase().includes(search);
   });
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends { id: string }, TValue>({
   columns,
   data,
   loading,
@@ -182,6 +151,7 @@ export function DataTable<TData, TValue>({
   setPageSize,
   searchName = "name",
   hide = true,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -206,7 +176,7 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: globalFilterFn,
+    globalFilterFn,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -214,13 +184,11 @@ export function DataTable<TData, TValue>({
 
   const searchColumn = table.getColumn(searchName);
 
-  // Handle column-specific search
   const handleColumnSearch = (columnId: string, value: string) => {
-    setColumnSearches(prev => ({ ...prev, [columnId]: value }));
+    setColumnSearches((prev) => ({ ...prev, [columnId]: value }));
     table.getColumn(columnId)?.setFilterValue(value);
   };
 
-  // Clear all filters
   const clearAllFilters = () => {
     setGlobalFilter("");
     setColumnFilters([]);
@@ -228,28 +196,22 @@ export function DataTable<TData, TValue>({
     table.resetColumnFilters();
   };
 
-  // Get filtered columns for search
   const searchableColumns = useMemo(() => {
-    return table.getAllColumns().filter(column => column.getCanFilter());
+    return table.getAllColumns().filter((column) => column.getCanFilter());
   }, [table]);
 
   return (
     <>
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="dark:bg-[#1a2a22] bg-white rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
       >
-        {/* Header Section */}
         <div className="bg-[#3a614c] rounded-t-xl p-6">
           <div className="flex justify-between items-center">
-            {/* Create Button */}
             {link && (
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button
                   onClick={() => router.push(link)}
                   className="inline-flex items-center bg-white text-[#3a614c] hover:bg-gray-100 px-6 py-3 text-sm font-semibold transition-all duration-300 rounded-lg shadow-md hover:shadow-lg"
@@ -259,15 +221,13 @@ export function DataTable<TData, TValue>({
                 </Button>
               </motion.div>
             )}
-
             <div className="flex items-center gap-3">
-              {/* Search Mode Toggle */}
               <div className="flex bg-white/20 rounded-lg p-1">
                 <button
                   onClick={() => setSearchMode("global")}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
-                    searchMode === "global" 
-                      ? "bg-white text-[#3a614c] shadow-sm" 
+                    searchMode === "global"
+                      ? "bg-white text-[#3a614c] shadow-sm"
                       : "text-white hover:bg-white/10"
                   }`}
                 >
@@ -276,16 +236,14 @@ export function DataTable<TData, TValue>({
                 <button
                   onClick={() => setSearchMode("column")}
                   className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${
-                    searchMode === "column" 
-                      ? "bg-white text-[#3a614c] shadow-sm" 
+                    searchMode === "column"
+                      ? "bg-white text-[#3a614c] shadow-sm"
                       : "text-white hover:bg-white/10"
                   }`}
                 >
                   Column Search
                 </button>
               </div>
-
-              {/* Advanced Filters Toggle */}
               <Button
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 variant="outline"
@@ -297,10 +255,7 @@ export function DataTable<TData, TValue>({
             </div>
           </div>
         </div>
-
-        {/* Search and Filter Section */}
         <div className="p-6 bg-gray-50 dark:bg-gray-800/50">
-          {/* Global Search */}
           {searchMode === "global" && hide && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -330,8 +285,6 @@ export function DataTable<TData, TValue>({
               </div>
             </motion.div>
           )}
-
-          {/* Column-specific Search */}
           {searchMode === "column" && hide && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -357,8 +310,6 @@ export function DataTable<TData, TValue>({
               </div>
             </motion.div>
           )}
-
-          {/* Advanced Filters */}
           {showAdvancedFilters && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
@@ -367,7 +318,6 @@ export function DataTable<TData, TValue>({
               className="border-t pt-4 mt-4"
             >
               <div className="flex flex-wrap gap-3 items-center">
-                {/* Column Visibility */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -400,8 +350,6 @@ export function DataTable<TData, TValue>({
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-
-                {/* Clear Filters */}
                 {(globalFilter || columnFilters.length > 0) && (
                   <Button
                     onClick={clearAllFilters}
@@ -412,8 +360,6 @@ export function DataTable<TData, TValue>({
                     Clear All
                   </Button>
                 )}
-
-                {/* Results Count */}
                 <div className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
                   {table.getFilteredRowModel().rows.length} of {data.length} records
                 </div>
@@ -421,8 +367,6 @@ export function DataTable<TData, TValue>({
             </motion.div>
           )}
         </div>
-
-        {/* Table Section */}
         <div className="px-6 pb-6">
           <div className="overflow-hidden rounded-lg border-2 border-[#6e997f] dark:border-[#6e997f] shadow-sm">
             <div className="overflow-x-auto">
@@ -438,7 +382,7 @@ export function DataTable<TData, TValue>({
                           >
                             <div className="flex items-center gap-2">
                               {header.isPlaceholder ? null : (
-                                <div 
+                                <div
                                   className={cn(
                                     "flex items-center gap-2",
                                     header.column.getCanSort() && "cursor-pointer select-none hover:text-[#3a614c] transition-colors"
@@ -478,7 +422,8 @@ export function DataTable<TData, TValue>({
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ duration: 0.3, delay: index * 0.05 }}
-                          className="border-b border-[#6e997f]/30 hover:bg-[#3a614c]/5 transition-all duration-200 group"
+                          className="border-b border-[#6e997f]/30 hover:bg-[#3a614c]/5 transition-all duration-200 group cursor-pointer"
+                          onClick={() => onRowClick?.(row.original.id)} // Added row click handler
                         >
                           {row.getVisibleCells().map((cell) => (
                             <TableCell
@@ -505,7 +450,7 @@ export function DataTable<TData, TValue>({
                               <span className="text-gray-500">Loading data...</span>
                             </div>
                           ) : (
-                            <motion.div 
+                            <motion.div
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               className="flex flex-col items-center gap-4"
@@ -519,10 +464,9 @@ export function DataTable<TData, TValue>({
                               <div className="text-center">
                                 <h3 className="text-lg font-semibold text-gray-700 mb-1">No Records Found</h3>
                                 <p className="text-gray-500">
-                                  {globalFilter || columnFilters.length > 0 
-                                    ? "Try adjusting your search criteria" 
-                                    : "No data available to display"
-                                  }
+                                  {globalFilter || columnFilters.length > 0
+                                    ? "Try adjusting your search criteria"
+                                    : "No data available to display"}
                                 </p>
                               </div>
                             </motion.div>
@@ -536,11 +480,8 @@ export function DataTable<TData, TValue>({
             </div>
           </div>
         </div>
-
-        {/* Enhanced Pagination Controls */}
         <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t-2 border-gray dark:border-[#6e997f] rounded-b-xl">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            {/* Left side - Results info */}
             <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
               <div className="flex items-center gap-2">
                 <span className="font-medium">Rows per page:</span>
@@ -556,16 +497,15 @@ export function DataTable<TData, TValue>({
                   ))}
                 </select>
               </div>
-              
               <div className="hidden sm:block text-sm">
-                Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, table.getFilteredRowModel().rows.length)} of {table.getFilteredRowModel().rows.length} entries
+                Showing {pageIndex * pageSize + 1} to{" "}
+                {Math.min((pageIndex + 1) * pageSize, table.getFilteredRowModel().rows.length)} of{" "}
+                {table.getFilteredRowModel().rows.length} entries
                 {table.getFilteredRowModel().rows.length !== data.length && (
                   <span className="text-gray-500"> (filtered from {data.length} total)</span>
                 )}
               </div>
             </div>
-
-            {/* Right side - Pagination controls */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -576,7 +516,6 @@ export function DataTable<TData, TValue>({
               >
                 First
               </Button>
-              
               <Button
                 variant="outline"
                 size="sm"
@@ -586,34 +525,32 @@ export function DataTable<TData, TValue>({
               >
                 <FaAngleLeft className="mr-1" /> Previous
               </Button>
-
-              {/* Page numbers */}
               <div className="flex items-center gap-1">
-                {Array.from({ length: Math.min(5, Math.ceil(table.getFilteredRowModel().rows.length / pageSize)) }, (_, i) => {
-                  const pageNum = pageIndex < 3 ? i : pageIndex - 2 + i;
-                  const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / pageSize);
-                  
-                  if (pageNum >= totalPages) return null;
-                  
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={pageNum === pageIndex ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPageIndex(pageNum)}
-                      className={cn(
-                        "w-8 h-8 p-0 transition-all duration-200",
-                        pageNum === pageIndex
-                          ? "bg-[#6e997f] text-white hover:bg-[#6e997f]/80"
-                          : "border-[#6e997f] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white"
-                      )}
-                    >
-                      {pageNum + 1}
-                    </Button>
-                  );
-                })}
+                {Array.from(
+                  { length: Math.min(5, Math.ceil(table.getFilteredRowModel().rows.length / pageSize)) },
+                  (_, i) => {
+                    const pageNum = pageIndex < 3 ? i : pageIndex - 2 + i;
+                    const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / pageSize);
+                    if (pageNum >= totalPages) return null;
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === pageIndex ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPageIndex(pageNum)}
+                        className={cn(
+                          "w-8 h-8 p-0 transition-all duration-200",
+                          pageNum === pageIndex
+                            ? "bg-[#6e997f] text-white hover:bg-[#6e997f]/80"
+                            : "border-[#6e997f] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white"
+                        )}
+                      >
+                        {pageNum + 1}
+                      </Button>
+                    );
+                  }
+                )}
               </div>
-
               <Button
                 variant="outline"
                 size="sm"
@@ -623,11 +560,12 @@ export function DataTable<TData, TValue>({
               >
                 Next <FaAngleRight className="ml-1" />
               </Button>
-              
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageIndex(Math.ceil(table.getFilteredRowModel().rows.length / pageSize) - 1)}
+                onClick={() =>
+                  setPageIndex(Math.ceil(table.getFilteredRowModel().rows.length / pageSize) - 1)
+                }
                 disabled={table.getFilteredRowModel().rows.length <= (pageIndex + 1) * pageSize}
                 className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -640,3 +578,5 @@ export function DataTable<TData, TValue>({
     </>
   );
 }
+
+export default DataTable;
