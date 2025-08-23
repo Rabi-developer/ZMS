@@ -251,7 +251,47 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateReceipt(data.receiptNo, data);
+        // Map form data to expected structure for updateReceipt
+        const mapped = {
+          orderNo: data.tableData[0]?.biltyNo || '',
+          biltyNo: data.tableData[0]?.biltyNo || '',
+          date: data.receiptDate,
+          consignor: '', // Fill as needed
+          consignee: '', // Fill as needed
+          items: data.tableData.map(row => ({
+            desc: '', // Fill as needed
+            qty: 0, // Fill as needed
+            qtyUnit: '', // Fill as needed
+            weight: undefined,
+            weightUnit: undefined
+          })),
+          ReceiptMode: data.paymentMode,
+          receiptNo: data.receiptNo,
+          ReceiptNo: data.receiptNo,
+          ReceiptDate: data.receiptDate,
+          receiverName: '', // Fill as needed
+          receiverContactNo: '', // Fill as needed
+          shippingLine: '', // Fill as needed
+          containerNo: '', // Fill as needed
+          port: '', // Fill as needed
+          destination: '', // Fill as needed
+          freightFrom: '', // Fill as needed
+          totalQty: undefined,
+          freight: undefined,
+          sbrTax: data.salesTaxOption,
+          sprAmount: undefined,
+          deliveryCharges: undefined,
+          insuranceCharges: undefined,
+          tollTax: undefined,
+          otherCharges: undefined,
+          totalAmount: undefined,
+          receivedAmount: data.receiptAmount,
+          incomeTaxDed: undefined,
+          incomeTaxAmount: undefined,
+          deliveryDate: undefined,
+          remarks: data.remarks,
+        };
+        await updateReceipt(data.receiptNo, mapped);
         toast.success('Updated successfully');
       } else {
         await createReceipt(data);

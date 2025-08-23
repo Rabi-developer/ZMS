@@ -245,7 +245,12 @@ const ConsignmentList = () => {
           <OrderProgress
             orderNo={consignments.find((c) => c.id === selectedRowId)?.orderNo}
             bookingStatus={bookingStatus}
-            consignments={consignments.filter((c) => c.id === selectedRowId)}
+            consignments={consignments.filter((c) => c.id === selectedRowId).map(consignment => ({
+              ...consignment,
+              items: Array.isArray(consignment.items)
+                ? consignment.items
+                : undefined
+            }))}
           />
         </div>
       )}
