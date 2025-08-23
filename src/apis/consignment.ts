@@ -15,9 +15,13 @@ const createConsignment = async (Consignment : any) => {
 };
 
 // Consignment-list
-const getAllConsignment  = async (pageIndex: any = 1, pageSize: any = 10, p0?: { orderNo: string; }) => {
+const getAllConsignment  = async (pageIndex: any = 1, pageSize: any = 10, filters: any = {}) => {
   try {
-    const response = await apiFetch(`Consignment?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
+    if (filters.orderNo) {
+      queryParams += `&OrderNo=${filters.orderNo}`;
+    }
+    const response = await apiFetch(`Consignment?${queryParams}`, {
       method: 'GET',
       headers: {}, 
     }, true);

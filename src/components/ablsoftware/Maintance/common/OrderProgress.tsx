@@ -13,6 +13,8 @@ interface Consignment {
   totalAmount?: string | number; 
   receivedAmount?: string | number;
   deliveryDate?: string;
+  biltyNo?: string;
+  receiptNo?: string;
   status?: string;
 }
 
@@ -68,18 +70,31 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
       setLoading(true);
       try {
         const chargesRes = await getAllCharges(1, 100, { orderNo });
-        const chargesData = chargesRes?.data || [];
+        const allCharges = chargesRes?.data || [];
+        const chargesData = allCharges.filter((c: any) => ((c.orderNo || c.OrderNo || "") === orderNo));
         const paid = chargesData.filter((x: any) => (x.status || "").toLowerCase() === "paid");
+        const normalized = chargesData.flatMap((c: any) => {
+          const basePaidTo = c.paidToPerson ?? c.paidToName ?? c.paidTo ?? '-';
+          const baseCharge = c.charges ?? c.charge ?? '-';
+          const baseAmount = c.amount ?? c.total ?? c.lineAmount ?? '-';
+
+          if (Array.isArray(c.lines) && c.lines.length > 0) {
+            return c.lines.map((l: any) => ({
+              paidToPerson: l.paidTo ?? l.paidToPerson ?? basePaidTo ?? '-',
+              charges: l.charges ?? l.charge ?? baseCharge ?? '-',
+              amount: l.amount ?? l.lineAmount ?? baseAmount ?? '-',
+            }));
+          }
+          return [{
+            paidToPerson: basePaidTo,
+            charges: baseCharge,
+            amount: baseAmount,
+          }];
+        });
         if (mounted) {
-          setChargesCount(chargesData.length);
+          setChargesCount(normalized.length);
           setChargesPaidCount(paid.length);
-          setCharges(
-            chargesData.map((c: any) => ({
-              paidToPerson: c.lines?.[0]?.paidTo || '-',
-              charges: c.lines?.[0]?.charge || '-',
-              amount: c.lines?.[0]?.amount || '-',
-            }))
-          );
+          setCharges(normalized);
         }
 
         const payRes = await getAllPaymentABL(1, 200);
@@ -180,6 +195,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
 
     // Create a single row combining all data for the same orderNo
     const row: any = {
+      biltyNo: consignments.length > 0 ? consignments.map((c) => c.biltyNo || '').join(', ') : '',
+      receiptNo: consignments.length > 0 ? consignments.map((c) => c.receiptNo || '').join(', ') : '',
       orderNo: bo?.orderNo || '',
       orderDate: bo?.orderDate || '',
       vehicleNo: bo?.vehicleNo || '',
@@ -190,6 +207,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
       totalAmount: consignments.length > 0 ? consignments.map((c) => c.totalAmount || '').join(', ') : '',
       receivedAmount: consignments.length > 0 ? consignments.map((c) => c.receivedAmount || '').join(', ') : '-',
       deliveryDate: consignments.length > 0 ? consignments.map((c) => c.deliveryDate || '').join(', ') : '',
+      consignmentStatus: consignments.length > 0 ? Array.from(new Set(consignments.map((c) => c.status || ''))).filter(Boolean).join(', ') : '',
       paidToPerson: charges.length > 0 ? charges.map((c) => c.paidToPerson || '').join(', ') : '',
       charges: charges.length > 0 ? charges.map((c) => c.charges || '').join(', ') : '',
       amount: charges.length > 0 ? charges.map((c) => c.amount || '').join(', ') : '',
@@ -200,7 +218,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
   }, [bookingOrder, bookingInfo, consignments, charges]);
 
   const hideBookingCols = !!hideBookingOrderInfo;
-  const totalCols = hideBookingCols ? 10 : 13;
+  const totalCols = hideBookingCols ? 13 : 16;
 
   return (
     <div className="w-full mt-2 bg-white rounded-lg shadow-md mt-4 border border-gray-200">
@@ -212,6 +230,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
           <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="bg-[#e0ebe2] from-cyan-500 to-blue-500 text-[#3a614c]">
+                 <th className="p-3 font-semibold">Bilty No</th>
+                <th className="p-3 font-semibold">Receipt No</th>
                 {!hideBookingCols && (
                   <>
                     <th className="p-3 font-semibold rounded-tl-lg">Order No</th>
@@ -229,6 +249,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
                 <th className="p-3 font-semibold">Paid to Person</th>
                 <th className="p-3 font-semibold">Charges</th>
                 <th className="p-3 font-semibold rounded-tr-lg">Amount</th>
+                <th className="p-3 font-semibold">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -238,6 +259,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
                     key={index}
                     className={`border-b border-gray-200 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100 transition-colors duration-150`}
                   >
+                    <td className="p-3 truncate max-w-[120px]">{row.biltyNo}</td>
+                    <td className="p-3 truncate max-w-[120px]">{row.receiptNo}</td>
                     {!hideBookingCols && (
                       <>
                         <td className="p-3 truncate max-w-[150px]">{row.orderNo}</td>
@@ -255,6 +278,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
                     <td className="p-3 truncate max-w-[150px]" title={row.paidToPerson}>{row.paidToPerson}</td>
                     <td className="p-3 truncate max-w-[150px]" title={row.charges}>{row.charges}</td>
                     <td className="p-3 truncate max-w-[120px]">{row.amount}</td>
+                    <td className="p-3 truncate max-w-[120px]">{row.consignmentStatus}</td>
                   </tr>
                 ))
               ) : (

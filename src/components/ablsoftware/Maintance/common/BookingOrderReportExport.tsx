@@ -1,73 +1,57 @@
+// src/components/reports/BookingOrderReportExport.tsx
 "use client";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 import { getAllBookingOrder } from "@/apis/bookingorder";
 import { getAllConsignment } from "@/apis/consignment";
 import { getAllCharges } from "@/apis/charges";
 import { getAllPartys } from "@/apis/party";
 import { getAllUnitOfMeasures } from "@/apis/unitofmeasure";
+import { exportBookingOrderToPDF } from "./BookingOrderPdf";
+import { exportBookingOrderToExcel } from "./BookingOrderExcel";
+import { ALL_COLUMNS, ColumnKey, RowData, labelFor } from "./BookingOrderTypes";
 
 // Company constants
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
-const COMPANY_ADDRESS = "Suit No. 108, SP Chamber, Main Estate Avenue, SITE Karachi";
-const COMPANY_PHONE = "Phone: +92 21 32550917-18";
-const REPORT_TITLE = "Contract Report (Detail)";
 
-// Columns definition and order
-const ALL_COLUMNS = [
-  { key: "serial", label: "Serial No" },
-  { key: "orderNo", label: "Order No" },
-  { key: "ablDate", label: "Date" },
-  { key: "orderDate", label: "Order Date" },
-  { key: "consignor", label: "Consignor" },
-  { key: "consignee", label: "Consignee" },
-  { key: "vehicleNo", label: "Vehicle No" },
-  { key: "bookingAmount", label: "Booking Amount" },
-  { key: "biltyNo", label: "Bilty No" },
-  { key: "biltyAmount", label: "Bilty Amount" },
-  { key: "article", label: "Article" },
-  { key: "qty", label: "Qty" },
-  { key: "departure", label: "Departure" },
-  { key: "destination", label: "Destination" },
-  { key: "vendor", label: "Vendor" },
-  { key: "carrier", label: "Carrier" },
-] as const;
-
-type ColumnKey = typeof ALL_COLUMNS[number]["key"];
+// Reduced column set for "Generate Data" option
+const GENERATE_COLUMNS: ColumnKey[] = [
+  "serial",
+  "orderNo",
+  "ablDate",
+  "orderDate",
+  "consignor",
+  "consignee",
+  "vehicleNo",
+  "biltyNo",
+  "article",
+  "qty",
+  "departure",
+  "destination",
+  "vendor",
+  "carrier",
+];
 
 type FilterType = "none" | "range" | "month";
 
-interface RowData {
-  serial: number;
-  orderNo: string;
-  ablDate: string; // formatted like ABL/11/8-25
-  orderDate: string;
-  consignor: string;
-  consignee: string;
-  vehicleNo: string;
-  bookingAmount: number; // sum of charges for the order
-  biltyNo: string; // joined
-  biltyAmount: number; // sum of consignment totalAmount
-  article: string; // joined description(s)
-  qty: string; // joined or summed
-  departure: string; // fromLocation
-  destination: string; // toLocation
-  vendor: string;
-  carrier: string; // transporter
-}
-
-const labelFor = (key: ColumnKey) => ALL_COLUMNS.find((c) => c.key === key)?.label || key;
+// Utility function to format dates in DD-MM-YYYY format
+const formatDate = (dateStr?: string): string => {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "-";
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+};
 
 const formatABLDate = (dateStr?: string): string => {
   if (!dateStr) return "-";
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return "-";
-  const day = d.getDate();
-  const month = d.getMonth() + 1; // 1-12
-  const year = d.getFullYear() % 100; // 2-digit
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear() % 100; // 2-digit year
   return `ABL/${day}/${month}-${year}`;
 };
 
@@ -88,6 +72,32 @@ const numberOr0 = (v: any) => {
   return isNaN(n) || !isFinite(n) ? 0 : n;
 };
 
+// Helpers for ordering/sorting
+const isNumericString = (s: any) => typeof s === "string" && /^-?\d+(\.\d+)?$/.test(s.trim());
+const compareValues = (a: any, b: any, key?: ColumnKey | "") => {
+  if (!key) return 0;
+  let av: any = (a as RowData)[key];
+  let bv: any = (b as RowData)[key];
+
+  // Special handling for dates
+  if (key === "orderDate") {
+    const ad = new Date(av as string).getTime();
+    const bd = new Date(bv as string).getTime();
+    if (isFinite(ad) && isFinite(bd)) return ad - bd;
+  }
+
+  // Numeric compare
+  const an = typeof av === "number" ? av : (isNumericString(av) ? parseFloat(av) : NaN);
+  const bn = typeof bv === "number" ? bv : (isNumericString(bv) ? parseFloat(bv) : NaN);
+  if (!isNaN(an) && !isNaN(bn)) return an - bn;
+
+  // Fallback string compare
+  const as = (av ?? "").toString().toLowerCase();
+  const bs = (bv ?? "").toString().toLowerCase();
+  return as.localeCompare(bs);
+};
+const compareByKey = (a: RowData, b: RowData, key?: ColumnKey | "") => compareValues(a, b, key);
+
 const BookingOrderReportExport: React.FC = () => {
   const today = useMemo(() => new Date(), []);
 
@@ -98,12 +108,33 @@ const BookingOrderReportExport: React.FC = () => {
   const [month, setMonth] = useState<number | undefined>(undefined);
   const [year, setYear] = useState<number | undefined>(undefined);
 
+  // Arrangement (sorting)
+  const [primarySortKey, setPrimarySortKey] = useState<ColumnKey | "">("");
+  const [secondarySortKey, setSecondarySortKey] = useState<ColumnKey | "">("");
+
+  // Column value filter
+  const [filterColumn, setFilterColumn] = useState<ColumnKey | "">("");
+  const [filterValue, setFilterValue] = useState<string>("");
+  const [allRows, setAllRows] = useState<RowData[]>([]);
+  const filterOptions = useMemo(() => {
+    if (!filterColumn) return [] as string[];
+    const set = new Set<string>();
+    allRows.forEach((r) => {
+      const v: any = (r as any)[filterColumn];
+      if (v === undefined || v === null || v === "") return;
+      set.add(String(v));
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allRows, filterColumn]);
+
   // Columns
   const [selectedColumns, setSelectedColumns] = useState<ColumnKey[]>(ALL_COLUMNS.map(c => c.key));
   const [showColsMenu, setShowColsMenu] = useState(false);
+  const [useGenerateColumns, setUseGenerateColumns] = useState<boolean>(false);
 
   // State
   const [loading, setLoading] = useState<boolean>(false);
+  const [data, setData] = useState<RowData[]>([]);
 
   const toggleColumn = (key: ColumnKey) => {
     setSelectedColumns((prev) => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
@@ -112,12 +143,56 @@ const BookingOrderReportExport: React.FC = () => {
   const selectAllColumns = () => setSelectedColumns(ALL_COLUMNS.map(c => c.key));
   const clearAllColumns = () => setSelectedColumns([]);
 
+  const sortRows = useCallback((rows: RowData[]): RowData[] => {
+    if (!primarySortKey && !secondarySortKey) return rows.map((r, i) => ({ ...r, serial: i + 1 }));
+    const copy = [...rows];
+    copy.sort((a, b) => {
+      let cmp = compareByKey(a, b, primarySortKey);
+      if (cmp !== 0) return cmp;
+      return compareByKey(a, b, secondarySortKey);
+    });
+    return copy.map((r, i) => ({ ...r, serial: i + 1 }));
+  }, [primarySortKey, secondarySortKey]);
+
+  useEffect(() => {
+    if (data.length === 0) return;
+    setData(prev => sortRows(prev));
+  }, [primarySortKey, secondarySortKey, sortRows]);
+
+  const filterRows = useCallback((rows: RowData[]): RowData[] => {
+    if (!filterColumn || !filterValue) return rows;
+    return rows.filter((r) => String((r as any)[filterColumn] ?? "") === filterValue);
+  }, [filterColumn, filterValue]);
+
+  const composeView = useCallback((rows: RowData[]): RowData[] => {
+    const sorted = sortRows(rows);
+    const filtered = filterRows(sorted);
+    return filtered.map((r, i) => ({ ...r, serial: i + 1 }));
+  }, [sortRows, filterRows]);
+
+  useEffect(() => {
+    if (allRows.length === 0) return;
+    setData(composeView(allRows));
+  }, [primarySortKey, secondarySortKey, allRows, composeView]);
+
+  useEffect(() => {
+    if (allRows.length === 0) return;
+    setData(composeView(allRows));
+  }, [filterColumn, filterValue, allRows, composeView]);
+
   const resetFilters = () => {
     setFilterType("none");
     setFromDate("");
     setToDate("");
     setMonth(undefined);
     setYear(undefined);
+    setPrimarySortKey("");
+    setSecondarySortKey("");
+    setFilterColumn("");
+    setFilterValue("");
+    setAllRows([]);
+    setData([]);
+    setUseGenerateColumns(false);
   };
 
   const generateData = useCallback(async (): Promise<RowData[]> => {
@@ -181,7 +256,6 @@ const BookingOrderReportExport: React.FC = () => {
         const cons = consByOrder[ono] || [];
         const chs = chargesByOrder[ono] || [];
 
-        // Resolve consignor/consignee using multiple possible keys and map IDs to names when available
         const consignor = cons
           .map((c: any) => {
             const val = c.consignor ?? c.Consignor ?? c.consignorId ?? c.ConsignorId ?? "";
@@ -202,7 +276,6 @@ const BookingOrderReportExport: React.FC = () => {
           .filter(Boolean)
           .join(", ");
 
-        // Qty: prefer items qty list similar to OrderProgress, else use c.qty
         const qtyList = cons
           .map((c: any) => {
             if (Array.isArray(c.items) && c.items.length > 0) {
@@ -220,7 +293,6 @@ const BookingOrderReportExport: React.FC = () => {
           .filter(Boolean)
           .join("; ");
 
-        // Article: prefer items description list, else use itemDesc or items string
         const articleList = cons
           .map((c: any) => {
             if (Array.isArray(c.items) && c.items.length > 0) {
@@ -234,13 +306,11 @@ const BookingOrderReportExport: React.FC = () => {
           .filter(Boolean)
           .join("; ");
 
-        // Bilty amount from consignment totalAmount sum (support multiple casings)
         const biltyAmount = cons.reduce(
           (sum: number, c: any) => sum + numberOr0(c.totalAmount ?? c.TotalAmount ?? c.biltyAmount ?? c.BiltyAmount),
           0
         );
 
-        // Booking amount from sum of charges lines amounts for that order
         const bookingAmount = chs.reduce((sum: number, ch: any) => {
           const chAmt = Array.isArray(ch.lines) ? ch.lines.reduce((lsum: number, line: any) => lsum + numberOr0(line.amount), 0) : numberOr0(ch.amount);
           return sum + chAmt;
@@ -276,7 +346,6 @@ const BookingOrderReportExport: React.FC = () => {
     }
   }, [filterType, fromDate, toDate, month, year]);
 
-  // Compute grouped columns order and header rows for PDF/Excel
   const buildStructure = (selected: ColumnKey[]) => {
     const selectedSet = new Set<ColumnKey>(selected);
 
@@ -292,7 +361,6 @@ const BookingOrderReportExport: React.FC = () => {
 
     const colOrder: ColumnKey[] = [...fixed, ...vehicleSubs, ...biltySubs, ...tail];
 
-    // PDF header rows
     const topRow: any[] = [];
     fixed.forEach((k) => topRow.push({ content: labelFor(k), rowSpan: 2 }));
     if (vehicleSubs.length > 0) topRow.push({ content: "Vehicle", colSpan: vehicleSubs.length });
@@ -305,247 +373,99 @@ const BookingOrderReportExport: React.FC = () => {
 
     const headRows = subRow.length > 0 ? [topRow, subRow] : [topRow];
 
-    return { colOrder, headRows, vehicleSubs, biltySubs, fixed, tail };
+    return { colOrder, headRows };
   };
 
-  const exportPDF = useCallback(async () => {
-    const data = await generateData();
-    if (data.length === 0) {
-      toast.info("No data to export");
-      return;
-    }
-
-    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "A4" });
-
-    // Header with company name, address, phone, and report title
-    const pageWidth = doc.internal.pageSize.getWidth();
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.setTextColor(0, 0, 0);
-    doc.text(COMPANY_NAME, pageWidth / 2, 42, { align: "center" });
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.text(COMPANY_ADDRESS, pageWidth / 2, 58, { align: "center" });
-    doc.text(COMPANY_PHONE, pageWidth / 2, 72, { align: "center" });
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text(REPORT_TITLE, pageWidth / 2, 92, { align: "center" });
-
-    // Filter info
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    let filterLine = "";
+  const computeFilterLine = () => {
+    let base = "All data";
     if (filterType === "range") {
-      filterLine = fromDate && toDate ? `Date Range: ${fromDate} to ${toDate}` : "All data";
+      base = fromDate && toDate ? `Date Range: ${formatDate(fromDate)} to ${formatDate(toDate)}` : "All data";
     } else if (filterType === "month") {
-      filterLine = month && year ? `Month: ${month.toString().padStart(2, "0")}-${year}` : "All data";
+      base = month && year ? `Month: ${month.toString().padStart(2, "0")}-${year}` : "All data";
     }
-    doc.text(filterLine, pageWidth / 2, 108, { align: "center" });
+    const filterText = filterColumn && filterValue ? ` | Filter: ${labelFor(filterColumn)} = ${filterValue}` : "";
+    const arr =
+      primarySortKey
+        ? ` | Arranged by: ${labelFor(primarySortKey)}${secondarySortKey ? `, then ${labelFor(secondarySortKey)}` : ""}`
+        : "";
+    return base + filterText + arr;
+  };
 
-    // Separator line
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(1);
-    doc.line(40, 116, pageWidth - 40, 116);
+  const loadDataForPreview = async (useReducedColumns: boolean = false) => {
+    const rows = await generateData();
+    setAllRows(rows);
+    const view = composeView(rows);
+    setData(view);
+    setUseGenerateColumns(useReducedColumns);
+    if (view.length === 0) {
+      toast.info("No data found for the selected filters");
+    } else {
+      toast.success("Data loaded for preview");
+    }
+  };
 
-    // Build grouped head and column order
-    const { colOrder, headRows } = buildStructure(selectedColumns);
-
-    // Table data
-    const tableBody = data.map((row) =>
-      colOrder.map((k) => {
-        const v: any = (row as any)[k];
-        if (typeof v === "number") return v.toLocaleString();
-        return v ?? "-";
-      })
-    );
-
-    autoTable(doc, {
-      startY: 128,
-      head: headRows as any,
-      body: tableBody,
-      styles: {
-        font: "helvetica",
-        fontSize: 9,
-        cellPadding: 6,
-        lineColor: [220, 220, 220],
-        lineWidth: 0.5,
-        textColor: [30, 30, 30],
-        overflow: "linebreak",
-        cellWidth: "auto",
-      },
-      headStyles: {
-        fillColor: [200, 200, 200],
-        textColor: [0, 0, 0],
-        fontStyle: "bold",
-        fontSize: 10,
-        halign: "center",
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245],
-      },
-      margin: { top: 128, left: 40, right: 40, bottom: 60 },
-      theme: "grid",
-      didDrawPage: (d) => {
-        // Footer
-        const pw = doc.internal.pageSize.getWidth();
-        const ph = doc.internal.pageSize.getHeight();
-        doc.setFontSize(9);
-        doc.setTextColor(150, 150, 150);
-        doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, ph - 30);
-        doc.text(`Page ${d.pageNumber}`, pw - 40, ph - 30, { align: "right" });
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.line(40, ph - 50, pw - 40, ph - 50);
-      },
-    });
-
-    const filename = `${COMPANY_NAME.replace(/\s+/g, "_")}_BookingOrder_Report.pdf`;
-    doc.save(filename);
-    toast.success("PDF generated");
-  }, [generateData, selectedColumns, filterType, fromDate, toDate, month, year]);
-
-  const exportExcel = useCallback(async () => {
-    const data = await generateData();
-    if (data.length === 0) {
+  const exportPDF = useCallback(async (useReducedColumns: boolean = false) => {
+    let rows = data;
+    if (rows.length === 0) {
+      rows = await generateData();
+    }
+    if (rows.length === 0) {
       toast.info("No data to export");
       return;
     }
+    const rowsToUse = composeView(rows);
+    const columnsToUse = useReducedColumns ? GENERATE_COLUMNS : selectedColumns;
+    const { colOrder, headRows } = buildStructure(columnsToUse);
+    const filterLine = computeFilterLine();
+    exportBookingOrderToPDF(rowsToUse, columnsToUse, filterLine, colOrder, headRows);
+    toast.success("PDF generated");
+  }, [data, generateData, selectedColumns, composeView]);
 
-    const { colOrder, headRows } = buildStructure(selectedColumns);
-
-    // Top header lines
-    const wsData: any[][] = [];
-    wsData.push([COMPANY_NAME]);
-    wsData.push([COMPANY_ADDRESS]);
-    wsData.push([COMPANY_PHONE]);
-    wsData.push([REPORT_TITLE]);
-    let headerLine = "All data";
-    if (filterType === "range") headerLine = fromDate && toDate ? `Date Range: ${fromDate} to ${toDate}` : "All data";
-    if (filterType === "month") headerLine = month && year ? `Month: ${month.toString().padStart(2, "0")}-${year}` : "All data";
-    wsData.push([headerLine]);
-    wsData.push([]); // spacer row to keep header area clear
-
-    // Table header (grouped)
-    const headerStart = wsData.length;
-    const topRow = (headRows[0] as any[]).map((cell) => typeof cell === "string" ? cell : cell.content);
-    wsData.push(topRow);
-    if (headRows.length > 1) {
-      wsData.push(headRows[1] as any);
+  const exportExcel = useCallback(async (useReducedColumns: boolean = false) => {
+    let rows = data;
+    if (rows.length === 0) {
+      rows = await generateData();
     }
-
-    // Data rows
-    data.forEach((row) => {
-      wsData.push(colOrder.map((k) => {
-        const v: any = (row as any)[k];
-        return typeof v === "number" ? v : (v ?? "-");
-      }));
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // Merges for top company header lines across all columns
-    const colCount = colOrder.length || 1;
-    const merges: XLSX.Range[] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: Math.max(colCount - 1, 0) } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: Math.max(colCount - 1, 0) } },
-      { s: { r: 2, c: 0 }, e: { r: 2, c: Math.max(colCount - 1, 0) } },
-      { s: { r: 3, c: 0 }, e: { r: 3, c: Math.max(colCount - 1, 0) } },
-      { s: { r: 4, c: 0 }, e: { r: 4, c: Math.max(colCount - 1, 0) } },
-    ];
-
-    // Grouped header merges
-    const hdrTopRowIndex = headerStart; // top header row index
-    const hdrSubExists = headRows.length > 1;
-    let colPointer = 0;
-    (headRows[0] as any[]).forEach((cell, idx) => {
-      if (typeof cell === "string") {
-        // Single column with rowSpan 2 => merge vertically if sub-header exists
-        if (hdrSubExists) merges.push({ s: { r: hdrTopRowIndex, c: colPointer }, e: { r: hdrTopRowIndex + 1, c: colPointer } });
-        colPointer += 1;
-      } else if (cell && typeof cell === "object" && cell.colSpan) {
-        // Group header => merge horizontally across colSpan
-        merges.push({ s: { r: hdrTopRowIndex, c: colPointer }, e: { r: hdrTopRowIndex, c: colPointer + cell.colSpan - 1 } });
-        colPointer += cell.colSpan;
-      } else {
-        colPointer += 1;
-      }
-    });
-
-    (ws as any)["!merges"] = merges;
-
-    // Set column widths
-    const colWidths = colOrder.map((k) => {
-      switch (k) {
-        case "serial": return { wch: 12 };
-        case "orderNo": return { wch: 18 };
-        case "ablDate":
-        case "orderDate": return { wch: 16 };
-        case "vehicleNo": return { wch: 16 };
-        case "bookingAmount":
-        case "biltyAmount": return { wch: 18 };
-        case "biltyNo": return { wch: 24 };
-        case "consignor":
-        case "consignee": return { wch: 28 };
-        case "article": return { wch: 30 };
-        case "departure":
-        case "destination": return { wch: 22 };
-        case "vendor":
-        case "carrier": return { wch: 20 };
-        case "qty": return { wch: 20 };
-        default: return { wch: 16 };
-      }
-    });
-    (ws as any)["!cols"] = colWidths;
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "BookingReport");
-    const fname = `${COMPANY_NAME.replace(/\s+/g, "_")}_BookingOrder_Report.xlsx`;
-    XLSX.writeFile(wb, fname);
+    if (rows.length === 0) {
+      toast.info("No data to export");
+      return;
+    }
+    const rowsToUse = composeView(rows);
+    const columnsToUse = useReducedColumns ? GENERATE_COLUMNS : selectedColumns;
+    const { colOrder, headRows } = buildStructure(columnsToUse);
+    const filterLine = computeFilterLine();
+    exportBookingOrderToExcel(rowsToUse, columnsToUse, filterLine, colOrder, headRows);
     toast.success("Excel generated");
-  }, [generateData, selectedColumns, filterType, fromDate, toDate, month, year]);
+  }, [data, generateData, selectedColumns, composeView]);
+
+  const columnsToDisplay = useGenerateColumns ? GENERATE_COLUMNS : selectedColumns;
+  const { colOrder, headRows } = buildStructure(columnsToDisplay);
 
   return (
-    <div className="w-full h-[100vh] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xl font-bold text-gray-800">{COMPANY_NAME}</div>
-    
-          </div>
-          <div className="text-xs text-gray-500">{new Date().toLocaleString()}</div>
-        </div>
-      </div>
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar for Controls */}
+      <aside className="w-80 bg-white shadow-md p-6 overflow-y-auto border-r border-gray-200">
+        <h2 className="text-xl font-bold text-gray-800 mb-6">Report Settings</h2>
 
-      {/* Controls */}
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Filter type */}
-        <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Filter Type</label>
-          <div className="flex rounded-lg overflow-hidden border border-gray-300 shadow-sm">
+        {/* Filter Type */}
+        <div className="mb-8">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">Filter Type</label>
+          <div className="grid grid-cols-3 gap-3">
             <button
               onClick={() => setFilterType("none")}
-              className={`flex-1 px-4 py-2 text-sm ${filterType === "none" ? "bg-[#3a614c] text-white" : "bg-white text-gray-700 hover:bg-gray-50"} transition-colors`}
-              type="button"
+              className={`py-3 text-sm font-medium rounded-lg transition-all duration-200 ${filterType === "none" ? "bg-blue-600 text-white shadow-md" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
               All
             </button>
             <button
               onClick={() => setFilterType("range")}
-              className={`flex-1 px-4 py-2 text-sm border-l ${filterType === "range" ? "bg-[#3a614c] text-white" : "bg-white text-gray-700 hover:bg-gray-50"} transition-colors`}
-              type="button"
+              className={`py-3 text-sm font-medium rounded-lg transition-all duration-200 ${filterType === "range" ? "bg-blue-600 text-white shadow-md" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
-              Date Range
+              Range
             </button>
             <button
               onClick={() => setFilterType("month")}
-              className={`flex-1 px-4 py-2 text-sm border-l ${filterType === "month" ? "bg-[#3a614c] text-white" : "bg-white text-gray-700 hover:bg-gray-50"} transition-colors`}
-              type="button"
+              className={`py-3 text-sm font-medium rounded-lg transition-all duration-200 ${filterType === "month" ? "bg-blue-600 text-white shadow-md" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
             >
               Month
             </button>
@@ -553,117 +473,256 @@ const BookingOrderReportExport: React.FC = () => {
         </div>
 
         {/* Date Range */}
-        <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-          <div className="flex gap-3">
+        {filterType === "range" && (
+          <div className="mb-8">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">Date Range</label>
             <input
               type="date"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] disabled:opacity-50"
+              className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               value={fromDate}
               onChange={(e) => setFromDate(e.target.value)}
-              disabled={filterType !== "range"}
             />
             <input
               type="date"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] disabled:opacity-50"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               value={toDate}
               onChange={(e) => setToDate(e.target.value)}
-              disabled={filterType !== "range"}
             />
           </div>
-        </div>
+        )}
 
         {/* Month/Year */}
-        <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Month / Year</label>
-          <div className="flex gap-3">
+        {filterType === "month" && (
+          <div className="mb-8">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">Month / Year</label>
             <select
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] disabled:opacity-50"
+              className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               value={month ?? ""}
               onChange={(e) => setMonth(e.target.value ? parseInt(e.target.value) : undefined)}
-              disabled={filterType !== "month"}
             >
-              <option value="">Month</option>
+              <option value="">Select Month</option>
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>{m.toString().padStart(2, "0")}</option>
               ))}
             </select>
             <input
               type="number"
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] disabled:opacity-50"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
               value={year ?? ""}
               onChange={(e) => setYear(e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="Year"
-              disabled={filterType !== "month"}
+              placeholder="Enter Year"
             />
           </div>
+        )}
+
+        {/* Column Selection */}
+        <div className="mb-8 relative">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">Select Columns</label>
+          <button
+            onClick={() => setShowColsMenu(!showColsMenu)}
+            className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-sm text-left font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+          >
+            {selectedColumns.length} Columns Selected
+          </button>
+          {showColsMenu && (
+            <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl p-4 max-h-64 overflow-y-auto">
+              <div className="flex justify-between mb-3 text-sm font-medium text-gray-600">
+                <button onClick={selectAllColumns} className="hover:text-blue-600 transition-colors">Select All</button>
+                <button onClick={clearAllColumns} className="hover:text-red-600 transition-colors">Clear All</button>
+              </div>
+              {ALL_COLUMNS.map((c) => (
+                <label key={c.key} className="flex items-center mb-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="mr-3 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    checked={selectedColumns.includes(c.key)}
+                    onChange={() => toggleColumn(c.key)}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Columns dropdown */}
-        <div className="col-span-1 sticky z-30 md:col-span-2 lg:col-span-3">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="text-sm text-gray-600">If no filter is selected, all data will be exported.</div>
-            <div className="relative">
-              <button
-                type="button"
-                className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#3a614c] transition-colors"
-                onClick={() => setShowColsMenu((s) => !s)}
-              >
-                Select Columns ({selectedColumns.length})
-              </button>
-              {showColsMenu && (
-                <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-sm font-medium text-gray-700">Select Columns</div>
-                    <div className="flex gap-3">
-                      <button onClick={selectAllColumns} className="text-xs text-[#3a614c] hover:underline">Select All</button>
-                      <button onClick={clearAllColumns} className="text-xs text-red-600 hover:underline">Clear All</button>
-                    </div>
-                  </div>
-                  <div className="max-h-64 overflow-auto grid grid-cols-2 gap-3">
-                    {ALL_COLUMNS.map((c) => (
-                      <label key={c.key} className="flex items-center gap-2 text-sm text-gray-700">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4 text-[#3a614c] border-gray-300 rounded focus:ring-[#3a614c]"
-                          checked={selectedColumns.includes(c.key)}
-                          onChange={() => toggleColumn(c.key)}
-                        />
-                        {c.label}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+        {/* Filter By Column Value */}
+        <div className="mb-8">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">Filter By Column</label>
+          <select
+            className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+            value={filterColumn}
+            onChange={(e) => {
+              setFilterColumn(e.target.value as ColumnKey || "");
+              setFilterValue("");
+            }}
+          >
+            <option value="">Select Column</option>
+            {ALL_COLUMNS.map((c) => (
+              <option key={c.key} value={c.key}>{c.label}</option>
+            ))}
+          </select>
+          <select
+            className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50"
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+            disabled={!filterColumn || filterOptions.length === 0}
+          >
+            <option value="">{filterColumn ? (filterOptions.length ? "Select Value" : "No Values Available") : "Select Column First"}</option>
+            {filterOptions.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => { setFilterColumn(""); setFilterValue(""); allRows.length > 0 && setData(composeView(allRows)); }}
+            className="w-full py-3 text-sm font-medium bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-all duration-200"
+          >
+            Clear Filter
+          </button>
+        </div>
+
+        {/* Arrange Data */}
+        <div className="mb-8">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">Sort By</label>
+          <select
+            className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+            value={primarySortKey}
+            onChange={(e) => setPrimarySortKey(e.target.value as ColumnKey || "")}
+          >
+            <option value="">Primary Sort (None)</option>
+            {ALL_COLUMNS.map((c) => (
+              <option key={c.key} value={c.key}>{c.label}</option>
+            ))}
+          </select>
+          <select
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50"
+            value={secondarySortKey}
+            onChange={(e) => setSecondarySortKey(e.target.value as ColumnKey || "")}
+            disabled={!primarySortKey}
+          >
+            <option value="">Secondary Sort (None)</option>
+            {ALL_COLUMNS.map((c) => (
+              <option key={c.key} value={c.key}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          onClick={() => allRows.length > 0 && setData(composeView(allRows))}
+          className="w-full py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 shadow-md"
+        >
+          Apply Changes
+        </button>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-8 overflow-y-auto bg-gray-50">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">{COMPANY_NAME} - Booking Order Report</h1>
+          <div className="text-sm font-medium text-gray-600">{new Date().toLocaleDateString()}</div>
         </div>
 
         {/* Actions */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-3 flex items-center gap-4 mt-2">
+        <div className="flex flex-wrap gap-4 mb-8">
           <button
-            onClick={exportPDF}
+            onClick={() => loadDataForPreview(false)}
             disabled={loading}
-            className="px-5 py-2.5 bg-[#3a614c] hover:bg-[#2f4e3f] text-white rounded-md text-sm font-medium disabled:opacity-50 shadow-md transition-colors"
+            className="px-6 py-3 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all duration-200 shadow-md"
           >
-            {loading ? "Preparing…" : "Export PDF"}
+            {loading ? "Loading..." : "Preview All Data"}
           </button>
           <button
-            onClick={exportExcel}
+            onClick={() => loadDataForPreview(true)}
             disabled={loading}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium disabled:opacity-50 shadow-md transition-colors"
+            className="px-6 py-3 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 shadow-md"
           >
-            {loading ? "Preparing…" : "Export Excel"}
+            {loading ? "Loading..." : "Preview Generate Data"}
+          </button>
+          <button
+            onClick={() => exportPDF(false)}
+            disabled={loading}
+            className="px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 shadow-md"
+          >
+            Export PDF (All)
+          </button>
+          <button
+            onClick={() => exportPDF(true)}
+            disabled={loading}
+            className="px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 shadow-md"
+          >
+            Export PDF (Generate)
+          </button>
+          <button
+            onClick={() => exportExcel(false)}
+            disabled={loading}
+            className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all duration-200 shadow-md"
+          >
+            Export Excel (All)
+          </button>
+          <button
+            onClick={() => exportExcel(true)}
+            disabled={loading}
+            className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all duration-200 shadow-md"
+          >
+            Export Excel (Generate)
           </button>
           <button
             onClick={resetFilters}
-            type="button"
-            className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium border border-gray-300 shadow-sm transition-colors"
+            className="px-6 py-3 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-all duration-200 shadow-md"
           >
-            Reset Filters
+            Reset All
           </button>
         </div>
-      </div>
+
+        {/* Preview Table */}
+        {data.length > 0 && (
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">Data Preview</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0 z-10">
+                  {headRows.map((row, rowIdx) => (
+                    <tr key={rowIdx}>
+                      {row.map((cell: any, cellIdx: number) => {
+                        const content = typeof cell === "string" ? cell : cell.content;
+                        const colSpan = typeof cell === "object" ? cell.colSpan || 1 : 1;
+                        const rowSpan = typeof cell === "object" ? cell.rowSpan || 1 : 1;
+                        return (
+                          <th
+                            key={cellIdx}
+                            colSpan={colSpan}
+                            rowSpan={rowSpan}
+                            className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
+                          >
+                            {content}
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {data.map((row, rowIdx) => (
+                    <tr key={rowIdx} className={`hover:bg-gray-50 transition-all duration-200 ${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
+                      {colOrder.map((k, colIdx) => {
+                        const v: any = row[k];
+                        const displayValue = typeof v === "number" ? v.toLocaleString() : (v ?? "-");
+                        return (
+                          <td key={colIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+                            {displayValue}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 };

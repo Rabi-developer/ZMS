@@ -3,10 +3,17 @@ import apiFetch from "@/components/utils/fetchInstance";
 // Payment-create
 const createPayment = async (Payment : any) => {
   try {
+    const payload = {
+      model: {
+        ...Payment,
+        paidAmount: Payment?.paidAmount != null ? String(Payment.paidAmount) : '',
+      },
+    };
+
     const response = await apiFetch('Payment', {
       method: 'POST',
       headers: {}, 
-      body: JSON.stringify(Payment),
+      body: JSON.stringify(payload),
     }, true);
     return response;
   } catch (error: any) {
@@ -54,10 +61,17 @@ const getSinglePayment  = async (id: string) => {
 
 const updatePayment = async (Payment : any) => {
   try {
+    const payload = {
+      model: {
+        ...Payment,
+        paidAmount: Payment?.paidAmount != null ? String(Payment.paidAmount) : '',
+      },
+    };
+
     const response = await apiFetch(`Payment`, {
       method: 'PUT',
       headers: {},
-      body: JSON.stringify(Payment),
+      body: JSON.stringify(payload),
     }, true);
     return response;
   } catch (error: any) {

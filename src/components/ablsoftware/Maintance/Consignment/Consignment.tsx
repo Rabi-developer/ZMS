@@ -231,14 +231,13 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       fetchConsignment();
     } else {
       const generateReceiptNo = () => {
-        const prefix = '';
+        const prefix = 'REC';
         const timestamp = Date.now().toString().slice(-6);
-        const random = Math.floor(Math.random() * 1000).toString().padStart(1, '0');
-        return `${prefix}${timestamp}${random}`;
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return ``;
       };
+      setValue('receiptNo', generateReceiptNo());
 
-      const autoReceiptNo = generateReceiptNo();
-      setValue('receiptNo', autoReceiptNo, { shouldValidate: true });
     }
   }, [isEdit, setValue]);
 
