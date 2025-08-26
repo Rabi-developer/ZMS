@@ -132,7 +132,7 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           getAllBusinessAssociate(),
           getAllBookingOrder(),
         ]);
-        setMunshyanas(munRes.data.map((m: any) => ({ id: m.id, name: m.name })));
+        setMunshyanas(munRes.data.map((m: any) => ({ id: m.id, name: m.chargesDesc })));
         setConsignments(consRes.data);
         setBusinessAssociates(baRes.data.map((ba: any) => ({ id: ba.id, name: ba.name, contact: ba.contact })));
         setBookingOrders(

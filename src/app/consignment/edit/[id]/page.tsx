@@ -1,11 +1,11 @@
 "use client";
-import BillPaymentInvoicesList from '@/components/ablsoftware/Maintance/BillPaymentInvoices/BillPaymentInvoicesList';
 import MainLayout from '@/components/MainLayout/MainLayout'
+import ConsignmentForm from '@/components/ablsoftware/Maintance/Consignment/Consignment';
 const ABL = () => {
 
     return (
         <MainLayout activeInterface="ABL">
-             <BillPaymentInvoicesList/>
+              <ConsignmentForm isEdit={true} />
         </MainLayout>
     )
 }

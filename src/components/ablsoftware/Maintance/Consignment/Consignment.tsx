@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createConsignment, updateConsignment } from '@/apis/consignment';
+import { createConsignment, updateConsignment, getSingleConsignment } from '@/apis/consignment';
 import { getAllPartys } from '@/apis/party';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
@@ -217,15 +217,24 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         const id = window.location.pathname.split('/').pop();
         if (id) {
           try {
-            // Assume getConsignmentById API exists
-            // const response = await getConsignmentById(id);
-            // const consignment = response.data;
-            // Object.keys(consignment).forEach((key) => setValue(key as keyof ConsignmentFormData, consignment[key]));
+            const response = await getSingleConsignment(id);
+            const consignment = response.data || {};
+            // Set all known fields safely
+            const keys: (keyof ConsignmentFormData)[] = [
+              'consignmentMode','receiptNo','orderNo','biltyNo','date','consignmentNo','consignor','consignmentDate','consignee','receiverName','receiverContactNo','shippingLine','containerNo','port','destination','freightFrom','items','totalQty','freight','sbrTax','sprAmount','deliveryCharges','insuranceCharges','tollTax','otherCharges','totalAmount','receivedAmount','incomeTaxDed','incomeTaxAmount','deliveryDate','remarks'
+            ];
+            keys.forEach((key) => {
+              if (consignment[key] !== undefined) {
+                setValue(key as keyof ConsignmentFormData, consignment[key]);
+              }
+            });
           } catch (error) {
             toast.error('Failed to load consignment data');
           } finally {
             setIsLoading(false);
           }
+        } else {
+          setIsLoading(false);
         }
       };
       fetchConsignment();

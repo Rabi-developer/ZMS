@@ -7,9 +7,9 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createBillPaymentInvoices, updateBillPaymentInvoices, getAllBillPaymentInvoices } from '@/apis/billPaymentInvoices';
+import { createBiltyPaymentInvoice, updateBiltyPaymentInvoice, getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
 import { getAllMunshyana } from '@/apis/munshyana';
-import { getAllBusinessAssociate } from '@/apis/businessassociate';
+import { getAllBrooker } from '@/apis/brooker';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllCharges } from '@/apis/charges';
 import { toast } from 'react-toastify';
@@ -98,7 +98,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       try {
         const [munRes, baRes, bookRes, chargesRes] = await Promise.all([
           getAllMunshyana(),
-          getAllBusinessAssociate(),
+          getAllBrooker(),
           getAllBookingOrder(),
           getAllCharges(),
         ]);
@@ -133,7 +133,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         const id = window.location.pathname.split('/').pop();
         if (id) {
           try {
-            const response = await getAllBillPaymentInvoices(id);
+            const response = await getAllBiltyPaymentInvoice(id);
             const bill = response.data;
             Object.keys(bill).forEach(key => setValue(key as keyof BillPaymentFormData, bill[key]));
           } catch (error) {
@@ -168,10 +168,10 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateBillPaymentInvoices(data.invoiceNo || '', data);
+        await updateBiltyPaymentInvoice(data.invoiceNo || '', data);
         toast.success('Bill Payment Invoice updated successfully!');
       } else {
-        await createBillPaymentInvoices(data);
+        await createBiltyPaymentInvoice(data);
         toast.success('Bill Payment Invoice created successfully!');
       }
       router.push('/billpaymentinvoices');

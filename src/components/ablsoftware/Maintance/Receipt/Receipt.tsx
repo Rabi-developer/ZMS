@@ -8,7 +8,7 @@ import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { getAllPartys } from '@/apis/party';
 import { getAllSaleTexes } from '@/apis/salestexes';
-import { getAllConsignment } from '@/apis/consignment';
+import { getAllConsignment, getSingleConsignment, updateConsignment } from '@/apis/consignment';
 import { createReceipt, getSingleReceipt, updateReceipt } from '@/apis/receipt';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
@@ -136,15 +136,15 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           getAllConsignment(),
         ]);
         setParties(partyRes.data.map((p: any) => ({ id: p.id, name: p.name })));
-        setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.name })));
-        // Map consignment data to expected format
+        // Updated mapping to use taxName
+        setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.taxName })));
         setConsignments(
           consignmentRes.data.map((item: any) => ({
-            id: item.id, // Adjust if field is e.g., consignmentNo or biltyNo
-            vehicleNo: item.vehicleNo || 'N/A', // Fallback if vehicleNo is missing
-            biltyDate: item.biltyDate || item.consignmentDate || new Date().toISOString().split('T')[0], // Fallback to current date
-            biltyAmount: item.biltyAmount || item.totalAmount || 0, // Adjust if field is e.g., freight
-            srbAmount: item.srbAmount || item.sprAmount || 0, // Adjust if field is different
+            id: item.id,
+            vehicleNo: item.vehicleNo || 'N/A',
+            biltyDate: item.biltyDate || item.consignmentDate || new Date().toISOString().split('T')[0],
+            biltyAmount: item.biltyAmount || item.totalAmount || 0,
+            srbAmount: item.srbAmount || item.sprAmount || 0,
           }))
         );
       } catch (error) {
@@ -162,7 +162,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         const prefix = 'REC';
         const timestamp = Date.now().toString().slice(-6);
         const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        return "";
+        return `${prefix}-${timestamp}-${random}`;
       };
       setValue('receiptNo', generateReceiptNo());
     }
@@ -250,32 +250,32 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const onSubmit = async (data: ReceiptFormData) => {
     setIsSubmitting(true);
     try {
+      // Save receipt (create or update)
       if (isEdit) {
-        // Map form data to expected structure for updateReceipt
         const mapped = {
           orderNo: data.tableData[0]?.biltyNo || '',
           biltyNo: data.tableData[0]?.biltyNo || '',
           date: data.receiptDate,
-          consignor: '', // Fill as needed
-          consignee: '', // Fill as needed
-          items: data.tableData.map(row => ({
-            desc: '', // Fill as needed
-            qty: 0, // Fill as needed
-            qtyUnit: '', // Fill as needed
+          consignor: '',
+          consignee: '',
+          items: data.tableData.map(() => ({
+            desc: '',
+            qty: 0,
+            qtyUnit: '',
             weight: undefined,
-            weightUnit: undefined
+            weightUnit: undefined,
           })),
           ReceiptMode: data.paymentMode,
           receiptNo: data.receiptNo,
           ReceiptNo: data.receiptNo,
           ReceiptDate: data.receiptDate,
-          receiverName: '', // Fill as needed
-          receiverContactNo: '', // Fill as needed
-          shippingLine: '', // Fill as needed
-          containerNo: '', // Fill as needed
-          port: '', // Fill as needed
-          destination: '', // Fill as needed
-          freightFrom: '', // Fill as needed
+          receiverName: '',
+          receiverContactNo: '',
+          shippingLine: '',
+          containerNo: '',
+          port: '',
+          destination: '',
+          freightFrom: '',
           totalQty: undefined,
           freight: undefined,
           sbrTax: data.salesTaxOption,
@@ -291,12 +291,32 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           deliveryDate: undefined,
           remarks: data.remarks,
         };
-        await updateReceipt(data.receiptNo, mapped);
+        await updateReceipt(mapped);
         toast.success('Updated successfully');
       } else {
         await createReceipt(data);
         toast.success('Created successfully');
       }
+
+      // Update related consignment(s) receivedAmount based on receipt rows
+      const rows = Array.isArray(data.tableData) ? data.tableData : [];
+      const updates = rows
+        .filter((r) => r.biltyNo && (r.receiptAmount || 0) > 0)
+        .map(async (r) => {
+          try {
+            // Fetch current consignment to get existing receivedAmount if available
+            const cons = await getSingleConsignment(r.biltyNo);
+            const existing = cons?.data || {};
+            const currentReceived = Number(existing.receivedAmount || 0);
+            const newReceived = currentReceived + Number(r.receiptAmount || 0);
+            // Perform minimal update by id (biltyNo is used as id in selection)
+            await updateConsignment({ id: r.biltyNo, receivedAmount: newReceived });
+          } catch (e) {
+            console.error('Failed updating consignment receivedAmount for', r.biltyNo, e);
+          }
+        });
+      await Promise.all(updates);
+
       router.push('/receipts');
     } catch (error) {
       toast.error('An error occurred while saving the receipt');
@@ -349,7 +369,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="p-4">
+          <form className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               <ABLCustomInput
                 label="Receipt #"
@@ -593,7 +613,6 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               </div>
             </div>
 
-            
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
               <div className="px-4 py-3 rounded-t-lg">
                 <div className="flex items-center gap-2">
@@ -752,6 +771,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 type="submit"
                 disabled={isSubmitting}
                 className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                onClick={handleSubmit(onSubmit)}
               >
                 <div className="flex items-center gap-2">
                   {isSubmitting ? (
