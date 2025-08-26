@@ -86,6 +86,12 @@ export const ablSideBarItems = [
         color: '#1a5f3a',
       },
       {
+        text: 'Bill Payment Invoices',
+        href: '/billpaymentinvoices',
+        icon: FaFileInvoice,
+        color: '#1a5f3a',
+      },
+      {
         text: 'Payment',
         href: '/paymentABL',
         icon: MdPayment,
