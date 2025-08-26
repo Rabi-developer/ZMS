@@ -292,7 +292,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
-      <div className="max-w-7xl mx-auto">
+      <div className="h-full w-full flex flex-col">
         {isLoading && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
