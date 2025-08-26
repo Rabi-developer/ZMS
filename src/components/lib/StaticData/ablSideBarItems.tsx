@@ -170,17 +170,17 @@ export const ablSideBarItems = [
     ],
   },
   {
-    text: 'DELIVERY',
+    text: 'Voucher',
     type: 'heading',
   },
   {
-    text: 'Delivery Management',
+    text: 'Voucher',
     icon: GiRoad,
     color: '#1a5f3a',
     sub_menu: [
       {
-        text: 'Routes',
-        href: '/abl/routes',
+        text: 'Voucher Entry',
+        href: 'entryvoucher',
         icon: FaMapMarkerAlt,
         color: '#1a5f3a',
       },
