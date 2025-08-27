@@ -58,6 +58,10 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
     accessorKey: 'totalCredit',
   },
   {
+    header: '',
+    accessorKey: 'name',
+  },
+  {
     header: 'Status',
     accessorKey: 'status',
     cell: ({ row }: { row: Row<Voucher> }) => (
