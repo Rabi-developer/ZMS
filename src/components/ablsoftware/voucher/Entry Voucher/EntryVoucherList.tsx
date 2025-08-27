@@ -189,7 +189,7 @@ const EntryVoucherList = () => {
           columns={columns(handleDeleteOpen)}
           data={filteredVouchers}
           loading={loading}
-          link="/entryvoucher"
+          link="/entryvoucher/create"
           setPageIndex={setPageIndex}
           pageIndex={pageIndex}
           pageSize={pageSize}

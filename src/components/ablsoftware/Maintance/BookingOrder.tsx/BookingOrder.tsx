@@ -238,8 +238,8 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 router.push('/bookingorder');
               }
             } catch (error) {
-              toast.error('Failed to load booking order data');
-              console.error('Error fetching booking order:', error);
+              // toast.error('Failed to load booking order data');
+              // console.error('Error fetching booking order:', error);
             }
           }
         } else {
@@ -252,8 +252,8 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           }
         }
       } catch (error) {
-        toast.error('Failed to load data');
-        console.error('Error fetching data:', error);
+        // toast.error('Failed to load data');
+        // console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
