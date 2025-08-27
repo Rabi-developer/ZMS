@@ -1,7 +1,7 @@
 import { Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Row } from '@tanstack/react-table'; // Import Row type
+import { Row } from '@tanstack/react-table';
 
 export const getStatusStyles = (status: string) => {
   switch (status) {

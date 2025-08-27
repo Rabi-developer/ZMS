@@ -180,7 +180,7 @@ export const ablSideBarItems = [
     sub_menu: [
       {
         text: 'Voucher Entry',
-        href: 'entryvoucher',
+        href: '/entryvoucher',
         icon: FaMapMarkerAlt,
         color: '#1a5f3a',
       },

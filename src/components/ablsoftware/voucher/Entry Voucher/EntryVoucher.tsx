@@ -1,24 +1,25 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import React, { useState, useEffect, JSX, useMemo } from 'react';
+import { useForm, Controller, type UseFormSetValue, type Path } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
+import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { MdInfo } from 'react-icons/md';
+import { MdInfo, MdDelete } from 'react-icons/md';
 import { FaFileInvoice } from 'react-icons/fa';
-import { FiSave, FiX } from 'react-icons/fi';
+import { FiSave, FiX, FiSearch } from 'react-icons/fi';
 import Link from 'next/link';
 import { getAllEquality } from '@/apis/equality';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
 import { getAllAblAssests } from '@/apis/ablAssests';
 import { getAllAblExpense } from '@/apis/ablExpense';
 import { getAllAblRevenue } from '@/apis/ablRevenue';
+import { getAllBusinessAssociate } from '@/apis/businessassociate';
 
-
-// Assuming similar structure for all account types
+// Account type
 type Account = {
   id: string;
   listid: string;
@@ -29,6 +30,19 @@ type Account = {
   fixedAmount: string;
   paid: string;
 };
+
+interface DropdownOption {
+  id: string;
+  name: string;
+  contact?: string;
+}
+
+interface TableRow {
+  account: string;
+  debit: number;
+  credit: number;
+  narration: string;
+}
 
 type ApiResponse<T> = {
   data: T;
@@ -44,11 +58,6 @@ type ApiResponse<T> = {
   };
 };
 
-interface DropdownOption {
-  value: string;
-  label: string;
-}
-
 // Zod schema for voucher form validation
 const voucherSchema = z.object({
   voucherNo: z.string().optional(),
@@ -56,24 +65,262 @@ const voucherSchema = z.object({
   referenceNo: z.string().optional(),
   chequeNo: z.string().optional(),
   depositSlipNo: z.string().optional(),
-  paidTo: z.string().min(1, 'Paid To account is required'),
-  debit: z.number().min(0, 'Debit must be non-negative').optional(),
-  credit: z.number().min(0, 'Credit must be non-negative').optional(),
+  paymentMode: z.string().min(1, 'Payment Mode is required'),
+  bankName: z.string().optional(),
+  chequeDate: z.string().optional(),
+  paidTo: z.string().min(1, 'Paid To is required'),
   narration: z.string().optional(),
   description: z.string().optional(),
+  tableData: z.array(
+    z.object({
+      account: z.string().min(1, 'Account is required'),
+      debit: z.number().min(0, 'Debit must be non-negative').optional(),
+      credit: z.number().min(0, 'Credit must be non-negative').optional(),
+      narration: z.string().optional(),
+    })
+  ),
 });
 
 type VoucherFormData = z.infer<typeof voucherSchema>;
 
+// Hierarchical Dropdown Component
+interface HierarchicalDropdownProps {
+  accounts: Account[];
+  onSelect: (id: string, account: Account | null) => void;
+  setValue: UseFormSetValue<VoucherFormData>;
+  name: string;
+  index?: number;
+}
+
+const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, onSelect, setValue, name, index }) => {
+  const [selectionPath, setSelectionPath] = useState<string[]>([]); // Tracks selected IDs at each level
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSearchList, setShowSearchList] = useState(false);
+
+  // Build a flat list of leaf accounts for fast searching
+  type FlatLeaf = { id: string; label: string; pathIds: string[]; pathLabels: string[] };
+  const flatLeaves: FlatLeaf[] = useMemo(() => {
+    const leaves: FlatLeaf[] = [];
+    const walk = (node: Account, pathIds: string[], pathLabels: string[]) => {
+      const newPathIds = [...pathIds, node.id];
+      const newPathLabels = [...pathLabels, node.description];
+      if (!node.children || node.children.length === 0) {
+        leaves.push({ id: node.id, label: newPathLabels.join(' / '), pathIds: newPathIds, pathLabels: newPathLabels });
+      } else {
+        node.children.forEach((child) => walk(child, newPathIds, newPathLabels));
+      }
+    };
+    accounts.forEach((root) => walk(root, [], []));
+    return leaves;
+  }, [accounts]);
+
+  const filteredLeaves = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return [] as FlatLeaf[];
+    return flatLeaves
+      .filter((leaf) => leaf.label.toLowerCase().includes(q))
+      .slice(0, 12);
+  }, [searchTerm, flatLeaves]);
+
+  const findAccountByPath = (pathIds: string[]): Account | null => {
+    let current: Account[] = accounts;
+    let found: Account | null = null;
+    for (const id of pathIds) {
+      found = current.find((a) => a.id === id) || null;
+      if (!found) return null;
+      current = found.children || [];
+    }
+    return found;
+  };
+
+  const handleSelect = (level: number, id: string) => {
+    const newPath = selectionPath.slice(0, level);
+    newPath.push(id);
+    setSelectionPath(newPath);
+
+    // Find the selected account
+    let currentAccounts = accounts;
+    let selectedAccount: Account | null = null;
+    for (const selId of newPath) {
+      const found = currentAccounts.find((acc) => acc.id === selId);
+      if (found) {
+        selectedAccount = found;
+        currentAccounts = found.children;
+      }
+    }
+
+    // If the selected account has no children, set it as the final selection
+    if (selectedAccount && selectedAccount.children.length === 0) {
+      if (index !== undefined) {
+        setValue(`tableData.${index}.${name}` as Path<VoucherFormData>, id, { shouldValidate: true });
+      } else {
+        setValue(name as Path<VoucherFormData>, id, { shouldValidate: true });
+      }
+      onSelect(id, selectedAccount);
+    } else {
+      if (index !== undefined) {
+        setValue(`tableData.${index}.${name}` as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
+      } else {
+        setValue(name as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
+      }
+      onSelect(id, selectedAccount);
+    }
+  };
+
+  const getOptionsAtLevel = (level: number): Account[] => {
+    if (level === 0) return accounts;
+    let current = accounts;
+    for (let i = 0; i < level; i++) {
+      const selId = selectionPath[i];
+      const found = current.find((acc) => acc.id === selId);
+      if (found) {
+        current = found.children;
+      } else {
+        return [];
+      }
+    }
+    return current;
+  };
+
+  // Determine the number of dropdowns to show
+  const levels = selectionPath.length + 1;
+  let showLevels = levels;
+  if (selectionPath.length > 0) {
+    const nextOptions = getOptionsAtLevel(selectionPath.length);
+    if (nextOptions.length === 0) {
+      showLevels = selectionPath.length;
+    }
+  }
+
+  // Build selected breadcrumb labels
+  const selectionLabels = selectionPath.map((id, idx) => {
+    const options = getOptionsAtLevel(idx);
+    const found = options.find((a) => a.id === id);
+    return found?.description || id;
+  });
+
+  const handlePickFromSearch = (leaf: FlatLeaf) => {
+    setSelectionPath(leaf.pathIds);
+    const selected = findAccountByPath(leaf.pathIds);
+    if (index !== undefined) {
+      setValue(`tableData.${index}.${name}` as Path<VoucherFormData>, leaf.id, { shouldValidate: true });
+    } else {
+      setValue(name as Path<VoucherFormData>, leaf.id, { shouldValidate: true });
+    }
+    onSelect(leaf.id, selected);
+    setSearchTerm('');
+    setShowSearchList(false);
+  };
+
+  const clearSelection = () => {
+    setSelectionPath([]);
+    if (index !== undefined) {
+      setValue(`tableData.${index}.${name}` as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
+    } else {
+      setValue(name as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
+    }
+    onSelect('', null);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Search Input */}
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowSearchList(true);
+              }}
+              onFocus={() => setShowSearchList(true)}
+              placeholder="Search account (e.g., Cash, Bank)"
+              className="w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition"
+            />
+            {showSearchList && searchTerm && filteredLeaves.length > 0 && (
+              <div className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
+                {filteredLeaves.map((leaf) => (
+                  <button
+                    type="button"
+                    key={leaf.id + leaf.label}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handlePickFromSearch(leaf)}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-gray-700"
+                  >
+                    {leaf.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="px-3 py-2 text-xs rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {/* Horizontal selects */}
+      <div className="flex flex-row flex-wrap gap-3 overflow-x-auto py-1">
+        {Array.from({ length: showLevels }).map((_, level) => {
+          const options = getOptionsAtLevel(level);
+          const selected = selectionPath[level] || '';
+          return (
+            <div key={level} className="min-w-[220px]">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                {level === 0 ? 'Account' : `Sub-Account ${level}`}
+              </label>
+              <select
+                value={selected}
+                onChange={(e) => handleSelect(level, e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 shadow-sm"
+              >
+                <option value="">Select {level === 0 ? 'Account' : 'Sub-Account'}</option>
+                {options.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.description}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Breadcrumb of selection */}
+      {selectionLabels.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+          <span className="font-medium">Selected:</span>
+          <div className="flex flex-wrap items-center gap-1">
+            {selectionLabels.map((label, idx) => (
+              <React.Fragment key={label + idx}>
+                <span className="px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-gray-700 dark:text-emerald-300">
+                  {label}
+                </span>
+                {idx < selectionLabels.length - 1 && <span className="text-gray-400">/</span>}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
   const {
-    control,
     register,
     handleSubmit,
     formState: { errors },
     setValue,
     watch,
+    control,
   } = useForm<VoucherFormData>({
     resolver: zodResolver(voucherSchema),
     defaultValues: {
@@ -82,31 +329,63 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       referenceNo: '',
       chequeNo: '',
       depositSlipNo: '',
+      paymentMode: '',
+      bankName: '',
+      chequeDate: '',
       paidTo: '',
-      debit: 0,
-      credit: 0,
       narration: '',
       description: '',
+      tableData: [{ account: '', debit: 0, credit: 0, narration: '' }],
     },
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [accountOptions, setAccountOptions] = useState<{
-    assets: DropdownOption[];
-    revenues: DropdownOption[];
-    liabilities: DropdownOption[];
-    expenses: DropdownOption[];
-    equities: DropdownOption[];
-  }>({
-    assets: [],
-    revenues: [],
-    liabilities: [],
-    expenses: [],
-    equities: [],
-  });
+  const [topLevelAccounts, setTopLevelAccounts] = useState<Account[]>([]);
+  const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
+  const [selectedAccounts, setSelectedAccounts] = useState<(Account | null)[]>([null]);
+  const [bankNames, setBankNames] = useState<DropdownOption[]>([
+    { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
+    { id: 'MCB', name: 'MCB Bank Limited' },
+    { id: 'UBL', name: 'United Bank Limited (UBL)' },
+    { id: 'ABL', name: 'Allied Bank Limited (ABL)' },
+    { id: 'NBP', name: 'National Bank of Pakistan (NBP)' },
+    { id: 'Meezan', name: 'Meezan Bank' },
+    { id: 'BankAlfalah', name: 'Bank Alfalah' },
+    { id: 'Askari', name: 'Askari Bank' },
+    { id: 'Faysal', name: 'Faysal Bank' },
+    { id: 'BankAlHabib', name: 'Bank Al Habib' },
+    { id: 'Soneri', name: 'Soneri Bank' },
+    { id: 'Samba', name: 'Samba Bank' },
+    { id: 'JS', name: 'JS Bank' },
+    { id: 'Silk', name: 'Silk Bank' },
+    { id: 'Summit', name: 'Summit Bank' },
+    { id: 'StandardChartered', name: 'Standard Chartered Bank' },
+    { id: 'BankIslami', name: 'BankIslami Pakistan' },
+    { id: 'DubaiIslamic', name: 'Dubai Islamic Bank Pakistan' },
+    { id: 'AlBaraka', name: 'Al Baraka Bank' },
+    { id: 'ZaraiTaraqiati', name: 'Zarai Taraqiati Bank Limited (ZTBL)' },
+    { id: 'SindhBank', name: 'Sindh Bank' },
+    { id: 'BankOfPunjab', name: 'The Bank of Punjab' },
+    { id: 'FirstWomenBank', name: 'First Women Bank' },
+    { id: 'BankOfKhyber', name: 'The Bank of Khyber' },
+    { id: 'BankOfAzadKashmir', name: 'Bank of Azad Kashmir' },
+    { id: 'IndustrialDevelopment', name: 'Industrial Development Bank of Pakistan' },
+    { id: 'Other', name: 'Other' },
+  ]);
 
-  // Build hierarchy function (copied from provided code)
+  const paymentModes: DropdownOption[] = [
+    { id: 'Bank', name: 'Bank' },
+    { id: 'Cheque', name: 'Cheque' },
+    { id: 'Petty Cash', name: 'Petty Cash' },
+    { id: 'Bad Debt', name: 'Bad Debt' },
+    { id: 'LC', name: 'LC' },
+  ];
+
+  const tableData = watch('tableData');
+  const paymentMode = watch('paymentMode');
+
+  // Build hierarchy
   const buildHierarchy = (accounts: Account[]): Account[] => {
     const map: Record<string, Account> = {};
     accounts.forEach((account) => {
@@ -128,54 +407,55 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     return rootAccounts;
   };
 
-  // Flatten hierarchy with indentation
-  const flattenAccounts = (accounts: Account[], level = 0): DropdownOption[] => {
-    let options: DropdownOption[] = [];
-    accounts.forEach((acc) => {
-      options.push({ value: acc.id, label: '  '.repeat(level) + acc.description });
-      if (acc.children && acc.children.length > 0) {
-        options = options.concat(flattenAccounts(acc.children, level + 1));
+  // Render children accounts for display
+  const renderChildren = (children: Account[], level = 0): JSX.Element[] => {
+    return children.map((child) => (
+      <div key={child.id} className={`pl-${level * 4} text-sm text-gray-600 dark:text-gray-400`}>
+        <p>{child.description}</p>
+        {child.children && child.children.length > 0 && renderChildren(child.children, level + 1)}
+      </div>
+    ));
+  };
+
+  // Fetch accounts
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const [assetsRes, revenuesRes, liabilitiesRes, expensesRes, equitiesRes, baRes] = await Promise.all([
+        getAllAblAssests(1, 10000).catch(() => ({ data: [], statusCode: 500, statusMessage: 'Failed to fetch assets', misc: {} })),
+        getAllAblRevenue(1, 10000).catch(() => ({ data: [], statusCode: 500, statusMessage: 'Failed to fetch revenues', misc: {} })),
+        getAllAblLiabilities(1, 10000).catch(() => ({ data: [], statusCode: 500, statusMessage: 'Failed to fetch liabilities', misc: {} })),
+        getAllAblExpense(1, 10000).catch(() => ({ data: [], statusCode: 500, statusMessage: 'Failed to fetch expenses', misc: {} })),
+        getAllEquality(1, 10000).catch(() => ({ data: [], statusCode: 500, statusMessage: 'Failed to fetch equities', misc: {} })),
+        getAllBusinessAssociate().catch(() => ({ data: [], statusCode: 500, statusMessage: 'Failed to fetch business associates', misc: {} })),
+      ]);
+
+      const topLevel: Account[] = [
+        { id: 'assets', listid: 'assets', description: 'Assets', parentAccountId: null, children: buildHierarchy(assetsRes.data || []), dueDate: '', fixedAmount: '', paid: '' },
+        { id: 'revenues', listid: 'revenues', description: 'Revenues', parentAccountId: null, children: buildHierarchy(revenuesRes.data || []), dueDate: '', fixedAmount: '', paid: '' },
+        { id: 'liabilities', listid: 'liabilities', description: 'Liabilities', parentAccountId: null, children: buildHierarchy(liabilitiesRes.data || []), dueDate: '', fixedAmount: '', paid: '' },
+        { id: 'expenses', listid: 'expenses', description: 'Expenses', parentAccountId: null, children: buildHierarchy(expensesRes.data || []), dueDate: '', fixedAmount: '', paid: '' },
+        { id: 'equities', listid: 'equities', description: 'Equities', parentAccountId: null, children: buildHierarchy(equitiesRes.data || []), dueDate: '', fixedAmount: '', paid: '' },
+      ];
+
+      setTopLevelAccounts(topLevel);
+      setBusinessAssociates(baRes.data.map((ba: any) => ({ id: ba.id, name: ba.name, contact: ba.contact })));
+
+      if (topLevel.every((acc) => acc.children.length === 0)) {
+        toast.warn('No accounts found in any category');
       }
-    });
-    return options;
+    } catch (error) {
+      toast.error('Failed to load chart of accounts');
+      console.error('Error fetching accounts:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    const fetchAccounts = async () => {
-      setIsLoading(true);
-      try {
-        const [assetsRes, revenuesRes, liabilitiesRes, expensesRes, equitiesRes] = await Promise.all([
-          getAllAblAssests(1, 10000), // Fetch all with large page size
-          getAllAblRevenue(1, 10000),
-          getAllAblLiabilities(1, 10000),
-          getAllAblExpense(1, 10000),
-          getAllEquality(1, 10000),
-        ]);
-
-        const assetsHier = buildHierarchy(assetsRes.data);
-        const revenuesHier = buildHierarchy(revenuesRes.data);
-        const liabilitiesHier = buildHierarchy(liabilitiesRes.data);
-        const expensesHier = buildHierarchy(expensesRes.data);
-        const equitiesHier = buildHierarchy(equitiesRes.data);
-
-        setAccountOptions({
-          assets: flattenAccounts(assetsHier),
-          revenues: flattenAccounts(revenuesHier),
-          liabilities: flattenAccounts(liabilitiesHier),
-          expenses: flattenAccounts(expensesHier),
-          equities: flattenAccounts(equitiesHier),
-        });
-      } catch (error) {
-        toast.error('Failed to load chart of accounts');
-        console.error('Error fetching accounts:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchAccounts();
+    fetchData();
 
     if (!isEdit) {
-      // Generate auto voucher number
       const generateVoucherNo = () => {
         const prefix = 'VOU';
         const timestamp = Date.now().toString().slice(-6);
@@ -188,17 +468,26 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   useEffect(() => {
     if (isEdit) {
-      // Fetch existing voucher data (placeholder, implement based on actual API)
       const fetchVoucher = async () => {
         setIsLoading(true);
         const id = window.location.pathname.split('/').pop();
         if (id) {
           try {
-            // Assuming getSingleVoucher API exists
+            // Placeholder: Implement getSingleVoucher API
             // const response = await getSingleVoucher(id);
             // const voucher = response.data;
             // setValue('voucherNo', voucher.voucherNo || '');
-            // ... set other values
+            // setValue('voucherDate', voucher.voucherDate || '');
+            // setValue('referenceNo', voucher.referenceNo || '');
+            // setValue('chequeNo', voucher.chequeNo || '');
+            // setValue('depositSlipNo', voucher.depositSlipNo || '');
+            // setValue('paymentMode', voucher.paymentMode || '');
+            // setValue('bankName', voucher.bankName || '');
+            // setValue('chequeDate', voucher.chequeDate || '');
+            // setValue('paidTo', voucher.paidTo || '');
+            // setValue('narration', voucher.narration || '');
+            // setValue('description', voucher.description || '');
+            // setValue('tableData', voucher.tableData || [{ account: '', debit: 0, credit: 0, narration: '' }]);
           } catch (error) {
             toast.error('Failed to load voucher data');
             console.error('Error fetching voucher:', error);
@@ -211,17 +500,44 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     }
   }, [isEdit, setValue]);
 
+  const handleAccountSelect = (index: number) => (id: string, account: Account | null) => {
+    const updatedSelectedAccounts = [...selectedAccounts];
+    updatedSelectedAccounts[index] = account;
+    setSelectedAccounts(updatedSelectedAccounts);
+  };
+
+  const addTableRow = () => {
+    setValue('tableData', [
+      ...tableData,
+      { account: '', debit: 0, credit: 0, narration: '' },
+    ]);
+    setSelectedAccounts([...selectedAccounts, null]);
+  };
+
+  const deleteTableRow = (index: number) => {
+    if (tableData.length <= 1) {
+      toast.warn('At least one row is required');
+      return;
+    }
+    const newTableData = tableData.filter((_, i) => i !== index);
+    const newSelectedAccounts = selectedAccounts.filter((_, i) => i !== index);
+    setValue('tableData', newTableData);
+    setSelectedAccounts(newSelectedAccounts);
+  };
+
   const onSubmit = async (data: VoucherFormData) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
+        // Placeholder: Implement updateVoucher API
         // await updateVoucher(data);
         toast.success('Voucher updated successfully');
       } else {
+        // Placeholder: Implement createVoucher API
         // await createVoucher(data);
         toast.success('Voucher created successfully');
       }
-      router.push('/vouchers'); // Assuming a list page
+      router.push('/entryvoucher');
     } catch (error) {
       toast.error('An error occurred while saving the voucher');
       console.error('Error saving voucher:', error);
@@ -230,9 +546,19 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     }
   };
 
+  // Refresh accounts when a new account is saved
+  useEffect(() => {
+    const handleCustomEvent = () => {
+      console.log('accountSaved event received');
+      fetchData();
+    };
+    window.addEventListener('accountSaved', handleCustomEvent);
+    return () => window.removeEventListener('accountSaved', handleCustomEvent);
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4 lg:p-6">
+      <div className="h-full w-full flex flex-col">
         {isLoading && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl">
@@ -245,30 +571,30 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         )}
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
-          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3">
+          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 md:px-6 md:py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="bg-white/20 p-1.5 rounded-md">
-                  <FaFileInvoice className="text-lg" />
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-md">
+                  <FaFileInvoice className="text-xl" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold">{isEdit ? 'Edit Voucher' : 'Add New Voucher'}</h1>
-                  <p className="text-white/80 text-xs">{isEdit ? 'Update voucher record' : 'Create a new voucher record'}</p>
+                  <h1 className="text-xl font-semibold">{isEdit ? 'Edit Voucher' : 'Add New Voucher'}</h1>
+                  <p className="text-white/80 text-sm">{isEdit ? 'Update voucher record' : 'Create a new voucher record'}</p>
                 </div>
               </div>
               <Link href="/vouchers">
                 <Button
                   type="button"
-                  className="bg-white/10 hover:bg-white/20 text-white rounded-md transition-all duration-200 border border-white/20 px-3 py-1 text-sm"
+                  className="bg-white/10 hover:bg-white/20 text-white rounded-md transition-all duration-200 border border-white/20 px-4 py-2 text-sm flex items-center gap-1"
                 >
-                  <FiX className="mr-1" /> Cancel
+                  <FiX /> Cancel
                 </Button>
               </Link>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-4 md:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
               <ABLCustomInput
                 label="Voucher #"
                 type="text"
@@ -293,6 +619,43 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 error={errors.referenceNo?.message}
                 id="referenceNo"
               />
+               <Controller
+                name="paymentMode"
+                control={control}
+                render={({ field }) => (
+                  <AblCustomDropdown
+                    label="Payment Mode"
+                    options={paymentModes}
+                    selectedOption={field.value || ''}
+                    onChange={field.onChange}
+                    error={errors.paymentMode?.message}
+                  />
+                )}
+              />
+               {paymentMode === 'Bank' && (
+                <Controller
+                  name="bankName"
+                  control={control}
+                  render={({ field }) => (
+                    <AblCustomDropdown
+                      label="Bank Name"
+                      options={bankNames}
+                      selectedOption={field.value || ''}
+                      onChange={field.onChange}
+                      error={errors.bankName?.message}
+                    />
+                  )}
+                />
+              )}
+              {(paymentMode === 'Bank' || paymentMode === 'Cheque') && (
+                <ABLCustomInput
+                  label="Cheque Date"
+                  type="date"
+                  register={register}
+                  error={errors.chequeDate?.message}
+                  id="chequeDate"
+                />
+              )}
               <ABLCustomInput
                 label="Cheque No"
                 type="text"
@@ -309,85 +672,27 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 error={errors.depositSlipNo?.message}
                 id="depositSlipNo"
               />
-              <div className="col-span-1 md:col-span-2 lg:col-span-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paid To</label>
-                <select
-                  {...register('paidTo')}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white transition-all duration-200"
-                >
-                  <option value="">Select Account</option>
-                  {accountOptions.assets.length > 0 && (
-                    <optgroup label="Assets">
-                      {accountOptions.assets.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {accountOptions.revenues.length > 0 && (
-                    <optgroup label="Revenues">
-                      {accountOptions.revenues.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {accountOptions.liabilities.length > 0 && (
-                    <optgroup label="Liabilities">
-                      {accountOptions.liabilities.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {accountOptions.expenses.length > 0 && (
-                    <optgroup label="Expenses">
-                      {accountOptions.expenses.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {accountOptions.equities.length > 0 && (
-                    <optgroup label="Equities">
-                      {accountOptions.equities.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
-                {errors.paidTo && <p className="text-red-500 text-xs mt-1">{errors.paidTo.message}</p>}
-              </div>
-              <ABLCustomInput
-                label="Debit"
-                type="number"
-                placeholder="Enter debit amount"
-                register={register}
-                error={errors.debit?.message}
-                id="debit"
+              <Controller
+                name="paidTo"
+                control={control}
+                render={({ field }) => (
+                  <AblCustomDropdown
+                    label="Paid To"
+                    options={businessAssociates}
+                    selectedOption={field.value || ''}
+                    onChange={field.onChange}
+                    error={errors.paidTo?.message}
+                  />
+                )}
               />
-              <ABLCustomInput
-                label="Credit"
-                type="number"
-                placeholder="Enter credit amount"
-                register={register}
-                error={errors.credit?.message}
-                id="credit"
-              />
-              <ABLCustomInput
+              {/* <ABLCustomInput
                 label="Narration"
                 type="text"
                 placeholder="Enter narration"
                 register={register}
                 error={errors.narration?.message}
                 id="narration"
-              />
+              /> */}
               <ABLCustomInput
                 label="Description"
                 type="text"
@@ -398,11 +703,174 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+            {/* Voucher Details Table */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
+              <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 rounded-t-lg">
+                <div className="flex items-center gap-2">
+                  <FaFileInvoice className="text-lg" />
+                  <h3 className="text-base font-semibold">Voucher Details</h3>
+                </div>
+              </div>
+              <div className="p-4">
+                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[200px]">
+                          Account
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
+                          Debit
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
+                          Credit
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[200px]">
+                          Narration
+                        </th>
+                        <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-200 min-w-[80px]">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800">
+                      {tableData.map((row, index) => (
+                        <tr
+                          key={index}
+                          className={`border-b border-gray-200 dark:border-gray-600 transition-colors ${
+                            index % 2 === 0
+                              ? 'bg-white dark:bg-gray-800'
+                              : 'bg-gray-50 dark:bg-gray-700/50'
+                          } hover:bg-gray-100 dark:hover:bg-gray-600/50`}
+                        >
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
+                            <HierarchicalDropdown
+                              accounts={topLevelAccounts}
+                              onSelect={handleAccountSelect(index)}
+                              setValue={setValue}
+                              name="account"
+                              index={index}
+                            />
+                            {errors.tableData?.[index]?.account && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account?.message}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
+                            <input
+                              {...register(`tableData.${index}.debit`, { valueAsNumber: true })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
+                              placeholder="0.00"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                            />
+                            {errors.tableData?.[index]?.debit && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].debit?.message}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
+                            <input
+                              {...register(`tableData.${index}.credit`, { valueAsNumber: true })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
+                              placeholder="0.00"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                            />
+                            {errors.tableData?.[index]?.credit && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].credit?.message}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
+                            <input
+                              {...register(`tableData.${index}.narration`)}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white transition-all duration-200"
+                              placeholder="Enter narration"
+                            />
+                            {errors.tableData?.[index]?.narration && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].narration?.message}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center align-middle">
+                            {tableData.length > 1 && (
+                              <Button
+                                type="button"
+                                onClick={() => deleteTableRow(index)}
+                                className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 transition-all duration-200"
+                                title="Delete Row"
+                              >
+                                <MdDelete className="text-lg" />
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600">
+                        <td className="px-4 py-3 text-right font-bold text-base">TOTALS:</td>
+                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
+                          {tableData
+                            .reduce((sum, row) => sum + (row.debit || 0), 0)
+                            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
+                          {tableData
+                            .reduce((sum, row) => sum + (row.credit || 0), 0)
+                            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-500"></td>
+                        <td className="px-4 py-3"></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                <div className="mt-4 flex justify-between items-center">
+                  <Button
+                    type="button"
+                    onClick={addTableRow}
+                    className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    + Add New Row
+                  </Button>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Total Rows: {tableData.length}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Selected Account Details */}
+            {selectedAccounts.some((acc) => acc !== null) && (
+              <div className="mb-6">
+                <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md shadow-sm border border-gray-200 dark:border-gray-600">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Selected Account Details</h3>
+                  {selectedAccounts.map((selectedAccount, index) => (
+                    selectedAccount && (
+                      <div key={index} className="mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Row {index + 1}</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-600 dark:text-gray-400">
+                          <p><strong>Description:</strong> {selectedAccount.description}</p>
+                          <p><strong>List ID:</strong> {selectedAccount.listid}</p>
+                        </div>
+                        {selectedAccount.children && selectedAccount.children.length > 0 && (
+                          <>
+                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2">Sub-Accounts</h4>
+                            {renderChildren(selectedAccount.children)}
+                          </>
+                        )}
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-sm"
               >
                 <div className="flex items-center gap-2">
                   {isSubmitting ? (
@@ -425,10 +893,10 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         <div className="mt-4 bg-white dark:bg-gray-800 rounded-md shadow-md p-3 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300 text-sm">
-              <MdInfo className="text-[#3a614c]" />
+              <MdInfo className="text-[#3a614c] text-lg" />
               <span>Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/vouchers" className="text-[#3a614c] hover:text-[#6e997f] text-sm font-medium">
+            <Link href="/vouchers" className="text-[#3a614c] hover:text-[#6e997f] text-sm font-medium transition-colors duration-200">
               Back to Vouchers
             </Link>
           </div>
