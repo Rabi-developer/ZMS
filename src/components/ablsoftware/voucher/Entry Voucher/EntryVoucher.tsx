@@ -684,7 +684,8 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       if (isEdit) {
         const id = window.location.pathname.split('/').pop();
         if (!id) throw new Error('Missing voucher id for update');
-        await updateEntryVoucher(id, payload);
+        const updatePayload = { ...payload, id } as any;
+        await updateEntryVoucher(updatePayload);
         toast.success('Voucher updated successfully');
       } else {
         await createEntryVoucher(payload);
