@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createMunshyana, updateMunshyana, getAllMunshyana } from '@/apis/munshyana';
+import { createMunshyana, updateMunshyana, getSingleMunshyana, getAllMunshyana } from '@/apis/munshyana';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
 import { getAllAblRevenue } from '@/apis/ablRevenue';
 import { toast } from 'react-toastify';
@@ -22,8 +22,8 @@ const munshyanaSchema = z.object({
   chargesType: z.enum(['Payable', 'Receivable'], { 
     required_error: 'Charges Type is required' 
   }),
-  accountId: z.string().optional(),
-  description: z.string().optional(),
+  accountId: z.string().min(1, 'Account is required'),
+  description: z.string().min(1, 'Description is required'),
 });
 
 type MunshyanaFormData = z.infer<typeof munshyanaSchema>;
@@ -291,7 +291,10 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             label="Account ID"
                             options={accountOptions}
                             selectedOption={field.value || ''}
-                            onChange={handleAccountSelection}
+                            onChange={(val) => {
+                              field.onChange(val);
+                              handleAccountSelection(val);
+                            }}
                             error={errors.accountId?.message}
                             register={register}
                             disabled={loadingAccounts}
