@@ -22,8 +22,8 @@ const munshyanaSchema = z.object({
   chargesType: z.enum(['Payable', 'Receivable'], { 
     required_error: 'Charges Type is required' 
   }),
-  accountId: z.string().min(1, 'Account ID is required'),
-  description: z.string().min(1, 'Description is required'),
+  accountId: z.string().optional(),
+  description: z.string().optional(),
 });
 
 type MunshyanaFormData = z.infer<typeof munshyanaSchema>;

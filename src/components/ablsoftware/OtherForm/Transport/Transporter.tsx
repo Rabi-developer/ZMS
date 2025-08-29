@@ -19,11 +19,11 @@ import { FiSave, FiX, FiUser } from 'react-icons/fi';
 const transporterSchema = z.object({
   TransporterNumber: z.string().optional(),
   name: z.string().min(1, 'Transporter Name is required'),
-  currency: z.string().min(1, 'Currency is required'),
-  address: z.string().min(1, 'Address is required'),
-  city: z.string().min(1, 'City is required'),
+  currency: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
   state: z.string().optional(),
-  zipCode: z.string().min(5, 'Zip Code must be at least 5 characters'),
+  zipCode: z.string().optional(),
   bankName: z.string().optional(),
   tel: z.string().optional(),
   ntn: z.string().optional(),
@@ -31,8 +31,8 @@ const transporterSchema = z.object({
   stn: z.string().optional(),
   fax: z.string().optional(),
   buyerCode: z.string().optional(),
-  email: z.string().email('Invalid email address').optional(),
-  website: z.string().url('Invalid website URL').optional().or(z.literal('')),
+  email: z.string().email().optional(),
+  website: z.union([z.string().url(), z.literal('')]).optional(),
 });
 
 type TransporterFormData = z.infer<typeof transporterSchema>;
@@ -267,7 +267,7 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         <AblCustomDropdown
                           label="Currency"
                           options={currencies}
-                          selectedOption={field.value}
+                          selectedOption={field.value ?? ''}
                           onChange={(value) => setValue('currency', value, { shouldValidate: true })}
                           error={errors.currency?.message}
                           register={register}

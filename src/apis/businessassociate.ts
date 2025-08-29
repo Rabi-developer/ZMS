@@ -52,7 +52,7 @@ const getSingleBusinessAssociate  = async (id: string) => {
   }
 };
 
-const updateBusinessAssociate = async (BusinessAssociate: any, data: { name: string; mobile: string; address: string; id?: string | undefined; }) => {
+const updateBusinessAssociate = async (BusinessAssociate: any, data?: { name?: string; mobile?: string; address?: string; id?: string; }) => {
   try {
     const response = await apiFetch(`BusinessAssociate`, {
       method: 'PUT',

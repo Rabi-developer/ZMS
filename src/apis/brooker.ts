@@ -52,7 +52,7 @@ const getSingleBrooker  = async (id: string) => {
   }
 };
 
-const updateBrooker = async (Brooker: any, data: { name: string; mobile: string; address: string; id?: string | undefined; }) => {
+const updateBrooker = async (Brooker: any, data?: { name?: string; mobile?: string; address?: string; id?: string; }) => {
   try {
     const response = await apiFetch(`Brooker`, {
       method: 'PUT',

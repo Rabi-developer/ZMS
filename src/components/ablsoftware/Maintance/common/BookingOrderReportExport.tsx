@@ -10,6 +10,7 @@ import { getAllUnitOfMeasures } from "@/apis/unitofmeasure";
 import { exportBookingOrderToPDF } from "./BookingOrderPdf";
 import { exportBookingOrderToExcel } from "./BookingOrderExcel";
 import { ALL_COLUMNS, ColumnKey, RowData, labelFor } from "./BookingOrderTypes";
+import { exportBiltiesReceivableToPDF } from "./BiltiesReceivablePdf";
 
 // Company constants
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
@@ -421,6 +422,44 @@ const BookingOrderReportExport: React.FC = () => {
     toast.success("PDF generated");
   }, [data, generateData, selectedColumns, composeView]);
 
+  const exportBiltiesReceivable = useCallback(async () => {
+    let rows = data;
+    if (rows.length === 0) {
+      rows = await generateData();
+    }
+    if (rows.length === 0) {
+      toast.info("No data to export");
+      return;
+    }
+    // Compose current view and then filter orders that have NO biltyNo present
+    const rowsToUse = composeView(rows);
+    const receivableRows = rowsToUse.filter((r) => !r.biltyNo || r.biltyNo.trim() === "-");
+    if (receivableRows.length === 0) {
+      toast.info("No receivable entries (all have Bilty No)");
+      return;
+    }
+    // Map to BiltiesReceivableRow type
+    const pdfRows = receivableRows.map((r) => ({
+      orderNo: r.orderNo,
+      orderDate: r.orderDate,
+      vehicleNo: r.vehicleNo,
+      consignor: r.consignor,
+      consignee: r.consignee,
+      carrier: r.carrier,
+      vendor: r.vendor,
+      departure: r.departure,
+      destination: r.destination,
+      vehicleType: "", // not part of RowData; leave blank
+    }));
+
+    // Derive date range from active filters if available
+    const start = (filterType === "range" && fromDate) ? fromDate : undefined;
+    const end = (filterType === "range" && toDate) ? toDate : undefined;
+
+    exportBiltiesReceivableToPDF({ rows: pdfRows, startDate: start, endDate: end });
+    toast.success("Bilties Receivable PDF generated");
+  }, [data, generateData, composeView, filterType, fromDate, toDate]);
+
   const exportExcel = useCallback(async (useReducedColumns: boolean = false) => {
     let rows = data;
     if (rows.length === 0) {
@@ -651,6 +690,13 @@ const BookingOrderReportExport: React.FC = () => {
             className="px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 shadow-md"
           >
             Export PDF (Generate)
+          </button>
+          <button
+            onClick={exportBiltiesReceivable}
+            disabled={loading}
+            className="px-6 py-3 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-all duration-200 shadow-md"
+          >
+            Bilties Receivable (PDF)
           </button>
           <button
             onClick={() => exportExcel(false)}

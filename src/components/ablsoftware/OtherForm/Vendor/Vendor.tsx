@@ -20,13 +20,13 @@ import { FiSave, FiX, FiUser } from 'react-icons/fi';
 const vendorSchema = z.object({
   VendorNumber: z.string().optional(),
   name: z.string().min(1, 'Vendor Name is required'),
-  address: z.string().min(1, 'Address is required'),
-  country: z.string().min(1, 'Country is required'),
-  city: z.string().min(1, 'City is required'),
+  address: z.string().optional(),
+  country: z.string().optional(),
+  city: z.string().optional(),
   phone: z.string().optional(),
   mobile: z.string().optional(),
   fax: z.string().optional(),
-  email: z.string().email('Invalid email address').optional(),
+  email: z.string().email('').optional(),
   stn: z.string().optional(),
   ntn: z.string().optional(),
   payableCode: z.string().optional(),
@@ -316,7 +316,7 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         <AblCustomDropdown
                           label="Country"
                           options={countries}
-                          selectedOption={field.value}
+                          selectedOption={field.value ?? ''}
                           onChange={(value) => setValue('country', value, { shouldValidate: true })}
                           error={errors.country?.message}
                           register={register}

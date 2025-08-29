@@ -52,7 +52,7 @@ const getSingleTransporter  = async (id: string) => {
   }
 };
 
-const updateTransporter = async (Transporter: any, data: { name: string; currency: string; address: string; city: string; zipCode: string; id?: string | undefined; state?: string | undefined; bankName?: string | undefined; tel?: string | undefined; ntn?: string | undefined; mobile?: string | undefined; stn?: string | undefined; fax?: string | undefined; buyerCode?: string | undefined; email?: string | undefined; website?: string | undefined; }) => {
+const updateTransporter = async (Transporter: any, data?: { name?: string; currency?: string; address?: string; city?: string; zipCode?: string; id?: string; state?: string; bankName?: string; tel?: string; ntn?: string; mobile?: string; stn?: string; fax?: string; buyerCode?: string; email?: string; website?: string; }) => {
   try {
     const response = await apiFetch(`Transporter`, {
       method: 'PUT',

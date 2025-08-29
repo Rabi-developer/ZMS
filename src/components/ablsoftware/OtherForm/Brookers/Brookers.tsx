@@ -16,8 +16,8 @@ import Link from 'next/link';
 const brookerSchema = z.object({
   BrookerNumber : z.string().optional(),
   name: z.string().min(1, 'Brooker Name is required'),
-  mobile: z.string().min(1, 'Mobile Number is required'),
-  address: z.string().min(1, 'Address is required'),
+  mobile: z.string().optional(),
+  address: z.string().optional(),
 });
 
 type BrookerFormData = z.infer<typeof brookerSchema>;

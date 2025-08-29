@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { FaFileExcel, FaCheck } from 'react-icons/fa';
+import { FaFileExcel, FaCheck, FaFilePdf } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -13,6 +13,10 @@ import { getAllConsignment, deleteConsignment } from '@/apis/consignment';
 import { Edit, Trash } from 'lucide-react';
 import { columns, getStatusStyles, BookingOrder } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
+import CustomSingleDatePicker from '@/components/ui/CustomDateRangePicker';
+import { exportBiltiesReceivableToPDF } from '@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Consignment {
   orderNo: any;
@@ -50,6 +54,11 @@ const BookingOrderList = () => {
   const [updating, setUpdating] = useState(false);
   const [fetchingConsignments, setFetchingConsignments] = useState<{ [orderId: string]: boolean }>({});
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+
+  // PDF modal state
+  const [openPdfModal, setOpenPdfModal] = useState(false);
+  const [pdfStartDate, setPdfStartDate] = useState<string>('');
+  const [pdfEndDate, setPdfEndDate] = useState<string>('');
 
   const statusOptions = ['All', 'Pending', 'In Transit', 'Delivered'];
   const statusOptionsConfig = [
@@ -243,6 +252,131 @@ const BookingOrderList = () => {
     XLSX.writeFile(workbook, 'BookingOrders.xlsx');
   };
 
+  const openPdfDialog = () => setOpenPdfModal(true);
+  const closePdfDialog = () => setOpenPdfModal(false);
+
+  const handleGenerateReceivablePdf = () => {
+    try {
+      // Filter: Only booking orders without any consignment having a biltyNo
+      const targetOrders = filteredBookingOrders.filter((o) => {
+        const cons = consignments[o.id] || [];
+        // Include if there is NO consignment with non-empty biltyNo
+        return cons.every((c) => !c.biltyNo || c.biltyNo.trim() === '');
+      });
+
+      if (targetOrders.length === 0) {
+        toast('No receivable entries found (all have Bilty No)', { type: 'info' });
+        return;
+      }
+
+      const rows = targetOrders.map((o) => ({
+        orderNo: o.orderNo,
+        orderDate: o.orderDate,
+        vehicleNo: (o as any).vehicleNo,
+        consignor: (o as any).consignor,
+        consignee: (o as any).consignee,
+        carrier: (o as any).transporter || (o as any).carrier,
+        vendor: (o as any).vendor,
+        departure: (o as any).fromLocation,
+        destination: (o as any).toLocation,
+        vehicleType: (o as any).vehicleType,
+      }));
+
+      exportBiltiesReceivableToPDF({ rows, startDate: pdfStartDate, endDate: pdfEndDate });
+      closePdfDialog();
+    } catch (e) {
+      toast('Failed to generate PDF', { type: 'error' });
+    }
+  };
+
+  const handleGenerateGeneralPdf = () => {
+    try {
+      const pageData = filteredBookingOrders;
+      if (pageData.length === 0) {
+        toast('No orders to export', { type: 'info' });
+        return;
+      }
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'A4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Header
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('AL NASAR BASHEER LOGISTICS', pageWidth / 2, 42, { align: 'center' });
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.text('Booking Orders (All)', pageWidth / 2, 70, { align: 'center' });
+
+      // Date line
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(80, 80, 80);
+      const startText = `Start From: ${pdfStartDate || '-'}`;
+      const toText = `To Date: ${pdfEndDate || '-'}`;
+      const nowText = `Report: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+      doc.text(startText, 40, 96, { align: 'left' });
+      doc.text(toText, pageWidth / 2, 96, { align: 'center' });
+      doc.text(nowText, pageWidth - 40, 96, { align: 'right' });
+
+      // Separator
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(1);
+      doc.line(40, 108, pageWidth - 40, 108);
+
+      const head = [[
+        'Order No',
+        'Order Date',
+        'Company',
+        'Branch',
+        'Status',
+        'Vehicle No',
+        'Transporter',
+        'Vendor',
+        'From',
+        'To',
+      ]];
+      const body = pageData.map((o) => [
+        o.orderNo || '-',
+        o.orderDate || '-',
+        (o as any).company || '-',
+        (o as any).branch || '-',
+        o.status || '-',
+        (o as any).vehicleNo || '-',
+        (o as any).transporter || (o as any).carrier || '-',
+        (o as any).vendor || '-',
+        (o as any).fromLocation || '-',
+        (o as any).toLocation || '-',
+      ]);
+
+      autoTable(doc, {
+        startY: 120,
+        head,
+        body,
+        styles: { font: 'helvetica', fontSize: 9, cellPadding: 6, lineColor: [220,220,220], lineWidth: 0.5, textColor: [30,30,30] },
+        headStyles: { fillColor: [200,200,200], textColor: [0,0,0], fontStyle: 'bold', fontSize: 10, halign: 'center' },
+        alternateRowStyles: { fillColor: [245,245,245] },
+        margin: { top: 120, left: 40, right: 40, bottom: 60 },
+        theme: 'grid',
+        didDrawPage: (d) => {
+          const pw = doc.internal.pageSize.getWidth();
+          const ph = doc.internal.pageSize.getHeight();
+          doc.setFontSize(9);
+          doc.setTextColor(150, 150, 150);
+          doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, ph - 30);
+          doc.text(`Page ${d.pageNumber}`, pw - 40, ph - 30, { align: 'right' });
+          doc.setDrawColor(200, 200, 200);
+          doc.setLineWidth(0.5);
+          doc.line(40, ph - 50, pw - 40, ph - 50);
+        },
+      });
+
+      doc.save('BookingOrders_All.pdf');
+      closePdfDialog();
+    } catch (e) {
+      toast('Failed to generate PDF', { type: 'error' });
+    }
+  };
+
   return (
     <div className="container   mt-4  p-6 h-[110vh]">
       <div className='h-full w-full flex flex-col'>
@@ -269,13 +403,23 @@ const BookingOrderList = () => {
             Refresh Data
           </button>
         </div>
-        <button
-          onClick={exportToExcel}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-        >
-          <FaFileExcel size={18} />
-          Download Excel
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportToExcel}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+          >
+            <FaFileExcel size={18} />
+            Download Excel
+          </button>
+          <button
+            onClick={openPdfDialog}
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+            title="Bilties Receivable"
+          >
+            <FaFilePdf size={18} />
+            PDF
+          </button>
+        </div>
       </div>
       <div>
         <DataTable
@@ -396,6 +540,45 @@ const BookingOrderList = () => {
           isOpen={openDelete}
         />
       )}
+
+      {/* PDF Modal */}
+      {openPdfModal && (
+        <div
+          id="pdfModal"
+          className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
+          onClick={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.id === 'pdfModal') closePdfDialog();
+          }}
+        >
+          <div className="bg-white rounded shadow p-5 w-full max-w-md">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">Bilties Receivable</h3>
+              <button onClick={closePdfDialog} className="text-gray-500 hover:text-black">✕</button>
+            </div>
+            <div className="space-y-3">
+              <CustomSingleDatePicker
+                label="Start From"
+                selectedDate={pdfStartDate}
+                onChange={setPdfStartDate}
+                name="startDate"
+              />
+              <CustomSingleDatePicker
+                label="To Date"
+                selectedDate={pdfEndDate}
+                onChange={setPdfEndDate}
+                name="endDate"
+              />
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={closePdfDialog} className="px-4 py-2 rounded border">Cancel</button>
+                <button onClick={handleGenerateGeneralPdf} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white">General PDF</button>
+                <button onClick={handleGenerateReceivablePdf} className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Bilties Receivable</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     </div>
   );

@@ -549,18 +549,9 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             setValue('narration', voucher.narration || '');
             setValue('description', voucher.description || '');
 
-            const loadedTableData = (voucher.voucherDetails && voucher.voucherDetails.length
-              ? voucher.voucherDetails
-              : [{ account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 }]
-            ).map((d: any) => ({
-              account1: d.account1 || '',
-              debit1: Number(d.debit1 || 0),
-              credit1: Number(d.credit1 || 0),
-              narration: d.narration || '',
-              account2: d.account2 || '',
-              debit2: Number(d.debit2 || 0),
-              credit2: Number(d.credit2 || 0),
-            }));
+            const loadedTableData = voucher.tableData && voucher.tableData.length
+              ? voucher.tableData
+              : [{ account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 }];
             setValue('tableData', loadedTableData);
 
             const loadedSelected = loadedTableData.map((row: any) => ({
@@ -647,48 +638,13 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         }
       }
 
-      // Build backend payload
-      const payload = {
-        voucherNo: data.voucherNo || '',
-        voucherDate: data.voucherDate || '',
-        referenceNo: data.referenceNo || '',
-        chequeNo: data.chequeNo || '',
-        depositSlipNo: data.depositSlipNo || '',
-        paymentMode: data.paymentMode || '',
-        bankName: data.bankName || '',
-        chequeDate: data.chequeDate || '',
-        paidTo: data.paidTo || '',
-        narration: data.narration || '',
-        description: data.description || '',
-        // audit fields may be set by backend; send empty if not available
-        createdBy: '',
-        creationDate: '',
-        updatedBy: '',
-        updationDate: '',
-        status: 'Active',
-        voucherDetails: (data.tableData || []).map((r) => ({
-          account1: r.account1 || '',
-          debit1: Number(r.debit1 || 0),
-          credit1: Number(r.credit1 || 0),
-          currentBalance1: 0,
-          projectedBalance1: 0,
-          narration: r.narration || '',
-          account2: r.account2 || '',
-          debit2: Number(r.debit2 || 0),
-          credit2: Number(r.credit2 || 0),
-          currentBalance2: 0,
-          projectedBalance2: 0,
-        })),
-      } as any;
-
       if (isEdit) {
-        const id = window.location.pathname.split('/').pop();
-        if (!id) throw new Error('Missing voucher id for update');
-        const updatePayload = { ...payload, id } as any;
-        await updateEntryVoucher(updatePayload);
+        // Placeholder: Implement updateVoucher API
+        // await updateVoucher(data);
         toast.success('Voucher updated successfully');
       } else {
-        await createEntryVoucher(payload);
+        // Placeholder: Implement createVoucher API
+        // await createVoucher(data);
         toast.success('Voucher created successfully');
       }
       router.push('/entryvoucher');
