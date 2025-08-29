@@ -12,12 +12,13 @@ import { MdInfo, MdDelete } from 'react-icons/md';
 import { FaFileInvoice } from 'react-icons/fa';
 import { FiSave, FiX, FiSearch } from 'react-icons/fi';
 import Link from 'next/link';
-import { getAllEquality } from '@/apis/equality';
-import { getAllAblLiabilities } from '@/apis/ablliabilities';
-import { getAllAblAssests } from '@/apis/ablAssests';
-import { getAllAblExpense } from '@/apis/ablExpense';
-import { getAllAblRevenue } from '@/apis/ablRevenue';
+import { getAllEquality, updateEquality } from '@/apis/equality';
+import { getAllAblLiabilities, updateAblLiabilities } from '@/apis/ablliabilities';
+import { getAllAblAssests, updateAblAssests } from '@/apis/ablAssests';
+import { getAllAblExpense, updateAblExpense } from '@/apis/ablExpense';
+import { getAllAblRevenue, updateAblRevenue } from '@/apis/ablRevenue';
 import { getAllBusinessAssociate } from '@/apis/businessassociate';
+import { createEntryVoucher, updateEntryVoucher, getSingleEntryVoucher } from '@/apis/entryvoucher';
 
 // Account type
 type Account = {
@@ -38,10 +39,13 @@ interface DropdownOption {
 }
 
 interface TableRow {
-  account: string;
-  debit: number;
-  credit: number;
+  account1: string;
+  debit1: number;
+  credit1: number;
   narration: string;
+  account2: string;
+  debit2: number;
+  credit2: number;
 }
 
 type ApiResponse<T> = {
@@ -73,10 +77,13 @@ const voucherSchema = z.object({
   description: z.string().optional(),
   tableData: z.array(
     z.object({
-      account: z.string().min(1, 'Account is required'),
-      debit: z.number().min(0, 'Debit must be non-negative').optional(),
-      credit: z.number().min(0, 'Credit must be non-negative').optional(),
+      account1: z.string().min(1, 'Account is required'),
+      debit1: z.number().min(0, 'Debit must be non-negative').optional(),
+      credit1: z.number().min(0, 'Credit must be non-negative').optional(),
       narration: z.string().optional(),
+      account2: z.string().min(1, 'Account is required'),
+      debit2: z.number().min(0, 'Debit must be non-negative').optional(),
+      credit2: z.number().min(0, 'Credit must be non-negative').optional(),
     })
   ),
 });
@@ -312,6 +319,38 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
   );
 };
 
+const findAccountById = (id: string, accounts: Account[]): Account | null => {
+  const walk = (nodes: Account[]): Account | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children.length > 0) {
+        const found = walk(node.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return walk(accounts);
+};
+
+const getAccountType = (id: string, accounts: Account[]): string | null => {
+  const walk = (nodes: Account[], parentType: string): string | null => {
+    for (const node of nodes) {
+      if (node.id === id) return parentType;
+      if (node.children.length > 0) {
+        const found = walk(node.children, parentType);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  for (const root of accounts) {
+    const found = walk(root.children, root.id);
+    if (found) return found;
+  }
+  return null;
+};
+
 const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
   const {
@@ -335,7 +374,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       paidTo: '',
       narration: '',
       description: '',
-      tableData: [{ account: '', debit: 0, credit: 0, narration: '' }],
+      tableData: [{ account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 }],
     },
   });
 
@@ -343,7 +382,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [topLevelAccounts, setTopLevelAccounts] = useState<Account[]>([]);
   const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
-  const [selectedAccounts, setSelectedAccounts] = useState<(Account | null)[]>([null]);
+  const [selectedAccounts, setSelectedAccounts] = useState<Array<{account1: Account | null, account2: Account | null}>>([{account1: null, account2: null}]);
   const [bankNames, setBankNames] = useState<DropdownOption[]>([
     { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
     { id: 'MCB', name: 'MCB Bank Limited' },
@@ -384,6 +423,28 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   const tableData = watch('tableData');
   const paymentMode = watch('paymentMode');
+
+  const nets = useMemo(() => {
+    const map = new Map<string, { net_debit: number; net_credit: number }>();
+    tableData.forEach((row, idx) => {
+      const sel = selectedAccounts[idx];
+      if (sel.account1 && row.account1) {
+        const id = sel.account1.id;
+        const entry = map.get(id) || { net_debit: 0, net_credit: 0 };
+        entry.net_debit += row.debit1 || 0;
+        entry.net_credit += row.credit1 || 0;
+        map.set(id, entry);
+      }
+      if (sel.account2 && row.account2) {
+        const id = sel.account2.id;
+        const entry = map.get(id) || { net_debit: 0, net_credit: 0 };
+        entry.net_debit += row.debit2 || 0;
+        entry.net_credit += row.credit2 || 0;
+        map.set(id, entry);
+      }
+    });
+    return map;
+  }, [tableData, selectedAccounts]);
 
   // Build hierarchy
   const buildHierarchy = (accounts: Account[]): Account[] => {
@@ -473,21 +534,31 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         const id = window.location.pathname.split('/').pop();
         if (id) {
           try {
-            // Placeholder: Implement getSingleVoucher API
-            // const response = await getSingleVoucher(id);
-            // const voucher = response.data;
-            // setValue('voucherNo', voucher.voucherNo || '');
-            // setValue('voucherDate', voucher.voucherDate || '');
-            // setValue('referenceNo', voucher.referenceNo || '');
-            // setValue('chequeNo', voucher.chequeNo || '');
-            // setValue('depositSlipNo', voucher.depositSlipNo || '');
-            // setValue('paymentMode', voucher.paymentMode || '');
-            // setValue('bankName', voucher.bankName || '');
-            // setValue('chequeDate', voucher.chequeDate || '');
-            // setValue('paidTo', voucher.paidTo || '');
-            // setValue('narration', voucher.narration || '');
-            // setValue('description', voucher.description || '');
-            // setValue('tableData', voucher.tableData || [{ account: '', debit: 0, credit: 0, narration: '' }]);
+            const response = await getSingleEntryVoucher(id);
+            const voucher = response.data;
+
+            setValue('voucherNo', voucher.voucherNo || '');
+            setValue('voucherDate', voucher.voucherDate || '');
+            setValue('referenceNo', voucher.referenceNo || '');
+            setValue('chequeNo', voucher.chequeNo || '');
+            setValue('depositSlipNo', voucher.depositSlipNo || '');
+            setValue('paymentMode', voucher.paymentMode || '');
+            setValue('bankName', voucher.bankName || '');
+            setValue('chequeDate', voucher.chequeDate || '');
+            setValue('paidTo', voucher.paidTo || '');
+            setValue('narration', voucher.narration || '');
+            setValue('description', voucher.description || '');
+
+            const loadedTableData = voucher.tableData && voucher.tableData.length
+              ? voucher.tableData
+              : [{ account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 }];
+            setValue('tableData', loadedTableData);
+
+            const loadedSelected = loadedTableData.map((row: any) => ({
+              account1: findAccountById(row.account1, topLevelAccounts),
+              account2: findAccountById(row.account2, topLevelAccounts),
+            }));
+            setSelectedAccounts(loadedSelected);
           } catch (error) {
             toast.error('Failed to load voucher data');
             console.error('Error fetching voucher:', error);
@@ -498,20 +569,24 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       };
       fetchVoucher();
     }
-  }, [isEdit, setValue]);
+  }, [isEdit, setValue, topLevelAccounts]);
 
-  const handleAccountSelect = (index: number) => (id: string, account: Account | null) => {
+  const handleAccountSelect = (index: number, isFirst: boolean) => (id: string, account: Account | null) => {
     const updatedSelectedAccounts = [...selectedAccounts];
-    updatedSelectedAccounts[index] = account;
+    if (isFirst) {
+      updatedSelectedAccounts[index] = { ...updatedSelectedAccounts[index], account1: account };
+    } else {
+      updatedSelectedAccounts[index] = { ...updatedSelectedAccounts[index], account2: account };
+    }
     setSelectedAccounts(updatedSelectedAccounts);
   };
 
   const addTableRow = () => {
     setValue('tableData', [
       ...tableData,
-      { account: '', debit: 0, credit: 0, narration: '' },
+      { account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 },
     ]);
-    setSelectedAccounts([...selectedAccounts, null]);
+    setSelectedAccounts([...selectedAccounts, {account1: null, account2: null}]);
   };
 
   const deleteTableRow = (index: number) => {
@@ -528,18 +603,67 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const onSubmit = async (data: VoucherFormData) => {
     setIsSubmitting(true);
     try {
+      // Validate net balances
+      for (const [id, { net_debit, net_credit }] of nets.entries()) {
+        const acc = findAccountById(id, topLevelAccounts);
+        if (acc) {
+          const current_balance = parseFloat(acc.fixedAmount || '0') - parseFloat(acc.paid || '0');
+          const new_balance = current_balance + net_debit - net_credit;
+          if (new_balance < 0) {
+            throw new Error(`Insufficient balance for account ${acc.description}. Would result in negative balance: ${new_balance}`);
+          }
+        }
+      }
+
+      // Update balances with nets
+      for (const [id, { net_debit, net_credit }] of nets.entries()) {
+        const acc = findAccountById(id, topLevelAccounts);
+        const type = getAccountType(id, topLevelAccounts);
+        if (acc && type) {
+          const new_fixed = parseFloat(acc.fixedAmount || '0') + net_debit;
+          const new_paid = parseFloat(acc.paid || '0') + net_credit;
+          const updateData = { ...acc, fixedAmount: new_fixed.toString(), paid: new_paid.toString() };
+
+          if (type === 'assets') {
+            await updateAblAssests(id, updateData);
+          } else if (type === 'revenues') {
+            await updateAblRevenue(id, updateData);
+          } else if (type === 'liabilities') {
+            await updateAblLiabilities(id, updateData);
+          } else if (type === 'expenses') {
+            await updateAblExpense(id, updateData);
+          } else if (type === 'equities') {
+            await updateEquality(id, updateData);
+          }
+        }
+      }
+
+      // Build payload in a simple structure aligning to API needs
+      const payload = {
+        voucherNo: data.voucherNo,
+        voucherDate: data.voucherDate,
+        referenceNo: data.referenceNo,
+        chequeNo: data.chequeNo,
+        depositSlipNo: data.depositSlipNo,
+        paymentMode: data.paymentMode,
+        bankName: data.bankName,
+        chequeDate: data.chequeDate,
+        paidTo: data.paidTo,
+        narration: data.narration,
+        description: data.description,
+        tableData: data.tableData,
+      };
+
       if (isEdit) {
-        // Placeholder: Implement updateVoucher API
-        // await updateVoucher(data);
+        await updateEntryVoucher(payload);
         toast.success('Voucher updated successfully');
       } else {
-        // Placeholder: Implement createVoucher API
-        // await createVoucher(data);
+        await createEntryVoucher(payload);
         toast.success('Voucher created successfully');
       }
       router.push('/entryvoucher');
-    } catch (error) {
-      toast.error('An error occurred while saving the voucher');
+    } catch (error: any) {
+      toast.error(error.message || 'An error occurred while saving the voucher');
       console.error('Error saving voucher:', error);
     } finally {
       setIsSubmitting(false);
@@ -717,16 +841,25 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     <thead>
                       <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600">
                         <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[200px]">
-                          Account
+                          Account 1
                         </th>
                         <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Debit
+                          Debit 1
                         </th>
                         <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Credit
+                          Credit 1
                         </th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[200px]">
                           Narration
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[200px]">
+                          Account 2
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
+                          Debit 2
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
+                          Credit 2
                         </th>
                         <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-200 min-w-[80px]">
                           Action
@@ -746,39 +879,39 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
                             <HierarchicalDropdown
                               accounts={topLevelAccounts}
-                              onSelect={handleAccountSelect(index)}
+                              onSelect={handleAccountSelect(index, true)}
                               setValue={setValue}
-                              name="account"
+                              name="account1"
                               index={index}
                             />
-                            {errors.tableData?.[index]?.account && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account?.message}</p>
+                            {errors.tableData?.[index]?.account1 && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account1?.message}</p>
                             )}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
                             <input
-                              {...register(`tableData.${index}.debit`, { valueAsNumber: true })}
+                              {...register(`tableData.${index}.debit1`, { valueAsNumber: true })}
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
                               placeholder="0.00"
                               type="number"
                               min="0"
                               step="0.01"
                             />
-                            {errors.tableData?.[index]?.debit && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].debit?.message}</p>
+                            {errors.tableData?.[index]?.debit1 && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].debit1?.message}</p>
                             )}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
                             <input
-                              {...register(`tableData.${index}.credit`, { valueAsNumber: true })}
+                              {...register(`tableData.${index}.credit1`, { valueAsNumber: true })}
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
                               placeholder="0.00"
                               type="number"
                               min="0"
                               step="0.01"
                             />
-                            {errors.tableData?.[index]?.credit && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].credit?.message}</p>
+                            {errors.tableData?.[index]?.credit1 && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].credit1?.message}</p>
                             )}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
@@ -789,6 +922,44 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             />
                             {errors.tableData?.[index]?.narration && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].narration?.message}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
+                            <HierarchicalDropdown
+                              accounts={topLevelAccounts}
+                              onSelect={handleAccountSelect(index, false)}
+                              setValue={setValue}
+                              name="account2"
+                              index={index}
+                            />
+                            {errors.tableData?.[index]?.account2 && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account2?.message}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
+                            <input
+                              {...register(`tableData.${index}.debit2`, { valueAsNumber: true })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
+                              placeholder="0.00"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                            />
+                            {errors.tableData?.[index]?.debit2 && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].debit2?.message}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
+                            <input
+                              {...register(`tableData.${index}.credit2`, { valueAsNumber: true })}
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
+                              placeholder="0.00"
+                              type="number"
+                              min="0"
+                              step="0.01"
+                            />
+                            {errors.tableData?.[index]?.credit2 && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].credit2?.message}</p>
                             )}
                           </td>
                           <td className="px-4 py-3 text-center align-middle">
@@ -811,15 +982,26 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         <td className="px-4 py-3 text-right font-bold text-base">TOTALS:</td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
                           {tableData
-                            .reduce((sum, row) => sum + (row.debit || 0), 0)
+                            .reduce((sum, row) => sum + (row.debit1 || 0), 0)
                             .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
                           {tableData
-                            .reduce((sum, row) => sum + (row.credit || 0), 0)
+                            .reduce((sum, row) => sum + (row.credit1 || 0), 0)
                             .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-500"></td>
+                        <td className="px-4 py-3 text-right font-bold text-base"></td>
+                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
+                          {tableData
+                            .reduce((sum, row) => sum + (row.debit2 || 0), 0)
+                            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
+                          {tableData
+                            .reduce((sum, row) => sum + (row.credit2 || 0), 0)
+                            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
                         <td className="px-4 py-3"></td>
                       </tr>
                     </tfoot>
@@ -841,26 +1023,68 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
 
             {/* Selected Account Details */}
-            {selectedAccounts.some((acc) => acc !== null) && (
+            {selectedAccounts.some((sel) => sel.account1 !== null || sel.account2 !== null) && (
               <div className="mb-6">
                 <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md shadow-sm border border-gray-200 dark:border-gray-600">
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Selected Account Details</h3>
-                  {selectedAccounts.map((selectedAccount, index) => (
-                    selectedAccount && (
-                      <div key={index} className="mb-4">
-                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Row {index + 1}</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-600 dark:text-gray-400">
-                          <p><strong>Description:</strong> {selectedAccount.description}</p>
-                          <p><strong>List ID:</strong> {selectedAccount.listid}</p>
+                  {selectedAccounts.map((sel, index) => (
+                    <div key={index} className="mb-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Row {index + 1}</h4>
+                      {sel.account1 && (
+                        <div className="mb-2">
+                          <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400">Account 1</h5>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-600 dark:text-gray-400">
+                            <p><strong>Description:</strong> {sel.account1.description}</p>
+                            <p><strong>List ID:</strong> {sel.account1.listid}</p>
+                            {(() => {
+                              const current_balance = parseFloat(sel.account1.fixedAmount || '0') - parseFloat(sel.account1.paid || '0') || 0;
+                              const net_debit = nets.get(sel.account1.id)?.net_debit || 0;
+                              const net_credit = nets.get(sel.account1.id)?.net_credit || 0;
+                              const projected_balance = current_balance + net_debit - net_credit;
+                              return (
+                                <>
+                                  <p><strong>Current Balance:</strong> {current_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                  <p className={projected_balance < 0 ? 'text-red-500' : ''}><strong>Projected Balance:</strong> {projected_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                </>
+                              );
+                            })()}
+                          </div>
+                          {sel.account1.children && sel.account1.children.length > 0 && (
+                            <>
+                              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2">Sub-Accounts</h4>
+                              {renderChildren(sel.account1.children)}
+                            </>
+                          )}
                         </div>
-                        {selectedAccount.children && selectedAccount.children.length > 0 && (
-                          <>
-                            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2">Sub-Accounts</h4>
-                            {renderChildren(selectedAccount.children)}
-                          </>
-                        )}
-                      </div>
-                    )
+                      )}
+                      {sel.account2 && (
+                        <div className="mb-2">
+                          <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400">Account 2</h5>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-600 dark:text-gray-400">
+                            <p><strong>Description:</strong> {sel.account2.description}</p>
+                            <p><strong>List ID:</strong> {sel.account2.listid}</p>
+                            {(() => {
+                              const current_balance = parseFloat(sel.account2.fixedAmount || '0') - parseFloat(sel.account2.paid || '0') || 0;
+                              const net_debit = nets.get(sel.account2.id)?.net_debit || 0;
+                              const net_credit = nets.get(sel.account2.id)?.net_credit || 0;
+                              const projected_balance = current_balance + net_debit - net_credit;
+                              return (
+                                <>
+                                  <p><strong>Current Balance:</strong> {current_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                  <p className={projected_balance < 0 ? 'text-red-500' : ''}><strong>Projected Balance:</strong> {projected_balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                </>
+                              );
+                            })()}
+                          </div>
+                          {sel.account2.children && sel.account2.children.length > 0 && (
+                            <>
+                              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-4 mb-2">Sub-Accounts</h4>
+                              {renderChildren(sel.account2.children)}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>

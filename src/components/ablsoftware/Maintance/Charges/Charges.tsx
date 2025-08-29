@@ -61,8 +61,8 @@ interface Payment {
 // Schema for charges
 const chargesSchema = z.object({
   ChargeNo: z.string().optional(),
-  chargeDate: z.string().min(1, 'Charge Date is required'),
-  orderNo: z.string().min(1, 'Order No is required'),
+  chargeDate: z.string().optional(),
+  orderNo: z.string().optional(),
   lines: z.array(z.object({
     charge: z.string().optional(),
     biltyNo: z.string().optional(),

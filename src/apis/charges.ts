@@ -59,7 +59,7 @@ const getSingleCharges  = async (id: string) => {
   }
 };
 
-const updateCharges = async (Charges: any, data: { chargeDate: string; orderNo: string; lines: { contact?: string | undefined; date?: string | undefined; charge?: string | undefined; biltyNo?: string | undefined; vehicle?: string | undefined; paidTo?: string | undefined; remarks?: string | undefined; amount?: number | undefined; }[]; payments: { paidAmount?: number | undefined; bankCash?: string | undefined; chqNo?: string | undefined; chqDate?: string | undefined; payNo?: string | undefined; }[]; chargeNo?: string | undefined; }) => {
+const updateCharges = async (Charges: any, data?: any) => {
   try {
     const response = await apiFetch(`Charges`, {
       method: 'PUT',

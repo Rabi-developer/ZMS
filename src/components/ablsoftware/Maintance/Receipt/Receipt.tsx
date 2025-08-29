@@ -45,8 +45,8 @@ interface TableRow {
 // Define the schema for receipt form validation
 const receiptSchema = z.object({
   receiptNo: z.string().optional(),
-  receiptDate: z.string().min(1, 'Receipt Date is required'),
-  paymentMode: z.string().min(1, 'Payment Mode is required'),
+  receiptDate: z.string().optional(),
+  paymentMode: z.string().optional(),
   bankName: z.string().optional(),
   chequeNo: z.string().optional(),
   chequeDate: z.string().optional(),
@@ -55,17 +55,17 @@ const receiptSchema = z.object({
   remarks: z.string().optional(),
   tableData: z.array(
     z.object({
-      biltyNo: z.string().min(1, 'Bilty No is required'),
+      biltyNo: z.string().optional(),
       vehicleNo: z.string().optional(),
       biltyDate: z.string().optional(),
       biltyAmount: z.number().optional(),
       srbAmount: z.number().optional(),
       totalAmount: z.number().optional(),
       balance: z.number().optional(),
-      receiptAmount: z.number().min(0, 'Receipt Amount must be non-negative'),
+      receiptAmount: z.number().optional(),
     })
   ),
-  salesTaxOption: z.string().min(1, 'Sales Tax option is required'),
+  salesTaxOption: z.string().optional(),
   salesTaxRate: z.string().optional(),
   whtOnSbr: z.string().optional(),
 });
