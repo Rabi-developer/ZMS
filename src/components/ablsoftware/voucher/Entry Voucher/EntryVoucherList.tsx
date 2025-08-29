@@ -3,12 +3,18 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck } from 'react-icons/fa';
-import { MdReceipt } from 'react-icons/md';
+import { MdReceipt, MdClose } from 'react-icons/md';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllEntryVoucher, deleteEntryVoucher, updateEntryVoucher } from '@/apis/entryvoucher';
+import { getAllEntryVoucher, deleteEntryVoucher, updateEntryVoucher, getSingleEntryVoucher } from '@/apis/entryvoucher';
 import { columns, Voucher } from './columns';
+import EntryVoucherPDFExport from './EntryVoucherPDFExport';
+import { getAllAblAssests } from '@/apis/ablAssests';
+import { getAllAblRevenue } from '@/apis/ablRevenue';
+import { getAllAblLiabilities } from '@/apis/ablliabilities';
+import { getAllAblExpense } from '@/apis/ablExpense';
+import { getAllEquality } from '@/apis/equality';
 
 const EntryVoucherList = () => {
   const router = useRouter();
@@ -24,6 +30,9 @@ const EntryVoucherList = () => {
   const [selectedVoucherIds, setSelectedVoucherIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [accountIndex, setAccountIndex] = useState<Record<string, { id: string; listid?: string; description?: string }>>({});
 
   const statusOptions = ['All', 'Posted', 'Draft', 'Cancelled'];
   const statusOptionsConfig = [
@@ -57,13 +66,46 @@ const EntryVoucherList = () => {
   }, [vouchers, selectedStatusFilter]);
 
   useEffect(() => {
-    if (searchParams.get('refresh') === 'true') {
+    const refresh = searchParams.get('refresh') === 'true';
+    const createdId = searchParams.get('created');
+    if (refresh) {
       fetchVouchers();
+      if (createdId) {
+        // Auto-open PDF for the created/updated voucher
+        handlePdf(createdId);
+      }
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('refresh');
+      newUrl.searchParams.delete('created');
       router.replace(newUrl.pathname);
     }
   }, [searchParams, router]);
+
+  // Build a flat index of accounts (id -> {listid, description}) for PDF mapping
+  useEffect(() => {
+    const loadAccountIndex = async () => {
+      try {
+        const [assets, revenues, liabilities, expenses, equities] = await Promise.all([
+          getAllAblAssests(1, 10000).catch(() => ({ data: [] })),
+          getAllAblRevenue(1, 10000).catch(() => ({ data: [] })),
+          getAllAblLiabilities(1, 10000).catch(() => ({ data: [] })),
+          getAllAblExpense(1, 10000).catch(() => ({ data: [] })),
+          getAllEquality(1, 10000).catch(() => ({ data: [] })),
+        ]);
+        const idx: Record<string, { id: string; listid?: string; description?: string }> = {};
+        const add = (arr: any[]) => arr?.forEach?.((a: any) => { if (a?.id) idx[a.id] = { id: a.id, listid: a.listid, description: a.description }; });
+        add(assets?.data || []);
+        add(revenues?.data || []);
+        add(liabilities?.data || []);
+        add(expenses?.data || []);
+        add(equities?.data || []);
+        setAccountIndex(idx);
+      } catch (e) {
+        console.error('Failed to build account index', e);
+      }
+    };
+    loadAccountIndex();
+  }, []);
 
   const handleDelete = async () => {
     try {
@@ -121,6 +163,55 @@ const EntryVoucherList = () => {
       toast('Failed to update status', { type: 'error' });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handlePdf = async (id: string) => {
+    try {
+      const res = await getSingleEntryVoucher(id);
+      const v = res?.data;
+      if (!v) {
+        toast('Voucher not found', { type: 'error' });
+        return;
+      }
+      EntryVoucherPDFExport.exportToPDF({
+        voucher: {
+          id: v.id,
+          voucherNo: v.voucherNo,
+          voucherDate: v.voucherDate,
+          referenceNo: v.referenceNo,
+          chequeNo: v.chequeNo,
+          depositSlipNo: v.depositSlipNo,
+          paymentMode: v.paymentMode,
+          bankName: v.bankName,
+          chequeDate: v.chequeDate,
+          paidTo: v.paidTo,
+          narration: v.narration,
+          description: v.description,
+          tableData: v.tableData || [],
+        },
+        accountIndex,
+      });
+    } catch (error) {
+      console.error('Failed to generate voucher PDF:', error);
+      toast('Failed to generate voucher PDF', { type: 'error' });
+    }
+  };
+
+  const handleRangePdf = async () => {
+    const s = startDate ? new Date(startDate) : null;
+    const e = endDate ? new Date(endDate) : null;
+    const inRange = filteredVouchers.filter((v) => {
+      const d = new Date(v.voucherDate);
+      if (isNaN(d.getTime())) return false;
+      return (!s || d >= s) && (!e || d <= e);
+    });
+    if (inRange.length === 0) {
+      toast('No vouchers in selected range', { type: 'warning' });
+      return;
+    }
+    for (const v of inRange) {
+      await handlePdf(v.id);
     }
   };
 
@@ -184,9 +275,17 @@ const EntryVoucherList = () => {
           Download Excel
         </button>
       </div>
+      <div className="mb-4 flex items-center gap-2 justify-end">
+        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-gray-300 rounded-md p-2" />
+        <span className="text-sm text-gray-600">to</span>
+        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-300 rounded-md p-2" />
+        <button onClick={handleRangePdf} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-all duration-200">
+          <MdReceipt size={18} /> Download PDF (Date Range)
+        </button>
+      </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen)}
+          columns={columns(handleDeleteOpen, handlePdf)}
           data={filteredVouchers}
           loading={loading}
           link="/entryvoucher/create"

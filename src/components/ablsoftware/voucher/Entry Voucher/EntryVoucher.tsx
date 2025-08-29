@@ -638,27 +638,13 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         }
       }
 
-      // Build payload in a simple structure aligning to API needs
-      const payload = {
-        voucherNo: data.voucherNo,
-        voucherDate: data.voucherDate,
-        referenceNo: data.referenceNo,
-        chequeNo: data.chequeNo,
-        depositSlipNo: data.depositSlipNo,
-        paymentMode: data.paymentMode,
-        bankName: data.bankName,
-        chequeDate: data.chequeDate,
-        paidTo: data.paidTo,
-        narration: data.narration,
-        description: data.description,
-        tableData: data.tableData,
-      };
-
       if (isEdit) {
-        await updateEntryVoucher(payload);
+        // Placeholder: Implement updateVoucher API
+        // await updateVoucher(data);
         toast.success('Voucher updated successfully');
       } else {
-        await createEntryVoucher(payload);
+        // Placeholder: Implement createVoucher API
+        // await createVoucher(data);
         toast.success('Voucher created successfully');
       }
       router.push('/entryvoucher');

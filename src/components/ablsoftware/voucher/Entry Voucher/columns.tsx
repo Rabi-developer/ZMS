@@ -2,6 +2,7 @@ import { Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Row } from '@tanstack/react-table';
+import { MdReceipt } from 'react-icons/md';
 
 export interface Voucher {
   id: string;
@@ -28,7 +29,7 @@ export const getStatusStyles = (status: string) => {
   }
 };
 
-export const columns = (handleDeleteOpen: (id: string) => void) => [
+export const columns = (handleDeleteOpen: (id: string) => void, handlePdf: (id: string) => void) => [
   {
     header: 'Voucher No',
     accessorKey: 'voucherNo',
@@ -76,13 +77,25 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
     cell: ({ row }: { row: Row<Voucher> }) => (
       <div className="flex space-x-2">
         <Link href={`/vouchers/edit/${row.original.id}`}>
-          <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600">
+          <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600" title="Edit">
             <Edit size={16} />
           </Button>
         </Link>
         <Button
           size="sm"
+          className="bg-blue-600 hover:bg-blue-700"
+          title="Download PDF"
+          onClick={(e) => {
+            e.stopPropagation();
+            handlePdf(row.original.id);
+          }}
+        >
+          <MdReceipt size={16} />
+        </Button>
+        <Button
+          size="sm"
           className="bg-red-500 hover:bg-red-600"
+          title="Delete"
           onClick={(e) => {
             e.stopPropagation();
             handleDeleteOpen(row.original.id);
