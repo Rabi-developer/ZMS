@@ -41,6 +41,15 @@ const EntryVoucherList = () => {
     { id: 3, name: 'Cancelled', color: '#ef4444' },
   ];
 
+  // Selection state for showing clicked row details
+  const [selectedVoucher, setSelectedVoucher] = useState<any | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+  const displayAccount = (value: string) => {
+    // If API returns account id, map to description; otherwise show as-is
+    return accountIndex[value]?.description || value || '-';
+  };
+
   const fetchVouchers = async () => {
     try {
       setLoading(true);
@@ -293,8 +302,72 @@ const EntryVoucherList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
+          onRowClick={async (id: string) => {
+            try {
+              setDetailsLoading(true);
+              const res = await getSingleEntryVoucher(id);
+              setSelectedVoucher(res?.data || null);
+            } catch (e) {
+              toast('Failed to load voucher details', { type: 'error' });
+            } finally {
+              setDetailsLoading(false);
+            }
+          }}
         />
       </div>
+
+      {/* Selected voucher details panel */}
+      {selectedVoucher && (
+        <div className="mt-4 border rounded-md p-4 bg-gray-50">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-semibold text-gray-800">Voucher Details</h3>
+            <button
+              className="text-gray-500 hover:text-gray-700"
+              onClick={() => setSelectedVoucher(null)}
+              title="Close"
+            >
+              <MdClose size={18} />
+            </button>
+          </div>
+
+          <div className="text-sm text-gray-700 grid grid-cols-2 gap-2 mb-3">
+            <div><span className="font-medium">Voucher No:</span> {selectedVoucher.voucherNo || '-'}</div>
+            <div><span className="font-medium">Voucher Date:</span> {selectedVoucher.voucherDate || '-'}</div>
+            <div><span className="font-medium">Payment Mode:</span> {selectedVoucher.paymentMode || '-'}</div>
+            <div><span className="font-medium">Paid To:</span> {displayAccount(selectedVoucher.paidTo)}</div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm border">
+              <thead className="bg-white">
+                <tr>
+                  <th className="border px-2 py-1 text-left">Account 1</th>
+                  <th className="border px-2 py-1 text-right">Debit 1</th>
+                  <th className="border px-2 py-1 text-right">Credit 1</th>
+                  <th className="border px-2 py-1 text-left">Narration</th>
+                  <th className="border px-2 py-1 text-left">Account 2</th>
+                  <th className="border px-2 py-1 text-right">Debit 2</th>
+                  <th className="border px-2 py-1 text-right">Credit 2</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(selectedVoucher.voucherDetails || selectedVoucher.tableData || []).map((d: any, idx: number) => (
+                  <tr key={d.id || idx}>
+                    <td className="border px-2 py-1">{displayAccount(d.account1)}</td>
+                    <td className="border px-2 py-1 text-right">{Number(d.debit1 || 0)}</td>
+                    <td className="border px-2 py-1 text-right">{Number(d.credit1 || 0)}</td>
+                    <td className="border px-2 py-1">{d.narration || '-'}</td>
+                    <td className="border px-2 py-1">{displayAccount(d.account2)}</td>
+                    <td className="border px-2 py-1 text-right">{Number(d.debit2 || 0)}</td>
+                    <td className="border px-2 py-1 text-right">{Number(d.credit2 || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 space-y-2 h-[18vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {

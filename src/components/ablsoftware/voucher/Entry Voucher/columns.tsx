@@ -50,14 +50,14 @@ export const columns = (handleDeleteOpen: (id: string) => void, handlePdf: (id: 
     header: 'Paid To',
     accessorKey: 'paidTo',
   },
-  {
-    header: 'Total Debit',
-    accessorKey: 'totalDebit',
-  },
-  {
-    header: 'Total Credit',
-    accessorKey: 'totalCredit',
-  },
+  // {
+  //   header: 'Total Debit',
+  //   accessorKey: 'totalDebit',
+  // },
+  // {
+  //   header: 'Total Credit',
+  //   accessorKey: 'totalCredit',
+  // },
   {
     header: '',
     accessorKey: 'name',
