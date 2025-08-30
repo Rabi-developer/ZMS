@@ -549,9 +549,18 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             setValue('narration', voucher.narration || '');
             setValue('description', voucher.description || '');
 
-            const loadedTableData = voucher.tableData && voucher.tableData.length
-              ? voucher.tableData
-              : [{ account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 }];
+            const loadedTableData = (voucher.voucherDetails && voucher.voucherDetails.length
+              ? voucher.voucherDetails
+              : [{ account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 }]
+            ).map((d: any) => ({
+              account1: d.account1 || '',
+              debit1: Number(d.debit1 || 0),
+              credit1: Number(d.credit1 || 0),
+              narration: d.narration || '',
+              account2: d.account2 || '',
+              debit2: Number(d.debit2 || 0),
+              credit2: Number(d.credit2 || 0),
+            }));
             setValue('tableData', loadedTableData);
 
             const loadedSelected = loadedTableData.map((row: any) => ({
@@ -606,13 +615,13 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       // Validate net balances
       for (const [id, { net_debit, net_credit }] of nets.entries()) {
         const acc = findAccountById(id, topLevelAccounts);
-        if (acc) {
-          const current_balance = parseFloat(acc.fixedAmount || '0') - parseFloat(acc.paid || '0');
-          const new_balance = current_balance + net_debit - net_credit;
-          if (new_balance < 0) {
-            throw new Error(`Insufficient balance for account ${acc.description}. Would result in negative balance: ${new_balance}`);
-          }
-        }
+        // if (acc) {
+        //   const current_balance = parseFloat(acc.fixedAmount || '0') - parseFloat(acc.paid || '0');
+        //   const new_balance = current_balance + net_debit - net_credit;
+        //   if (new_balance < 0) {
+        //     throw new Error(`Insufficient balance for account ${acc.description}. Would result in negative balance: ${new_balance}`);
+        //   }
+        // }
       }
 
       // Update balances with nets
@@ -638,13 +647,48 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         }
       }
 
+      // Build backend payload
+      const payload = {
+        voucherNo: data.voucherNo || '',
+        voucherDate: data.voucherDate || '',
+        referenceNo: data.referenceNo || '',
+        chequeNo: data.chequeNo || '',
+        depositSlipNo: data.depositSlipNo || '',
+        paymentMode: data.paymentMode || '',
+        bankName: data.bankName || '',
+        chequeDate: data.chequeDate || '',
+        paidTo: data.paidTo || '',
+        narration: data.narration || '',
+        description: data.description || '',
+        // audit fields may be set by backend; send empty if not available
+        // createdBy: '',
+        creationDate: '',
+        // updatedBy: '',
+        updationDate: '',
+        status: 'Active',
+        voucherDetails: (data.tableData || []).map((r) => ({
+          account1: r.account1 || '',
+          debit1: Number(r.debit1 || 0),
+          credit1: Number(r.credit1 || 0),
+          currentBalance1: 0,
+          projectedBalance1: 0,
+          narration: r.narration || '',
+          account2: r.account2 || '',
+          debit2: Number(r.debit2 || 0),
+          credit2: Number(r.credit2 || 0),
+          currentBalance2: 0,
+          projectedBalance2: 0,
+        })),
+      } as any;
+
       if (isEdit) {
-        // Placeholder: Implement updateVoucher API
-        // await updateVoucher(data);
+        const id = window.location.pathname.split('/').pop();
+        if (!id) throw new Error('Missing voucher id for update');
+        const updatePayload = { ...payload, id } as any;
+        await updateEntryVoucher(updatePayload);
         toast.success('Voucher updated successfully');
       } else {
-        // Placeholder: Implement createVoucher API
-        // await createVoucher(data);
+        await createEntryVoucher(payload);
         toast.success('Voucher created successfully');
       }
       router.push('/entryvoucher');

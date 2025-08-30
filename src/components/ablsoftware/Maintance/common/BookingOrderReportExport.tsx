@@ -11,6 +11,7 @@ import { exportBookingOrderToPDF } from "./BookingOrderPdf";
 import { exportBookingOrderToExcel } from "./BookingOrderExcel";
 import { ALL_COLUMNS, ColumnKey, RowData, labelFor } from "./BookingOrderTypes";
 import { exportBiltiesReceivableToPDF } from "./BiltiesReceivablePdf";
+import { data } from "@/components/Design/Graph/ProductGraph";
 
 // Company constants
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
@@ -136,6 +137,7 @@ const BookingOrderReportExport: React.FC = () => {
   // State
   const [loading, setLoading] = useState<boolean>(false);
   const [data, setData] = useState<RowData[]>([]);
+  const [activeTab, setActiveTab] = useState<'booking' | 'bilty'>('booking');
 
   const toggleColumn = (key: ColumnKey) => {
     setSelectedColumns((prev) => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
@@ -481,290 +483,241 @@ const BookingOrderReportExport: React.FC = () => {
   const { colOrder, headRows } = buildStructure(columnsToDisplay);
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar for Controls */}
-      <aside className="w-80 bg-white shadow-md p-6 overflow-y-auto border-r border-gray-200">
-        <h2 className="text-xl font-bold text-gray-800 mb-6">Report Settings</h2>
-
-        {/* Filter Type */}
-        <div className="mb-8">
-          <label className="block text-sm font-semibold text-gray-700 mb-3">Filter Type</label>
-          <div className="grid grid-cols-3 gap-3">
-            <button
-              onClick={() => setFilterType("none")}
-              className={`py-3 text-sm font-medium rounded-lg transition-all duration-200 ${filterType === "none" ? "bg-blue-600 text-white shadow-md" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFilterType("range")}
-              className={`py-3 text-sm font-medium rounded-lg transition-all duration-200 ${filterType === "range" ? "bg-blue-600 text-white shadow-md" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-            >
-              Range
-            </button>
-            <button
-              onClick={() => setFilterType("month")}
-              className={`py-3 text-sm font-medium rounded-lg transition-all duration-200 ${filterType === "month" ? "bg-blue-600 text-white shadow-md" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-            >
-              Month
-            </button>
-          </div>
-        </div>
-
-        {/* Date Range */}
-        {filterType === "range" && (
-          <div className="mb-8">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">Date Range</label>
-            <input
-              type="date"
-              className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-            />
-            <input
-              type="date"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-            />
-          </div>
-        )}
-
-        {/* Month/Year */}
-        {filterType === "month" && (
-          <div className="mb-8">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">Month / Year</label>
-            <select
-              className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              value={month ?? ""}
-              onChange={(e) => setMonth(e.target.value ? parseInt(e.target.value) : undefined)}
-            >
-              <option value="">Select Month</option>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                <option key={m} value={m}>{m.toString().padStart(2, "0")}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-              value={year ?? ""}
-              onChange={(e) => setYear(e.target.value ? parseInt(e.target.value) : undefined)}
-              placeholder="Enter Year"
-            />
-          </div>
-        )}
-
-        {/* Column Selection */}
-        <div className="mb-8 relative">
-          <label className="block text-sm font-semibold text-gray-700 mb-3">Select Columns</label>
-          <button
-            onClick={() => setShowColsMenu(!showColsMenu)}
-            className="w-full px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-sm text-left font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-          >
-            {selectedColumns.length} Columns Selected
-          </button>
-          {showColsMenu && (
-            <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl p-4 max-h-64 overflow-y-auto">
-              <div className="flex justify-between mb-3 text-sm font-medium text-gray-600">
-                <button onClick={selectAllColumns} className="hover:text-blue-600 transition-colors">Select All</button>
-                <button onClick={clearAllColumns} className="hover:text-red-600 transition-colors">Clear All</button>
-              </div>
-              {ALL_COLUMNS.map((c) => (
-                <label key={c.key} className="flex items-center mb-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    className="mr-3 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    checked={selectedColumns.includes(c.key)}
-                    onChange={() => toggleColumn(c.key)}
-                  />
-                  {c.label}
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Filter By Column Value */}
-        <div className="mb-8">
-          <label className="block text-sm font-semibold text-gray-700 mb-3">Filter By Column</label>
-          <select
-            className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-            value={filterColumn}
-            onChange={(e) => {
-              setFilterColumn(e.target.value as ColumnKey || "");
-              setFilterValue("");
-            }}
-          >
-            <option value="">Select Column</option>
-            {ALL_COLUMNS.map((c) => (
-              <option key={c.key} value={c.key}>{c.label}</option>
-            ))}
-          </select>
-          <select
-            className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50"
-            value={filterValue}
-            onChange={(e) => setFilterValue(e.target.value)}
-            disabled={!filterColumn || filterOptions.length === 0}
-          >
-            <option value="">{filterColumn ? (filterOptions.length ? "Select Value" : "No Values Available") : "Select Column First"}</option>
-            {filterOptions.map((v) => (
-              <option key={v} value={v}>{v}</option>
-            ))}
-          </select>
-          <button
-            onClick={() => { setFilterColumn(""); setFilterValue(""); allRows.length > 0 && setData(composeView(allRows)); }}
-            className="w-full py-3 text-sm font-medium bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-all duration-200"
-          >
-            Clear Filter
-          </button>
-        </div>
-
-        {/* Arrange Data */}
-        <div className="mb-8">
-          <label className="block text-sm font-semibold text-gray-700 mb-3">Sort By</label>
-          <select
-            className="w-full mb-3 px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-            value={primarySortKey}
-            onChange={(e) => setPrimarySortKey(e.target.value as ColumnKey || "")}
-          >
-            <option value="">Primary Sort (None)</option>
-            {ALL_COLUMNS.map((c) => (
-              <option key={c.key} value={c.key}>{c.label}</option>
-            ))}
-          </select>
-          <select
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 disabled:opacity-50"
-            value={secondarySortKey}
-            onChange={(e) => setSecondarySortKey(e.target.value as ColumnKey || "")}
-            disabled={!primarySortKey}
-          >
-            <option value="">Secondary Sort (None)</option>
-            {ALL_COLUMNS.map((c) => (
-              <option key={c.key} value={c.key}>{c.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <button
-          onClick={() => allRows.length > 0 && setData(composeView(allRows))}
-          className="w-full py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 shadow-md"
-        >
-          Apply Changes
-        </button>
-      </aside>
-
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50">
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-y-auto bg-gray-50">
+      <main className="max-w-7xl mx-auto p-6 md:p-10">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">{COMPANY_NAME} - Booking Order Report</h1>
-          <div className="text-sm font-medium text-gray-600">{new Date().toLocaleDateString()}</div>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">Reports</h1>
+            <div className="text-sm font-medium text-gray-600">{new Date().toLocaleDateString()}</div>
+          </div>
+          <p className="mt-1 text-sm text-gray-500">{COMPANY_NAME} — Booking Order and Bilties Receivable</p>
         </div>
 
-        {/* Actions */}
-        <div className="flex flex-wrap gap-4 mb-8">
-          <button
-            onClick={() => loadDataForPreview(false)}
-            disabled={loading}
-            className="px-6 py-3 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all duration-200 shadow-md"
-          >
-            {loading ? "Loading..." : "Preview All Data"}
-          </button>
-          <button
-            onClick={() => loadDataForPreview(true)}
-            disabled={loading}
-            className="px-6 py-3 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-200 shadow-md"
-          >
-            {loading ? "Loading..." : "Preview Generate Data"}
-          </button>
-          <button
-            onClick={() => exportPDF(false)}
-            disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 shadow-md"
-          >
-            Export PDF (All)
-          </button>
-          <button
-            onClick={() => exportPDF(true)}
-            disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-200 shadow-md"
-          >
-            Export PDF (Generate)
-          </button>
-          <button
-            onClick={exportBiltiesReceivable}
-            disabled={loading}
-            className="px-6 py-3 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-all duration-200 shadow-md"
-          >
-            Bilties Receivable (PDF)
-          </button>
-          <button
-            onClick={() => exportExcel(false)}
-            disabled={loading}
-            className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all duration-200 shadow-md"
-          >
-            Export Excel (All)
-          </button>
-          <button
-            onClick={() => exportExcel(true)}
-            disabled={loading}
-            className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all duration-200 shadow-md"
-          >
-            Export Excel (Generate)
-          </button>
-          <button
-            onClick={resetFilters}
-            className="px-6 py-3 bg-gray-200 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-300 transition-all duration-200 shadow-md"
-          >
-            Reset All
-          </button>
+        {/* Tabs */}
+        <div className="mb-6 bg-white/80 backdrop-blur border border-gray-200 rounded-2xl shadow">
+          <div className="flex">
+            <button
+              className={`flex-1 py-3 px-4 text-sm font-semibold rounded-2xl transition-all ${activeTab === 'booking' ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow' : 'text-gray-700 hover:bg-gray-50'}`}
+              onClick={() => setActiveTab('booking')}
+            >
+              Booking Orders
+            </button>
+            <button
+              className={`flex-1 py-3 px-4 text-sm font-semibold rounded-2xl transition-all ${activeTab === 'bilty' ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow' : 'text-gray-700 hover:bg-gray-50'}`}
+              onClick={() => setActiveTab('bilty')}
+            >
+              Bilties Receivable
+            </button>
+          </div>
         </div>
 
-        {/* Preview Table */}
-        {data.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Data Preview</h3>
+        {/* Booking Orders Tab */}
+        {activeTab === 'booking' && (
+          <>
+            {/* Filters */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              {/* Date Filter */}
+              <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+                <div className="p-5 border-b border-gray-100">
+                  <h3 className="text-base font-semibold text-gray-900">Date Filter</h3>
+                  <p className="text-xs text-gray-500">Choose how you want to filter data by date.</p>
+                </div>
+                <div className="p-5 grid grid-cols-3 gap-3">
+                  <button onClick={() => setFilterType('none')} className={`py-2 text-xs font-semibold rounded-lg ${filterType === 'none' ? 'bg-indigo-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>All</button>
+                  <button onClick={() => setFilterType('range')} className={`py-2 text-xs font-semibold rounded-lg ${filterType === 'range' ? 'bg-indigo-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Range</button>
+                  <button onClick={() => setFilterType('month')} className={`py-2 text-xs font-semibold rounded-lg ${filterType === 'month' ? 'bg-indigo-600 text-white shadow' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>Month</button>
+                </div>
+              </div>
+
+              {/* Conditional Date Inputs */}
+              {filterType === 'range' && (
+                <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+                  <div className="p-5 border-b border-gray-100">
+                    <h3 className="text-base font-semibold text-gray-900">Date Range</h3>
+                    <p className="text-xs text-gray-500">Show orders between the selected dates.</p>
+                  </div>
+                  <div className="p-5 grid grid-cols-1 gap-3">
+                    <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                    <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+                  </div>
+                </div>
+              )}
+              {filterType === 'month' && (
+                <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+                  <div className="p-5 border-b border-gray-100">
+                    <h3 className="text-base font-semibold text-gray-900">Month / Year</h3>
+                    <p className="text-xs text-gray-500">Show orders in a specific month.</p>
+                  </div>
+                  <div className="p-5 grid grid-cols-1 gap-3">
+                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value={month ?? ''} onChange={(e) => setMonth(e.target.value ? parseInt(e.target.value) : undefined)}>
+                      <option value="">Select Month</option>
+                      {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (<option key={m} value={m}>{m.toString().padStart(2, '0')}</option>))}
+                    </select>
+                    <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value={year ?? ''} onChange={(e) => setYear(e.target.value ? parseInt(e.target.value) : undefined)} placeholder="Enter Year" />
+                  </div>
+                </div>
+              )}
+
+              {/* Columns */}
+              <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden relative">
+                <div className="p-5 border-b border-gray-100">
+                  <h3 className="text-base font-semibold text-gray-900">Columns</h3>
+                  <p className="text-xs text-gray-500">Choose which columns to include.</p>
+                </div>
+                <div className="p-5">
+                  <button onClick={() => setShowColsMenu(!showColsMenu)} className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm text-left font-medium text-gray-700 hover:bg-gray-200">{selectedColumns.length} Columns Selected</button>
+                  {showColsMenu && (
+                    <div className="absolute left-5 right-5 z-20 mt-2 bg-white border border-gray-200 rounded-lg shadow-xl p-4 max-h-64 overflow-y-auto">
+                      <div className="flex justify-between mb-3 text-sm font-medium text-gray-600">
+                        <button onClick={selectAllColumns} className="hover:text-indigo-600">Select All</button>
+                        <button onClick={clearAllColumns} className="hover:text-rose-600">Clear All</button>
+                      </div>
+                      {ALL_COLUMNS.map((c) => (
+                        <label key={c.key} className="flex items-center mb-2 text-sm text-gray-700">
+                          <input type="checkbox" className="mr-3 w-4 h-4 text-indigo-600 border-gray-300 rounded" checked={selectedColumns.includes(c.key)} onChange={() => toggleColumn(c.key)} />
+                          {c.label}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Value Filter */}
+              <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+                <div className="p-5 border-b border-gray-100">
+                  <h3 className="text-base font-semibold text-gray-900">Value Filter</h3>
+                  <p className="text-xs text-gray-500">Filter rows by a specific column value.</p>
+                </div>
+                <div className="p-5">
+                  <select className="w-full mb-3 px-3 py-2 border border-gray-300 rounded-lg text-sm" value={filterColumn} onChange={(e) => { setFilterColumn(e.target.value as ColumnKey || ''); setFilterValue(''); } }>
+                    <option value="">Select Column</option>
+                    {ALL_COLUMNS.map(c => (<option key={c.key} value={c.key}>{c.label}</option>))}
+                  </select>
+                  <select className="w-full mb-3 px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50" value={filterValue} onChange={(e) => setFilterValue(e.target.value)} disabled={!filterColumn || filterOptions.length === 0}>
+                    <option value="">{filterColumn ? (filterOptions.length ? 'Select Value' : 'No Values Available') : 'Select Column First'}</option>
+                    {filterOptions.map(v => (<option key={v} value={v}>{v}</option>))}
+                  </select>
+                  <button onClick={() => { setFilterColumn(''); setFilterValue(''); allRows.length > 0 && setData(composeView(allRows)); } } className="w-full py-2 text-xs font-semibold bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200">Clear Filter</button>
+                </div>
+              </div>
+
+              {/* Sorting */}
+              <div className="bg-white rounded-2xl shadow border border-gray-200 overflow-hidden">
+                <div className="p-5 border-b border-gray-100">
+                  <h3 className="text-base font-semibold text-gray-900">Sorting</h3>
+                  <p className="text-xs text-gray-500">Choose how to order the rows.</p>
+                </div>
+                <div className="p-5 grid grid-cols-1 gap-3">
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value={primarySortKey} onChange={(e) => setPrimarySortKey(e.target.value as ColumnKey || '')}>
+                    <option value="">Primary Sort (None)</option>
+                    {ALL_COLUMNS.map(c => (<option key={c.key} value={c.key}>{c.label}</option>))}
+                  </select>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm disabled:opacity-50" value={secondarySortKey} onChange={(e) => setSecondarySortKey(e.target.value as ColumnKey || '')} disabled={!primarySortKey}>
+                    <option value="">Secondary Sort (None)</option>
+                    {ALL_COLUMNS.map(c => (<option key={c.key} value={c.key}>{c.label}</option>))}
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50 sticky top-0 z-10">
-                  {headRows.map((row, rowIdx) => (
-                    <tr key={rowIdx}>
-                      {row.map((cell: any, cellIdx: number) => {
-                        const content = typeof cell === "string" ? cell : cell.content;
-                        const colSpan = typeof cell === "object" ? cell.colSpan || 1 : 1;
-                        const rowSpan = typeof cell === "object" ? cell.rowSpan || 1 : 1;
-                        return (
-                          <th
-                            key={cellIdx}
-                            colSpan={colSpan}
-                            rowSpan={rowSpan}
-                            className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"
-                          >
-                            {content}
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {data.map((row, rowIdx) => (
-                    <tr key={rowIdx} className={`hover:bg-gray-50 transition-all duration-200 ${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
-                      {colOrder.map((k, colIdx) => {
-                        const v: any = row[k];
-                        const displayValue = typeof v === "number" ? v.toLocaleString() : (v ?? "-");
-                        return (
-                          <td key={colIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
-                            {displayValue}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            {/* Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white rounded-2xl shadow border border-gray-200">
+                <div className="p-5 border-b border-gray-100">
+                  <h3 className="text-lg font-semibold text-gray-900">Booking Order Report</h3>
+                  <p className="text-sm text-gray-500">Preview and export the booking order report.</p>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div>
+                    <div className="text-xs font-semibold text-gray-600 mb-2">Preview</div>
+                    <div className="flex flex-wrap gap-3">
+                      <button onClick={() => loadDataForPreview(false)} disabled={loading} className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50">{loading ? 'Loading...' : 'Preview All'}</button>
+                      <button onClick={() => loadDataForPreview(true)} disabled={loading} className="px-4 py-2 bg-indigo-500 text-white text-xs font-semibold rounded-lg hover:bg-indigo-600 disabled:opacity-50">{loading ? 'Loading...' : 'Preview Generate'}</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-gray-600 mb-2">Export PDF</div>
+                    <div className="flex flex-wrap gap-3">
+                      <button onClick={() => exportPDF(false)} disabled={loading} className="px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50">PDF (All)</button>
+                      <button onClick={() => exportPDF(true)} disabled={loading} className="px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50">PDF (Generate)</button>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-gray-600 mb-2">Export Excel</div>
+                    <div className="flex flex-wrap gap-3">
+                      <button onClick={() => exportExcel(false)} disabled={loading} className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50">Excel (All)</button>
+                      <button onClick={() => exportExcel(true)} disabled={loading} className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50">Excel (Generate)</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow border border-gray-200">
+                <div className="p-5 border-b border-gray-100">
+                  <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
+                  <p className="text-sm text-gray-500">Apply changes and reset selections.</p>
+                </div>
+                <div className="p-5 space-y-3">
+                  <button onClick={() => allRows.length > 0 && setData(composeView(allRows))} className="w-full py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700">Apply Changes</button>
+                  <button onClick={resetFilters} className="w-full py-2 bg-gray-100 text-gray-800 text-sm font-semibold rounded-lg hover:bg-gray-200">Reset All</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview Table */}
+            {data.length > 0 && (
+              <div className="bg-white rounded-2xl shadow overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h3 className="text-lg font-semibold text-gray-900">Data Preview</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                      {headRows.map((row, rowIdx) => (
+                        <tr key={rowIdx}>
+                          {row.map((cell: any, cellIdx: number) => {
+                            const content = typeof cell === 'string' ? cell : cell.content;
+                            const colSpan = typeof cell === 'object' ? (cell.colSpan || 1) : 1;
+                            const rowSpan = typeof cell === 'object' ? (cell.rowSpan || 1) : 1;
+                            return (
+                              <th key={cellIdx} colSpan={colSpan} rowSpan={rowSpan} className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{content}</th>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {data.map((row, rowIdx) => (
+                        <tr key={rowIdx} className={`hover:bg-gray-50 ${rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                          {colOrder.map((k, colIdx) => {
+                            const v: any = row[k];
+                            const displayValue = typeof v === 'number' ? v.toLocaleString() : (v ?? '-');
+                            return <td key={colIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{displayValue}</td>;
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Bilties Receivable Tab */}
+        {activeTab === 'bilty' && (
+          <div className="mb-8">
+            <div className="bg-white rounded-2xl shadow border border-gray-200">
+              <div className="p-5 border-b border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900">Bilties Receivable Report</h3>
+                <p className="text-sm text-gray-500">Export the Bilties Receivable report as PDF.</p>
+              </div>
+              <div className="p-5">
+                <button onClick={exportBiltiesReceivable} disabled={loading} className="w-full px-4 py-2 bg-rose-600 text-white text-sm font-semibold rounded-lg hover:bg-rose-700 disabled:opacity-50">Export PDF</button>
+              </div>
             </div>
           </div>
         )}
