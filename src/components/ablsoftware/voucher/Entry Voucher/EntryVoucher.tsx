@@ -1053,7 +1053,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
 
             {/* Selected Account Details */}
-            {selectedAccounts.some((sel) => sel.account1 !== null || sel.account2 !== null) && (
+            {/* {selectedAccounts.some((sel) => sel.account1 !== null || sel.account2 !== null) && (
               <div className="mb-6">
                 <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-md shadow-sm border border-gray-200 dark:border-gray-600">
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Selected Account Details</h3>
@@ -1118,7 +1118,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   ))}
                 </div>
               </div>
-            )}
+            )} */}
 
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <Button
