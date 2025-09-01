@@ -65,14 +65,14 @@ type ApiResponse<T> = {
 // Zod schema for voucher form validation
 const voucherSchema = z.object({
   voucherNo: z.string().optional(),
-  voucherDate: z.string().min(1, 'Voucher Date is required'),
+  voucherDate: z.string().optional(),
   referenceNo: z.string().optional(),
   chequeNo: z.string().optional(),
   depositSlipNo: z.string().optional(),
-  paymentMode: z.string().min(1, 'Payment Mode is required'),
+  paymentMode: z.string().optional(),
   bankName: z.string().optional(),
   chequeDate: z.string().optional(),
-  paidTo: z.string().min(1, 'Paid To is required'),
+  paidTo: z.string().optional(),
   narration: z.string().optional(),
   description: z.string().optional(),
   tableData: z.array(
