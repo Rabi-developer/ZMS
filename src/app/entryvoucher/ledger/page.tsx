@@ -1,0 +1,865 @@
+'use client';
+
+import React, { useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { getAllEntryVoucher } from '@/apis/entryvoucher';
+import { getAllAblAssests } from '@/apis/ablAssests';
+import { getAllAblRevenue } from '@/apis/ablRevenue';
+import { getAllAblLiabilities } from '@/apis/ablliabilities';
+import { getAllAblExpense } from '@/apis/ablExpense';
+import { getAllEquality } from '@/apis/equality';
+import { toast } from 'react-toastify';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { FiSearch, FiFileText } from 'react-icons/fi';
+import MainLayout from '@/components/MainLayout/MainLayout';
+
+// Types
+interface VoucherDetailRow {
+  account1: string;
+  debit1?: number;
+  credit1?: number;
+  projectedBalance1?: number;
+  narration?: string;
+  account2: string;
+  debit2?: number;
+  credit2?: number;
+  projectedBalance2?: number;
+}
+
+interface VoucherItem {
+  id?: string;
+  voucherNo?: string;
+  voucherDate?: string; // YYYY-MM-DD
+  referenceNo?: string;
+  paymentMode?: string;
+  status?: string;
+  narration?: string;
+  description?: string;
+  voucherDetails?: VoucherDetailRow[];
+}
+
+// Account tree
+type Account = {
+  id: string;
+  listid: string;
+  description: string;
+  parentAccountId: string | null;
+  children: Account[];
+};
+
+// Build hierarchy from flat list
+const buildHierarchy = (accounts: Account[]): Account[] => {
+  const map: Record<string, Account> = {};
+  accounts.forEach((account) => {
+    map[account.id] = { ...account, children: [] } as Account;
+  });
+  const roots: Account[] = [];
+  accounts.forEach((acc) => {
+    if (acc.parentAccountId === null) {
+      roots.push(map[acc.id]);
+    } else {
+      const p = map[acc.parentAccountId];
+      if (p) p.children.push(map[acc.id]);
+    }
+  });
+  return roots;
+};
+
+// Find node by id
+const findAccountById = (id: string, accounts: Account[]): Account | null => {
+  const walk = (nodes: Account[]): Account | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children?.length) {
+        const f = walk(node.children);
+        if (f) return f;
+      }
+    }
+    return null;
+  };
+  return walk(accounts);
+};
+
+// Flatten to index id -> {id, listid, description}
+const flattenAccounts = (roots: Account[]): Record<string, { id: string; listid: string; description: string }> => {
+  const out: Record<string, { id: string; listid: string; description: string }> = {};
+  const walk = (n: Account) => {
+    out[n.id] = { id: n.id, listid: n.listid || n.id, description: n.description || n.id };
+    (n.children || []).forEach(walk);
+  };
+  roots.forEach(walk);
+  return out;
+};
+
+// Collect all descendant ids for By Head filter
+const collectDescendantIds = (node: Account | null): Set<string> => {
+  const ids = new Set<string>();
+  const walk = (n: Account | null) => {
+    if (!n) return;
+    ids.add(n.id);
+    (n.children || []).forEach(walk);
+  };
+  walk(node);
+  return ids;
+};
+
+// Hierarchical account selector (compact)
+interface HierarchicalDropdownProps {
+  accounts: Account[];
+  name: string;
+  onSelect: (id: string, account: Account | null) => void;
+}
+
+const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, name, onSelect }) => {
+  const [selectionPath, setSelectionPath] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSearchList, setShowSearchList] = useState(false);
+
+  type FlatLeaf = { id: string; label: string; pathIds: string[]; pathLabels: string[] };
+  const flatLeaves: FlatLeaf[] = useMemo(() => {
+    const leaves: FlatLeaf[] = [];
+    const walk = (node: Account, ids: string[], labels: string[]) => {
+      const nids = [...ids, node.id];
+      const nlabs = [...labels, node.description];
+      if (!node.children || node.children.length === 0) {
+        leaves.push({ id: node.id, label: nlabs.join(' / '), pathIds: nids, pathLabels: nlabs });
+      } else {
+        node.children.forEach((c) => walk(c, nids, nlabs));
+      }
+    };
+    accounts.forEach((r) => walk(r, [], []));
+    return leaves;
+  }, [accounts]);
+
+  const filteredLeaves = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return [] as FlatLeaf[];
+    return flatLeaves.filter((l) => l.label.toLowerCase().includes(q)).slice(0, 12);
+  }, [flatLeaves, searchTerm]);
+
+  const getOptionsAtLevel = (level: number): Account[] => {
+    if (level === 0) return accounts;
+    let current = accounts;
+    for (let i = 0; i < level; i++) {
+      const selId = selectionPath[i];
+      const found = current.find((acc) => acc.id === selId);
+      if (!found) return [];
+      current = found.children || [];
+    }
+    return current;
+  };
+
+  const handleSelect = (level: number, id: string) => {
+    const newPath = selectionPath.slice(0, level);
+    newPath.push(id);
+    setSelectionPath(newPath);
+    // If leaf
+    let current = accounts;
+    let selected: Account | null = null;
+    for (const sel of newPath) {
+      const f = current.find((a) => a.id === sel);
+      if (f) {
+        selected = f;
+        current = f.children || [];
+      }
+    }
+    if (selected) {
+      onSelect(id, selected);
+    } else {
+      onSelect('', null);
+    }
+  };
+
+  const handlePickFromSearch = (leaf: FlatLeaf) => {
+    setSelectionPath(leaf.pathIds);
+    const selected = findAccountById(leaf.id, accounts);
+    onSelect(leaf.id, selected);
+    setSearchTerm('');
+    setShowSearchList(false);
+  };
+
+  const selectionLabels = selectionPath.map((id, idx) => {
+    const opts = getOptionsAtLevel(idx);
+    const f = opts.find((a) => a.id === id);
+    return f?.description || id;
+  });
+
+  let showLevels = selectionPath.length + 1;
+  if (selectionPath.length > 0) {
+    const nextOpts = getOptionsAtLevel(selectionPath.length);
+    if (nextOpts.length === 0) showLevels = selectionPath.length;
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowSearchList(true);
+              }}
+              onFocus={() => setShowSearchList(true)}
+              placeholder={`Search account (${name})`}
+              className="w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition"
+            />
+            {showSearchList && searchTerm && filteredLeaves.length > 0 && (
+              <div className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
+                {filteredLeaves.map((leaf) => (
+                  <button
+                    key={leaf.id}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handlePickFromSearch(leaf)}
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-gray-700"
+                  >
+                    {leaf.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-row flex-wrap gap-3 overflow-x-auto py-1">
+        {Array.from({ length: showLevels }).map((_, level) => {
+          const options = getOptionsAtLevel(level);
+          const selected = selectionPath[level] || '';
+          return (
+            <div key={level} className="min-w-[220px]">
+              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
+                {level === 0 ? name : `${name} Sub-Account ${level}`}
+              </label>
+              <select
+                value={selected}
+                onChange={(e) => handleSelect(level, e.target.value)}
+                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 shadow-sm"
+              >
+                <option value="">Select {level === 0 ? name : 'Sub-Account'}</option>
+                {options.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.description}
+                  </option>
+                ))}
+              </select>
+            </div>
+          );
+        })}
+      </div>
+
+      {selectionLabels.length > 0 && (
+        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+          <span className="font-medium">Selected:</span>
+          <div className="flex flex-wrap items-center gap-1">
+            {selectionLabels.map((label, idx) => (
+              <React.Fragment key={label + idx}>
+                <span className="px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-gray-700 dark:text-emerald-300">
+                  {label}
+                </span>
+                {idx < selectionLabels.length - 1 && <span className="text-gray-400">/</span>}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Export helpers
+const COMPANY_NAME = 'AL-NASSAR BASHIR LOGISTIC';
+
+type GroupedRows = Array<{
+  accountId: string;
+  description: string;
+  listid: string;
+  rows: any[];
+  totals: {
+    credit1: number;
+    debit1: number;
+    pb1: number;
+    credit2: number;
+    debit2: number;
+    pb2: number;
+  };
+}>;
+
+function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRows) {
+  const doc = new jsPDF();
+  let y = 14;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text(COMPANY_NAME, 105, y, { align: 'center' });
+  y += 6;
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Branch: ${branch}`, 105, y, { align: 'center' });
+  y += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.text(titleLine, 105, y, { align: 'center' });
+  y += 6;
+
+  groups.forEach((g, idx) => {
+    if (idx > 0) y += 6;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(`${g.description} (${g.listid})`, 12, y);
+    y += 2;
+
+    autoTable(doc, {
+      startY: y + 2,
+      head: [[
+        'Voucher Date',
+        'Voucher No',
+        'Narration',
+        'Credit 1',
+        'Debit 1',
+        'Proj Bal 1',
+        'Credit 2',
+        'Debit 2',
+        'Proj Bal 2',
+      ]],
+      body: g.rows.map((r) => [
+        r.voucherDate,
+        r.voucherNo,
+        r.narration || '-',
+        r.credit1,
+        r.debit1,
+        r.pb1,
+        r.credit2,
+        r.debit2,
+        r.pb2,
+      ]),
+      foot: [[
+        { content: 'TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+        (g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        (g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        (g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        (g.totals.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        (g.totals.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        (g.totals.pb2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      ]],
+      footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', textColor: [0, 0, 0] },
+      styles: { fontSize: 8 },
+      theme: 'grid',
+      margin: { left: 8, right: 8 },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 24 },
+        2: { cellWidth: 48 },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { halign: 'right' },
+      },
+    });
+
+    y = (doc as any).lastAutoTable.finalY;
+    if (y > 260 && idx < groups.length - 1) {
+      doc.addPage();
+      y = 14;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text(COMPANY_NAME, 105, y, { align: 'center' });
+      y += 6;
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Branch: ${branch}`, 105, y, { align: 'center' });
+      y += 8;
+      doc.setFont('helvetica', 'bold');
+      doc.text(titleLine, 105, y, { align: 'center' });
+      y += 6;
+    }
+  });
+
+  const fname = `General-Ledger-${new Date().toISOString().slice(0,10)}.pdf`;
+  doc.save(fname);
+}
+
+function exportGroupedToExcel(titleLine: string, branch: string, groups: GroupedRows) {
+  const wb = XLSX.utils.book_new();
+  groups.forEach((g) => {
+    const wsData: any[][] = [];
+    wsData.push([COMPANY_NAME]);
+    wsData.push([`Branch: ${branch}`]);
+    wsData.push([titleLine]);
+    wsData.push([`${g.description} (${g.listid})`]);
+    wsData.push([]);
+    wsData.push(['Voucher Date','Voucher No','Narration','Credit 1','Debit 1','Proj Bal 1','Credit 2','Debit 2','Proj Bal 2']);
+    g.rows.forEach((r) => {
+      wsData.push([r.voucherDate, r.voucherNo, r.narration || '-', r.credit1, r.debit1, r.pb1, r.credit2, r.debit2, r.pb2]);
+    });
+    wsData.push([
+      'TOTAL', '', '',
+      (g.totals.credit1 || 0),
+      (g.totals.debit1 || 0),
+      (g.totals.pb1 || 0),
+      (g.totals.credit2 || 0),
+      (g.totals.debit2 || 0),
+      (g.totals.pb2 || 0),
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    (ws as any)['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 8 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 8 } },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, (g.description || g.listid).slice(0, 25));
+  });
+  const fname = `General-Ledger-${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, fname);
+}
+
+function exportGroupedToWord(titleLine: string, branch: string, groups: GroupedRows) {
+  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #777;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}`;
+  const header = `<h2 style=\"text-align:center;margin:4px 0\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div><h3 style=\"text-align:center;margin:6px 0\">${titleLine}</h3>`;
+  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Narration</th><th>Credit 1</th><th>Debit 1</th><th>Proj Bal 1</th><th>Credit 2</th><th>Debit 2</th><th>Proj Bal 2</th></tr>`;
+  const sections = groups.map(g => {
+    const rows = g.rows.map(r => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.narration || '-'}</td><td>${r.credit1}</td><td>${r.debit1}</td><td>${r.pb1}</td><td>${r.credit2}</td><td>${r.debit2}</td><td>${r.pb2}</td></tr>`).join('');
+    const totalsRow = `<tr><td colspan=\"3\" style=\"text-align:right;font-weight:bold\">TOTAL</td><td>${(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    return `<h4 style=\"margin:10px 0 4px\">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
+  }).join('<br/>');
+  const html = `<!DOCTYPE html><html><head><meta charset=\"utf-8\" /><style>${css}</style></head><body>${header}<hr/>${sections}</body></html>`;
+  const blob = new Blob([html], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `General-Ledger-${new Date().toISOString().slice(0,10)}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Page Component
+const LedgerPage: React.FC = () => {
+  // Filters
+  const [branch, setBranch] = useState('Head Office Karachi');
+  const [fromDate, setFromDate] = useState<string>('');
+  const [toDate, setToDate] = useState<string>('');
+  const [status, setStatus] = useState<string>('All');
+  const [filterType, setFilterType] = useState<'byHead'|'range'|'specific'>('byHead');
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // Accounts
+  const [topLevelAccounts, setTopLevelAccounts] = useState<Account[]>([]);
+  const accountIndex = useMemo(() => flattenAccounts(topLevelAccounts), [topLevelAccounts]);
+
+  // Filter selections
+  const [headAccountId, setHeadAccountId] = useState<string>('');
+  const [rangeFromId, setRangeFromId] = useState<string>('');
+  const [rangeToId, setRangeToId] = useState<string>('');
+  const [specific1Id, setSpecific1Id] = useState<string>('');
+  const [specific2Id, setSpecific2Id] = useState<string>('');
+
+  // Grouped data
+  const [groups, setGroups] = useState<GroupedRows>([]);
+
+  // Load chart of accounts
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      setLoading(true);
+      try {
+        const [assetsRes, revenuesRes, liabilitiesRes, expensesRes, equitiesRes] = await Promise.all([
+          getAllAblAssests(1, 10000).catch(() => ({ data: [] })),
+          getAllAblRevenue(1, 10000).catch(() => ({ data: [] })),
+          getAllAblLiabilities(1, 10000).catch(() => ({ data: [] })),
+          getAllAblExpense(1, 10000).catch(() => ({ data: [] })),
+          getAllEquality(1, 10000).catch(() => ({ data: [] })),
+        ]);
+        const top: Account[] = [
+          { id: 'assets', listid: 'assets', description: 'Assets', parentAccountId: null, children: buildHierarchy(assetsRes.data || []) },
+          { id: 'revenues', listid: 'revenues', description: 'Revenues', parentAccountId: null, children: buildHierarchy(revenuesRes.data || []) },
+          { id: 'liabilities', listid: 'liabilities', description: 'Liabilities', parentAccountId: null, children: buildHierarchy(liabilitiesRes.data || []) },
+          { id: 'expenses', listid: 'expenses', description: 'Expenses', parentAccountId: null, children: buildHierarchy(expensesRes.data || []) },
+          { id: 'equities', listid: 'equities', description: 'Equities', parentAccountId: null, children: buildHierarchy(equitiesRes.data || []) },
+        ];
+        setTopLevelAccounts(top);
+      } catch (e) {
+        toast.error('Failed to load chart of accounts');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAccounts();
+  }, []);
+
+  // Fetch vouchers (paginate all) and filter
+  const runReport = async () => {
+    try {
+      setLoading(true);
+      const all: VoucherItem[] = [];
+      let pageIndex = 1;
+      let totalPages = 1;
+      do {
+        const res: any = await getAllEntryVoucher(pageIndex, 100, {});
+        const data: VoucherItem[] = res?.data || [];
+        all.push(...data);
+        totalPages = res?.misc?.totalPages || 1;
+        pageIndex += 1;
+      } while (pageIndex <= totalPages);
+
+      // Filter by date
+      const from = fromDate ? new Date(fromDate) : null;
+      const to = toDate ? new Date(toDate) : null;
+      const withinDate = (d?: string) => {
+        if (!d) return true;
+        const dt = new Date(d);
+        if (isNaN(dt.getTime())) return true;
+        if (from && dt < from) return false;
+        if (to) {
+          const tt = new Date(to);
+          tt.setHours(23, 59, 59, 999);
+          if (dt > tt) return false;
+        }
+        return true;
+      };
+      const matchesStatus = (s?: string) => {
+        if (!status || status === 'All') return true;
+        return (s || '').toLowerCase() === status.toLowerCase();
+      };
+
+      // Determine selected account IDs based on mode
+      let selectedAccountIds: string[] = [];
+      if (filterType === 'byHead') {
+        const node = findAccountById(headAccountId, topLevelAccounts);
+        const set = collectDescendantIds(node);
+        selectedAccountIds = Array.from(set);
+      } else if (filterType === 'range') {
+        if (rangeFromId && rangeToId) {
+          const fromListId = accountIndex[rangeFromId]?.listid || rangeFromId;
+          const toListId = accountIndex[rangeToId]?.listid || rangeToId;
+          const minCode = fromListId < toListId ? fromListId : toListId;
+          const maxCode = fromListId < toListId ? toListId : fromListId;
+          selectedAccountIds = Object.keys(accountIndex).filter((id) => {
+            const code = accountIndex[id]?.listid || id;
+            return code >= minCode && code <= maxCode;
+          });
+        } else if (rangeFromId || rangeToId) {
+          // If only one side is selected, treat it as a single-account filter
+          const onlyId = rangeFromId || rangeToId;
+          selectedAccountIds = onlyId ? [onlyId] : [];
+        } else {
+          // Neither side selected: no account restriction
+          selectedAccountIds = [];
+        }
+      } else if (filterType === 'specific') {
+        selectedAccountIds = Array.from(new Set([specific1Id, specific2Id].filter(Boolean)));
+      }
+
+      // Build normalized key set (id, listid, description) for robust matching
+      const normalize = (s?: string) => (s ?? '').trim().toLowerCase();
+      const selectedKeys = new Set<string>();
+      selectedAccountIds.forEach((id) => {
+        if (!id) return;
+        selectedKeys.add(normalize(id));
+        const info = accountIndex[id];
+        if (info) {
+          if (info.listid) selectedKeys.add(normalize(info.listid));
+          if (info.description) selectedKeys.add(normalize(info.description));
+        }
+      });
+
+      const filteredVouchers: VoucherItem[] = all.filter((v) => withinDate(v.voucherDate) && matchesStatus(v.status));
+
+      const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number; credit2: number; debit2: number; pb2: number } }> = {};
+
+      const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow) => {
+        const accInfo = accountIndex[accountId] || { description: accountId, listid: accountId } as any;
+        const key = accountId;
+        if (!groupMap[key]) {
+          groupMap[key] = {
+            accountId,
+            description: accInfo.description,
+            listid: accInfo.listid,
+            rows: [],
+            totals: { credit1: 0, debit1: 0, pb1: 0, credit2: 0, debit2: 0, pb2: 0 },
+          };
+        }
+        const cr1 = Number(r.credit1 ?? 0);
+        const dr1 = Number(r.debit1 ?? 0);
+        const cr2 = Number(r.credit2 ?? 0);
+        const dr2 = Number(r.debit2 ?? 0);
+        const pb1n = Number(r.projectedBalance1 ?? 0);
+        const pb2n = Number(r.projectedBalance2 ?? 0);
+        // accumulate totals
+        groupMap[key].totals.credit1 += cr1 > 0 ? cr1 : 0;
+        groupMap[key].totals.debit1 += dr1 > 0 ? dr1 : 0;
+        groupMap[key].totals.pb1 += pb1n;
+        groupMap[key].totals.credit2 += cr2 > 0 ? cr2 : 0;
+        groupMap[key].totals.debit2 += dr2 > 0 ? dr2 : 0;
+        groupMap[key].totals.pb2 += pb2n;
+
+        groupMap[key].rows.push({
+          voucherDate: v.voucherDate || '-',
+          voucherNo: v.voucherNo || '-',
+          narration: v.narration || v.description || r.narration || '-',
+          credit1: cr1 > 0 ? cr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          debit1: dr1 > 0 ? dr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          pb1: pb1n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          credit2: cr2 > 0 ? cr2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          debit2: dr2 > 0 ? dr2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          pb2: pb2n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        });
+      };
+
+      filteredVouchers.forEach((v) => {
+        (v.voucherDetails || []).forEach((r) => {
+          const inSel1 = selectedKeys.size === 0 || selectedKeys.has((r.account1 ?? '').trim().toLowerCase());
+          const inSel2 = selectedKeys.size === 0 || selectedKeys.has((r.account2 ?? '').trim().toLowerCase());
+          if (inSel1) pushRow(r.account1, v, r);
+          if (inSel2) pushRow(r.account2, v, r);
+        });
+      });
+
+      const grouped: GroupedRows = Object.values(groupMap)
+        .filter((g) => g.rows.length > 0)
+        .sort((a, b) => (a.listid || a.description).localeCompare(b.listid || b.description));
+
+      setGroups(grouped);
+      if (grouped.length === 0) toast.info('No vouchers matched filters');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to load vouchers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const titleLine = useMemo(() => {
+    const f = fromDate ? new Date(fromDate).toLocaleDateString('en-GB').split('/').join('-') : '-';
+    const t = toDate ? new Date(toDate).toLocaleDateString('en-GB').split('/').join('-') : '-';
+    return `General Ledger From ${f} To ${t}`;
+  }, [fromDate, toDate]);
+
+  // Reset all filters to default values
+  const clearFilters = () => {
+    setBranch('Head Office Karachi');
+    setFromDate('');
+    setToDate('');
+    setStatus('All');
+    setFilterType('byHead');
+    setHeadAccountId('');
+    setRangeFromId('');
+    setRangeToId('');
+    setSpecific1Id('');
+    setSpecific2Id('');
+    setGroups([]);
+  };
+
+  return (
+
+    <MainLayout activeInterface='ABL'> 
+    <div className="p-3 md:p-5">
+      {/* Header */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border-2 border-emerald-200 dark:border-emerald-900 mb-4 overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+          <h1 className="text-lg font-semibold">Account Ledger Report</h1>
+          <p className="text-xs text-gray-500">{COMPANY_NAME}</p>
+        </div>
+        {/* Top controls: search and quick actions */}
+        <div className="p-4 flex flex-col gap-3">
+          <div className="flex flex-col md:flex-row md:items-end gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+              <div>
+                <label className="block text-xs text-gray-600">Branch</label>
+                <input
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                  placeholder="Branch name"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600">From Date</label>
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600">To Date</label>
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600">Status</label>
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white">
+                  <option>All</option>
+                  <option>Active</option>
+                  <option>Inactive</option>
+                  <option>Created</option>
+                  <option>Approved</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button onClick={clearFilters} className="bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-3 py-2 rounded-md">Clear</Button>
+              <Button onClick={runReport} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md flex items-center gap-2">
+                <FiSearch />
+                Run Report
+              </Button>
+            </div>
+          </div>
+
+          {/* Advanced filter panel */}
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-900/40">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs text-gray-600">Account Filter Type</label>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value as any)}
+                  className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="byHead">By Head (include all sub-accounts)</option>
+                  <option value="range">From Account To Account (range by code)</option>
+                  <option value="specific">From Which Account and Which Account (specific two)</option>
+                </select>
+              </div>
+
+              {/* Account selectors */}
+              {filterType === 'byHead' && (
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">Select Head Account</label>
+                  <HierarchicalDropdown
+                    accounts={topLevelAccounts}
+                    name="Head Account"
+                    onSelect={(id) => setHeadAccountId(id)}
+                  />
+                </div>
+              )}
+
+              {filterType === 'range' && (
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">From Account</label>
+                    <HierarchicalDropdown
+                      accounts={topLevelAccounts}
+                      name="From Account"
+                      onSelect={(id) => setRangeFromId(id)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">To Account</label>
+                    <HierarchicalDropdown
+                      accounts={topLevelAccounts}
+                      name="To Account"
+                      onSelect={(id) => setRangeToId(id)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {filterType === 'specific' && (
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Account 1</label>
+                    <HierarchicalDropdown
+                      accounts={topLevelAccounts}
+                      name="Account 1"
+                      onSelect={(id) => setSpecific1Id(id)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Account 2</label>
+                    <HierarchicalDropdown
+                      accounts={topLevelAccounts}
+                      name="Account 2"
+                      onSelect={(id) => setSpecific2Id(id)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-700 mt-3">
+              <div className="text-xs text-gray-500">Tip: Use search inside account pickers to quickly find accounts.</div>
+              <div className="flex gap-2">
+                <Button onClick={() => exportGroupedToPDF(titleLine, branch, groups)} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md">Export PDF</Button>
+                <Button onClick={() => exportGroupedToExcel(titleLine, branch, groups)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-md">Export Excel</Button>
+                <Button onClick={() => exportGroupedToWord(titleLine, branch, groups)} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-md">Export Word</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grouped Tables */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700">
+        <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-base font-semibold">{COMPANY_NAME}</h2>
+          <div className="text-xs text-gray-600">{titleLine}</div>
+        </div>
+        {loading ? (
+          <div className="px-4 py-6 text-center">Loading...</div>
+        ) : groups.length === 0 ? (
+          <div className="px-4 py-6 text-center text-gray-500">No data</div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            {groups.map((g) => (
+              <div key={g.accountId} className="p-4">
+                <div className="text-sm font-semibold mb-2">{g.description} <span className="font-normal text-gray-500">({g.listid})</span></div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-100 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Voucher Date</th>
+                        <th className="px-3 py-2 text-left">Voucher No</th>
+                        <th className="px-3 py-2 text-left">Narration</th>
+                        <th className="px-3 py-2 text-right">Credit 1</th>
+                        <th className="px-3 py-2 text-right">Debit 1</th>
+                        <th className="px-3 py-2 text-right">Proj Balance 1</th>
+                        <th className="px-3 py-2 text-right">Credit 2</th>
+                        <th className="px-3 py-2 text-right">Debit 2</th>
+                        <th className="px-3 py-2 text-right">Proj Balance 2</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {g.rows.map((r: any, idx: number) => (
+                        <tr key={idx} className={idx % 2 === 0 ? '' : 'bg-gray-50 dark:bg-gray-700/40'}>
+                          <td className="px-3 py-2">{r.voucherDate}</td>
+                          <td className="px-3 py-2">{r.voucherNo}</td>
+                          <td className="px-3 py-2">{r.narration}</td>
+                          <td className="px-3 py-2 text-right">{r.credit1}</td>
+                          <td className="px-3 py-2 text-right">{r.debit1}</td>
+                          <td className="px-3 py-2 text-right">{r.pb1}</td>
+                          <td className="px-3 py-2 text-right">{r.credit2}</td>
+                          <td className="px-3 py-2 text-right">{r.debit2}</td>
+                          <td className="px-3 py-2 text-right">{r.pb2}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-white  dark:bg-gray-700 font-semibold">
+                        <td className="px-3 py-2 text-right" colSpan={3}>TOTAL</td>
+                        <td className="px-3 py-2 text-right">{(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right">{(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right">{(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right">{(g.totals.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right">{(g.totals.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        <td className="px-3 py-2 text-right">{(g.totals.pb2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                <div className="text-xs text-gray-500 mt-2 flex items-center gap-2">
+                  <FiFileText />
+                  Rows: {g.rows.length}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+     </MainLayout>
+  );
+};
+
+export default LedgerPage;
