@@ -66,33 +66,9 @@ export const columns = (handleDeleteOpen: (id: string) => void, handlePdf: (id: 
     header: 'Status',
     accessorKey: 'status',
     cell: ({ row }: { row: Row<Voucher> }) => (
-      <div className="flex items-center gap-2">
-        <span className={`px-2 py-1 rounded-full ${getStatusStyles(row.original.status || 'Draft')}`}>
-          {row.original.status || 'Draft'}
-        </span>
-        <select
-          className="border border-gray-300 rounded p-1 text-xs"
-          defaultValue={row.original.status || 'Prepared'}
-          onClick={(e) => e.stopPropagation()}
-          onChange={async (e) => {
-            const newStatus = e.target.value;
-            try {
-              const { updateEntryVoucherStatus } = await import('@/apis/entryvoucher');
-              await updateEntryVoucherStatus({ id: row.original.id, status: newStatus });
-              // Optimistically update cell UI
-              row.original.status = newStatus as any;
-              (e.target as HTMLSelectElement).blur();
-            } catch (err) {
-              console.error(err);
-              alert('Failed to update status');
-            }
-          }}
-        >
-          {['Prepared', 'Checked', 'Approved', 'UnApproved'].map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-      </div>
+      <span className={`px-2 py-1 rounded-full ${getStatusStyles(row.original.status || 'Draft')}`}>
+        {row.original.status || 'Draft'}
+      </span>
     ),
   },
   {

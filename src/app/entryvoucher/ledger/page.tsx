@@ -33,10 +33,15 @@ interface VoucherItem {
   voucherNo?: string;
   voucherDate?: string; // YYYY-MM-DD
   referenceNo?: string;
+  chequeNo?: string;
+  depositSlipNo?: string;
   paymentMode?: string;
-  status?: string;
+  bankName?: string;
+  chequeDate?: string;
+  paidTo?: string;
   narration?: string;
   description?: string;
+  status?: string;
   voucherDetails?: VoucherDetailRow[];
 }
 
@@ -155,7 +160,6 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
     const newPath = selectionPath.slice(0, level);
     newPath.push(id);
     setSelectionPath(newPath);
-    // If leaf
     let current = accounts;
     let selected: Account | null = null;
     for (const sel of newPath) {
@@ -284,9 +288,6 @@ type GroupedRows = Array<{
     credit1: number;
     debit1: number;
     pb1: number;
-    credit2: number;
-    debit2: number;
-    pb2: number;
   };
 }>;
 
@@ -317,48 +318,42 @@ function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRo
       head: [[
         'Voucher Date',
         'Voucher No',
+        'Cheque No',
+        'Deposit Slip No',
         'Narration',
         'Credit 1',
         'Debit 1',
         'Proj Bal 1',
-        'Credit 2',
-        'Debit 2',
-        'Proj Bal 2',
       ]],
       body: g.rows.map((r) => [
         r.voucherDate,
         r.voucherNo,
+        r.chequeNo || '-',
+        r.depositSlipNo || '-',
         r.narration || '-',
         r.credit1,
         r.debit1,
         r.pb1,
-        r.credit2,
-        r.debit2,
-        r.pb2,
       ]),
       foot: [[
-        { content: 'TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
         (g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         (g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         (g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        (g.totals.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        (g.totals.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        (g.totals.pb2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       ]],
       footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', textColor: [0, 0, 0] },
       styles: { fontSize: 8 },
       theme: 'grid',
       margin: { left: 8, right: 8 },
       columnStyles: {
-        0: { cellWidth: 22 },
-        1: { cellWidth: 24 },
-        2: { cellWidth: 48 },
-        3: { halign: 'right' },
-        4: { halign: 'right' },
-        5: { halign: 'right' },
-        6: { halign: 'right' },
-        7: { halign: 'right' },
-        8: { halign: 'right' },
+        0: { cellWidth: 22 }, // Voucher Date
+        1: { cellWidth: 24 }, // Voucher No
+        2: { cellWidth: 24 }, // Cheque No
+        3: { cellWidth: 24 }, // Deposit Slip No
+        4: { cellWidth: 48 }, // Narration
+        5: { halign: 'right' }, // Credit 1
+        6: { halign: 'right' }, // Debit 1
+        7: { halign: 'right' }, // Proj Bal 1
       },
     });
 
@@ -380,7 +375,7 @@ function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRo
     }
   });
 
-  const fname = `General-Ledger-${new Date().toISOString().slice(0,10)}.pdf`;
+  const fname = `General-Ledger-${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(fname);
 }
 
@@ -393,47 +388,44 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
     wsData.push([titleLine]);
     wsData.push([`${g.description} (${g.listid})`]);
     wsData.push([]);
-    wsData.push(['Voucher Date','Voucher No','Narration','Credit 1','Debit 1','Proj Bal 1','Credit 2','Debit 2','Proj Bal 2']);
+    wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Credit 1', 'Debit 1', 'Proj Bal 1']);
     g.rows.forEach((r) => {
-      wsData.push([r.voucherDate, r.voucherNo, r.narration || '-', r.credit1, r.debit1, r.pb1, r.credit2, r.debit2, r.pb2]);
+      wsData.push([r.voucherDate, r.voucherNo, r.chequeNo || '-', r.depositSlipNo || '-', r.narration || '-', r.credit1, r.debit1, r.pb1]);
     });
     wsData.push([
-      'TOTAL', '', '',
+      'TOTAL', '', '', '', '',
       (g.totals.credit1 || 0),
       (g.totals.debit1 || 0),
       (g.totals.pb1 || 0),
-      (g.totals.credit2 || 0),
-      (g.totals.debit2 || 0),
-      (g.totals.pb2 || 0),
     ]);
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     (ws as any)['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
-      { s: { r: 2, c: 0 }, e: { r: 2, c: 8 } },
-      { s: { r: 3, c: 0 }, e: { r: 3, c: 8 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } },
     ];
     XLSX.utils.book_append_sheet(wb, ws, (g.description || g.listid).slice(0, 25));
   });
-  const fname = `General-Ledger-${new Date().toISOString().slice(0,10)}.xlsx`;
+  const fname = `General-Ledger-${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fname);
 }
 
 function exportGroupedToWord(titleLine: string, branch: string, groups: GroupedRows) {
-  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #777;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3){text-align:left}`;
-  const header = `<h2 style=\"text-align:center;margin:4px 0\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div><h3 style=\"text-align:center;margin:6px 0\">${titleLine}</h3>`;
-  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Narration</th><th>Credit 1</th><th>Debit 1</th><th>Proj Bal 1</th><th>Credit 2</th><th>Debit 2</th><th>Proj Bal 2</th></tr>`;
-  const sections = groups.map(g => {
-    const rows = g.rows.map(r => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.narration || '-'}</td><td>${r.credit1}</td><td>${r.debit1}</td><td>${r.pb1}</td><td>${r.credit2}</td><td>${r.debit2}</td><td>${r.pb2}</td></tr>`).join('');
-    const totalsRow = `<tr><td colspan=\"3\" style=\"text-align:right;font-weight:bold\">TOTAL</td><td>${(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
-    return `<h4 style=\"margin:10px 0 4px\">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
+  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #777;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
+  const header = `<h2 style="text-align:center;margin:4px 0">${COMPANY_NAME}</h2><div style="text-align:center">Branch: ${branch}</div><h3 style="text-align:center;margin:6px 0">${titleLine}</h3>`;
+  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Deposit Slip No</th><th>Narration</th><th>Credit 1</th><th>Debit 1</th><th>Proj Bal 1</th></tr>`;
+  const sections = groups.map((g) => {
+    const rows = g.rows.map((r) => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.credit1}</td><td>${r.debit1}</td><td>${r.pb1}</td></tr>`).join('');
+    const totalsRow = `<tr><td colspan="5" style="text-align:right;font-weight:bold">TOTAL</td><td>${(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    return `<h4 style="margin:10px 0 4px">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
   }).join('<br/>');
-  const html = `<!DOCTYPE html><html><head><meta charset=\"utf-8\" /><style>${css}</style></head><body>${header}<hr/>${sections}</body></html>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr/>${sections}</body></html>`;
   const blob = new Blob([html], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `General-Ledger-${new Date().toISOString().slice(0,10)}.doc`;
+  a.download = `General-Ledger-${new Date().toISOString().slice(0, 10)}.doc`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -447,7 +439,7 @@ const LedgerPage: React.FC = () => {
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
   const [status, setStatus] = useState<string>('All');
-  const [filterType, setFilterType] = useState<'byHead'|'range'|'specific'>('byHead');
+  const [filterType, setFilterType] = useState<'byHead' | 'range' | 'specific'>('byHead');
   const [loading, setLoading] = useState<boolean>(false);
 
   // Accounts
@@ -545,11 +537,9 @@ const LedgerPage: React.FC = () => {
             return code >= minCode && code <= maxCode;
           });
         } else if (rangeFromId || rangeToId) {
-          // If only one side is selected, treat it as a single-account filter
           const onlyId = rangeFromId || rangeToId;
           selectedAccountIds = onlyId ? [onlyId] : [];
         } else {
-          // Neither side selected: no account restriction
           selectedAccountIds = [];
         }
       } else if (filterType === 'specific') {
@@ -571,7 +561,7 @@ const LedgerPage: React.FC = () => {
 
       const filteredVouchers: VoucherItem[] = all.filter((v) => withinDate(v.voucherDate) && matchesStatus(v.status));
 
-      const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number; credit2: number; debit2: number; pb2: number } }> = {};
+      const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number } }> = {};
 
       const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow) => {
         const accInfo = accountIndex[accountId] || { description: accountId, listid: accountId } as any;
@@ -582,33 +572,26 @@ const LedgerPage: React.FC = () => {
             description: accInfo.description,
             listid: accInfo.listid,
             rows: [],
-            totals: { credit1: 0, debit1: 0, pb1: 0, credit2: 0, debit2: 0, pb2: 0 },
+            totals: { credit1: 0, debit1: 0, pb1: 0 },
           };
         }
         const cr1 = Number(r.credit1 ?? 0);
         const dr1 = Number(r.debit1 ?? 0);
-        const cr2 = Number(r.credit2 ?? 0);
-        const dr2 = Number(r.debit2 ?? 0);
         const pb1n = Number(r.projectedBalance1 ?? 0);
-        const pb2n = Number(r.projectedBalance2 ?? 0);
-        // accumulate totals
+
         groupMap[key].totals.credit1 += cr1 > 0 ? cr1 : 0;
         groupMap[key].totals.debit1 += dr1 > 0 ? dr1 : 0;
         groupMap[key].totals.pb1 += pb1n;
-        groupMap[key].totals.credit2 += cr2 > 0 ? cr2 : 0;
-        groupMap[key].totals.debit2 += dr2 > 0 ? dr2 : 0;
-        groupMap[key].totals.pb2 += pb2n;
 
         groupMap[key].rows.push({
           voucherDate: v.voucherDate || '-',
           voucherNo: v.voucherNo || '-',
+          chequeNo: v.chequeNo || '-',
+          depositSlipNo: v.depositSlipNo || '-',
           narration: v.narration || v.description || r.narration || '-',
           credit1: cr1 > 0 ? cr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           debit1: dr1 > 0 ? dr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           pb1: pb1n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-          credit2: cr2 > 0 ? cr2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          debit2: dr2 > 0 ? dr2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          pb2: pb2n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         });
       };
 
@@ -657,208 +640,249 @@ const LedgerPage: React.FC = () => {
   };
 
   return (
-
-    <MainLayout activeInterface='ABL'> 
-    <div className="p-3 md:p-5">
-      {/* Header */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border-2 border-emerald-200 dark:border-emerald-900 mb-4 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h1 className="text-lg font-semibold">Account Ledger Report</h1>
-          <p className="text-xs text-gray-500">{COMPANY_NAME}</p>
-        </div>
-        {/* Top controls: search and quick actions */}
-        <div className="p-4 flex flex-col gap-3">
-          <div className="flex flex-col md:flex-row md:items-end gap-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
-              <div>
-                <label className="block text-xs text-gray-600">Branch</label>
-                <input
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
-                  placeholder="Branch name"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600">From Date</label>
-                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600">To Date</label>
-                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600">Status</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value)} className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white">
-                  <option>All</option>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                  <option>Created</option>
-                  <option>Approved</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button onClick={clearFilters} className="bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-3 py-2 rounded-md">Clear</Button>
-              <Button onClick={runReport} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md flex items-center gap-2">
-                <FiSearch />
-                Run Report
-              </Button>
-            </div>
+    <MainLayout activeInterface="ABL">
+      <div className="p-3 md:p-5">
+        {/* Header */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border-2 border-emerald-200 dark:border-emerald-900 mb-4 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+            <h1 className="text-lg font-semibold">Account Ledger Report</h1>
+            <p className="text-xs text-gray-500">{COMPANY_NAME}</p>
           </div>
-
-          {/* Advanced filter panel */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-900/40">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs text-gray-600">Account Filter Type</label>
-                <select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value as any)}
-                  className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="byHead">By Head (include all sub-accounts)</option>
-                  <option value="range">From Account To Account (range by code)</option>
-                  <option value="specific">From Which Account and Which Account (specific two)</option>
-                </select>
-              </div>
-
-              {/* Account selectors */}
-              {filterType === 'byHead' && (
-                <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">Select Head Account</label>
-                  <HierarchicalDropdown
-                    accounts={topLevelAccounts}
-                    name="Head Account"
-                    onSelect={(id) => setHeadAccountId(id)}
+          {/* Top controls: search and quick actions */}
+          <div className="p-4 flex flex-col gap-3">
+            <div className="flex flex-col md:flex-row md:items-end gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+                <div>
+                  <label className="block text-xs text-gray-600">Branch</label>
+                  <input
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                    placeholder="Branch name"
                   />
                 </div>
-              )}
-
-              {filterType === 'range' && (
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">From Account</label>
-                    <HierarchicalDropdown
-                      accounts={topLevelAccounts}
-                      name="From Account"
-                      onSelect={(id) => setRangeFromId(id)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">To Account</label>
-                    <HierarchicalDropdown
-                      accounts={topLevelAccounts}
-                      name="To Account"
-                      onSelect={(id) => setRangeToId(id)}
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs text-gray-600">From Date</label>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                  />
                 </div>
-              )}
-
-              {filterType === 'specific' && (
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Account 1</label>
-                    <HierarchicalDropdown
-                      accounts={topLevelAccounts}
-                      name="Account 1"
-                      onSelect={(id) => setSpecific1Id(id)}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Account 2</label>
-                    <HierarchicalDropdown
-                      accounts={topLevelAccounts}
-                      name="Account 2"
-                      onSelect={(id) => setSpecific2Id(id)}
-                    />
-                  </div>
+                <div>
+                  <label className="block text-xs text-gray-600">To Date</label>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                  />
                 </div>
-              )}
+                <div>
+                  <label className="block text-xs text-gray-600">Status</label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                  >
+                    <option>All</option>
+                    <option>Active</option>
+                    <option>Inactive</option>
+                    <option>Created</option>
+                    <option>Approved</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={clearFilters}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 px-3 py-2 rounded-md"
+                >
+                  Clear
+                </Button>
+                <Button
+                  onClick={runReport}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
+                >
+                  <FiSearch />
+                  Run Report
+                </Button>
+              </div>
             </div>
 
-            <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-700 mt-3">
-              <div className="text-xs text-gray-500">Tip: Use search inside account pickers to quickly find accounts.</div>
-              <div className="flex gap-2">
-                <Button onClick={() => exportGroupedToPDF(titleLine, branch, groups)} className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md">Export PDF</Button>
-                <Button onClick={() => exportGroupedToExcel(titleLine, branch, groups)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-md">Export Excel</Button>
-                <Button onClick={() => exportGroupedToWord(titleLine, branch, groups)} className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-md">Export Word</Button>
+            {/* Advanced filter panel */}
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-900/40">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-600">Account Filter Type</label>
+                  <select
+                    value={filterType}
+                    onChange={(e) => setFilterType(e.target.value as any)}
+                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="byHead">By Head (include all sub-accounts)</option>
+                    <option value="range">From Account To Account (range by code)</option>
+                    <option value="specific">From Which Account and Which Account (specific two)</option>
+                  </select>
+                </div>
+
+                {/* Account selectors */}
+                {filterType === 'byHead' && (
+                  <div className="md:col-span-2">
+                    <label className="block text-xs text-gray-600 mb-1">Select Head Account</label>
+                    <HierarchicalDropdown
+                      accounts={topLevelAccounts}
+                      name="Head Account"
+                      onSelect={(id) => setHeadAccountId(id)}
+                    />
+                  </div>
+                )}
+
+                {filterType === 'range' && (
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">From Account</label>
+                      <HierarchicalDropdown
+                        accounts={topLevelAccounts}
+                        name="From Account"
+                        onSelect={(id) => setRangeFromId(id)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">To Account</label>
+                      <HierarchicalDropdown
+                        accounts={topLevelAccounts}
+                        name="To Account"
+                        onSelect={(id) => setRangeToId(id)}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {filterType === 'specific' && (
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Account 1</label>
+                      <HierarchicalDropdown
+                        accounts={topLevelAccounts}
+                        name="Account 1"
+                        onSelect={(id) => setSpecific1Id(id)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Account 2</label>
+                      <HierarchicalDropdown
+                        accounts={topLevelAccounts}
+                        name="Account 2"
+                        onSelect={(id) => setSpecific2Id(id)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-700 mt-3">
+                <div className="text-xs text-gray-500">Tip: Use search inside account pickers to quickly find accounts.</div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => exportGroupedToPDF(titleLine, branch, groups)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md"
+                  >
+                    Export PDF
+                  </Button>
+                  <Button
+                    onClick={() => exportGroupedToExcel(titleLine, branch, groups)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-md"
+                  >
+                    Export Excel
+                  </Button>
+                  <Button
+                    onClick={() => exportGroupedToWord(titleLine, branch, groups)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-md"
+                  >
+                    Export Word
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Grouped Tables */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700">
-        <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-base font-semibold">{COMPANY_NAME}</h2>
-          <div className="text-xs text-gray-600">{titleLine}</div>
-        </div>
-        {loading ? (
-          <div className="px-4 py-6 text-center">Loading...</div>
-        ) : groups.length === 0 ? (
-          <div className="px-4 py-6 text-center text-gray-500">No data</div>
-        ) : (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {groups.map((g) => (
-              <div key={g.accountId} className="p-4">
-                <div className="text-sm font-semibold mb-2">{g.description} <span className="font-normal text-gray-500">({g.listid})</span></div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-gray-100 dark:bg-gray-700">
-                      <tr>
-                        <th className="px-3 py-2 text-left">Voucher Date</th>
-                        <th className="px-3 py-2 text-left">Voucher No</th>
-                        <th className="px-3 py-2 text-left">Narration</th>
-                        <th className="px-3 py-2 text-right">Credit 1</th>
-                        <th className="px-3 py-2 text-right">Debit 1</th>
-                        <th className="px-3 py-2 text-right">Proj Balance 1</th>
-                        <th className="px-3 py-2 text-right">Credit 2</th>
-                        <th className="px-3 py-2 text-right">Debit 2</th>
-                        <th className="px-3 py-2 text-right">Proj Balance 2</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {g.rows.map((r: any, idx: number) => (
-                        <tr key={idx} className={idx % 2 === 0 ? '' : 'bg-gray-50 dark:bg-gray-700/40'}>
-                          <td className="px-3 py-2">{r.voucherDate}</td>
-                          <td className="px-3 py-2">{r.voucherNo}</td>
-                          <td className="px-3 py-2">{r.narration}</td>
-                          <td className="px-3 py-2 text-right">{r.credit1}</td>
-                          <td className="px-3 py-2 text-right">{r.debit1}</td>
-                          <td className="px-3 py-2 text-right">{r.pb1}</td>
-                          <td className="px-3 py-2 text-right">{r.credit2}</td>
-                          <td className="px-3 py-2 text-right">{r.debit2}</td>
-                          <td className="px-3 py-2 text-right">{r.pb2}</td>
+        {/* Grouped Tables */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700">
+          <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-base font-semibold">{COMPANY_NAME}</h2>
+            <div className="text-xs text-gray-600">{titleLine}</div>
+          </div>
+          {loading ? (
+            <div className="px-4 py-6 text-center">Loading...</div>
+          ) : groups.length === 0 ? (
+            <div className="px-4 py-6 text-center text-gray-500">No data</div>
+          ) : (
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {groups.map((g) => (
+                <div key={g.accountId} className="p-4">
+                  <div className="text-sm font-semibold mb-2">
+                    {g.description} <span className="font-normal text-gray-500">({g.listid})</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-gray-100 dark:bg-gray-700">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Voucher Date</th>
+                          <th className="px-3 py-2 text-left">Voucher No</th>
+                          <th className="px-3 py-2 text-left">Cheque No</th>
+                          <th className="px-3 py-2 text-left">Deposit Slip No</th>
+                          <th className="px-3 py-2 text-left">Narration</th>
+                          <th className="px-3 py-2 text-right">Credit 1</th>
+                          <th className="px-3 py-2 text-right">Debit 1</th>
+                          <th className="px-3 py-2 text-right">Proj Balance 1</th>
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-white  dark:bg-gray-700 font-semibold">
-                        <td className="px-3 py-2 text-right" colSpan={3}>TOTAL</td>
-                        <td className="px-3 py-2 text-right">{(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right">{(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right">{(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right">{(g.totals.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right">{(g.totals.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-2 text-right">{(g.totals.pb2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {g.rows.map((r: any, idx: number) => (
+                          <tr key={idx} className={idx % 2 === 0 ? '' : 'bg-gray-50 dark:bg-gray-700/40'}>
+                            <td className="px-3 py-2">{r.voucherDate}</td>
+                            <td className="px-3 py-2">{r.voucherNo}</td>
+                            <td className="px-3 py-2">{r.chequeNo}</td>
+                            <td className="px-3 py-2">{r.depositSlipNo}</td>
+                            <td className="px-3 py-2">{r.narration}</td>
+                            <td className="px-3 py-2 text-right">{r.credit1}</td>
+                            <td className="px-3 py-2 text-right">{r.debit1}</td>
+                            <td className="px-3 py-2 text-right">{r.pb1}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-white dark:bg-gray-700 font-semibold">
+                          <td className="px-3 py-2 text-right" colSpan={5}>
+                            TOTAL
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2 flex items-center gap-2">
+                    <FiFileText />
+                    Rows: {g.rows.length}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500 mt-2 flex items-center gap-2">
-                  <FiFileText />
-                  Rows: {g.rows.length}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-     </MainLayout>
+    </MainLayout>
   );
 };
 

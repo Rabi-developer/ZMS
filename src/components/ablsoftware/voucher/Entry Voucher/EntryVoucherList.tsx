@@ -7,7 +7,7 @@ import { MdReceipt, MdClose } from 'react-icons/md';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllEntryVoucher, deleteEntryVoucher, getSingleEntryVoucher, updateEntryVoucherStatus } from '@/apis/entryvoucher';
+import { getAllEntryVoucher, deleteEntryVoucher, updateEntryVoucher, getSingleEntryVoucher } from '@/apis/entryvoucher';
 import { columns, Voucher } from './columns';
 import EntryVoucherPDFExport from './EntryVoucherPDFExport';
 import { getAllAblAssests } from '@/apis/ablAssests';
@@ -36,12 +36,11 @@ const EntryVoucherList = () => {
   const [selectedVoucher, setSelectedVoucher] = useState<any | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
-  const statusOptions = ['All', 'Prepared', 'Checked', 'Approved', 'UnApproved'];
+  const statusOptions = ['All', 'Prepared', 'Checked', 'Approved'];
   const statusOptionsConfig = [
     { id: 1, name: 'Prepared', color: '#22c55e' },
     { id: 2, name: 'Checked', color: '#eab308' },
     { id: 3, name: 'Approved', color: '#ef4444' },
-    { id: 4, name: 'UnApproved', color: '#64748b' }, // slate-500
   ];
 
   const displayAccount = (value: string) => {
@@ -164,7 +163,7 @@ const EntryVoucherList = () => {
     try {
       setUpdating(true);
       const updatePromises = selectedVoucherIds.map((id) =>
-        updateEntryVoucherStatus({ id, status: newStatus })
+        updateEntryVoucher({ id, status: newStatus })
       );
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
