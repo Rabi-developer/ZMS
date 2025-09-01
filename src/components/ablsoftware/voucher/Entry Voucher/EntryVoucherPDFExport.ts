@@ -331,7 +331,7 @@ const EntryVoucherPDFExport = {
     const narrationText = (formatString(voucher.narration || voucher.description) || '-') + ` (Date ${printDateStr} at ${printTimeStr})`;
     doc.setFont('helvetica', 'normal');
     const narrationLines = doc.splitTextToSize(narrationText, 178);
-    doc.text(narrationLines, 12, yPos + 6);
+    doc.text(narrationLines, 50, yPos);
     yPos += 6 + narrationLines.length * 6 + 6;
 
     // Signatures
@@ -371,7 +371,7 @@ const EntryVoucherPDFExport = {
       doc.setTextColor(60, 60, 60);
       const name = signInfo[i].name;
       doc.text(name, x, signY + 11);
-      doc.text('Name:', startX, signY - 4);
+      // doc.text('Name:', startX, signY - 2);
 
       // Timestamp
       const whenDate = signInfo[i].at ? formatDateTime(signInfo[i].at as string) : '-';
