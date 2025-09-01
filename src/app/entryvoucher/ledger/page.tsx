@@ -321,9 +321,9 @@ function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRo
         'Cheque No',
         'Deposit Slip No',
         'Narration',
-        'Credit 1',
-        'Debit 1',
-        'Proj Bal 1',
+        'Credit ',
+        'Debit ',
+        'Net Balance',
       ]],
       body: g.rows.map((r) => [
         r.voucherDate,
@@ -835,9 +835,9 @@ const LedgerPage: React.FC = () => {
                           <th className="px-3 py-2 text-left">Cheque No</th>
                           <th className="px-3 py-2 text-left">Deposit Slip No</th>
                           <th className="px-3 py-2 text-left">Narration</th>
-                          <th className="px-3 py-2 text-right">Credit 1</th>
-                          <th className="px-3 py-2 text-right">Debit 1</th>
-                          <th className="px-3 py-2 text-right">Proj Balance 1</th>
+                          <th className="px-3 py-2 text-right">Credit </th>
+                          <th className="px-3 py-2 text-right">Debit </th>
+                          <th className="px-3 py-2 text-right">Net Balance</th>
                         </tr>
                       </thead>
                       <tbody>
