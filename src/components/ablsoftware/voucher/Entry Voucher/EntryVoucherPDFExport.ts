@@ -208,6 +208,8 @@ const EntryVoucherPDFExport = {
     let totalCredit1 = 0;
     let totalDebit2 = 0;
     let totalCredit2 = 0;
+    let totalPB1 = 0;
+    let totalPB2 = 0;
 
     const getAcc = (id?: string) => (id ? accountIndex[id] : undefined);
 
@@ -229,6 +231,8 @@ const EntryVoucherPDFExport = {
       totalCredit1 += Math.abs(c1);
       totalDebit2 += Math.abs(d2);
       totalCredit2 += Math.abs(c2);
+      totalPB1 += Math.abs(pb1);
+      totalPB2 += Math.abs(pb2);
 
       body.push([
         String(sno++),
@@ -260,12 +264,12 @@ const EntryVoucherPDFExport = {
         { content: 'TOTAL', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
         formatNumber(totalDebit1),
         formatNumber(totalCredit1),
-        formatNumber(0), // Placeholder for Current Bal 1
+        formatNumber(totalPB1),
         '',
         '',
         formatNumber(totalDebit2),
         formatNumber(totalCredit2),
-        formatNumber(0), // Placeholder for Current Bal 2
+        formatNumber(totalPB2),
       ]],
       styles: {
         font: 'helvetica',

@@ -76,15 +76,68 @@ const voucherSchema = z.object({
   narration: z.string().optional(),
   description: z.string().optional(),
   tableData: z.array(
-    z.object({
-      account1: z.string().min(1, 'Account is required'),
-      debit1: z.number().min(0, 'Debit must be non-negative').optional(),
-      credit1: z.number().min(0, 'Credit must be non-negative').optional(),
-      narration: z.string().optional(),
-      account2: z.string().min(1, 'Account is required'),
-      debit2: z.number().min(0, 'Debit must be non-negative').optional(),
-      credit2: z.number().min(0, 'Credit must be non-negative').optional(),
-    })
+    z
+      .object({
+        account1: z.string().min(1, 'Account is required'),
+        debit1: z.number().min(0, 'Debit must be non-negative').optional(),
+        credit1: z.number().min(0, 'Credit must be non-negative').optional(),
+        narration: z.string().optional(),
+        account2: z.string().min(1, 'Account is required'),
+        debit2: z.number().min(0, 'Debit must be non-negative').optional(),
+        credit2: z.number().min(0, 'Credit must be non-negative').optional(),
+      })
+      .superRefine((row, ctx) => {
+        const d1 = Number(row.debit1 ?? 0);
+        const c1 = Number(row.credit1 ?? 0);
+        const d2 = Number(row.debit2 ?? 0);
+        const c2 = Number(row.credit2 ?? 0);
+
+        // Only one of debit/credit should be > 0 per account column
+        if (d1 > 0 && c1 > 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Only one of Debit 1 or Credit 1 can be greater than zero',
+            path: ['debit1'],
+          });
+        }
+        if (d2 > 0 && c2 > 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Only one of Debit 2 or Credit 2 can be greater than zero',
+            path: ['debit2'],
+          });
+        }
+
+        // Enforce cross-equality between columns
+        if (d1 > 0 && c2 !== d1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Credit 2 must equal Debit 1',
+            path: ['credit2'],
+          });
+        }
+        if (c1 > 0 && d2 !== c1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Debit 2 must equal Credit 1',
+            path: ['debit2'],
+          });
+        }
+        if (d2 > 0 && c1 !== d2) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Credit 1 must equal Debit 2',
+            path: ['credit1'],
+          });
+        }
+        if (c2 > 0 && d1 !== c2) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Debit 1 must equal Credit 2',
+            path: ['debit1'],
+          });
+        }
+      })
   ),
 });
 
@@ -424,6 +477,30 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const tableData = watch('tableData');
   const paymentMode = watch('paymentMode');
 
+  // Auto-mirror debit/credit between Account 1 and Account 2 within each row
+  useEffect(() => {
+    if (!Array.isArray(tableData)) return;
+    tableData.forEach((row, idx) => {
+      const d1 = Number(row.debit1 ?? 0);
+      const c1 = Number(row.credit1 ?? 0);
+      const d2 = Number(row.debit2 ?? 0);
+      const c2 = Number(row.credit2 ?? 0);
+
+      if (d1 > 0 && c2 !== d1) {
+        setValue(`tableData.${idx}.credit2`, d1, { shouldValidate: true });
+      }
+      if (c1 > 0 && d2 !== c1) {
+        setValue(`tableData.${idx}.debit2`, c1, { shouldValidate: true });
+      }
+      if (d2 > 0 && c1 !== d2) {
+        setValue(`tableData.${idx}.credit1`, d2, { shouldValidate: true });
+      }
+      if (c2 > 0 && d1 !== c2) {
+        setValue(`tableData.${idx}.debit1`, c2, { shouldValidate: true });
+      }
+    });
+  }, [tableData, setValue]);
+
   const nets = useMemo(() => {
     const map = new Map<string, { net_debit: number; net_credit: number }>();
     tableData.forEach((row, idx) => {
@@ -681,24 +758,24 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         })),
       } as any;
 
-        if (isEdit) {
-            const id = window.location.pathname.split('/').pop();
-            if (!id) throw new Error('Missing voucher id for update');
-            const updatePayload = { ...payload, id } as any;
-            await updateEntryVoucher(updatePayload);
-            toast.success('Voucher updated successfully');
-        } else {
-            await createEntryVoucher(payload);
-            toast.success('Voucher created successfully');
-        }
-        router.push('/entryvoucher');
+      if (isEdit) {
+        const id = window.location.pathname.split('/').pop();
+        if (!id) throw new Error('Missing voucher id for update');
+        const updatePayload = { ...payload, id } as any;
+        await updateEntryVoucher(updatePayload);
+        toast.success('Voucher updated successfully');
+      } else {
+        await createEntryVoucher(payload);
+        toast.success('Voucher created successfully');
+      }
+      router.push('/entryvoucher');
     } catch (error: any) {
-        toast.error(error.message || 'An error occurred while saving the voucher');
-        console.error('Error saving voucher:', error);
+      toast.error(error.message || 'An error occurred while saving the voucher');
+      console.error('Error saving voucher:', error);
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
-};
+  };
 
   // Refresh accounts when a new account is saved
   useEffect(() => {
