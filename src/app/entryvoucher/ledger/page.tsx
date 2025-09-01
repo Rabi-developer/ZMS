@@ -328,9 +328,9 @@ function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRo
       body: g.rows.map((r) => [
         r.voucherDate,
         r.voucherNo,
-        r.chequeNo || '-',
-        r.depositSlipNo || '-',
-        r.narration || '-',
+        r.chequeNo || '',
+        r.depositSlipNo || '',
+        r.narration || '',
         r.credit1,
         r.debit1,
         r.pb1,
