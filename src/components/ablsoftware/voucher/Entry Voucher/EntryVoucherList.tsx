@@ -36,11 +36,11 @@ const EntryVoucherList = () => {
   const [selectedVoucher, setSelectedVoucher] = useState<any | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
-  const statusOptions = ['All', 'Posted', 'Draft', 'Cancelled'];
+  const statusOptions = ['All', 'Prepared', 'Checked', 'Approved'];
   const statusOptionsConfig = [
-    { id: 1, name: 'Posted', color: '#22c55e' },
-    { id: 2, name: 'Draft', color: '#eab308' },
-    { id: 3, name: 'Cancelled', color: '#ef4444' },
+    { id: 1, name: 'Prepared', color: '#22c55e' },
+    { id: 2, name: 'Checked', color: '#eab308' },
+    { id: 3, name: 'Approved', color: '#ef4444' },
   ];
 
   const displayAccount = (value: string) => {
@@ -68,8 +68,17 @@ const EntryVoucherList = () => {
     if (selectedStatusFilter !== 'All') {
       filtered = vouchers.filter((v) => v.status === selectedStatusFilter);
     }
+    if (startDate || endDate) {
+      filtered = filtered.filter((v) => {
+        const d = new Date(v.voucherDate);
+        if (isNaN(d.getTime())) return false;
+        const s = startDate ? new Date(startDate) : null;
+        const e = endDate ? new Date(endDate) : null;
+        return (!s || d >= s) && (!e || d <= e);
+      });
+    }
     setFilteredVouchers(filtered);
-  }, [vouchers, selectedStatusFilter]);
+  }, [vouchers, selectedStatusFilter, startDate, endDate]);
 
   useEffect(() => {
     const refresh = searchParams.get('refresh') === 'true';
@@ -178,7 +187,7 @@ const EntryVoucherList = () => {
         toast('Voucher not found', { type: 'error' });
         return;
       }
-      console.log('Voucher for PDF:', JSON.stringify(v, null, 2)); // Debug log
+      console.log('Voucher for PDF:', JSON.stringify(v, null, 2));
       EntryVoucherPDFExport.exportToPDF({
         voucher: {
           id: v.id,
@@ -193,7 +202,13 @@ const EntryVoucherList = () => {
           paidTo: v.paidTo,
           narration: v.narration,
           description: v.description,
-          tableData: v.voucherDetails || [], // Map voucherDetails to tableData
+          preparedByName: v.preparedByName || v.preparedBy || v.prepared_user_name || v.preparedUserName || v.preparedUser?.name || v.createdByName || v.createdBy,
+          preparedAt: v.preparedAt || v.preparedDate || v.preparedOn || v.prepared_time || v.createdAt,
+          checkedByName: v.checkedByName || v.checkedBy || v.checked_user_name || v.checkedUserName || v.checkedUser?.name,
+          checkedAt: v.checkedAt || v.checkedDate || v.checkedOn || v.checked_time,
+          approvedByName: v.approvedByName || v.approvedBy || v.approved_user_name || v.approvedUserName || v.approvedUser?.name,
+          approvedAt: v.approvedAt || v.approvedDate || v.approvedOn || v.approved_time,
+          tableData: v.voucherDetails || [],
         },
         accountIndex,
       });
@@ -236,7 +251,13 @@ const EntryVoucherList = () => {
               paidTo: data.paidTo,
               narration: data.narration,
               description: data.description,
-              tableData: data.voucherDetails || [], // Map voucherDetails to tableData
+              preparedByName: data.preparedByName || data.preparedBy || data.prepared_user_name || data.preparedUserName || data.preparedUser?.name || data.createdByName || data.createdBy,
+              preparedAt: data.preparedAt || data.preparedDate || data.preparedOn || data.prepared_time || data.createdAt,
+              checkedByName: data.checkedByName || data.checkedBy || data.checked_user_name || data.checkedUserName || data.checkedUser?.name,
+              checkedAt: data.checkedAt || data.checkedDate || data.checkedOn || data.checked_time,
+              approvedByName: data.approvedByName || data.approvedBy || data.approved_user_name || data.approvedUserName || data.approvedUser?.name,
+              approvedAt: data.approvedAt || data.approvedDate || data.approvedOn || data.approved_time,
+              tableData: data.voucherDetails || [],
             };
           } catch (e) {
             return null;
@@ -250,7 +271,7 @@ const EntryVoucherList = () => {
         return;
       }
 
-      const filenameParts = ['EntryVouchers'];
+      const filenameParts = ['VoucherSummary'];
       if (startDate) filenameParts.push(startDate);
       if (endDate) filenameParts.push(endDate);
       const filename = filenameParts.join('-') + '.pdf';
@@ -327,7 +348,7 @@ const EntryVoucherList = () => {
         <span className="text-sm text-gray-600">to</span>
         <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-300 rounded-md p-2" />
         <button onClick={handleRangePdf} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-all duration-200">
-          <MdReceipt size={18} /> Download PDF (Date Range)
+          <MdReceipt size=  {18} /> Download PDF (Date Range)
         </button>
       </div>
       <div>
@@ -381,14 +402,10 @@ const EntryVoucherList = () => {
                   <th className="border px-2 py-1 text-left">Account 1</th>
                   <th className="border px-2 py-1 text-right">Debit 1</th>
                   <th className="border px-2 py-1 text-right">Credit 1</th>
-                  {/* <th className="border px-2 py-1 text-right">Current Bal 1</th>
-                  <th className="border px-2 py-1 text-right">Proj Bal 1</th> */}
                   <th className="border px-2 py-1 text-left">Narration</th>
                   <th className="border px-2 py-1 text-left">Account 2</th>
                   <th className="border px-2 py-1 text-right">Debit 2</th>
                   <th className="border px-2 py-1 text-right">Credit 2</th>
-                  {/* <th className="border px-2 py-1 text-right">Current Bal 2</th>
-                  <th className="border px-2 py-1 text-right">Proj Bal 2</th> */}
                 </tr>
               </thead>
               <tbody>
@@ -397,14 +414,10 @@ const EntryVoucherList = () => {
                     <td className="border px-2 py-1">{displayAccount(d.account1)}</td>
                     <td className="border px-2 py-1 text-right">{Number(d.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="border px-2 py-1 text-right">{Number(d.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    {/* <td className="border px-2 py-1 text-right">{Number(d.currentBalance1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="border px-2 py-1 text-right">{Number(d.projectedBalance1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td> */}
                     <td className="border px-2 py-1">{d.narration || '-'}</td>
                     <td className="border px-2 py-1">{displayAccount(d.account2)}</td>
                     <td className="border px-2 py-1 text-right">{Number(d.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="border px-2 py-1 text-right">{Number(d.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      {/* <td className="border px-2 py-1 text-right">{Number(d.currentBalance2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className="border px-2 py-1 text-right">{Number(d.projectedBalance2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td> */}
                   </tr>
                 ))}
               </tbody>

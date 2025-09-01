@@ -30,6 +30,13 @@ export interface EntryVoucherDoc {
   paidTo?: string; // Party/BA id or name
   narration?: string; // Header narration
   description?: string; // additional description
+  // Approval/User trail (optional)
+  preparedByName?: string;
+  preparedAt?: string; // ISO datetime
+  checkedByName?: string;
+  checkedAt?: string; // ISO datetime
+  approvedByName?: string;
+  approvedAt?: string; // ISO datetime
   tableData: VoucherTableRow[];
 }
 
@@ -98,6 +105,19 @@ const formatDate = (iso?: string) => {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return '-';
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-');
+  } catch {
+    return '-';
+  }
+};
+
+const formatDateTime = (iso?: string) => {
+  if (!iso) return '-';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '-';
+    const date = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-');
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return `${date} ${time}`;
   } catch {
     return '-';
   }
@@ -228,7 +248,7 @@ const EntryVoucherPDFExport = {
 
     if (body.length === 0) {
       console.log('No table data, adding empty row');
-      body.push(['1', '', '', '', '', '', '', '', '', '', '', '']);
+      body.push(['1', '', '', '', '', '', '', '', '', '']);
       toast('No voucher details to display', { type: 'warning' });
     }
 
@@ -241,13 +261,11 @@ const EntryVoucherPDFExport = {
         formatNumber(totalDebit1),
         formatNumber(totalCredit1),
         formatNumber(0), // Placeholder for Current Bal 1
-        formatNumber(0), // Placeholder for Proj Bal 1
         '',
         '',
         formatNumber(totalDebit2),
         formatNumber(totalCredit2),
         formatNumber(0), // Placeholder for Current Bal 2
-        formatNumber(0), // Placeholder for Proj Bal 2
       ]],
       styles: {
         font: 'helvetica',
@@ -284,7 +302,6 @@ const EntryVoucherPDFExport = {
         7: { cellWidth: 17, halign: 'right' },
         8: { cellWidth: 17, halign: 'right' },
         9: { cellWidth: 18, halign: 'right' },
-        
       },
       theme: 'grid',
       margin: { left: 8, right: 12 },
@@ -323,13 +340,51 @@ const EntryVoucherPDFExport = {
     const startX = 12;
     const colW = (210 - 24) / 4; // A4 width - margins
 
+    const signInfo = [
+      { name: voucher.preparedByName || '-', at: voucher.preparedAt },
+      { name: voucher.checkedByName || '-', at: voucher.checkedAt },
+      { name: voucher.approvedByName || '-', at: voucher.approvedAt },
+      { name: '-', at: '' }, // Received By has no timestamp
+    ];
+
+    // Add "Name" title once at the start
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(45, 45, 45);
+  
+
     doc.setDrawColor(160, 160, 160);
     labels.forEach((label, i) => {
       const x = startX + i * colW;
-      doc.line(x, signY, x + colW - 6, signY); // signature line
+      // Signature line
+      doc.line(x, signY, x + colW - 6, signY);
+
+      // Role label
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
+      doc.setTextColor(33, 33, 33);
       doc.text(label, x, signY + 5);
+
+      // User name
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(60, 60, 60);
+      const name = signInfo[i].name;
+      doc.text(name, x, signY + 11);
+      doc.text('Name:', startX, signY - 4);
+
+      // Timestamp
+      const whenDate = signInfo[i].at ? formatDateTime(signInfo[i].at as string) : '-';
+      if (whenDate !== '-') {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(whenDate, x, signY + 16);
+      }
+
+      // Horizontal line under info
+      doc.setDrawColor(200, 200, 200);
+      doc.line(x, signY + 19, x + colW - 6, signY + 19);
     });
 
     // Footer
