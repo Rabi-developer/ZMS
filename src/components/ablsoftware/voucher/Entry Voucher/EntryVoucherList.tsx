@@ -33,6 +33,8 @@ const EntryVoucherList = () => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [accountIndex, setAccountIndex] = useState<Record<string, { id: string; listid?: string; description?: string }>>({});
+  const [selectedVoucher, setSelectedVoucher] = useState<any | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
 
   const statusOptions = ['All', 'Posted', 'Draft', 'Cancelled'];
   const statusOptionsConfig = [
@@ -41,12 +43,7 @@ const EntryVoucherList = () => {
     { id: 3, name: 'Cancelled', color: '#ef4444' },
   ];
 
-  // Selection state for showing clicked row details
-  const [selectedVoucher, setSelectedVoucher] = useState<any | null>(null);
-  const [detailsLoading, setDetailsLoading] = useState(false);
-
   const displayAccount = (value: string) => {
-    // If API returns account id, map to description; otherwise show as-is
     return accountIndex[value]?.description || value || '-';
   };
 
@@ -80,7 +77,6 @@ const EntryVoucherList = () => {
     if (refresh) {
       fetchVouchers();
       if (createdId) {
-        // Auto-open PDF for the created/updated voucher
         handlePdf(createdId);
       }
       const newUrl = new URL(window.location.href);
@@ -90,7 +86,6 @@ const EntryVoucherList = () => {
     }
   }, [searchParams, router]);
 
-  // Build a flat index of accounts (id -> {listid, description}) for PDF mapping
   useEffect(() => {
     const loadAccountIndex = async () => {
       try {
@@ -183,6 +178,7 @@ const EntryVoucherList = () => {
         toast('Voucher not found', { type: 'error' });
         return;
       }
+      console.log('Voucher for PDF:', JSON.stringify(v, null, 2)); // Debug log
       EntryVoucherPDFExport.exportToPDF({
         voucher: {
           id: v.id,
@@ -197,7 +193,7 @@ const EntryVoucherList = () => {
           paidTo: v.paidTo,
           narration: v.narration,
           description: v.description,
-          tableData: v.tableData || [],
+          tableData: v.voucherDetails || [], // Map voucherDetails to tableData
         },
         accountIndex,
       });
@@ -208,19 +204,61 @@ const EntryVoucherList = () => {
   };
 
   const handleRangePdf = async () => {
-    const s = startDate ? new Date(startDate) : null;
-    const e = endDate ? new Date(endDate) : null;
-    const inRange = filteredVouchers.filter((v) => {
-      const d = new Date(v.voucherDate);
-      if (isNaN(d.getTime())) return false;
-      return (!s || d >= s) && (!e || d <= e);
-    });
-    if (inRange.length === 0) {
-      toast('No vouchers in selected range', { type: 'warning' });
-      return;
-    }
-    for (const v of inRange) {
-      await handlePdf(v.id);
+    try {
+      const s = startDate ? new Date(startDate) : null;
+      const e = endDate ? new Date(endDate) : null;
+      const inRange = filteredVouchers.filter((v) => {
+        const d = new Date(v.voucherDate);
+        if (isNaN(d.getTime())) return false;
+        return (!s || d >= s) && (!e || d <= e);
+      });
+      if (inRange.length === 0) {
+        toast('No vouchers in selected range', { type: 'warning' });
+        return;
+      }
+
+      const details = await Promise.all(
+        inRange.map(async (v) => {
+          try {
+            const res = await getSingleEntryVoucher(v.id);
+            const data = res?.data;
+            if (!data) return null;
+            return {
+              id: data.id,
+              voucherNo: data.voucherNo,
+              voucherDate: data.voucherDate,
+              referenceNo: data.referenceNo,
+              chequeNo: data.chequeNo,
+              depositSlipNo: data.depositSlipNo,
+              paymentMode: data.paymentMode,
+              bankName: data.bankName,
+              chequeDate: data.chequeDate,
+              paidTo: data.paidTo,
+              narration: data.narration,
+              description: data.description,
+              tableData: data.voucherDetails || [], // Map voucherDetails to tableData
+            };
+          } catch (e) {
+            return null;
+          }
+        })
+      );
+
+      const docs = details.filter(Boolean) as any[];
+      if (docs.length === 0) {
+        toast('No vouchers could be loaded', { type: 'warning' });
+        return;
+      }
+
+      const filenameParts = ['EntryVouchers'];
+      if (startDate) filenameParts.push(startDate);
+      if (endDate) filenameParts.push(endDate);
+      const filename = filenameParts.join('-') + '.pdf';
+
+      EntryVoucherPDFExport.exportManyToPDF({ vouchers: docs, accountIndex, filename });
+    } catch (error) {
+      console.error('Failed to generate range PDF:', error);
+      toast('Failed to generate range PDF', { type: 'error' });
     }
   };
 
@@ -316,7 +354,6 @@ const EntryVoucherList = () => {
         />
       </div>
 
-      {/* Selected voucher details panel */}
       {selectedVoucher && (
         <div className="mt-4 border rounded-md p-4 bg-gray-50">
           <div className="flex items-center justify-between mb-2">
@@ -344,22 +381,30 @@ const EntryVoucherList = () => {
                   <th className="border px-2 py-1 text-left">Account 1</th>
                   <th className="border px-2 py-1 text-right">Debit 1</th>
                   <th className="border px-2 py-1 text-right">Credit 1</th>
+                  {/* <th className="border px-2 py-1 text-right">Current Bal 1</th>
+                  <th className="border px-2 py-1 text-right">Proj Bal 1</th> */}
                   <th className="border px-2 py-1 text-left">Narration</th>
                   <th className="border px-2 py-1 text-left">Account 2</th>
                   <th className="border px-2 py-1 text-right">Debit 2</th>
                   <th className="border px-2 py-1 text-right">Credit 2</th>
+                  {/* <th className="border px-2 py-1 text-right">Current Bal 2</th>
+                  <th className="border px-2 py-1 text-right">Proj Bal 2</th> */}
                 </tr>
               </thead>
               <tbody>
                 {(selectedVoucher.voucherDetails || selectedVoucher.tableData || []).map((d: any, idx: number) => (
                   <tr key={d.id || idx}>
                     <td className="border px-2 py-1">{displayAccount(d.account1)}</td>
-                    <td className="border px-2 py-1 text-right">{Number(d.debit1 || 0)}</td>
-                    <td className="border px-2 py-1 text-right">{Number(d.credit1 || 0)}</td>
+                    <td className="border px-2 py-1 text-right">{Number(d.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="border px-2 py-1 text-right">{Number(d.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    {/* <td className="border px-2 py-1 text-right">{Number(d.currentBalance1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="border px-2 py-1 text-right">{Number(d.projectedBalance1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td> */}
                     <td className="border px-2 py-1">{d.narration || '-'}</td>
                     <td className="border px-2 py-1">{displayAccount(d.account2)}</td>
-                    <td className="border px-2 py-1 text-right">{Number(d.debit2 || 0)}</td>
-                    <td className="border px-2 py-1 text-right">{Number(d.credit2 || 0)}</td>
+                    <td className="border px-2 py-1 text-right">{Number(d.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="border px-2 py-1 text-right">{Number(d.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      {/* <td className="border px-2 py-1 text-right">{Number(d.currentBalance2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="border px-2 py-1 text-right">{Number(d.projectedBalance2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td> */}
                   </tr>
                 ))}
               </tbody>

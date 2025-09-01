@@ -51,7 +51,8 @@ const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 
 function numberToWords(n: number): string {
   if (!isFinite(n)) return '';
   if (n === 0) return 'Zero';
-  if (n < 0) return 'Minus ' + numberToWords(-n);
+  // Use absolute value to handle negative numbers
+  if (n < 0) return numberToWords(Math.abs(n));
 
   const scales = [
     { value: 1_000_000_000, name: 'Billion' },
@@ -102,7 +103,12 @@ const formatDate = (iso?: string) => {
   }
 };
 
-const safe = (v?: string | number | null) => (v === undefined || v === null || v === '' ? '-' : String(v));
+const safe = (v?: string | number | null) => (v === undefined || v === null ? '-' : String(v));
+
+const formatNumber = (n?: number) =>
+  n === undefined || n === null ? '-' : Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const formatString = (s?: string) => (s === undefined || s === null ? '-' : s);
 
 export interface ExportParams {
   voucher: EntryVoucherDoc;
@@ -110,254 +116,271 @@ export interface ExportParams {
 }
 
 const EntryVoucherPDFExport = {
+  renderVoucherToDoc: (doc: jsPDF, voucher: EntryVoucherDoc, accountIndex: AccountIndex = {}) => {
+    console.log('Rendering Voucher:', JSON.stringify(voucher, null, 2)); // Debug log
+    console.log('Account Index:', JSON.stringify(accountIndex, null, 2)); // Debug log
+
+    // Header Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(33, 33, 33);
+    doc.text('AL-NASSAR BASHIR LOGISTIC', 105, 16, { align: 'center' });
+
+    doc.setFontSize(14);
+    const mode = (voucher.paymentMode || 'Cash').toUpperCase();
+    doc.text(`${mode} PAYMENT VOUCHER`, 105, 26, { align: 'center' });
+
+    // Info as simple text
+    const infoStartY = 34;
+    const infoRows = [
+      { leftLabel: 'Voucher #:', leftValue: safe(voucher.voucherNo), rightLabel: 'Date:', rightValue: formatDate(voucher.voucherDate) },
+      { leftLabel: 'Reference:', leftValue: safe(voucher.referenceNo), rightLabel: 'Cheque No:', rightValue: safe(voucher.chequeNo) },
+      { leftLabel: 'Deposit Slip No:', leftValue: safe(voucher.depositSlipNo), rightLabel: 'Ref Date:', rightValue: formatDate(voucher.chequeDate) },
+    ];
+
+    let currentY = infoStartY;
+    doc.setFontSize(10);
+    doc.setTextColor(60, 60, 60);
+
+    const leftLabelX = 12;
+    const leftValueX = 50;
+    const rightLabelX = 110;
+    const rightValueX = 140;
+
+    infoRows.forEach((row) => {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(33, 33, 33);
+      doc.text(row.leftLabel, leftLabelX, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(row.leftValue, leftValueX, currentY);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(33, 33, 33);
+      doc.text(row.rightLabel, rightLabelX, currentY);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(row.rightValue, rightValueX, currentY);
+      currentY += 8;
+    });
+
+    let yPos = currentY + 8;
+
+    // Table header
+    const tableHead = [[
+      'SNO',
+      'ACCOUNT',
+      'DEBIT',
+      'CREDIT',
+      // 'Current Bal 1',
+      'BALANCE',
+      'NARRATION',
+      'ACCOUNT',
+      'DEBIT',
+      'CREDIT',
+      // 'Current Bal 2',
+      'BALANCE'
+    ]];
+
+    // Build table body
+    const body: (string | number)[][] = [];
+    let sno = 1;
+    let totalDebit1 = 0;
+    let totalCredit1 = 0;
+    let totalDebit2 = 0;
+    let totalCredit2 = 0;
+
+    const getAcc = (id?: string) => (id ? accountIndex[id] : undefined);
+
+    (voucher.tableData || []).forEach((row, index) => {
+      console.log(`Table Row ${index}:`, JSON.stringify(row, null, 2)); // Debug log
+      const acc1 = getAcc(row.account1);
+      const acc1Desc = acc1?.description || acc1?.id || row.account1 || '-';
+      const acc2 = getAcc(row.account2);
+      const acc2Desc = acc2?.description || acc2?.id || row.account2 || '-';
+      const d1 = Number(row.debit1 || 0);
+      const c1 = Number(row.credit1 || 0);
+      const cb1 = Number(row.currentBalance1 || 0);
+      const pb1 = Number(row.projectedBalance1 || 0);
+      const d2 = Number(row.debit2 || 0);
+      const c2 = Number(row.credit2 || 0);
+      const cb2 = Number(row.currentBalance2 || 0);
+      const pb2 = Number(row.projectedBalance2 || 0);
+      totalDebit1 += Math.abs(d1);
+      totalCredit1 += Math.abs(c1);
+      totalDebit2 += Math.abs(d2);
+      totalCredit2 += Math.abs(c2);
+
+      body.push([
+        String(sno++),
+        acc1Desc,
+        formatNumber(d1),
+        formatNumber(c1),
+        // formatNumber(cb1),
+        formatNumber(pb1),
+        formatString(row.narration),
+        acc2Desc,
+        formatNumber(d2),
+        formatNumber(c2),
+        // formatNumber(cb2),
+        formatNumber(pb2),
+      ]);
+    });
+
+    if (body.length === 0) {
+      console.log('No table data, adding empty row');
+      body.push(['1', '', '', '', '', '', '', '', '', '', '', '']);
+      toast('No voucher details to display', { type: 'warning' });
+    }
+
+    autoTable(doc, {
+      startY: yPos,
+      head: tableHead,
+      body,
+      foot: [[
+        { content: 'TOTAL', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
+        formatNumber(totalDebit1),
+        formatNumber(totalCredit1),
+        formatNumber(0), // Placeholder for Current Bal 1
+        formatNumber(0), // Placeholder for Proj Bal 1
+        '',
+        '',
+        formatNumber(totalDebit2),
+        formatNumber(totalCredit2),
+        formatNumber(0), // Placeholder for Current Bal 2
+        formatNumber(0), // Placeholder for Proj Bal 2
+      ]],
+      styles: {
+        font: 'helvetica',
+        fontSize: 5,
+        cellPadding: { top: 2, bottom: 2, left: 1, right: 1 },
+        lineColor: [150, 150, 150],
+        lineWidth: 0.2,
+        textColor: [50, 50, 50],
+      },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [33, 33, 33],
+        fontSize: 7,
+        fontStyle: 'bold',
+        lineColor: [150, 150, 150],
+        lineWidth: 0.2,
+      },
+      footStyles: {
+        fillColor: [240, 240, 240],
+        textColor: [33, 33, 33],
+        fontSize: 6,
+        fontStyle: 'bold',
+        lineColor: [150, 150, 150],
+        lineWidth: 0.2,
+      },
+      columnStyles: {
+        0: { cellWidth: 10, halign: 'left' },
+        1: { cellWidth: 28, halign: 'left' },
+        2: { cellWidth: 17, halign: 'right' },
+        3: { cellWidth: 17, halign: 'right' },
+        4: { cellWidth: 18, halign: 'right' },
+        5: { cellWidth: 28, halign: 'right' },
+        6: { cellWidth: 28, halign: 'left' },
+        7: { cellWidth: 17, halign: 'right' },
+        8: { cellWidth: 17, halign: 'right' },
+        9: { cellWidth: 18, halign: 'right' },
+        
+      },
+      theme: 'grid',
+      margin: { left: 8, right: 12 },
+    });
+
+    yPos = (doc as any).lastAutoTable.finalY + 8;
+
+    // Amount in words and Narration
+    const baseAmount = Math.max(totalDebit1 + totalDebit2, totalCredit1 + totalCredit2);
+    const rounded = Math.round(baseAmount * 100) / 100;
+    const integerPart = Math.floor(rounded);
+    const decimalPart = Math.round((rounded - integerPart) * 100);
+    const words = `${numberToWords(integerPart)}${decimalPart ? ' and ' + numberToWords(decimalPart) + ' Cents' : ''} Only`;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Amount in Words:', 12, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text(words, 50, yPos);
+    yPos += 8;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Narration:', 12, yPos);
+    const currentDate = new Date();
+    const printDateStr = formatDate(currentDate.toISOString());
+    const printTimeStr = currentDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const narrationText = (formatString(voucher.narration || voucher.description) || '-') + ` (Date ${printDateStr} at ${printTimeStr})`;
+    doc.setFont('helvetica', 'normal');
+    const narrationLines = doc.splitTextToSize(narrationText, 178);
+    doc.text(narrationLines, 12, yPos + 6);
+    yPos += 6 + narrationLines.length * 6 + 6;
+
+    // Signatures
+    const signY = yPos + 8;
+    const labels = ['Prepared By', 'Checked By', 'Approved By', 'Received By'];
+    const startX = 12;
+    const colW = (210 - 24) / 4; // A4 width - margins
+
+    doc.setDrawColor(160, 160, 160);
+    labels.forEach((label, i) => {
+      const x = startX + i * colW;
+      doc.line(x, signY, x + colW - 6, signY); // signature line
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text(label, x, signY + 5);
+    });
+
+    // Footer
+    const footerY = 290;
+    doc.setDrawColor(210, 210, 210);
+    doc.line(12, footerY - 4, 198, footerY - 4);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    doc.text('Generated by ABL', 12, footerY);
+  },
+
   exportToPDF: ({ voucher, accountIndex = {} }: ExportParams) => {
     try {
       if (!voucher) {
         toast('Voucher not found', { type: 'error' });
         return;
       }
-
-      // Debug: Log voucher data to verify input
-      console.log('Voucher Data:', JSON.stringify(voucher, null, 2));
-      console.log('Account Index:', JSON.stringify(accountIndex, null, 2));
       if (!voucher.tableData || voucher.tableData.length === 0) {
         toast('No table data found in voucher', { type: 'warning' });
       }
 
       const doc = new jsPDF();
+      EntryVoucherPDFExport.renderVoucherToDoc(doc, voucher, accountIndex);
 
-      // Header Title
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.setTextColor(33, 33, 33);
-      doc.text('AL-NASSAR BASHIR LOGISTIC', 105, 16, { align: 'center' });
-
-      doc.setFontSize(14);
       const mode = (voucher.paymentMode || 'Cash').toUpperCase();
-      doc.text(`${mode} PAYMENT VOUCHER`, 105, 26, { align: 'center' });
-
-      // Info as simple text instead of table
-      const infoStartY = 34;
-      const infoRows = [
-        { leftLabel: 'Voucher #:', leftValue: safe(voucher.voucherNo), rightLabel: 'Date:', rightValue: formatDate(voucher.voucherDate) },
-        { leftLabel: 'Reference:', leftValue: safe(voucher.referenceNo), rightLabel: 'Cheque No:', rightValue: safe(voucher.chequeNo) },
-        { leftLabel: 'Deposit Slip No:', leftValue: safe(voucher.depositSlipNo), rightLabel: 'Ref Date:', rightValue: formatDate(voucher.chequeDate) },
-      ];
-
-      let currentY = infoStartY;
-      doc.setFontSize(10);
-      doc.setTextColor(60, 60, 60);
-
-      const leftLabelX = 12;
-      const leftValueX = 50;
-      const rightLabelX = 110;
-      const rightValueX = 140;
-
-      infoRows.forEach((row) => {
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(33, 33, 33);
-        doc.text(row.leftLabel, leftLabelX, currentY);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(60, 60, 60);
-        doc.text(row.leftValue, leftValueX, currentY);
-
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(33, 33, 33);
-        doc.text(row.rightLabel, rightLabelX, currentY);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(60, 60, 60);
-        doc.text(row.rightValue, rightValueX, currentY);
-
-        currentY += 8;
-      });
-
-      let yPos = currentY + 8;
-
-      // Table header
-      const tableHead = [[
-        'SNO',
-        'Account 1',
-        'Debit 1',
-        'Credit 1',
-        'Current Bal 1',
-        'Proj Bal 1',
-        'Narration',
-        'Account 2',
-        'Debit 2',
-        'Credit 2',
-        'Current Bal 2',
-        'Proj Bal 2'
-      ]];
-
-      // Build table body
-      const body: (string | number)[][] = [];
-      let sno = 1;
-      let totalDebit1 = 0;
-      let totalCredit1 = 0;
-      let totalDebit2 = 0;
-      let totalCredit2 = 0;
-
-      const getAcc = (id?: string) => (id ? accountIndex[id] : undefined);
-
-      (voucher.tableData || []).forEach((row, index) => {
-        // Debug: Log each row
-        console.log(`Table Row ${index}:`, JSON.stringify(row, null, 2));
-
-        const acc1 = getAcc(row.account1);
-        const acc1Desc = acc1?.description || acc1?.id || row.account1 || '-';
-        const acc2 = getAcc(row.account2);
-        const acc2Desc = acc2?.description || acc2?.id || row.account2 || '-';
-        const d1 = Number(row.debit1 || 0);
-        const c1 = Number(row.credit1 || 0);
-        const cb1 = Number(row.currentBalance1 || 0);
-        const pb1 = Number(row.projectedBalance1 || 0);
-        const d2 = Number(row.debit2 || 0);
-        const c2 = Number(row.credit2 || 0);
-        const cb2 = Number(row.currentBalance2 || 0);
-        const pb2 = Number(row.projectedBalance2 || 0);
-        totalDebit1 += d1;
-        totalCredit1 += c1;
-        totalDebit2 += d2;
-        totalCredit2 += c2;
-
-        body.push([
-          String(sno++),
-          acc1Desc,
-          d1 ? d1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-          c1 ? c1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-          cb1 ? cb1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-          pb1 ? pb1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-          safe(row.narration),
-          acc2Desc,
-          d2 ? d2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-          c2 ? c2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-          cb2 ? cb2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-          pb2 ? pb2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-        ]);
-      });
-
-      if (body.length === 0) {
-        console.log('No table data, adding empty row');
-        body.push(['1', '', '', '', '', '', '', '', '', '', '', '']);
-        toast('No voucher details to display', { type: 'warning' });
-      }
-
-      autoTable(doc, {
-        startY: yPos,
-        head: tableHead,
-        body,
-        foot: [[
-          { content: 'TOTAL', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
-          totalDebit1 ? totalDebit1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          totalCredit1 ? totalCredit1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          '',
-          '',
-          '',
-          totalDebit2 ? totalDebit2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          totalCredit2 ? totalCredit2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          '',
-          '',
-        ]],
-        styles: {
-          font: 'helvetica',
-          fontSize: 8,
-          cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
-          lineColor: [150, 150, 150],
-          lineWidth: 0.2,
-          textColor: [50, 50, 50],
-        },
-        headStyles: {
-          fillColor: [255, 255, 255],
-          textColor: [33, 33, 33],
-          fontSize: 8,
-          fontStyle: 'bold',
-          lineColor: [150, 150, 150],
-          lineWidth: 0.2,
-        },
-        footStyles: {
-          fillColor: [240, 240, 240],
-          textColor: [33, 33, 33],
-          fontSize: 8,
-          fontStyle: 'bold',
-          lineColor: [150, 150, 150],
-          lineWidth: 0.2,
-        },
-        columnStyles: {
-          0: { cellWidth: 9, halign: 'left' },
-          1: { cellWidth: 28, halign: 'left' },
-          2: { cellWidth: 17, halign: 'right' },
-          3: { cellWidth: 17, halign: 'right' },
-          4: { cellWidth: 17, halign: 'right' },
-          5: { cellWidth: 17, halign: 'right' },
-          6: { cellWidth: 28, halign: 'left' },
-          7: { cellWidth: 28, halign: 'left' },
-          8: { cellWidth: 17, halign: 'right' },
-          9: { cellWidth: 17, halign: 'right' },
-          10: { cellWidth: 17, halign: 'right' },
-          11: { cellWidth: 17, halign: 'right' },
-        },
-        theme: 'grid',
-        margin: { left: 3, right: 12 },
-      });
-
-      yPos = (doc as any).lastAutoTable.finalY + 8;
-
-      // Amount in words and Narration
-      const baseAmount = Math.max(totalDebit1 + totalDebit2, totalCredit1 + totalCredit2);
-      const rounded = Math.round(baseAmount * 100) / 100;
-      const integerPart = Math.floor(rounded);
-      const decimalPart = Math.round((rounded - integerPart) * 100);
-      const words = `${numberToWords(integerPart)}${decimalPart ? ' and ' + numberToWords(decimalPart) + ' Cents' : ''} Only`;
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('Amount in Words:', 12, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(words, 50, yPos);
-      yPos += 8;
-
-      doc.setFont('helvetica', 'bold');
-      doc.text('Narration:', 12, yPos);
-      const currentDate = new Date();
-      const printDateStr = formatDate(currentDate.toISOString());
-      const printTimeStr = currentDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const narrationText = (voucher.narration || voucher.description || '-') + ` (Date ${printDateStr} at ${printTimeStr})`;
-      doc.setFont('helvetica', 'normal');
-      const narrationLines = doc.splitTextToSize(narrationText, 178);
-      doc.text(narrationLines, 12, yPos + 6);
-      yPos += 6 + narrationLines.length * 6 + 6;
-
-      // Signatures
-      const signY = yPos + 8;
-      const labels = ['Prepared By', 'Checked By', 'Approved By', 'Received By'];
-      const startX = 12;
-      const colW = (210 - 24) / 4; // A4 width - margins
-
-      doc.setDrawColor(160, 160, 160);
-      labels.forEach((label, i) => {
-        const x = startX + i * colW;
-        doc.line(x, signY, x + colW - 6, signY); // signature line
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
-        doc.text(label, x, signY + 5);
-      });
-
-      // Footer
-      const footerY = 290;
-      doc.setDrawColor(210, 210, 210);
-      doc.line(12, footerY - 4, 198, footerY - 4);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.setTextColor(80, 80, 80);
-      doc.text('Generated by ABL', 12, footerY);
-      doc.text('Page 1 of 1', 198, footerY, { align: 'right' });
-
       const filename = `${mode}-PAYMENT-VOUCHER-${safe(voucher.voucherNo)}.pdf`;
       doc.save(filename);
       toast('Voucher PDF generated', { type: 'success' });
     } catch (error) {
       console.error('Failed to generate voucher PDF:', error);
       toast('Failed to generate voucher PDF', { type: 'error' });
+    }
+  },
+
+  exportManyToPDF: ({ vouchers, accountIndex = {}, filename = 'EntryVouchers.pdf' }: { vouchers: EntryVoucherDoc[]; accountIndex?: AccountIndex; filename?: string; }) => {
+    try {
+      if (!vouchers || vouchers.length === 0) {
+        toast('No vouchers to export', { type: 'warning' });
+        return;
+      }
+      const doc = new jsPDF();
+      vouchers.forEach((v, idx) => {
+        if (idx > 0) doc.addPage();
+        EntryVoucherPDFExport.renderVoucherToDoc(doc, v, accountIndex);
+      });
+      doc.save(filename);
+      toast('Vouchers PDF generated', { type: 'success' });
+    } catch (error) {
+      console.error('Failed to generate vouchers PDF:', error);
+      toast('Failed to generate vouchers PDF', { type: 'error' });
     }
   },
 };
