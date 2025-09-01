@@ -7,10 +7,14 @@ export interface VoucherTableRow {
   account1: string;
   debit1?: number;
   credit1?: number;
+  currentBalance1?: number;
+  projectedBalance1?: number;
   narration?: string;
   account2: string;
   debit2?: number;
   credit2?: number;
+  currentBalance2?: number;
+  projectedBalance2?: number;
 }
 
 export interface EntryVoucherDoc {
@@ -113,6 +117,13 @@ const EntryVoucherPDFExport = {
         return;
       }
 
+      // Debug: Log voucher data to verify input
+      console.log('Voucher Data:', JSON.stringify(voucher, null, 2));
+      console.log('Account Index:', JSON.stringify(accountIndex, null, 2));
+      if (!voucher.tableData || voucher.tableData.length === 0) {
+        toast('No table data found in voucher', { type: 'warning' });
+      }
+
       const doc = new jsPDF();
 
       // Header Title
@@ -131,7 +142,6 @@ const EntryVoucherPDFExport = {
         { leftLabel: 'Voucher #:', leftValue: safe(voucher.voucherNo), rightLabel: 'Date:', rightValue: formatDate(voucher.voucherDate) },
         { leftLabel: 'Reference:', leftValue: safe(voucher.referenceNo), rightLabel: 'Cheque No:', rightValue: safe(voucher.chequeNo) },
         { leftLabel: 'Deposit Slip No:', leftValue: safe(voucher.depositSlipNo), rightLabel: 'Ref Date:', rightValue: formatDate(voucher.chequeDate) },
-        // { leftLabel: 'Bank Name:', leftValue: safe(voucher.bankName), rightLabel: 'Paid To:', rightValue: safe(voucher.paidTo) },
       ];
 
       let currentY = infoStartY;
@@ -163,56 +173,73 @@ const EntryVoucherPDFExport = {
 
       let yPos = currentY + 8;
 
-      // Table header: SNO | List ID | Description | Debit | Credit | Narration
-      const tableHead = [['SNO', 'List ID', 'Description', 'Debit', 'Credit', 'Narration']];
+      // Table header
+      const tableHead = [[
+        'SNO',
+        'Account 1',
+        'Debit 1',
+        'Credit 1',
+        'Current Bal 1',
+        'Proj Bal 1',
+        'Narration',
+        'Account 2',
+        'Debit 2',
+        'Credit 2',
+        'Current Bal 2',
+        'Proj Bal 2'
+      ]];
 
-      // Build table body by splitting account1/account2 into separate lines
+      // Build table body
       const body: (string | number)[][] = [];
       let sno = 1;
-      let totalDebit = 0;
-      let totalCredit = 0;
+      let totalDebit1 = 0;
+      let totalCredit1 = 0;
+      let totalDebit2 = 0;
+      let totalCredit2 = 0;
 
       const getAcc = (id?: string) => (id ? accountIndex[id] : undefined);
 
-      (voucher.tableData || []).forEach((row) => {
-        if (row.account1) {
-          const acc = getAcc(row.account1);
-          const listid = acc?.listid || '-';
-          const desc = acc?.description || acc?.id || row.account1 || '-';
-          const d = Number(row.debit1 || 0);
-          const c = Number(row.credit1 || 0);
-          totalDebit += d;
-          totalCredit += c;
-          body.push([
-            String(sno++),
-            listid,
-            desc,
-            d ? d.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-            c ? c.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-            safe(row.narration),
-          ]);
-        }
-        if (row.account2) {
-          const acc = getAcc(row.account2);
-          const listid = acc?.listid || '-';
-          const desc = acc?.description || acc?.id || row.account2 || '-';
-          const d = Number(row.debit2 || 0);
-          const c = Number(row.credit2 || 0);
-          totalDebit += d;
-          totalCredit += c;
-          body.push([
-            String(sno++),
-            listid,
-            desc,
-            d ? d.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-            c ? c.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
-            '',
-          ]);
-        }
+      (voucher.tableData || []).forEach((row, index) => {
+        // Debug: Log each row
+        console.log(`Table Row ${index}:`, JSON.stringify(row, null, 2));
+
+        const acc1 = getAcc(row.account1);
+        const acc1Desc = acc1?.description || acc1?.id || row.account1 || '-';
+        const acc2 = getAcc(row.account2);
+        const acc2Desc = acc2?.description || acc2?.id || row.account2 || '-';
+        const d1 = Number(row.debit1 || 0);
+        const c1 = Number(row.credit1 || 0);
+        const cb1 = Number(row.currentBalance1 || 0);
+        const pb1 = Number(row.projectedBalance1 || 0);
+        const d2 = Number(row.debit2 || 0);
+        const c2 = Number(row.credit2 || 0);
+        const cb2 = Number(row.currentBalance2 || 0);
+        const pb2 = Number(row.projectedBalance2 || 0);
+        totalDebit1 += d1;
+        totalCredit1 += c1;
+        totalDebit2 += d2;
+        totalCredit2 += c2;
+
+        body.push([
+          String(sno++),
+          acc1Desc,
+          d1 ? d1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
+          c1 ? c1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
+          cb1 ? cb1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
+          pb1 ? pb1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
+          safe(row.narration),
+          acc2Desc,
+          d2 ? d2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
+          c2 ? c2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
+          cb2 ? cb2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
+          pb2 ? pb2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-',
+        ]);
       });
 
       if (body.length === 0) {
-        body.push(['1', '', '', '', '', '']);
+        console.log('No table data, adding empty row');
+        body.push(['1', '', '', '', '', '', '', '', '', '', '', '']);
+        toast('No voucher details to display', { type: 'warning' });
       }
 
       autoTable(doc, {
@@ -220,47 +247,63 @@ const EntryVoucherPDFExport = {
         head: tableHead,
         body,
         foot: [[
-          { content: 'TOTAL', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
-          totalDebit ? totalDebit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          totalCredit ? totalCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          { content: 'TOTAL', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold' } },
+          totalDebit1 ? totalDebit1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          totalCredit1 ? totalCredit1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          '',
+          '',
+          '',
+          totalDebit2 ? totalDebit2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          totalCredit2 ? totalCredit2.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          '',
           '',
         ]],
         styles: {
           font: 'helvetica',
-          fontSize: 9,
-          cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
-          lineColor: [210, 210, 210],
-          lineWidth: 0.4,
+          fontSize: 8,
+          cellPadding: { top: 2, bottom: 2, left: 2, right: 2 },
+          lineColor: [150, 150, 150],
+          lineWidth: 0.2,
           textColor: [50, 50, 50],
         },
         headStyles: {
-          fillColor: [240, 240, 240],
+          fillColor: [255, 255, 255],
           textColor: [33, 33, 33],
-          fontSize: 9,
+          fontSize: 8,
           fontStyle: 'bold',
+          lineColor: [150, 150, 150],
+          lineWidth: 0.2,
         },
         footStyles: {
           fillColor: [240, 240, 240],
           textColor: [33, 33, 33],
-          fontSize: 10,
+          fontSize: 8,
           fontStyle: 'bold',
+          lineColor: [150, 150, 150],
+          lineWidth: 0.2,
         },
         columnStyles: {
-          0: { cellWidth: 14 },
-          1: { cellWidth: 34 },
-          2: { cellWidth: 38 },
-          3: { cellWidth: 22, halign: 'right' },
-          4: { cellWidth: 22, halign: 'right' },
-          5: { cellWidth: 40 },
+          0: { cellWidth: 9, halign: 'left' },
+          1: { cellWidth: 28, halign: 'left' },
+          2: { cellWidth: 17, halign: 'right' },
+          3: { cellWidth: 17, halign: 'right' },
+          4: { cellWidth: 17, halign: 'right' },
+          5: { cellWidth: 17, halign: 'right' },
+          6: { cellWidth: 28, halign: 'left' },
+          7: { cellWidth: 28, halign: 'left' },
+          8: { cellWidth: 17, halign: 'right' },
+          9: { cellWidth: 17, halign: 'right' },
+          10: { cellWidth: 17, halign: 'right' },
+          11: { cellWidth: 17, halign: 'right' },
         },
         theme: 'grid',
-        margin: { left: 12, right: 12 },
+        margin: { left: 3, right: 12 },
       });
 
       yPos = (doc as any).lastAutoTable.finalY + 8;
 
       // Amount in words and Narration
-      const baseAmount = Math.max(totalDebit, totalCredit);
+      const baseAmount = Math.max(totalDebit1 + totalDebit2, totalCredit1 + totalCredit2);
       const rounded = Math.round(baseAmount * 100) / 100;
       const integerPart = Math.floor(rounded);
       const decimalPart = Math.round((rounded - integerPart) * 100);
@@ -269,7 +312,7 @@ const EntryVoucherPDFExport = {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.text('Amount in Words:', 12, yPos);
-      doc.setFont('helvetica', 'bold');
+      doc.setFont('helvetica', 'normal');
       doc.text(words, 50, yPos);
       yPos += 8;
 
@@ -279,7 +322,7 @@ const EntryVoucherPDFExport = {
       const printDateStr = formatDate(currentDate.toISOString());
       const printTimeStr = currentDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const narrationText = (voucher.narration || voucher.description || '-') + ` (Date ${printDateStr} at ${printTimeStr})`;
-      doc.setFont('helvetica', 'bold');
+      doc.setFont('helvetica', 'normal');
       const narrationLines = doc.splitTextToSize(narrationText, 178);
       doc.text(narrationLines, 12, yPos + 6);
       yPos += 6 + narrationLines.length * 6 + 6;

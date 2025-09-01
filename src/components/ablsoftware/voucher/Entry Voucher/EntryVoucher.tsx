@@ -612,40 +612,40 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const onSubmit = async (data: VoucherFormData) => {
     setIsSubmitting(true);
     try {
-      // Validate net balances
-      for (const [id, { net_debit, net_credit }] of nets.entries()) {
-        const acc = findAccountById(id, topLevelAccounts);
-        // if (acc) {
-        //   const current_balance = parseFloat(acc.fixedAmount || '0') - parseFloat(acc.paid || '0');
-        //   const new_balance = current_balance + net_debit - net_credit;
-        //   if (new_balance < 0) {
-        //     throw new Error(`Insufficient balance for account ${acc.description}. Would result in negative balance: ${new_balance}`);
-        //   }
-        // }
-      }
-
-      // Update balances with nets
-      for (const [id, { net_debit, net_credit }] of nets.entries()) {
-        const acc = findAccountById(id, topLevelAccounts);
-        const type = getAccountType(id, topLevelAccounts);
-        if (acc && type) {
-          const new_fixed = parseFloat(acc.fixedAmount || '0') + net_debit;
-          const new_paid = parseFloat(acc.paid || '0') + net_credit;
-          const updateData = { ...acc, fixedAmount: new_fixed.toString(), paid: new_paid.toString() };
-
-          if (type === 'assets') {
-            await updateAblAssests(id, updateData);
-          } else if (type === 'revenues') {
-            await updateAblRevenue(id, updateData);
-          } else if (type === 'liabilities') {
-            await updateAblLiabilities(id, updateData);
-          } else if (type === 'expenses') {
-            await updateAblExpense(id, updateData);
-          } else if (type === 'equities') {
-            await updateEquality(id, updateData);
-          }
+        // Validate net balances (uncomment check if needed)
+        for (const [id, { net_debit, net_credit }] of nets.entries()) {
+            const acc = findAccountById(id, topLevelAccounts);
+            if (acc) {
+                const current_balance = parseFloat(acc.fixedAmount || '0') - parseFloat(acc.paid || '0');
+                const new_balance = current_balance + net_debit - net_credit;
+                // if (new_balance < 0) {
+                //     throw new Error(`Insufficient balance for account ${acc.description}. Would result in negative balance: ${new_balance}`);
+                // }
+            }
         }
-      }
+
+      // // Update balances with nets
+      // for (const [id, { net_debit, net_credit }] of nets.entries()) {
+      //   const acc = findAccountById(id, topLevelAccounts);
+      //   const type = getAccountType(id, topLevelAccounts);
+      //   if (acc && type) {
+      //     const new_fixed = parseFloat(acc.fixedAmount || '0') + net_debit;
+      //     const new_paid = parseFloat(acc.paid || '0') + net_credit;
+      //     const updateData = { ...acc, fixedAmount: new_fixed.toString(), paid: new_paid.toString() };
+
+      //     if (type === 'assets') {
+      //       await updateAblAssests(id, updateData);
+      //     } else if (type === 'revenues') {
+      //       await updateAblRevenue(id, updateData);
+      //     } else if (type === 'liabilities') {
+      //       await updateAblLiabilities(id, updateData);
+      //     } else if (type === 'expenses') {
+      //       await updateAblExpense(id, updateData);
+      //     } else if (type === 'equities') {
+      //       await updateEquality(id, updateData);
+      //     }
+      //   }
+      // }
 
       // Build backend payload
       const payload = {
@@ -681,24 +681,24 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         })),
       } as any;
 
-      if (isEdit) {
-        const id = window.location.pathname.split('/').pop();
-        if (!id) throw new Error('Missing voucher id for update');
-        const updatePayload = { ...payload, id } as any;
-        await updateEntryVoucher(updatePayload);
-        toast.success('Voucher updated successfully');
-      } else {
-        await createEntryVoucher(payload);
-        toast.success('Voucher created successfully');
-      }
-      router.push('/entryvoucher');
+        if (isEdit) {
+            const id = window.location.pathname.split('/').pop();
+            if (!id) throw new Error('Missing voucher id for update');
+            const updatePayload = { ...payload, id } as any;
+            await updateEntryVoucher(updatePayload);
+            toast.success('Voucher updated successfully');
+        } else {
+            await createEntryVoucher(payload);
+            toast.success('Voucher created successfully');
+        }
+        router.push('/entryvoucher');
     } catch (error: any) {
-      toast.error(error.message || 'An error occurred while saving the voucher');
-      console.error('Error saving voucher:', error);
+        toast.error(error.message || 'An error occurred while saving the voucher');
+        console.error('Error saving voucher:', error);
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
-  };
+};
 
   // Refresh accounts when a new account is saved
   useEffect(() => {
