@@ -390,7 +390,7 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
     wsData.push([`${g.description} (${g.listid})`]);
     wsData.push([]);
     // Table header
-    wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Credit 1', 'Debit 1', 'Proj Bal 1']);
+    wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit 1', 'Credit 1', 'Net Balance']);
     // Data rows (use raw numbers for numeric cells)
     g.rows.forEach((r) => {
       wsData.push([
@@ -611,7 +611,7 @@ const LedgerPage: React.FC = () => {
 
       const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number } }> = {};
 
-      const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow) => {
+      const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow, side: 1 | 2) => {
         const accInfo = accountIndex[accountId] || ({ description: accountId, listid: accountId } as any);
         const key = accountId;
         if (!groupMap[key]) {
@@ -623,31 +623,44 @@ const LedgerPage: React.FC = () => {
             totals: { credit1: 0, debit1: 0, pb1: 0 },
           };
         }
-        // Always use absolute values for display and totals
-        const cr1 = Math.abs(Number(r.credit1 ?? 0));
-        const dr1 = Math.abs(Number(r.debit1 ?? 0));
-        const pb1n = Math.abs(Number(r.projectedBalance1 ?? 0));
+        // Use values from the correct side (1 or 2)
+        const cr = Math.abs(Number(side === 1 ? r.credit1 ?? 0 : r.credit2 ?? 0));
+        const dr = Math.abs(Number(side === 1 ? r.debit1 ?? 0 : r.debit2 ?? 0));
+        const pbN = Math.abs(Number(side === 1 ? r.projectedBalance1 ?? 0 : r.projectedBalance2 ?? 0));
 
-        groupMap[key].totals.credit1 += cr1;
-        groupMap[key].totals.debit1 += dr1;
-        groupMap[key].totals.pb1 += pb1n;
+        // Sum totals regardless of side
+        groupMap[key].totals.credit1 += cr;
+        groupMap[key].totals.debit1 += dr;
+        groupMap[key].totals.pb1 += pbN;
+
+        // Format voucher date as DD-MMM-YYYY
+        const rawDate = v.voucherDate || '';
+        let voucherDate = rawDate || '-';
+        if (rawDate) {
+          const d = new Date(rawDate);
+          if (!isNaN(d.getTime())) {
+            const ds = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            voucherDate = ds.replace(/ /g, '-'); // e.g., 02-Sep-2025
+          }
+        }
 
         groupMap[key].rows.push({
           // internal insertion index for stable sorting
           _idx: groupMap[key].rows.length,
-          voucherDate: v.voucherDate || '-',
+          voucherDateRaw: rawDate,
+          voucherDate,
           voucherNo: v.voucherNo || '-',
           chequeNo: v.chequeNo || '-',
           depositSlipNo: v.depositSlipNo || '-',
           narration: v.narration || v.description || r.narration || '-',
           // formatted strings for UI/PDF/Word
-          credit1: cr1 ? cr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          debit1: dr1 ? dr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          pb1: pb1n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          credit1: cr ? cr.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          debit1: dr ? dr.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          pb1: pbN.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           // raw numbers for Excel
-          credit1Num: cr1,
-          debit1Num: dr1,
-          pb1Num: pb1n,
+          credit1Num: cr,
+          debit1Num: dr,
+          pb1Num: pbN,
         });
       };
 
@@ -655,8 +668,8 @@ const LedgerPage: React.FC = () => {
         (v.voucherDetails || []).forEach((r) => {
           const inSel1 = selectedKeys.size === 0 || selectedKeys.has((r.account1 ?? '').trim().toLowerCase());
           const inSel2 = selectedKeys.size === 0 || selectedKeys.has((r.account2 ?? '').trim().toLowerCase());
-          if (inSel1) pushRow(r.account1, v, r);
-          if (inSel2) pushRow(r.account2, v, r);
+          if (inSel1 && r.account1) pushRow(r.account1, v, r, 1);
+          if (inSel2 && r.account2) pushRow(r.account2, v, r, 2);
         });
       });
 
@@ -664,8 +677,11 @@ const LedgerPage: React.FC = () => {
         .filter((g) => g.rows.length > 0)
         .map((g) => ({
           ...g,
-          // Sort rows by Voucher No asc; keep insertion order when equal
+          // Sort rows by Voucher Date asc (then by Voucher No to stabilize)
           rows: [...g.rows].sort((r1: any, r2: any) => {
+            const d1 = r1.voucherDateRaw ? new Date(r1.voucherDateRaw).getTime() : 0;
+            const d2 = r2.voucherDateRaw ? new Date(r2.voucherDateRaw).getTime() : 0;
+            if (d1 !== d2) return d1 - d2;
             const v1 = (r1.voucherNo || '').toString();
             const v2 = (r2.voucherNo || '').toString();
             const cmp = v1.localeCompare(v2, undefined, { numeric: true, sensitivity: 'base' });
