@@ -323,7 +323,6 @@ function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRo
         'Narration',
         'Debit ',
         'Credit ',
-  
         'Net Balance',
       ]],
       body: g.rows.map((r) => [
@@ -338,8 +337,8 @@ function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRo
       ]),
       foot: [[
         { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
-        (g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         (g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        (g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         (g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       ]],
       footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', textColor: [0, 0, 0] },
@@ -352,8 +351,8 @@ function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRo
         2: { cellWidth: 24 }, // Cheque No
         3: { cellWidth: 24 }, // Deposit Slip No
         4: { cellWidth: 48 }, // Narration
-        5: { halign: 'right' }, // Credit 1
-        6: { halign: 'right' }, // Debit 1
+        5: { halign: 'right' }, // Debit 1
+        6: { halign: 'right' }, // Credit 1
         7: { halign: 'right' }, // Proj Bal 1
       },
     });
@@ -400,16 +399,16 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
         r.chequeNo || '-',
         r.depositSlipNo || '-',
         r.narration || '-',
-        r.credit1Num ?? 0,
         r.debit1Num ?? 0,
+        r.credit1Num ?? 0,
         r.pb1Num ?? 0,
       ]);
     });
-    // Totals row (raw numbers)
+    // Totals row (raw numbers) - show Debit first, then Credit
     wsData.push([
       'TOTAL', '', '', '', '',
-      (g.totals.credit1 || 0),
       (g.totals.debit1 || 0),
+      (g.totals.credit1 || 0),
       (g.totals.pb1 || 0),
     ]);
 
@@ -430,20 +429,20 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
       { wch: 14 }, // Cheque No
       { wch: 16 }, // Deposit Slip No
       { wch: 40 }, // Narration
-      { wch: 14 }, // Credit 1
       { wch: 14 }, // Debit 1
+      { wch: 14 }, // Credit 1
       { wch: 14 }, // Proj Bal 1
     ];
 
-    // Apply number formats for numeric columns (Credit, Debit, Proj Bal)
+    // Apply number formats for numeric columns (Debit, Credit, Proj Bal)
     const range = XLSX.utils.decode_range(ws['!ref'] as string);
     // Header is 6th row (0-based r:5). Numeric columns start from row index 6 (data starts at 7th row).
     const firstDataRow = 6; // 0-based
     for (let R = firstDataRow; R <= range.e.r; R++) {
-      // Credit (col 5)
+      // Debit (col 5)
       const c5 = XLSX.utils.encode_cell({ r: R, c: 5 });
       if (ws[c5] && typeof ws[c5].v === 'number') { ws[c5].t = 'n'; (ws[c5] as any).z = '#,##0.00'; }
-      // Debit (col 6)
+      // Credit (col 6)
       const c6 = XLSX.utils.encode_cell({ r: R, c: 6 });
       if (ws[c6] && typeof ws[c6].v === 'number') { ws[c6].t = 'n'; (ws[c6] as any).z = '#,##0.00'; }
       // Proj Bal (col 7)
@@ -463,10 +462,10 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
 function exportGroupedToWord(titleLine: string, branch: string, groups: GroupedRows) {
   const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #777;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
   const header = `<h2 style="text-align:center;margin:4px 0">${COMPANY_NAME}</h2><div style="text-align:center">Branch: ${branch}</div><h3 style="text-align:center;margin:6px 0">${titleLine}</h3>`;
-  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Deposit Slip No</th><th>Narration</th><th>Credit 1</th><th>Debit 1</th><th>Proj Bal 1</th></tr>`;
+  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Deposit Slip No</th><th>Narration</th><th>Debit 1</th><th>Credit 1</th><th>Proj Bal 1</th></tr>`;
   const sections = groups.map((g) => {
-    const rows = g.rows.map((r) => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.credit1}</td><td>${r.debit1}</td><td>${r.pb1}</td></tr>`).join('');
-    const totalsRow = `<tr><td colspan="5" style="text-align:right;font-weight:bold">TOTAL</td><td>${(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    const rows = g.rows.map((r) => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.debit1}</td><td>${r.credit1}</td><td>${r.pb1}</td></tr>`).join('');
+    const totalsRow = `<tr><td colspan="5" style="text-align:right;font-weight:bold">TOTAL</td><td>${(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
     return `<h4 style="margin:10px 0 4px">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
   }).join('<br/>');
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr/>${sections}</body></html>`;
@@ -634,6 +633,8 @@ const LedgerPage: React.FC = () => {
         groupMap[key].totals.pb1 += pb1n;
 
         groupMap[key].rows.push({
+          // internal insertion index for stable sorting
+          _idx: groupMap[key].rows.length,
           voucherDate: v.voucherDate || '-',
           voucherNo: v.voucherNo || '-',
           chequeNo: v.chequeNo || '-',
@@ -661,6 +662,17 @@ const LedgerPage: React.FC = () => {
 
       const grouped: GroupedRows = Object.values(groupMap)
         .filter((g) => g.rows.length > 0)
+        .map((g) => ({
+          ...g,
+          // Sort rows by Voucher No asc; keep insertion order when equal
+          rows: [...g.rows].sort((r1: any, r2: any) => {
+            const v1 = (r1.voucherNo || '').toString();
+            const v2 = (r2.voucherNo || '').toString();
+            const cmp = v1.localeCompare(v2, undefined, { numeric: true, sensitivity: 'base' });
+            if (cmp !== 0) return cmp;
+            return (r1._idx ?? 0) - (r2._idx ?? 0);
+          }),
+        }))
         .sort((a, b) => (a.listid || a.description).localeCompare(b.listid || b.description));
 
       setGroups(grouped);
@@ -915,10 +927,10 @@ const LedgerPage: React.FC = () => {
                             TOTAL
                           </td>
                           <td className="px-3 py-2 text-right">
-                            {(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="px-3 py-2 text-right">
-                            {(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="px-3 py-2 text-right">
                             {(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
