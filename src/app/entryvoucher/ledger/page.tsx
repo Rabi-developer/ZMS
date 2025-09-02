@@ -277,7 +277,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
 };
 
 // Export helpers
-const COMPANY_NAME = 'AL-NASSAR BASHIR LOGISTIC';
+const COMPANY_NAME = 'AL- NASAR BASHEER LOGISTICS';
 
 type GroupedRows = Array<{
   accountId: string;
@@ -321,8 +321,9 @@ function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRo
         'Cheque No',
         'Deposit Slip No',
         'Narration',
-        'Credit ',
         'Debit ',
+        'Credit ',
+  
         'Net Balance',
       ]],
       body: g.rows.map((r) => [
@@ -331,8 +332,8 @@ function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRo
         r.chequeNo || '',
         r.depositSlipNo || '',
         r.narration || '',
-        r.credit1,
         r.debit1,
+        r.credit1,
         r.pb1,
       ]),
       foot: [[
@@ -383,28 +384,76 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
   const wb = XLSX.utils.book_new();
   groups.forEach((g) => {
     const wsData: any[][] = [];
+    // Header rows
     wsData.push([COMPANY_NAME]);
     wsData.push([`Branch: ${branch}`]);
     wsData.push([titleLine]);
     wsData.push([`${g.description} (${g.listid})`]);
     wsData.push([]);
+    // Table header
     wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Credit 1', 'Debit 1', 'Proj Bal 1']);
+    // Data rows (use raw numbers for numeric cells)
     g.rows.forEach((r) => {
-      wsData.push([r.voucherDate, r.voucherNo, r.chequeNo || '-', r.depositSlipNo || '-', r.narration || '-', r.credit1, r.debit1, r.pb1]);
+      wsData.push([
+        r.voucherDate,
+        r.voucherNo,
+        r.chequeNo || '-',
+        r.depositSlipNo || '-',
+        r.narration || '-',
+        r.credit1Num ?? 0,
+        r.debit1Num ?? 0,
+        r.pb1Num ?? 0,
+      ]);
     });
+    // Totals row (raw numbers)
     wsData.push([
       'TOTAL', '', '', '', '',
       (g.totals.credit1 || 0),
       (g.totals.debit1 || 0),
       (g.totals.pb1 || 0),
     ]);
+
     const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // Merge header cells across 8 columns
     (ws as any)['!merges'] = [
       { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
       { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
       { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } },
       { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } },
     ];
+
+    // Column widths for better readability
+    (ws as any)['!cols'] = [
+      { wch: 12 }, // Voucher Date
+      { wch: 14 }, // Voucher No
+      { wch: 14 }, // Cheque No
+      { wch: 16 }, // Deposit Slip No
+      { wch: 40 }, // Narration
+      { wch: 14 }, // Credit 1
+      { wch: 14 }, // Debit 1
+      { wch: 14 }, // Proj Bal 1
+    ];
+
+    // Apply number formats for numeric columns (Credit, Debit, Proj Bal)
+    const range = XLSX.utils.decode_range(ws['!ref'] as string);
+    // Header is 6th row (0-based r:5). Numeric columns start from row index 6 (data starts at 7th row).
+    const firstDataRow = 6; // 0-based
+    for (let R = firstDataRow; R <= range.e.r; R++) {
+      // Credit (col 5)
+      const c5 = XLSX.utils.encode_cell({ r: R, c: 5 });
+      if (ws[c5] && typeof ws[c5].v === 'number') { ws[c5].t = 'n'; (ws[c5] as any).z = '#,##0.00'; }
+      // Debit (col 6)
+      const c6 = XLSX.utils.encode_cell({ r: R, c: 6 });
+      if (ws[c6] && typeof ws[c6].v === 'number') { ws[c6].t = 'n'; (ws[c6] as any).z = '#,##0.00'; }
+      // Proj Bal (col 7)
+      const c7 = XLSX.utils.encode_cell({ r: R, c: 7 });
+      if (ws[c7] && typeof ws[c7].v === 'number') { ws[c7].t = 'n'; (ws[c7] as any).z = '#,##0.00'; }
+    }
+
+    // Simple styling hints (header-like row background is not supported natively by sheetjs without a style plugin)
+    // We keep structure readable via column widths, merges, and number formats.
+
     XLSX.utils.book_append_sheet(wb, ws, (g.description || g.listid).slice(0, 25));
   });
   const fname = `General-Ledger-${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -564,7 +613,7 @@ const LedgerPage: React.FC = () => {
       const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number } }> = {};
 
       const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow) => {
-        const accInfo = accountIndex[accountId] || { description: accountId, listid: accountId } as any;
+        const accInfo = accountIndex[accountId] || ({ description: accountId, listid: accountId } as any);
         const key = accountId;
         if (!groupMap[key]) {
           groupMap[key] = {
@@ -575,12 +624,13 @@ const LedgerPage: React.FC = () => {
             totals: { credit1: 0, debit1: 0, pb1: 0 },
           };
         }
-        const cr1 = Number(r.credit1 ?? 0);
-        const dr1 = Number(r.debit1 ?? 0);
-        const pb1n = Number(r.projectedBalance1 ?? 0);
+        // Always use absolute values for display and totals
+        const cr1 = Math.abs(Number(r.credit1 ?? 0));
+        const dr1 = Math.abs(Number(r.debit1 ?? 0));
+        const pb1n = Math.abs(Number(r.projectedBalance1 ?? 0));
 
-        groupMap[key].totals.credit1 += cr1 > 0 ? cr1 : 0;
-        groupMap[key].totals.debit1 += dr1 > 0 ? dr1 : 0;
+        groupMap[key].totals.credit1 += cr1;
+        groupMap[key].totals.debit1 += dr1;
         groupMap[key].totals.pb1 += pb1n;
 
         groupMap[key].rows.push({
@@ -589,9 +639,14 @@ const LedgerPage: React.FC = () => {
           chequeNo: v.chequeNo || '-',
           depositSlipNo: v.depositSlipNo || '-',
           narration: v.narration || v.description || r.narration || '-',
-          credit1: cr1 > 0 ? cr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          debit1: dr1 > 0 ? dr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          // formatted strings for UI/PDF/Word
+          credit1: cr1 ? cr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          debit1: dr1 ? dr1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           pb1: pb1n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          // raw numbers for Excel
+          credit1Num: cr1,
+          debit1Num: dr1,
+          pb1Num: pb1n,
         });
       };
 
@@ -835,8 +890,8 @@ const LedgerPage: React.FC = () => {
                           <th className="px-3 py-2 text-left">Cheque No</th>
                           <th className="px-3 py-2 text-left">Deposit Slip No</th>
                           <th className="px-3 py-2 text-left">Narration</th>
-                          <th className="px-3 py-2 text-right">Credit </th>
                           <th className="px-3 py-2 text-right">Debit </th>
+                          <th className="px-3 py-2 text-right">Credit </th>
                           <th className="px-3 py-2 text-right">Net Balance</th>
                         </tr>
                       </thead>
@@ -848,8 +903,8 @@ const LedgerPage: React.FC = () => {
                             <td className="px-3 py-2">{r.chequeNo}</td>
                             <td className="px-3 py-2">{r.depositSlipNo}</td>
                             <td className="px-3 py-2">{r.narration}</td>
-                            <td className="px-3 py-2 text-right">{r.credit1}</td>
                             <td className="px-3 py-2 text-right">{r.debit1}</td>
+                            <td className="px-3 py-2 text-right">{r.credit1}</td>
                             <td className="px-3 py-2 text-right">{r.pb1}</td>
                           </tr>
                         ))}
