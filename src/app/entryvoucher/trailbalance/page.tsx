@@ -287,6 +287,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
 const COMPANY_NAME = 'AL-NASAR BASHEER LOGISTICS';
 const COMPANY_ADDRESS = 'Suit No. 108, S.P Chamber, 1st Floor, Plot No B-9/B-1 Near Habib Bank Chowrangi, S.I.T.E, Karachi, Pakistan';
 const COMPANY_COLOR = { r: 0, g: 0, b: 128 }; // Navy Blue
+const BG_BLUE_100 = { r: 219, g: 234, b: 254 }; // Tailwind bg-blue-100
 
 type GroupedRows = Array<{
   accountId: string;
@@ -315,10 +316,18 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   doc.setLineWidth(0.4);
   doc.line(105 - cw / 2, y + 1.5, 105 + cw / 2, y + 1.5);
   y += 7;
+
+  // TRIAL BALANCE heading with bg-blue-100 background
   doc.setFontSize(12);
   doc.setTextColor(COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b);
-  doc.text('LEDGER REPORT', 105, y, { align: 'center' });
+  const headingText = 'TRIAL BALANCE';
+  const headingWidth = doc.getTextWidth(headingText);
+  const headingX = 105 - headingWidth / 2;
+  doc.setFillColor(BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b);
+  doc.rect(headingX - 2, y - 3, headingWidth + 4, 8, 'F'); // Background rectangle
+  doc.text(headingText, 105, y, { align: 'center' });
   y += 4;
+
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
   doc.text(titleLine.replace('Ledger Report ', ''), 105, y, { align: 'center' });
@@ -387,15 +396,15 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
         ],
       ],
       headStyles: {
-        fillColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
-        textColor: [255, 255, 255],
+        fillColor: [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b],
+        textColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
         fontStyle: 'bold',
         fontSize: 8,
         cellPadding: 1.5,
       },
       footStyles: {
-        fillColor: [220, 220, 255],
-        textColor: [0, 0, 0],
+        fillColor: [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b],
+        textColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
         fontStyle: 'bold',
         fontSize: 8,
         cellPadding: 1.5,
@@ -443,7 +452,7 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
     doc.text(`Page ${i} of ${pageCount}`, pageWidth - 10, pageHeight - 6, { align: 'right' });
   }
 
-  const fname = `Ledger-Report-${new Date().toISOString().slice(0, 10)}.pdf`;
+  const fname = `Trial-Balance-${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(fname);
 }
 
@@ -454,7 +463,7 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
     wsData.push([COMPANY_NAME]);
     wsData.push([`Branch: ${branch}`]);
     if (filterLine) wsData.push([filterLine]);
-    wsData.push([titleLine.replace('Ledger Report', 'Ledger Report')]);
+    wsData.push([titleLine.replace('Ledger Report', 'Trial Balance')]);
     wsData.push([`${g.description} (${g.listid})`]);
     wsData.push([]);
     wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit', 'Credit', 'Balance', 'Bal Type']);
@@ -466,7 +475,7 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
         r.depositSlipNo || '-',
         r.narration || '-',
         r.debit1Num ?? 0,
-        r.cedit1Num ?? 0,
+        r.credit1Num ?? 0,
         r.pb1Num ?? 0,
         r.balanceType || '-',
       ]);
@@ -520,17 +529,17 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
 
     XLSX.utils.book_append_sheet(wb, ws, (g.description || g.listid).slice(0, 25));
   });
-  const fname = `Ledger-Report-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const fname = `Trial-Balance-${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fname);
 }
 
 function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
   const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
-  const header = `<h2 style=\"text-align:center;margin:4px 0;color:#000080\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div>${filterLine ? `<div style=\"text-align:center;margin:2px 0;font-size:12px\">${filterLine}</div>` : ''}<h3 style=\"text-align:center;margin:6px 0\">${titleLine.replace('Ledger Report', 'Ledger Report')}</h3>`;
-  const tableHead = `<tr><th style="background-color:#000080;color:white">Voucher Date</th><th style="background-color:#000080;color:white">Voucher No</th><th style="background-color:#000080;color:white">Cheque No</th><th style="background-color:#000080;color:white">Deposit Slip No</th><th style="background-color:#000080;color:white">Narration</th><th style="background-color:#000080;color:white">Debit</th><th style="background-color:#000080;color:white">Credit</th><th style="background-color:#000080;color:white">Balance</th><th style="background-color:#000080;color:white">Bal Type</th></tr>`;
+  const header = `<h2 style=\"text-align:center;margin:4px 0;color:#000080\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div>${filterLine ? `<div style=\"text-align:center;margin:2px 0;font-size:12px\">${filterLine}</div>` : ''}<h3 style=\"text-align:center;margin:6px 0;background-color:#dbeafe;color:#000080;padding:4px\">TRIAL BALANCE</h3>`;
+  const tableHead = `<tr><th style="background-color:#dbeafe;color:#000080">Voucher Date</th><th style="background-color:#dbeafe;color:#000080">Voucher No</th><th style="background-color:#dbeafe;color:#000080">Cheque No</th><th style="background-color:#dbeafe;color:#000080">Deposit Slip No</th><th style="background-color:#dbeafe;color:#000080">Narration</th><th style="background-color:#dbeafe;color:#000080">Debit</th><th style="background-color:#dbeafe;color:#000080">Credit</th><th style="background-color:#dbeafe;color:#000080">Balance</th><th style="background-color:#dbeafe;color:#000080">Bal Type</th></tr>`;
   const sections = groups.map((g) => {
     const rows = g.rows.map((r, idx) => `<tr style="background-color:${idx % 2 === 0 ? '#fff' : '#e6e6ff'}"><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.debit1}</td><td>${r.credit1}</td><td>${r.pb1}</td><td>${r.balanceType || '-'}</td></tr>`).join('');
-    const totalsRow = `<tr style="background-color:#dcdcf5"><td colspan="5" style="text-align:right;font-weight:bold">TOTAL (Remaining Balance)</td><td>${Math.abs(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td></td></tr>`;
+    const totalsRow = `<tr style="background-color:#dbeafe"><td colspan="5" style="text-align:right;font-weight:bold">TOTAL (Remaining Balance)</td><td>${Math.abs(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td></td></tr>`;
     return `<h4 style=\"margin:10px 0 4px\">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
   }).join('<br/>');
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr style="border-color:#000080"/>${sections}</body></html>`;
@@ -538,7 +547,7 @@ function exportGroupedToWord(titleLine: string, branch: string, filterLine: stri
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Ledger-Report-${new Date().toISOString().slice(0, 10)}.doc`;
+  a.download = `Trial-Balance-${new Date().toISOString().slice(0, 10)}.doc`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -864,7 +873,7 @@ const TrialBalancePage: React.FC = () => {
   const titleLine = useMemo(() => {
     const f = fromDate ? new Date(fromDate).toLocaleDateString('en-GB').split('/').join('-') : '-';
     const t = toDate ? new Date(toDate).toLocaleDateString('en-GB').split('/').join('-') : '-';
-    return `Ledger Report From ${f} To ${t}`;
+    return `Trial Balance From ${f} To ${t}`;
   }, [fromDate, toDate]);
 
   const filterSummary = useMemo(() => {
@@ -896,7 +905,7 @@ const TrialBalancePage: React.FC = () => {
       <div className="p-3 md:p-5 bg-blue-50 dark:bg-gray-900">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border-2 border-blue-200 dark:border-blue-900 mb-4 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 dark:border-blue-900 bg-blue-100 dark:bg-blue-950">
-            <h1 className="text-lg font-semibold text-blue-900 dark:text-blue-200">Ledger Report</h1>
+            <h1 className="text-lg font-semibold text-blue-900 dark:text-blue-200">Trial Balance</h1>
             <p className="text-sm font-bold text-blue-700 dark:text-blue-300">{COMPANY_NAME}</p>
           </div>
           <div className="p-4 flex flex-col gap-3">
