@@ -402,10 +402,12 @@ const EntryVoucherList = () => {
                   <th className="border px-2 py-1 text-left">Account 1</th>
                   <th className="border px-2 py-1 text-right">Debit 1</th>
                   <th className="border px-2 py-1 text-right">Credit 1</th>
+                  <th className="border px-2 py-1 text-right">Project Balance 1</th>
                   <th className="border px-2 py-1 text-left">Narration</th>
                   <th className="border px-2 py-1 text-left">Account 2</th>
                   <th className="border px-2 py-1 text-right">Debit 2</th>
                   <th className="border px-2 py-1 text-right">Credit 2</th>
+                  <th className="border px-2 py-1 text-right">Project Balance 1</th>
                 </tr>
               </thead>
               <tbody>
@@ -414,10 +416,12 @@ const EntryVoucherList = () => {
                     <td className="border px-2 py-1">{displayAccount(d.account1)}</td>
                     <td className="border px-2 py-1 text-right">{Number(d.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="border px-2 py-1 text-right">{Number(d.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="border px-2 py-1 text-right">{d.projectedBalance1}</td>
                     <td className="border px-2 py-1">{d.narration || '-'}</td>
                     <td className="border px-2 py-1">{displayAccount(d.account2)}</td>
                     <td className="border px-2 py-1 text-right">{Number(d.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="border px-2 py-1 text-right">{Number(d.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="border px-2 py-1 text-right">{d.projectedBalance2}</td>
                   </tr>
                 ))}
               </tbody>

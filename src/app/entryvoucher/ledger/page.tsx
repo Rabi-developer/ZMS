@@ -277,7 +277,9 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
 };
 
 // Export helpers
-const COMPANY_NAME = 'AL- NASAR BASHEER LOGISTICS';
+const COMPANY_NAME = 'AL-NASAR BASHEER LOGISTICS';
+const COMPANY_ADDRESS = 'Suit No. 108, S.P Chamber, 1st Floor, Plot No B-9/B-1 Near Habib Bank Chowrangi, S.I.T.E, Karachi, Pakistan';
+const COMPANY_COLOR = { r: 128, g: 0, b: 0 }; // Maroon
 
 type GroupedRows = Array<{
   accountId: string;
@@ -291,106 +293,155 @@ type GroupedRows = Array<{
   };
 }>;
 
-function exportGroupedToPDF(titleLine: string, branch: string, groups: GroupedRows) {
+
+function exportGroupedToPDF(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
   const doc = new jsPDF();
-  let y = 14;
+  let y = 20; 
+
+  // Header
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
+  doc.setFontSize(18);
+  doc.setTextColor(66, 103, 149); // Lighter blue (matching table header color)
   doc.text(COMPANY_NAME, 105, y, { align: 'center' });
-  y += 6;
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Branch: ${branch}`, 105, y, { align: 'center' });
   y += 8;
-  doc.setFont('helvetica', 'bold');
-  doc.text(titleLine, 105, y, { align: 'center' });
+  doc.setFontSize(14);
+  doc.setTextColor(66, 103, 149); 
+  doc.text('GENERAL LEDGER', 105, y, { align: 'center' });
   y += 6;
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.text(titleLine.replace('General Ledger ', ''), 105, y, { align: 'center' });
+  y += 6;
+  doc.text(`Branch: ${branch}`, 105, y, { align: 'center' });
+  if (filterLine) {
+    y += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(filterLine, 105, y, { align: 'center' });
+  }
+  y += 10;
+
+  // Format amounts with parentheses for negative values
+  const formatAmount = (value: number) => {
+    if (value === 0) return '';
+    if (value < 0) return `(${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
+    return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
 
   groups.forEach((g, idx) => {
     if (idx > 0) y += 6;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.text(`${g.description} (${g.listid})`, 12, y);
-    y += 2;
-
+    y += 4;
     autoTable(doc, {
-      startY: y + 2,
-      head: [[
-        'Voucher Date',
-        'Voucher No',
-        'Cheque No',
-        'Deposit Slip No',
-        'Narration',
-        'Debit ',
-        'Credit ',
-        'Net Balance',
-      ]],
+      startY: y,
+      head: [
+        [
+          'Voucher Date',
+          'Voucher No',
+          'Cheque No',
+          'Deposit Slip No',
+          'Narration',
+          'Debit ',
+          'Credit ',
+          'Net Balance',
+        ],
+      ],
       body: g.rows.map((r) => [
         r.voucherDate,
         r.voucherNo,
         r.chequeNo || '',
         r.depositSlipNo || '',
         r.narration || '',
-        r.debit1,
-        r.credit1,
-        r.pb1,
+        formatAmount(r.debit1Num ?? 0),
+        formatAmount(r.credit1Num ?? 0),
+        formatAmount(r.pb1Num ?? 0),
       ]),
-      foot: [[
-        { content: 'TOTAL', colSpan: 5, styles: { halign: 'right', fontStyle: 'bold' } },
-        (g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        (g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-        (g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      ]],
-      footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold', textColor: [0, 0, 0] },
-      styles: { fontSize: 8 },
+      foot: [
+        [
+          {
+            content: 'TOTAL',
+            colSpan: 5,
+            styles: { halign: 'right', fontStyle: 'bold' },
+          },
+          formatAmount(g.totals.debit1 || 0),
+          formatAmount(g.totals.credit1 || 0),
+          formatAmount(g.totals.pb1 || 0),
+        ],
+      ],
+      headStyles: {
+        fillColor: [66, 103, 149], 
+        textColor: [255, 255, 255], 
+        fontStyle: 'bold',
+        fontSize: 8,
+        cellPadding: 1.5,
+      },
+      footStyles: {
+        fillColor: [224, 224, 224], 
+        textColor: [0, 0, 0], 
+        fontStyle: 'bold',
+        fontSize: 8,
+        cellPadding: 1.5,
+      },
+      bodyStyles: {
+        fontSize: 7,
+        textColor: [0, 0, 0], 
+        cellPadding: 1.5,
+      },
+      alternateRowStyles: {
+        fillColor: [240, 240, 240], 
+      },
       theme: 'grid',
       margin: { left: 8, right: 8 },
       columnStyles: {
-        0: { cellWidth: 22 }, // Voucher Date
-        1: { cellWidth: 24 }, // Voucher No
-        2: { cellWidth: 24 }, // Cheque No
-        3: { cellWidth: 24 }, // Deposit Slip No
-        4: { cellWidth: 48 }, // Narration
-        5: { halign: 'right' }, // Debit 1
-        6: { halign: 'right' }, // Credit 1
-        7: { halign: 'right' }, // Proj Bal 1
+        0: { cellWidth: 20 }, 
+        1: { cellWidth: 22 }, 
+        2: { cellWidth: 22 }, 
+        3: { cellWidth: 22 }, 
+        4: { cellWidth: 46 }, 
+                5: { halign: 'right' }, 
+        6: { halign: 'right' }, 
+        7: { halign: 'right' }, 
       },
     });
-
-    y = (doc as any).lastAutoTable.finalY;
+    y = (doc as any).lastAutoTable.finalY + 4;
     if (y > 260 && idx < groups.length - 1) {
       doc.addPage();
-      y = 14;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(16);
-      doc.text(COMPANY_NAME, 105, y, { align: 'center' });
-      y += 6;
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Branch: ${branch}`, 105, y, { align: 'center' });
-      y += 8;
-      doc.setFont('helvetica', 'bold');
-      doc.text(titleLine, 105, y, { align: 'center' });
-      y += 6;
+      y = 10; 
     }
   });
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const addressLines = doc.splitTextToSize(COMPANY_ADDRESS, pageWidth - 20);
+    const addrY = pageHeight - 10 - (addressLines.length - 1) * 4;
+    doc.text(addressLines, pageWidth / 2, addrY, { align: 'center' });
+    doc.text(`Page ${i} of ${pageCount}`, pageWidth - 10, pageHeight - 6, { align: 'right' });
+  }
 
   const fname = `General-Ledger-${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(fname);
 }
-
-function exportGroupedToExcel(titleLine: string, branch: string, groups: GroupedRows) {
+function exportGroupedToExcel(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
   const wb = XLSX.utils.book_new();
   groups.forEach((g) => {
     const wsData: any[][] = [];
     // Header rows
     wsData.push([COMPANY_NAME]);
     wsData.push([`Branch: ${branch}`]);
+    if (filterLine) wsData.push([filterLine]);
     wsData.push([titleLine]);
     wsData.push([`${g.description} (${g.listid})`]);
     wsData.push([]);
     // Table header
-    wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit 1', 'Credit 1', 'Net Balance']);
+    wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit 1', 'Credit 1', 'Proj Bal 1']);
     // Data rows (use raw numbers for numeric cells)
     g.rows.forEach((r) => {
       wsData.push([
@@ -404,7 +455,7 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
         r.pb1Num ?? 0,
       ]);
     });
-    // Totals row (raw numbers) - show Debit first, then Credit
+    // Totals row (raw numbers)
     wsData.push([
       'TOTAL', '', '', '', '',
       (g.totals.debit1 || 0),
@@ -416,11 +467,18 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
 
     // Merge header cells across 8 columns
     (ws as any)['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } },
-      { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } },
-      { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } },
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, // Company Name
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }, // Branch
     ];
+    let mergeIdx = 2;
+    if (filterLine) {
+      (ws as any)['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }); // Filter line
+      mergeIdx++;
+    }
+    (ws as any)['!merges'].push(
+      { s: { r: mergeIdx, c: 0 }, e: { r: mergeIdx, c: 7 } }, // Title
+      { s: { r: mergeIdx + 1, c: 0 }, e: { r: mergeIdx + 1, c: 7 } } // Group caption
+    );
 
     // Column widths for better readability
     (ws as any)['!cols'] = [
@@ -434,10 +492,9 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
       { wch: 14 }, // Proj Bal 1
     ];
 
-    // Apply number formats for numeric columns (Debit, Credit, Proj Bal)
+    // Apply number formats for numeric columns
     const range = XLSX.utils.decode_range(ws['!ref'] as string);
-    // Header is 6th row (0-based r:5). Numeric columns start from row index 6 (data starts at 7th row).
-    const firstDataRow = 6; // 0-based
+    const firstDataRow = filterLine ? 7 : 6;
     for (let R = firstDataRow; R <= range.e.r; R++) {
       // Debit (col 5)
       const c5 = XLSX.utils.encode_cell({ r: R, c: 5 });
@@ -450,18 +507,15 @@ function exportGroupedToExcel(titleLine: string, branch: string, groups: Grouped
       if (ws[c7] && typeof ws[c7].v === 'number') { ws[c7].t = 'n'; (ws[c7] as any).z = '#,##0.00'; }
     }
 
-    // Simple styling hints (header-like row background is not supported natively by sheetjs without a style plugin)
-    // We keep structure readable via column widths, merges, and number formats.
-
     XLSX.utils.book_append_sheet(wb, ws, (g.description || g.listid).slice(0, 25));
   });
   const fname = `General-Ledger-${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fname);
 }
 
-function exportGroupedToWord(titleLine: string, branch: string, groups: GroupedRows) {
+function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
   const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #777;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
-  const header = `<h2 style="text-align:center;margin:4px 0">${COMPANY_NAME}</h2><div style="text-align:center">Branch: ${branch}</div><h3 style="text-align:center;margin:6px 0">${titleLine}</h3>`;
+  const header = `<h2 style=\"text-align:center;margin:4px 0;color:#800000\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div>${filterLine ? `<div style=\"text-align:center;margin:2px 0;font-size:12px\">${filterLine}</div>` : ''}<h3 style=\"text-align:center;margin:6px 0\">${titleLine}</h3>`;
   const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Deposit Slip No</th><th>Narration</th><th>Debit 1</th><th>Credit 1</th><th>Proj Bal 1</th></tr>`;
   const sections = groups.map((g) => {
     const rows = g.rows.map((r) => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.debit1}</td><td>${r.credit1}</td><td>${r.pb1}</td></tr>`).join('');
@@ -568,6 +622,32 @@ const LedgerPage: React.FC = () => {
         return (s || '').toLowerCase() === status.toLowerCase();
       };
 
+      // Compute previous balance per account before From Date
+      const prevMap: Record<string, { date: number; pb: number }> = {};
+      if (from) {
+        all.forEach((v) => {
+          const d = v.voucherDate ? new Date(v.voucherDate) : null;
+          if (!d || isNaN(d.getTime())) return;
+          if (!matchesStatus(v.status)) return;
+          if (d >= from) return;
+          (v.voucherDetails || []).forEach((r) => {
+            const t = d.getTime();
+            const k1 = (r.account1 ?? '').trim().toLowerCase();
+            const k2 = (r.account2 ?? '').trim().toLowerCase();
+            if (k1) {
+              const pb = Number(r.projectedBalance1 ?? 0);
+              const prev = prevMap[k1];
+              if (!prev || t > prev.date) prevMap[k1] = { date: t, pb };
+            }
+            if (k2) {
+              const pb = Number(r.projectedBalance2 ?? 0);
+              const prev = prevMap[k2];
+              if (!prev || t > prev.date) prevMap[k2] = { date: t, pb };
+            }
+          });
+        });
+      }
+
       // Determine selected account IDs based on mode
       let selectedAccountIds: string[] = [];
       if (filterType === 'byHead') {
@@ -611,7 +691,7 @@ const LedgerPage: React.FC = () => {
 
       const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number } }> = {};
 
-      const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow, side: 1 | 2) => {
+      const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow) => {
         const accInfo = accountIndex[accountId] || ({ description: accountId, listid: accountId } as any);
         const key = accountId;
         if (!groupMap[key]) {
@@ -623,72 +703,85 @@ const LedgerPage: React.FC = () => {
             totals: { credit1: 0, debit1: 0, pb1: 0 },
           };
         }
-        // Use values from the correct side (1 or 2)
-        const cr = Math.abs(Number(side === 1 ? r.credit1 ?? 0 : r.credit2 ?? 0));
-        const dr = Math.abs(Number(side === 1 ? r.debit1 ?? 0 : r.debit2 ?? 0));
-        const pbN = Math.abs(Number(side === 1 ? r.projectedBalance1 ?? 0 : r.projectedBalance2 ?? 0));
-
-        // Sum totals regardless of side
-        groupMap[key].totals.credit1 += cr;
-        groupMap[key].totals.debit1 += dr;
-        groupMap[key].totals.pb1 += pbN;
-
-        // Format voucher date as DD-MMM-YYYY
-        const rawDate = v.voucherDate || '';
-        let voucherDate = rawDate || '-';
-        if (rawDate) {
-          const d = new Date(rawDate);
-          if (!isNaN(d.getTime())) {
-            const ds = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            voucherDate = ds.replace(/ /g, '-'); // e.g., 02-Sep-2025
-          }
+        // Determine which side
+        let debit: number, credit: number, pb: number;
+        if (accountId === r.account1) {
+          debit = Number(r.debit1 ?? 0);
+          credit = Number(r.credit1 ?? 0);
+          pb = Number(r.projectedBalance1 ?? 0);
+        } else {
+          debit = Number(r.debit2 ?? 0);
+          credit = Number(r.credit2 ?? 0);
+          pb = Number(r.projectedBalance2 ?? 0);
         }
+
+        groupMap[key].totals.debit1 += debit;
+        groupMap[key].totals.credit1 += credit;
+        // pb1 totals set later as closing balance
 
         groupMap[key].rows.push({
           // internal insertion index for stable sorting
           _idx: groupMap[key].rows.length,
-          voucherDateRaw: rawDate,
-          voucherDate,
+          voucherDate: v.voucherDate || '-',
           voucherNo: v.voucherNo || '-',
           chequeNo: v.chequeNo || '-',
           depositSlipNo: v.depositSlipNo || '-',
           narration: v.narration || v.description || r.narration || '-',
           // formatted strings for UI/PDF/Word
-          credit1: cr ? cr.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          debit1: dr ? dr.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          pb1: pbN.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          pb1: pb.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           // raw numbers for Excel
-          credit1Num: cr,
-          debit1Num: dr,
-          pb1Num: pbN,
+          debit1Num: debit,
+          credit1Num: credit,
+          pb1Num: pb,
         });
       };
 
       filteredVouchers.forEach((v) => {
         (v.voucherDetails || []).forEach((r) => {
-          const inSel1 = selectedKeys.size === 0 || selectedKeys.has((r.account1 ?? '').trim().toLowerCase());
-          const inSel2 = selectedKeys.size === 0 || selectedKeys.has((r.account2 ?? '').trim().toLowerCase());
-          if (inSel1 && r.account1) pushRow(r.account1, v, r, 1);
-          if (inSel2 && r.account2) pushRow(r.account2, v, r, 2);
+          const inSel1 = selectedKeys.size === 0 || selectedKeys.has(normalize(r.account1));
+          const inSel2 = selectedKeys.size === 0 || selectedKeys.has(normalize(r.account2));
+          if (inSel1 && r.account1) pushRow(r.account1, v, r);
+          if (inSel2 && r.account2) pushRow(r.account2, v, r);
         });
       });
 
       const grouped: GroupedRows = Object.values(groupMap)
         .filter((g) => g.rows.length > 0)
-        .map((g) => ({
-          ...g,
-          // Sort rows by Voucher Date asc (then by Voucher No to stabilize)
-          rows: [...g.rows].sort((r1: any, r2: any) => {
-            const d1 = r1.voucherDateRaw ? new Date(r1.voucherDateRaw).getTime() : 0;
-            const d2 = r2.voucherDateRaw ? new Date(r2.voucherDateRaw).getTime() : 0;
-            if (d1 !== d2) return d1 - d2;
+        .map((g) => {
+          // Sort rows by date then voucherNo
+          const rowsSorted = [...g.rows].sort((r1: any, r2: any) => {
+            const d1 = new Date(r1.voucherDate || '0000-00-00');
+            const d2 = new Date(r2.voucherDate || '0000-00-00');
+            if (d1 < d2) return -1;
+            if (d1 > d2) return 1;
             const v1 = (r1.voucherNo || '').toString();
             const v2 = (r2.voucherNo || '').toString();
-            const cmp = v1.localeCompare(v2, undefined, { numeric: true, sensitivity: 'base' });
-            if (cmp !== 0) return cmp;
-            return (r1._idx ?? 0) - (r2._idx ?? 0);
-          }),
-        }))
+            return v1.localeCompare(v2, undefined, { numeric: true, sensitivity: 'base' });
+          });
+          // Insert opening balance row always
+          const keyNorm = normalize(g.accountId);
+          const prev = prevMap[keyNorm];
+          const opening = prev ? prev.pb : 0;
+          rowsSorted.unshift({
+            _idx: -1,
+            voucherDate: '-',
+            voucherNo: '-',
+            chequeNo: '-',
+            depositSlipNo: '-',
+            narration: 'Opening Balance (previous period)',
+            debit1: '',
+            credit1: '',
+            pb1: opening.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            debit1Num: 0,
+            credit1Num: 0,
+            pb1Num: opening,
+          });
+          // Set closing balance for totals.pb1
+          const closing = rowsSorted.length > 0 ? rowsSorted[rowsSorted.length - 1].pb1Num : 0;
+          return { ...g, rows: rowsSorted, totals: { ...g.totals, pb1: closing } };
+        })
         .sort((a, b) => (a.listid || a.description).localeCompare(b.listid || b.description));
 
       setGroups(grouped);
@@ -706,6 +799,16 @@ const LedgerPage: React.FC = () => {
     const t = toDate ? new Date(toDate).toLocaleDateString('en-GB').split('/').join('-') : '-';
     return `General Ledger From ${f} To ${t}`;
   }, [fromDate, toDate]);
+
+  const filterSummary = useMemo(() => {
+    let statusPart = status && status !== 'All' ? `Status: ${status}` : '';
+    let accPart = '';
+    if (filterType === 'byHead' && headAccountId) accPart = `Filter: By Head (${headAccountId})`;
+    if (filterType === 'range' && (rangeFromId || rangeToId)) accPart = `Filter: Range (${rangeFromId || '-'} to ${rangeToId || '-'})`;
+    if (filterType === 'specific' && (specific1Id || specific2Id)) accPart = `Filter: Specific (${specific1Id || '-'} & ${specific2Id || '-'})`;
+    let summary = [statusPart, accPart].filter(Boolean).join(', ');
+    return summary;
+  }, [status, filterType, headAccountId, rangeFromId, rangeToId, specific1Id, specific2Id]);
 
   // Reset all filters to default values
   const clearFilters = () => {
@@ -869,19 +972,19 @@ const LedgerPage: React.FC = () => {
                 <div className="text-xs text-gray-500">Tip: Use search inside account pickers to quickly find accounts.</div>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => exportGroupedToPDF(titleLine, branch, groups)}
+                    onClick={() => exportGroupedToPDF(titleLine, branch, filterSummary, groups)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md"
                   >
                     Export PDF
                   </Button>
                   <Button
-                    onClick={() => exportGroupedToExcel(titleLine, branch, groups)}
+                    onClick={() => exportGroupedToExcel(titleLine, branch, filterSummary, groups)}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-md"
                   >
                     Export Excel
                   </Button>
                   <Button
-                    onClick={() => exportGroupedToWord(titleLine, branch, groups)}
+                    onClick={() => exportGroupedToWord(titleLine, branch, filterSummary, groups)}
                     className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-md"
                   >
                     Export Word
