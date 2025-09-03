@@ -6,6 +6,20 @@ import { PiEqualizerDuotone } from "react-icons/pi";
 import { LiaAccusoft } from "react-icons/lia";
 import { GiTakeMyMoney } from "react-icons/gi";
 import { RiEdgeNewFill } from "react-icons/ri";
+import { TbReport } from "react-icons/tb";
+import { RiFilePdf2Line } from "react-icons/ri";
+import { LiaBalanceScaleLeftSolid } from "react-icons/lia";
+import { VscFilePdf } from "react-icons/vsc";
+import { MdOutlinePictureAsPdf } from "react-icons/md";
+import { FaAccusoft } from "react-icons/fa";
+import { MdEmojiTransportation } from "react-icons/md";
+import { TbBrandBooking } from "react-icons/tb";
+import { IoBookSharp } from "react-icons/io5";
+import { FaRupeeSign } from "react-icons/fa";
+import { MdOutlinePayments } from "react-icons/md";
+import { PiInvoiceLight } from "react-icons/pi";
+import { IoReceiptOutline } from "react-icons/io5";
+
 
 export const ablSideBarItems = [
   {
@@ -64,54 +78,54 @@ export const ablSideBarItems = [
   },
   {
     text: 'Transport',
-    icon: FaFileInvoice,
+    icon: MdEmojiTransportation ,
     color: '#1a5f3a',
     sub_menu: [
       {
         text: 'Booking Order',
         href: '/bookingorder',
-        icon: FaFileInvoice,
-        color: '#1a5f3a',
+        icon: TbBrandBooking,
+        color: '#1a5f3a', 
       },
       {
         text: 'Consignment',
         href: '/consignment',
-        icon: FaFileInvoice,
+        icon: IoBookSharp,
         color: '#1a5f3a',
       },
       {
         text: 'Charges',
         href: '/charges',
-        icon: FaFileInvoice,
+        icon: FaRupeeSign ,
         color: '#1a5f3a',
       },
       {
         text: 'Bill Payment Invoices',
         href: '/billpaymentinvoices',
-        icon: FaFileInvoice,
+        icon: PiInvoiceLight  ,
         color: '#1a5f3a',
       },
       {
         text: 'Payment',
         href: '/paymentABL',
-        icon: MdPayment,
+        icon: MdOutlinePayments,
         color: '#1a5f3a',
       },
       {
         text: 'Receipt',
         href: '/receipt',
-        icon: FaFileInvoice,
+        icon: IoReceiptOutline,
         color: '#1a5f3a',
       }
     ],
   },
   {
-    text: 'Reports',
+    text: 'REPORTS',
     type: 'heading',
   },
   {
     text: 'Reports',
-    icon: FaFileInvoice,
+    icon: VscFilePdf ,
     color: '#1a5f3a',
     sub_menu: [
       // {
@@ -129,53 +143,48 @@ export const ablSideBarItems = [
       {
         text: 'Booking Order Report',
         href: '/ablorderreport',
-        icon: FaFileInvoice,
+        icon: MdOutlinePictureAsPdf,
         color: '#1a5f3a',
       },
-      {
-        text: 'Account Ledger',
-        href: '/entryvoucher/ledger',
-        icon: FaFileInvoice,
-        color: '#1a5f3a',
-      },
+      
     ],
   },
-  {
-    text: 'FLEET MANAGEMENT',
-    type: 'heading',
-  },
-  {
-    text: 'Fleet',
-    icon: FaTruck,
-    color: '#1a5f3a',
-    sub_menu: [
-      {
-        text: 'Vehicles',
-        href: '/abl/vehicles',
-        icon: FaTruck,
-        color: '#1a5f3a',
-      },
-      {
-        text: 'Maintenance',
-        href: '/abl/maintenance',
-        icon: FaTools,
-        color: '#1a5f3a',
-      },
-      {
-        text: 'Fuel Tracking',
-        href: '/abl/fuel',
-        icon: FaGasPump,
-        color: '#1a5f3a',
-      },
-    ],
-  },
+  // {
+  //   text: 'FLEET MANAGEMENT',
+  //   type: 'heading',
+  // },
+  // {
+  //   text: 'Fleet',
+  //   icon: FaTruck,
+  //   color: '#1a5f3a',
+  //   sub_menu: [
+  //     {
+  //       text: 'Vehicles',
+  //       href: '/abl/vehicles',
+  //       icon: FaTruck,
+  //       color: '#1a5f3a',
+  //     },
+  //     {
+  //       text: 'Maintenance',
+  //       href: '/abl/maintenance',
+  //       icon: FaTools,
+  //       color: '#1a5f3a',
+  //     },
+  //     {
+  //       text: 'Fuel Tracking',
+  //       href: '/abl/fuel',
+  //       icon: FaGasPump,
+  //       color: '#1a5f3a',
+  //     },
+  //   ],
+  // },
   {
     text: 'Voucher',
     type: 'heading',
   },
   {
     text: 'Voucher',
-    icon: GiRoad,
+    icon: FaAccusoft  ,
     color: '#1a5f3a',
     sub_menu: [
       {
@@ -196,6 +205,31 @@ export const ablSideBarItems = [
         icon: FaFileInvoice,
         color: '#1a5f3a',
       },
+    ],
+  },
+
+  {
+    text: 'Voucher Report',
+    type: 'heading',
+  },
+  {
+    text: 'Voucher Report',
+    icon: TbReport ,
+    color: '#1a5f3a',
+    sub_menu: [
+      {
+        text: 'Gernal Ledger',
+        href: '/entryvoucher/ledger',
+        icon: RiFilePdf2Line,
+        color: '#1a5f3a',
+      },
+      {
+        text: 'Trial Balance',
+        href: '/entryvoucher/trailbalance',
+        icon: LiaBalanceScaleLeftSolid ,
+        color: '#1a5f3a',
+      },
+      
     ],
   },
 ];
