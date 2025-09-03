@@ -309,7 +309,7 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   // Header
   const companyText = (COMPANY_NAME || '').toUpperCase();
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
+  doc.setFontSize(18);
   doc.setTextColor(COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b);
   doc.text(companyText, 105, y, { align: 'center' });
   const cw = doc.getTextWidth(companyText);
@@ -319,17 +319,17 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   y += 7;
 
   // TRIAL BALANCE heading with bg-blue-100 background
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setTextColor(COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b);
   const headingText = 'TRIAL BALANCE';
   const headingWidth = doc.getTextWidth(headingText);
   const headingX = 105 - headingWidth / 2;
   doc.setFillColor(BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b);
-  doc.rect(headingX - 2, y - 3, headingWidth + 4, 8, 'F'); // Background rectangle
+  doc.rect(headingX - 2, y - 3, headingWidth + 4, 7, 'F');
   doc.text(headingText, 105, y, { align: 'center' });
   y += 4;
 
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
   doc.text(titleLine.replace('Trial Balance ', ''), 105, y, { align: 'center' });
   y += 4;
@@ -337,10 +337,10 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   if (filterLine) {
     y += 4;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.text(filterLine, 105, y, { align: 'center' });
   }
-  y += 9;
+  y += 8;
 
   const formatAmount = (value: number) => {
     return Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -352,10 +352,10 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   };
 
   groups.forEach((g, idx) => {
-    if (idx > 0) y += 6;
+    if (idx > 0) y += 5;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text(`${g.description} (${g.listid})`, 12, y);
+    doc.setFontSize(9);
+    doc.text(`${g.description} (${g.listid})`, 10, y);
     y += 4;
     autoTable(doc, {
       startY: y,
@@ -400,20 +400,20 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
         fillColor: [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b],
         textColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
         fontStyle: 'bold',
-        fontSize: 8,
-        cellPadding: 1.5,
+        fontSize: 7,
+        cellPadding: 1,
       },
       footStyles: {
         fillColor: [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b],
         textColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
         fontStyle: 'bold',
-        fontSize: 8,
-        cellPadding: 1.5,
+        fontSize: 7,
+        cellPadding: 1,
       },
       bodyStyles: {
-        fontSize: 7,
+        fontSize: 6,
         textColor: [0, 0, 0],
-        cellPadding: 1.5,
+        cellPadding: 1,
       },
       alternateRowStyles: {
         fillColor: [240, 240, 255],
@@ -421,19 +421,19 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
       theme: 'grid',
       margin: { left: 8, right: 8 },
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 22 },
-        2: { cellWidth: 22 },
-        3: { cellWidth: 22 },
-        4: { cellWidth: 40 },
+        0: { cellWidth: 18 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 35 },
         5: { halign: 'right' },
         6: { halign: 'right' },
-        7: { halign: 'right' },
-        8: { cellWidth: 15, halign: 'center' },
+        7: { halign: 'right', cellWidth: 18 },
+        8: { cellWidth: 12, halign: 'center' },
       },
     });
     y = (doc as any).lastAutoTable.finalY + 4;
-    if (y > 260 && idx < groups.length - 1) {
+    if (y > 270 && idx < groups.length - 1) {
       doc.addPage();
       y = 10;
     }
@@ -444,7 +444,7 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const addressLines = doc.splitTextToSize(COMPANY_ADDRESS, pageWidth - 20);
@@ -510,10 +510,10 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
       { wch: 14 },
       { wch: 14 },
       { wch: 16 },
-      { wch: 40 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 14 },
+      { wch: 35 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
       { wch: 10 },
     ];
 
@@ -535,13 +535,13 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
 }
 
 function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
-  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
-  const header = `<h2 style="text-align:center;margin:4px 0;color:#000080">${COMPANY_NAME}</h2><div style="text-align:center">Branch: ${branch}</div>${filterLine ? `<div style="text-align:center;margin:2px 0;font-size:12px">${filterLine}</div>` : ''}<h3 style="text-align:center;margin:6px 0;background-color:#dbeafe;color:#000080;padding:4px">TRIAL BALANCE</h3>`;
+  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:3px;font-size:10px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
+  const header = `<h2 style="text-align:center;margin:4px 0;color:#000080">${COMPANY_NAME}</h2><div style="text-align:center">Branch: ${branch}</div>${filterLine ? `<div style="text-align:center;margin:2px 0;font-size:10px">${filterLine}</div>` : ''}<h3 style="text-align:center;margin:6px 0;background-color:#dbeafe;color:#000080;padding:3px">TRIAL BALANCE</h3>`;
   const tableHead = `<tr><th style="background-color:#dbeafe;color:#000080">Voucher Date</th><th style="background-color:#dbeafe;color:#000080">Voucher No</th><th style="background-color:#dbeafe;color:#000080">Cheque No</th><th style="background-color:#dbeafe;color:#000080">Deposit Slip No</th><th style="background-color:#dbeafe;color:#000080">Narration</th><th style="background-color:#dbeafe;color:#000080">Debit</th><th style="background-color:#dbeafe;color:#000080">Credit</th><th style="background-color:#dbeafe;color:#000080">Balance</th><th style="background-color:#dbeafe;color:#000080">Bal Type</th></tr>`;
   const sections = groups.map((g) => {
     const rows = g.rows.map((r, idx) => `<tr style="background-color:${idx % 2 === 0 ? '#fff' : '#e6e6ff'}"><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.debit1}</td><td>${r.credit1}</td><td>${r.pb1}</td><td>${r.balanceType || '-'}</td></tr>`).join('');
     const totalsRow = `<tr style="background-color:#dbeafe"><td colspan="5" style="text-align:right;font-weight:bold">Closing Balance (${g.totals.balanceType || 'N/A'})</td><td>${Math.abs(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${g.totals.balanceType || '-'}</td></tr>`;
-    return `<h4 style="margin:10px 0 4px">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
+    return `<h4 style="margin:8px 0 3px">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
   }).join('<br/>');
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr style="border-color:#000080"/>${sections}</body></html>`;
   const blob = new Blob([html], { type: 'application/msword' });
@@ -661,19 +661,19 @@ const TrialBalancePage: React.FC = () => {
                 const debit = Number(r.debit1 ?? 0);
                 const credit = Number(r.credit1 ?? 0);
                 const pb = Number(r.projectedBalance1 ?? 0);
-                const lastType = debit > 0 ? 'Debit' : credit > 0 ? 'Credit' : undefined;
+                const lastType = pb > 0 ? 'Debit' : pb < 0 ? 'Credit' : undefined;
                 const lastEntry = {
                   _idx: -1,
-                  voucherDate: v.voucherDate || '-',
-                  voucherNo: v.voucherNo || '-',
-                  chequeNo: v.chequeNo || '-',
-                  depositSlipNo: v.depositSlipNo || '-',
-                  narration: `Opening Balance (${lastType || 'N/A'})`,
-                  debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-                  credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+                  voucherDate: '-',
+                  voucherNo: '-',
+                  chequeNo: '-',
+                  depositSlipNo: '-',
+                  narration: `Opening Balance (Previous Period)`,
+                  debit1: '',
+                  credit1: '',
                   pb1: Math.abs(pb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                  debit1Num: debit,
-                  credit1Num: credit,
+                  debit1Num: 0,
+                  credit1Num: 0,
                   pb1Num: pb,
                   balanceType: lastType,
                 };
@@ -686,19 +686,19 @@ const TrialBalancePage: React.FC = () => {
                 const debit = Number(r.debit2 ?? 0);
                 const credit = Number(r.credit2 ?? 0);
                 const pb = Number(r.projectedBalance2 ?? 0);
-                const lastType = debit > 0 ? 'Debit' : credit > 0 ? 'Credit' : undefined;
+                const lastType = pb > 0 ? 'Debit' : pb < 0 ? 'Credit' : undefined;
                 const lastEntry = {
                   _idx: -1,
-                  voucherDate: v.voucherDate || '-',
-                  voucherNo: v.voucherNo || '-',
-                  chequeNo: v.chequeNo || '-',
-                  depositSlipNo: v.depositSlipNo || '-',
-                  narration: `Opening Balance (${lastType || 'N/A'})`,
-                  debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-                  credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+                  voucherDate: '-',
+                  voucherNo: '-',
+                  chequeNo: '-',
+                  depositSlipNo: '-',
+                  narration: `Opening Balance (Previous Period)`,
+                  debit1: '',
+                  credit1: '',
                   pb1: Math.abs(pb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                  debit1Num: debit,
-                  credit1Num: credit,
+                  debit1Num: 0,
+                  credit1Num: 0,
                   pb1Num: pb,
                   balanceType: lastType,
                 };
@@ -773,7 +773,6 @@ const TrialBalancePage: React.FC = () => {
           credit = Number(r.credit2 ?? 0);
           pb = Number(r.projectedBalance2 ?? 0);
         }
-        const balanceType: 'Debit' | 'Credit' | undefined = debit > 0 ? 'Debit' : credit > 0 ? 'Credit' : undefined;
 
         groupMap[key].totals.debit1 += debit;
         groupMap[key].totals.credit1 += credit;
@@ -793,7 +792,7 @@ const TrialBalancePage: React.FC = () => {
           debit1Num: debit,
           credit1Num: credit,
           pb1Num: pb,
-          balanceType,
+          balanceType: undefined, // No balance type for transaction rows
         });
       };
 
@@ -841,7 +840,7 @@ const TrialBalancePage: React.FC = () => {
           const closingType = closing > 0 ? 'Debit' : closing < 0 ? 'Credit' : undefined;
           const rows: any[] = [];
           if (prev && prev.lastEntry) {
-            rows.push({ ...prev.lastEntry, narration: `Opening Balance (${prev.lastType || 'N/A'})` });
+            rows.push({ ...prev.lastEntry, narration: `Opening Balance (Previous Period)` });
           } else if (opening !== 0) {
             rows.push({
               _idx: -1,
@@ -849,14 +848,14 @@ const TrialBalancePage: React.FC = () => {
               voucherNo: '-',
               chequeNo: '-',
               depositSlipNo: '-',
-              narration: `Opening Balance (${prev?.lastType || 'N/A'})`,
+              narration: `Opening Balance (Previous Period)`,
               debit1: '',
               credit1: '',
               pb1: Math.abs(opening).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
               debit1Num: 0,
               credit1Num: 0,
               pb1Num: opening,
-              balanceType: prev?.lastType,
+              balanceType: opening > 0 ? 'Debit' : opening < 0 ? 'Credit' : undefined,
             });
           }
           rows.push(...rowsSorted);
@@ -1112,7 +1111,7 @@ const TrialBalancePage: React.FC = () => {
                             <td className="px-3 py-2 text-right">{r.debit1}</td>
                             <td className="px-3 py-2 text-right">{r.credit1}</td>
                             <td className="px-3 py-2 text-right">{r.pb1}</td>
-                            <td className="px-3 py-2 text-center">{r.balanceType}</td>
+                            <td className="px-3 py-2 text-center">{r.balanceType || '-'}</td>
                           </tr>
                         ))}
                       </tbody>
