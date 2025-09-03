@@ -300,15 +300,15 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
 
   // Header
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.setTextColor(66, 103, 149); // Lighter blue (matching table header color)
+  doc.setFontSize(20); // Company name more bold/prominent
+  doc.setTextColor(0, 0, 0);
   doc.text(COMPANY_NAME, 105, y, { align: 'center' });
   y += 8;
-  doc.setFontSize(14);
-  doc.setTextColor(66, 103, 149); 
+  doc.setFontSize(12); // Smaller head text
+  doc.setTextColor(66, 103, 149);
   doc.text('GENERAL LEDGER', 105, y, { align: 'center' });
   y += 6;
-  doc.setFontSize(12);
+  doc.setFontSize(10); // Smaller date line
   doc.setTextColor(0, 0, 0);
   doc.text(titleLine.replace('General Ledger ', ''), 105, y, { align: 'center' });
   y += 6;
@@ -316,15 +316,14 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   if (filterLine) {
     y += 6;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(9); // Smaller filter line
     doc.text(filterLine, 105, y, { align: 'center' });
   }
   y += 10;
 
-  // Format amounts with parentheses for negative values
+  // Format amounts without parentheses (use minus sign for negatives)
   const formatAmount = (value: number) => {
     if (value === 0) return '';
-    if (value < 0) return `(${Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
     return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
@@ -832,7 +831,7 @@ const LedgerPage: React.FC = () => {
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border-2 border-emerald-200 dark:border-emerald-900 mb-4 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
             <h1 className="text-lg font-semibold">Account Ledger Report</h1>
-            <p className="text-xs text-gray-500">{COMPANY_NAME}</p>
+            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{COMPANY_NAME}</p>
           </div>
           {/* Top controls: search and quick actions */}
           <div className="p-4 flex flex-col gap-3">
