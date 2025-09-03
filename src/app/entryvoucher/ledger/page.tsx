@@ -360,7 +360,7 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
       foot: [
         [
           {
-            content: 'TOTAL',
+            content: 'TOTAL (Remaining Balance)',
             colSpan: 5,
             styles: { halign: 'right', fontStyle: 'bold' },
           },
@@ -1042,7 +1042,7 @@ const LedgerPage: React.FC = () => {
                       <tfoot>
                         <tr className="bg-white dark:bg-gray-700 font-semibold">
                           <td className="px-3 py-2 text-right" colSpan={5}>
-                            TOTAL
+                            TOTAL (Remaining Balance)
                           </td>
                           <td className="px-3 py-2 text-right">
                             {(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
