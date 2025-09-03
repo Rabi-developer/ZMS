@@ -321,10 +321,10 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   }
   y += 10;
 
-  // Format amounts without parentheses (use minus sign for negatives)
+  // Format amounts as absolute (no minus sign, no parentheses)
   const formatAmount = (value: number) => {
     if (value === 0) return '';
-    return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   groups.forEach((g, idx) => {
@@ -514,12 +514,12 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
 
 function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
   const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #777;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
-  const header = `<h2 style=\"text-align:center;margin:4px 0;color:#800000\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div>${filterLine ? `<div style=\"text-align:center;margin:2px 0;font-size:12px\">${filterLine}</div>` : ''}<h3 style=\"text-align:center;margin:6px 0\">${titleLine}</h3>`;
-  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Deposit Slip No</th><th>Narration</th><th>Debit 1</th><th>Credit 1</th><th>Proj Bal 1</th></tr>`;
+  const header = `<h2 style=\"text-align:center;margin:4px 0;color:#426795\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div>${filterLine ? `<div style=\"text-align:center;margin:2px 0;font-size:12px\">${filterLine}</div>` : ''}<h3 style=\"text-align:center;margin:6px 0\">${titleLine}</h3>`;
+  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Deposit Slip No</th><th>Narration</th><th>Debit </th><th>Credit </th><th>Net Balance</th></tr>`;
   const sections = groups.map((g) => {
     const rows = g.rows.map((r) => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.debit1}</td><td>${r.credit1}</td><td>${r.pb1}</td></tr>`).join('');
-    const totalsRow = `<tr><td colspan="5" style="text-align:right;font-weight:bold">TOTAL</td><td>${(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
-    return `<h4 style="margin:10px 0 4px">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
+    const totalsRow = `<tr><td colspan="5" style="text-align:right;font-weight:bold">TOTAL (Remaining Balance)</td><td>${Math.abs(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    return `<h4 style=\"margin:10px 0 4px\">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
   }).join('<br/>');
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr/>${sections}</body></html>`;
   const blob = new Blob([html], { type: 'application/msword' });
@@ -729,7 +729,7 @@ const LedgerPage: React.FC = () => {
           // formatted strings for UI/PDF/Word
           debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          pb1: pb.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+          pb1: Math.abs(pb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
           // raw numbers for Excel
           debit1Num: debit,
           credit1Num: credit,
@@ -772,7 +772,7 @@ const LedgerPage: React.FC = () => {
             narration: 'Opening Balance (previous period)',
             debit1: '',
             credit1: '',
-            pb1: opening.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            pb1: Math.abs(opening).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
             debit1Num: 0,
             credit1Num: 0,
             pb1Num: opening,
