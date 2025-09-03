@@ -301,7 +301,7 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   // Header
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20); // Company name more bold/prominent
-  doc.setTextColor(0, 0, 0);
+  doc.setTextColor(66, 103, 149); // Match table head color
   doc.text(COMPANY_NAME, 105, y, { align: 'center' });
   y += 8;
   doc.setFontSize(12); // Smaller head text
@@ -831,7 +831,7 @@ const LedgerPage: React.FC = () => {
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border-2 border-emerald-200 dark:border-emerald-900 mb-4 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
             <h1 className="text-lg font-semibold">Account Ledger Report</h1>
-            <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{COMPANY_NAME}</p>
+            <p className="text-sm font-bold text-[#426795] dark:text-[#426795]">{COMPANY_NAME}</p>
           </div>
           {/* Top controls: search and quick actions */}
           <div className="p-4 flex flex-col gap-3">
