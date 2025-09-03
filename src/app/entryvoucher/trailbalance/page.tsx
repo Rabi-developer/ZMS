@@ -298,6 +298,7 @@ type GroupedRows = Array<{
     credit1: number;
     debit1: number;
     pb1: number;
+    balanceType: 'Debit' | 'Credit' | undefined;
   };
 }>;
 
@@ -330,7 +331,7 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
 
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
-  doc.text(titleLine.replace('Ledger Report ', ''), 105, y, { align: 'center' });
+  doc.text(titleLine.replace('Trial Balance ', ''), 105, y, { align: 'center' });
   y += 4;
   doc.text(`Branch: ${branch}`, 105, y, { align: 'center' });
   if (filterLine) {
@@ -385,14 +386,14 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
       foot: [
         [
           {
-            content: 'TOTAL',
+            content: `Closing Balance (${g.totals.balanceType || 'N/A'})`,
             colSpan: 5,
             styles: { halign: 'right', fontStyle: 'bold' },
           },
           formatAmount(g.totals.debit1 || 0),
           formatAmount(g.totals.credit1 || 0),
           formatAmount(g.totals.pb1 || 0),
-          '',
+          g.totals.balanceType || '',
         ],
       ],
       headStyles: {
@@ -463,7 +464,7 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
     wsData.push([COMPANY_NAME]);
     wsData.push([`Branch: ${branch}`]);
     if (filterLine) wsData.push([filterLine]);
-    wsData.push([titleLine.replace('Ledger Report', 'Trial Balance')]);
+    wsData.push([titleLine.replace('Trial Balance', 'Trial Balance')]);
     wsData.push([`${g.description} (${g.listid})`]);
     wsData.push([]);
     wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit', 'Credit', 'Balance', 'Bal Type']);
@@ -481,11 +482,11 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
       ]);
     });
     wsData.push([
-      'TOTAL', '', '', '', '',
+      `Closing Balance (${g.totals.balanceType || 'N/A'})`, '', '', '', '',
       (g.totals.debit1 || 0),
       (g.totals.credit1 || 0),
       (g.totals.pb1 || 0),
-      '',
+      g.totals.balanceType || '-',
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -535,12 +536,12 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
 
 function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
   const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
-  const header = `<h2 style=\"text-align:center;margin:4px 0;color:#000080\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div>${filterLine ? `<div style=\"text-align:center;margin:2px 0;font-size:12px\">${filterLine}</div>` : ''}<h3 style=\"text-align:center;margin:6px 0;background-color:#dbeafe;color:#000080;padding:4px\">TRIAL BALANCE</h3>`;
+  const header = `<h2 style="text-align:center;margin:4px 0;color:#000080">${COMPANY_NAME}</h2><div style="text-align:center">Branch: ${branch}</div>${filterLine ? `<div style="text-align:center;margin:2px 0;font-size:12px">${filterLine}</div>` : ''}<h3 style="text-align:center;margin:6px 0;background-color:#dbeafe;color:#000080;padding:4px">TRIAL BALANCE</h3>`;
   const tableHead = `<tr><th style="background-color:#dbeafe;color:#000080">Voucher Date</th><th style="background-color:#dbeafe;color:#000080">Voucher No</th><th style="background-color:#dbeafe;color:#000080">Cheque No</th><th style="background-color:#dbeafe;color:#000080">Deposit Slip No</th><th style="background-color:#dbeafe;color:#000080">Narration</th><th style="background-color:#dbeafe;color:#000080">Debit</th><th style="background-color:#dbeafe;color:#000080">Credit</th><th style="background-color:#dbeafe;color:#000080">Balance</th><th style="background-color:#dbeafe;color:#000080">Bal Type</th></tr>`;
   const sections = groups.map((g) => {
     const rows = g.rows.map((r, idx) => `<tr style="background-color:${idx % 2 === 0 ? '#fff' : '#e6e6ff'}"><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.debit1}</td><td>${r.credit1}</td><td>${r.pb1}</td><td>${r.balanceType || '-'}</td></tr>`).join('');
-    const totalsRow = `<tr style="background-color:#dbeafe"><td colspan="5" style="text-align:right;font-weight:bold">TOTAL (Remaining Balance)</td><td>${Math.abs(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td></td></tr>`;
-    return `<h4 style=\"margin:10px 0 4px\">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
+    const totalsRow = `<tr style="background-color:#dbeafe"><td colspan="5" style="text-align:right;font-weight:bold">Closing Balance (${g.totals.balanceType || 'N/A'})</td><td>${Math.abs(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${g.totals.balanceType || '-'}</td></tr>`;
+    return `<h4 style="margin:10px 0 4px">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
   }).join('<br/>');
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr style="border-color:#000080"/>${sections}</body></html>`;
   const blob = new Blob([html], { type: 'application/msword' });
@@ -667,7 +668,7 @@ const TrialBalancePage: React.FC = () => {
                   voucherNo: v.voucherNo || '-',
                   chequeNo: v.chequeNo || '-',
                   depositSlipNo: v.depositSlipNo || '-',
-                  narration: v.narration || v.description || r.narration || '-',
+                  narration: `Opening Balance (${lastType || 'N/A'})`,
                   debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
                   credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
                   pb1: Math.abs(pb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -692,7 +693,7 @@ const TrialBalancePage: React.FC = () => {
                   voucherNo: v.voucherNo || '-',
                   chequeNo: v.chequeNo || '-',
                   depositSlipNo: v.depositSlipNo || '-',
-                  narration: v.narration || v.description || r.narration || '-',
+                  narration: `Opening Balance (${lastType || 'N/A'})`,
                   debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
                   credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
                   pb1: Math.abs(pb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -748,7 +749,7 @@ const TrialBalancePage: React.FC = () => {
 
       const filteredVouchers: VoucherItem[] = all.filter((v) => withinDate(v.voucherDate) && matchesStatus(v.status));
 
-      const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number } }> = {};
+      const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number; balanceType: 'Debit' | 'Credit' | undefined } }> = {};
 
       const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow) => {
         const accInfo = accountIndex[accountId] || ({ description: accountId, listid: accountId } as any);
@@ -759,7 +760,7 @@ const TrialBalancePage: React.FC = () => {
             description: accInfo.description,
             listid: accInfo.listid,
             rows: [],
-            totals: { credit1: 0, debit1: 0, pb1: 0 },
+            totals: { credit1: 0, debit1: 0, pb1: 0, balanceType: undefined },
           };
         }
         let debit: number, credit: number, pb: number;
@@ -776,6 +777,8 @@ const TrialBalancePage: React.FC = () => {
 
         groupMap[key].totals.debit1 += debit;
         groupMap[key].totals.credit1 += credit;
+        groupMap[key].totals.pb1 = pb;
+        groupMap[key].totals.balanceType = pb > 0 ? 'Debit' : pb < 0 ? 'Credit' : undefined;
 
         groupMap[key].rows.push({
           _idx: groupMap[key].rows.length,
@@ -813,7 +816,7 @@ const TrialBalancePage: React.FC = () => {
           description: accInfo.description,
           listid: accInfo.listid,
           rows: [],
-          totals: { credit1: 0, debit1: 0, pb1: prevMap[key].pb },
+          totals: { credit1: 0, debit1: 0, pb1: prevMap[key].pb, balanceType: prevMap[key].pb > 0 ? 'Debit' : prevMap[key].pb < 0 ? 'Credit' : undefined },
         };
       });
 
@@ -835,6 +838,7 @@ const TrialBalancePage: React.FC = () => {
           const prev = prevMap[keyNorm];
           const opening = prev ? prev.pb : 0;
           const closing = rowsSorted.length > 0 ? rowsSorted[rowsSorted.length - 1].pb1Num : opening;
+          const closingType = closing > 0 ? 'Debit' : closing < 0 ? 'Credit' : undefined;
           const rows: any[] = [];
           if (prev && prev.lastEntry) {
             rows.push({ ...prev.lastEntry, narration: `Opening Balance (${prev.lastType || 'N/A'})` });
@@ -856,7 +860,7 @@ const TrialBalancePage: React.FC = () => {
             });
           }
           rows.push(...rowsSorted);
-          return { ...g, rows, totals: { debit1: periodDebit, credit1: periodCredit, pb1: closing } };
+          return { ...g, rows, totals: { debit1: periodDebit, credit1: periodCredit, pb1: closing, balanceType: closingType } };
         })
         .sort((a, b) => (a.listid || a.description).localeCompare(b.listid || b.description));
 
@@ -1115,7 +1119,7 @@ const TrialBalancePage: React.FC = () => {
                       <tfoot>
                         <tr className="bg-blue-100 dark:bg-blue-950 font-semibold">
                           <td className="px-3 py-2 text-right" colSpan={5}>
-                            TOTAL (Remaining Balance)
+                            Closing Balance ({g.totals.balanceType || 'N/A'})
                           </td>
                           <td className="px-3 py-2 text-right">
                             {(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1124,9 +1128,9 @@ const TrialBalancePage: React.FC = () => {
                             {(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                           <td className="px-3 py-2 text-right">
-                            {(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
-                          <td className="px-3 py-2 text-center"></td>
+                          <td className="px-3 py-2 text-center">{g.totals.balanceType || '-'}</td>
                         </tr>
                       </tfoot>
                     </table>
