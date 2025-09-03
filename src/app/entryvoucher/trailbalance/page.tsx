@@ -217,7 +217,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
               }}
               onFocus={() => setShowSearchList(true)}
               placeholder={`Search account (${name})`}
-              className="w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition"
+              className="w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition"
             />
             {showSearchList && searchTerm && filteredLeaves.length > 0 && (
               <div className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
@@ -227,7 +227,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handlePickFromSearch(leaf)}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-gray-700"
+                    className="block w-full text-left px-3 py-2 text-sm hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-gray-700"
                   >
                     {leaf.label}
                   </button>
@@ -250,7 +250,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
               <select
                 value={selected}
                 onChange={(e) => handleSelect(level, e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 shadow-sm"
+                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 shadow-sm"
               >
                 <option value="">Select {level === 0 ? name : 'Sub-Account'}</option>
                 {options.map((acc) => (
@@ -270,7 +270,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
           <div className="flex flex-wrap items-center gap-1">
             {selectionLabels.map((label, idx) => (
               <React.Fragment key={label + idx}>
-                <span className="px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-gray-700 dark:text-emerald-300">
+                <span className="px-2 py-0.5 rounded-full border border-blue-200 text-blue-700 bg-blue-50 dark:bg-gray-700 dark:text-blue-300">
                   {label}
                 </span>
                 {idx < selectionLabels.length - 1 && <span className="text-gray-400">/</span>}
@@ -286,7 +286,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
 // Export helpers
 const COMPANY_NAME = 'AL-NASAR BASHEER LOGISTICS';
 const COMPANY_ADDRESS = 'Suit No. 108, S.P Chamber, 1st Floor, Plot No B-9/B-1 Near Habib Bank Chowrangi, S.I.T.E, Karachi, Pakistan';
-const COMPANY_COLOR = { r: 128, g: 0, b: 0 }; // Maroon
+const COMPANY_COLOR = { r: 0, g: 0, b: 128 }; // Navy Blue
 
 type GroupedRows = Array<{
   accountId: string;
@@ -300,49 +300,42 @@ type GroupedRows = Array<{
   };
 }>;
 
-
 function exportGroupedToPDF(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
   const doc = new jsPDF();
-  let y = 20; 
+  let y = 20;
 
-  // Header - styled company name (text only, no background)
+  // Header
   const companyText = (COMPANY_NAME || '').toUpperCase();
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
-  // Company name in requested color only (no shadow)
   doc.setTextColor(COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b);
   doc.text(companyText, 105, y, { align: 'center' });
-  // Underline in the same color
   const cw = doc.getTextWidth(companyText);
   doc.setDrawColor(COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b);
   doc.setLineWidth(0.4);
   doc.line(105 - cw / 2, y + 1.5, 105 + cw / 2, y + 1.5);
   y += 7;
-  // Subtitle
   doc.setFontSize(12);
   doc.setTextColor(COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b);
-  doc.text('TRIAL BALANCE', 105, y, { align: 'center' });
+  doc.text('LEDGER REPORT', 105, y, { align: 'center' });
   y += 4;
-  doc.setFontSize(10); // Smaller date line
+  doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
-  doc.text(titleLine.replace('Trial Balance ', ''), 105, y, { align: 'center' });
+  doc.text(titleLine.replace('Ledger Report ', ''), 105, y, { align: 'center' });
   y += 4;
   doc.text(`Branch: ${branch}`, 105, y, { align: 'center' });
   if (filterLine) {
     y += 4;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9); // Smaller filter line
+    doc.setFontSize(9);
     doc.text(filterLine, 105, y, { align: 'center' });
   }
   y += 9;
 
-  // Format amounts as absolute (no minus sign, no parentheses)
-  // Always show zeros as 0.00 (match on-page table behavior)
   const formatAmount = (value: number) => {
     return Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
-  
-  // For Debit/Credit cells in PDF body: show blank if zero
+
   const formatAmountZeroBlank = (value: number) => {
     if (!value) return '';
     return formatAmount(value);
@@ -363,9 +356,10 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
           'Cheque No',
           'Deposit Slip No',
           'Narration',
-          'Debit ',
-          'Credit ',
-          'Net Balance',
+          'Debit',
+          'Credit',
+          'Balance',
+          'Bal Type',
         ],
       ],
       body: g.rows.map((r) => [
@@ -377,6 +371,7 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
         formatAmountZeroBlank(r.debit1Num ?? 0),
         formatAmountZeroBlank(r.credit1Num ?? 0),
         formatAmount(r.pb1Num ?? 0),
+        r.balanceType || '',
       ]),
       foot: [
         [
@@ -388,47 +383,49 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
           formatAmount(g.totals.debit1 || 0),
           formatAmount(g.totals.credit1 || 0),
           formatAmount(g.totals.pb1 || 0),
+          '',
         ],
       ],
       headStyles: {
-        fillColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b], 
-        textColor: [255, 255, 255], 
+        fillColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
+        textColor: [255, 255, 255],
         fontStyle: 'bold',
         fontSize: 8,
         cellPadding: 1.5,
       },
       footStyles: {
-        fillColor: [224, 224, 224], 
-        textColor: [0, 0, 0], 
+        fillColor: [220, 220, 255],
+        textColor: [0, 0, 0],
         fontStyle: 'bold',
         fontSize: 8,
         cellPadding: 1.5,
       },
       bodyStyles: {
         fontSize: 7,
-        textColor: [0, 0, 0], 
+        textColor: [0, 0, 0],
         cellPadding: 1.5,
       },
       alternateRowStyles: {
-        fillColor: [240, 240, 240], 
+        fillColor: [240, 240, 255],
       },
       theme: 'grid',
       margin: { left: 8, right: 8 },
       columnStyles: {
-        0: { cellWidth: 20 }, 
-        1: { cellWidth: 22 }, 
-        2: { cellWidth: 22 }, 
-        3: { cellWidth: 22 }, 
-        4: { cellWidth: 46 }, 
-        5: { halign: 'right' }, 
-        6: { halign: 'right' }, 
-        7: { halign: 'right' }, 
+        0: { cellWidth: 20 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 40 },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { cellWidth: 15, halign: 'center' },
       },
     });
     y = (doc as any).lastAutoTable.finalY + 4;
     if (y > 260 && idx < groups.length - 1) {
       doc.addPage();
-      y = 10; 
+      y = 10;
     }
   });
 
@@ -446,23 +443,21 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
     doc.text(`Page ${i} of ${pageCount}`, pageWidth - 10, pageHeight - 6, { align: 'right' });
   }
 
-  const fname = `Trial-Balance-${new Date().toISOString().slice(0, 10)}.pdf`;
+  const fname = `Ledger-Report-${new Date().toISOString().slice(0, 10)}.pdf`;
   doc.save(fname);
 }
+
 function exportGroupedToExcel(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
   const wb = XLSX.utils.book_new();
   groups.forEach((g) => {
     const wsData: any[][] = [];
-    // Header rows
     wsData.push([COMPANY_NAME]);
     wsData.push([`Branch: ${branch}`]);
     if (filterLine) wsData.push([filterLine]);
-    wsData.push([titleLine]);
+    wsData.push([titleLine.replace('Ledger Report', 'Ledger Report')]);
     wsData.push([`${g.description} (${g.listid})`]);
     wsData.push([]);
-    // Table header
-    wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit 1', 'Credit 1', 'Proj Bal 1']);
-    // Data rows (use raw numbers for numeric cells)
+    wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit', 'Credit', 'Balance', 'Bal Type']);
     g.rows.forEach((r) => {
       wsData.push([
         r.voucherDate,
@@ -471,83 +466,79 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
         r.depositSlipNo || '-',
         r.narration || '-',
         r.debit1Num ?? 0,
-        r.credit1Num ?? 0,
+        r.cedit1Num ?? 0,
         r.pb1Num ?? 0,
+        r.balanceType || '-',
       ]);
     });
-    // Totals row (raw numbers)
     wsData.push([
       'TOTAL', '', '', '', '',
       (g.totals.debit1 || 0),
       (g.totals.credit1 || 0),
       (g.totals.pb1 || 0),
+      '',
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    // Merge header cells across 8 columns
     (ws as any)['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, // Company Name
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }, // Branch
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
     ];
     let mergeIdx = 2;
     if (filterLine) {
-      (ws as any)['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }); // Filter line
+      (ws as any)['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 8 } });
       mergeIdx++;
     }
     (ws as any)['!merges'].push(
-      { s: { r: mergeIdx, c: 0 }, e: { r: mergeIdx, c: 7 } }, // Title
-      { s: { r: mergeIdx + 1, c: 0 }, e: { r: mergeIdx + 1, c: 7 } } // Group caption
+      { s: { r: mergeIdx, c: 0 }, e: { r: mergeIdx, c: 8 } },
+      { s: { r: mergeIdx + 1, c: 0 }, e: { r: mergeIdx + 1, c: 8 } }
     );
 
-    // Column widths for better readability
     (ws as any)['!cols'] = [
-      { wch: 12 }, // Voucher Date
-      { wch: 14 }, // Voucher No
-      { wch: 14 }, // Cheque No
-      { wch: 16 }, // Deposit Slip No
-      { wch: 40 }, // Narration
-      { wch: 14 }, // Debit 1
-      { wch: 14 }, // Credit 1
-      { wch: 14 }, // Proj Bal 1
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 40 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 10 },
     ];
 
-    // Apply number formats for numeric columns
     const range = XLSX.utils.decode_range(ws['!ref'] as string);
     const firstDataRow = filterLine ? 7 : 6;
     for (let R = firstDataRow; R <= range.e.r; R++) {
-      // Debit (col 5)
       const c5 = XLSX.utils.encode_cell({ r: R, c: 5 });
       if (ws[c5] && typeof ws[c5].v === 'number') { ws[c5].t = 'n'; (ws[c5] as any).z = '#,##0.00'; }
-      // Credit (col 6)
       const c6 = XLSX.utils.encode_cell({ r: R, c: 6 });
       if (ws[c6] && typeof ws[c6].v === 'number') { ws[c6].t = 'n'; (ws[c6] as any).z = '#,##0.00'; }
-      // Proj Bal (col 7)
       const c7 = XLSX.utils.encode_cell({ r: R, c: 7 });
       if (ws[c7] && typeof ws[c7].v === 'number') { ws[c7].t = 'n'; (ws[c7] as any).z = '#,##0.00'; }
     }
 
     XLSX.utils.book_append_sheet(wb, ws, (g.description || g.listid).slice(0, 25));
   });
-  const fname = `Trial-Balance-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const fname = `Ledger-Report-${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fname);
 }
 
 function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
-  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #777;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
-  const header = `<h2 style=\"text-align:center;margin:4px 0;color:#800000\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div>${filterLine ? `<div style=\"text-align:center;margin:2px 0;font-size:12px\">${filterLine}</div>` : ''}<h3 style=\"text-align:center;margin:6px 0\">${titleLine}</h3>`;
-  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Deposit Slip No</th><th>Narration</th><th>Debit </th><th>Credit </th><th>Net Balance</th></tr>`;
+  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
+  const header = `<h2 style=\"text-align:center;margin:4px 0;color:#000080\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div>${filterLine ? `<div style=\"text-align:center;margin:2px 0;font-size:12px\">${filterLine}</div>` : ''}<h3 style=\"text-align:center;margin:6px 0\">${titleLine.replace('Ledger Report', 'Ledger Report')}</h3>`;
+  const tableHead = `<tr><th style="background-color:#000080;color:white">Voucher Date</th><th style="background-color:#000080;color:white">Voucher No</th><th style="background-color:#000080;color:white">Cheque No</th><th style="background-color:#000080;color:white">Deposit Slip No</th><th style="background-color:#000080;color:white">Narration</th><th style="background-color:#000080;color:white">Debit</th><th style="background-color:#000080;color:white">Credit</th><th style="background-color:#000080;color:white">Balance</th><th style="background-color:#000080;color:white">Bal Type</th></tr>`;
   const sections = groups.map((g) => {
-    const rows = g.rows.map((r) => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.debit1}</td><td>${r.credit1}</td><td>${r.pb1}</td></tr>`).join('');
-    const totalsRow = `<tr><td colspan="5" style="text-align:right;font-weight:bold">TOTAL (Remaining Balance)</td><td>${Math.abs(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    const rows = g.rows.map((r, idx) => `<tr style="background-color:${idx % 2 === 0 ? '#fff' : '#e6e6ff'}"><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.debit1}</td><td>${r.credit1}</td><td>${r.pb1}</td><td>${r.balanceType || '-'}</td></tr>`).join('');
+    const totalsRow = `<tr style="background-color:#dcdcf5"><td colspan="5" style="text-align:right;font-weight:bold">TOTAL (Remaining Balance)</td><td>${Math.abs(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td></td></tr>`;
     return `<h4 style=\"margin:10px 0 4px\">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
   }).join('<br/>');
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr/>${sections}</body></html>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr style="border-color:#000080"/>${sections}</body></html>`;
   const blob = new Blob([html], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Trial-Balance-${new Date().toISOString().slice(0, 10)}.doc`;
+  a.download = `Ledger-Report-${new Date().toISOString().slice(0, 10)}.doc`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -607,7 +598,7 @@ const TrialBalancePage: React.FC = () => {
     fetchAccounts();
   }, []);
 
-  // Fetch vouchers (paginate all) and filter
+  // Fetch vouchers and build ledger
   const runReport = async () => {
     try {
       setLoading(true);
@@ -642,8 +633,8 @@ const TrialBalancePage: React.FC = () => {
         return (s || '').toLowerCase() === status.toLowerCase();
       };
 
-      // Compute previous balance per account before From Date, with last entry details
-      const prevMap: Record<string, { date: number; pb: number; lastEntry?: any }> = {};
+      // Compute previous balance with last entry type
+      const prevMap: Record<string, { date: number; pb: number; lastEntry?: any; lastType?: 'Debit' | 'Credit' }> = {};
       if (from) {
         all.forEach((v) => {
           const d = v.voucherDate ? new Date(v.voucherDate) : null;
@@ -660,6 +651,7 @@ const TrialBalancePage: React.FC = () => {
                 const debit = Number(r.debit1 ?? 0);
                 const credit = Number(r.credit1 ?? 0);
                 const pb = Number(r.projectedBalance1 ?? 0);
+                const lastType = debit > 0 ? 'Debit' : credit > 0 ? 'Credit' : undefined;
                 const lastEntry = {
                   _idx: -1,
                   voucherDate: v.voucherDate || '-',
@@ -673,8 +665,9 @@ const TrialBalancePage: React.FC = () => {
                   debit1Num: debit,
                   credit1Num: credit,
                   pb1Num: pb,
+                  balanceType: lastType,
                 };
-                prevMap[k1] = { date: t, pb, lastEntry };
+                prevMap[k1] = { date: t, pb, lastEntry, lastType };
               }
             }
             if (k2) {
@@ -683,6 +676,7 @@ const TrialBalancePage: React.FC = () => {
                 const debit = Number(r.debit2 ?? 0);
                 const credit = Number(r.credit2 ?? 0);
                 const pb = Number(r.projectedBalance2 ?? 0);
+                const lastType = debit > 0 ? 'Debit' : credit > 0 ? 'Credit' : undefined;
                 const lastEntry = {
                   _idx: -1,
                   voucherDate: v.voucherDate || '-',
@@ -696,8 +690,9 @@ const TrialBalancePage: React.FC = () => {
                   debit1Num: debit,
                   credit1Num: credit,
                   pb1Num: pb,
+                  balanceType: lastType,
                 };
-                prevMap[k2] = { date: t, pb, lastEntry };
+                prevMap[k2] = { date: t, pb, lastEntry, lastType };
               }
             }
           });
@@ -730,7 +725,6 @@ const TrialBalancePage: React.FC = () => {
         selectedAccountIds = Array.from(new Set([specific1Id, specific2Id].filter(Boolean)));
       }
 
-      // Build normalized key set (id, listid, description) for robust matching
       const normalize = (s?: string) => (s ?? '').trim().toLowerCase();
       const selectedKeys = new Set<string>();
       selectedAccountIds.forEach((id) => {
@@ -759,7 +753,6 @@ const TrialBalancePage: React.FC = () => {
             totals: { credit1: 0, debit1: 0, pb1: 0 },
           };
         }
-        // Determine which side
         let debit: number, credit: number, pb: number;
         if (accountId === r.account1) {
           debit = Number(r.debit1 ?? 0);
@@ -770,27 +763,25 @@ const TrialBalancePage: React.FC = () => {
           credit = Number(r.credit2 ?? 0);
           pb = Number(r.projectedBalance2 ?? 0);
         }
+        const balanceType: 'Debit' | 'Credit' | undefined = debit > 0 ? 'Debit' : credit > 0 ? 'Credit' : undefined;
 
         groupMap[key].totals.debit1 += debit;
         groupMap[key].totals.credit1 += credit;
-        // pb1 totals set later as closing balance
 
         groupMap[key].rows.push({
-          // internal insertion index for stable sorting
           _idx: groupMap[key].rows.length,
           voucherDate: v.voucherDate || '-',
           voucherNo: v.voucherNo || '-',
           chequeNo: v.chequeNo || '-',
           depositSlipNo: v.depositSlipNo || '-',
           narration: v.narration || v.description || r.narration || '-',
-          // formatted strings for UI/PDF/Word
           debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           pb1: Math.abs(pb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-          // raw numbers for Excel
           debit1Num: debit,
           credit1Num: credit,
           pb1Num: pb,
+          balanceType,
         });
       };
 
@@ -803,7 +794,6 @@ const TrialBalancePage: React.FC = () => {
         });
       });
 
-      // Add groups for accounts with only previous balance (non-zero)
       Object.keys(prevMap).forEach((key) => {
         if (groupMap[key]) return;
         if (prevMap[key].pb === 0) return;
@@ -821,7 +811,6 @@ const TrialBalancePage: React.FC = () => {
       const grouped: GroupedRows = Object.values(groupMap)
         .filter((g) => g.rows.length > 0 || (g.totals.pb1 !== 0))
         .map((g) => {
-          // Sort rows by date then voucherNo
           const rowsSorted = [...g.rows].sort((r1: any, r2: any) => {
             const d1 = new Date(r1.voucherDate || '0000-00-00');
             const d2 = new Date(r2.voucherDate || '0000-00-00');
@@ -831,51 +820,34 @@ const TrialBalancePage: React.FC = () => {
             const v2 = (r2.voucherNo || '').toString();
             return v1.localeCompare(v2, undefined, { numeric: true, sensitivity: 'base' });
           });
-          // Calculate period totals
           const periodDebit = rowsSorted.reduce((s, r) => s + (r.debit1Num || 0), 0);
           const periodCredit = rowsSorted.reduce((s, r) => s + (r.credit1Num || 0), 0);
           const keyNorm = normalize(g.accountId);
           const prev = prevMap[keyNorm];
           const opening = prev ? prev.pb : 0;
           const closing = rowsSorted.length > 0 ? rowsSorted[rowsSorted.length - 1].pb1Num : opening;
-          // Create summary rows
-          const summaryRows: any[] = [];
-          // Add opening row
+          const rows: any[] = [];
           if (prev && prev.lastEntry) {
-            summaryRows.push(prev.lastEntry);
-          } else {
-            summaryRows.push({
+            rows.push({ ...prev.lastEntry, narration: `Opening Balance (${prev.lastType || 'N/A'})` });
+          } else if (opening !== 0) {
+            rows.push({
               _idx: -1,
               voucherDate: '-',
               voucherNo: '-',
               chequeNo: '-',
               depositSlipNo: '-',
-              narration: 'Opening Balance (previous period)',
+              narration: `Opening Balance (${prev?.lastType || 'N/A'})`,
               debit1: '',
               credit1: '',
               pb1: Math.abs(opening).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
               debit1Num: 0,
               credit1Num: 0,
               pb1Num: opening,
+              balanceType: prev?.lastType,
             });
           }
-          // Add period summary row
-          summaryRows.push({
-            _idx: 0,
-            voucherDate: '-',
-            voucherNo: '-',
-            chequeNo: '-',
-            depositSlipNo: '-',
-            narration: 'Period Summary',
-            debit1: periodDebit ? periodDebit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-            credit1: periodCredit ? periodCredit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-            pb1: Math.abs(closing).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-            debit1Num: periodDebit,
-            credit1Num: periodCredit,
-            pb1Num: closing,
-          });
-          // Update totals
-          return { ...g, rows: summaryRows, totals: { debit1: periodDebit, credit1: periodCredit, pb1: closing } };
+          rows.push(...rowsSorted);
+          return { ...g, rows, totals: { debit1: periodDebit, credit1: periodCredit, pb1: closing } };
         })
         .sort((a, b) => (a.listid || a.description).localeCompare(b.listid || b.description));
 
@@ -892,7 +864,7 @@ const TrialBalancePage: React.FC = () => {
   const titleLine = useMemo(() => {
     const f = fromDate ? new Date(fromDate).toLocaleDateString('en-GB').split('/').join('-') : '-';
     const t = toDate ? new Date(toDate).toLocaleDateString('en-GB').split('/').join('-') : '-';
-    return `Trial Balance From ${f} To ${t}`;
+    return `Ledger Report From ${f} To ${t}`;
   }, [fromDate, toDate]);
 
   const filterSummary = useMemo(() => {
@@ -905,7 +877,6 @@ const TrialBalancePage: React.FC = () => {
     return summary;
   }, [status, filterType, headAccountId, rangeFromId, rangeToId, specific1Id, specific2Id]);
 
-  // Reset all filters to default values
   const clearFilters = () => {
     setBranch('Head Office Karachi');
     setFromDate('');
@@ -922,50 +893,48 @@ const TrialBalancePage: React.FC = () => {
 
   return (
     <MainLayout activeInterface="ABL">
-      <div className="p-3 md:p-5">
-        {/* Header */}
-        <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border-2 border-emerald-200 dark:border-emerald-900 mb-4 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-lg font-semibold">Trial Balance Report</h1>
-            <p className="text-sm font-bold text-[#426795] dark:text-[#426795]">{COMPANY_NAME}</p>
+      <div className="p-3 md:p-5 bg-blue-50 dark:bg-gray-900">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border-2 border-blue-200 dark:border-blue-900 mb-4 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-200 dark:border-blue-900 bg-blue-100 dark:bg-blue-950">
+            <h1 className="text-lg font-semibold text-blue-900 dark:text-blue-200">Ledger Report</h1>
+            <p className="text-sm font-bold text-blue-700 dark:text-blue-300">{COMPANY_NAME}</p>
           </div>
-          {/* Top controls: search and quick actions */}
           <div className="p-4 flex flex-col gap-3">
             <div className="flex flex-col md:flex-row md:items-end gap-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
                 <div>
-                  <label className="block text-xs text-gray-600">Branch</label>
+                  <label className="block text-xs text-gray-600 dark:text-gray-300">Branch</label>
                   <input
                     value={branch}
                     onChange={(e) => setBranch(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:ring-blue-600 focus:border-blue-600"
                     placeholder="Branch name"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600">From Date</label>
+                  <label className="block text-xs text-gray-600 dark:text-gray-300">From Date</label>
                   <input
                     type="date"
                     value={fromDate}
                     onChange={(e) => setFromDate(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:ring-blue-600 focus:border-blue-600"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600">To Date</label>
+                  <label className="block text-xs text-gray-600 dark:text-gray-300">To Date</label>
                   <input
                     type="date"
                     value={toDate}
                     onChange={(e) => setToDate(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:ring-blue-600 focus:border-blue-600"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-600">Status</label>
+                  <label className="block text-xs text-gray-600 dark:text-gray-300">Status</label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:ring-blue-600 focus:border-blue-600"
                   >
                     <option>All</option>
                     <option>Active</option>
@@ -984,7 +953,7 @@ const TrialBalancePage: React.FC = () => {
                 </Button>
                 <Button
                   onClick={runReport}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center gap-2"
                 >
                   <FiSearch />
                   Run Report
@@ -992,15 +961,14 @@ const TrialBalancePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Advanced filter panel */}
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-900/40">
+            <div className="rounded-lg border border-blue-200 dark:border-blue-900 p-3 bg-blue-50 dark:bg-gray-900/30">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-600">Account Filter Type</label>
+                  <label className="block text-xs text-gray-600 dark:text-gray-300">Account Filter Type</label>
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value as any)}
-                    className="mt-1 w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 dark:text-white"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:ring-blue-600 focus:border-blue-600"
                   >
                     <option value="byHead">By Head (include all sub-accounts)</option>
                     <option value="range">From Account To Account (range by code)</option>
@@ -1008,10 +976,9 @@ const TrialBalancePage: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Account selectors */}
                 {filterType === 'byHead' && (
                   <div className="md:col-span-2">
-                    <label className="block text-xs text-gray-600 mb-1">Select Head Account</label>
+                    <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">Select Head Account</label>
                     <HierarchicalDropdown
                       accounts={topLevelAccounts}
                       name="Head Account"
@@ -1023,7 +990,7 @@ const TrialBalancePage: React.FC = () => {
                 {filterType === 'range' && (
                   <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">From Account</label>
+                      <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">From Account</label>
                       <HierarchicalDropdown
                         accounts={topLevelAccounts}
                         name="From Account"
@@ -1031,7 +998,7 @@ const TrialBalancePage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">To Account</label>
+                      <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">To Account</label>
                       <HierarchicalDropdown
                         accounts={topLevelAccounts}
                         name="To Account"
@@ -1044,7 +1011,7 @@ const TrialBalancePage: React.FC = () => {
                 {filterType === 'specific' && (
                   <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Account 1</label>
+                      <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">Account 1</label>
                       <HierarchicalDropdown
                         accounts={topLevelAccounts}
                         name="Account 1"
@@ -1052,7 +1019,7 @@ const TrialBalancePage: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-1">Account 2</label>
+                      <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">Account 2</label>
                       <HierarchicalDropdown
                         accounts={topLevelAccounts}
                         name="Account 2"
@@ -1063,8 +1030,8 @@ const TrialBalancePage: React.FC = () => {
                 )}
               </div>
 
-              <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 dark:border-gray-700 mt-3">
-                <div className="text-xs text-gray-500">Tip: Use search inside account pickers to quickly find accounts.</div>
+              <div className="pt-3 flex flex-wrap items-center justify-between gap-2 border-t border-blue-200 dark:border-blue-900 mt-3">
+                <div className="text-xs text-gray-500 dark:text-gray-400">Tip: Use search inside account pickers to quickly find accounts.</div>
                 <div className="flex gap-2">
                   <Button
                     onClick={() => exportGroupedToPDF(titleLine, branch, filterSummary, groups)}
@@ -1090,40 +1057,40 @@ const TrialBalancePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Grouped Tables */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700">
-          <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-base font-semibold">{COMPANY_NAME}</h2>
-            <div className="text-xs text-gray-600">{titleLine}</div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-blue-200 dark:border-blue-900">
+          <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-blue-900 bg-blue-100 dark:bg-blue-950">
+            <h2 className="text-base font-semibold text-blue-900 dark:text-blue-200">{COMPANY_NAME}</h2>
+            <div className="text-xs text-blue-700 dark:text-blue-300">{titleLine}</div>
           </div>
           {loading ? (
-            <div className="px-4 py-6 text-center">Loading...</div>
+            <div className="px-4 py-6 text-center text-blue-600 dark:text-blue-300">Loading...</div>
           ) : groups.length === 0 ? (
-            <div className="px-4 py-6 text-center text-gray-500">No data</div>
+            <div className="px-4 py-6 text-center text-gray-500 dark:text-gray-400">No data</div>
           ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            <div className="divide-y divide-blue-200 dark:divide-blue-900">
               {groups.map((g) => (
                 <div key={g.accountId} className="p-4">
-                  <div className="text-sm font-semibold mb-2">
-                    {g.description} <span className="font-normal text-gray-500">({g.listid})</span>
+                  <div className="text-sm font-semibold mb-2 text-blue-900 dark:text-blue-200">
+                    {g.description} <span className="font-normal text-gray-500 dark:text-gray-400">({g.listid})</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-sm">
-                      <thead className="bg-gray-100 dark:bg-gray-700">
+                      <thead className="bg-blue-100 dark:bg-blue-950">
                         <tr>
-                          <th className="px-3 py-2 text-left">Voucher Date</th>
-                          <th className="px-3 py-2 text-left">Voucher No</th>
-                          <th className="px-3 py-2 text-left">Cheque No</th>
-                          <th className="px-3 py-2 text-left">Deposit Slip No</th>
-                          <th className="px-3 py-2 text-left">Narration</th>
-                          <th className="px-3 py-2 text-right">Debit </th>
-                          <th className="px-3 py-2 text-right">Credit </th>
-                          <th className="px-3 py-2 text-right">Net Balance</th>
+                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Voucher Date</th>
+                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Voucher No</th>
+                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Cheque No</th>
+                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Deposit Slip No</th>
+                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Narration</th>
+                          <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Debit</th>
+                          <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Credit</th>
+                          <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Balance</th>
+                          <th className="px-3 py-2 text-center text-blue-900 dark:text-blue-200">Bal Type</th>
                         </tr>
                       </thead>
                       <tbody>
                         {g.rows.map((r: any, idx: number) => (
-                          <tr key={idx} className={idx % 2 === 0 ? '' : 'bg-gray-50 dark:bg-gray-700/40'}>
+                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-blue-50 dark:bg-gray-700/40'}>
                             <td className="px-3 py-2">{r.voucherDate}</td>
                             <td className="px-3 py-2">{r.voucherNo}</td>
                             <td className="px-3 py-2">{r.chequeNo}</td>
@@ -1132,11 +1099,12 @@ const TrialBalancePage: React.FC = () => {
                             <td className="px-3 py-2 text-right">{r.debit1}</td>
                             <td className="px-3 py-2 text-right">{r.credit1}</td>
                             <td className="px-3 py-2 text-right">{r.pb1}</td>
+                            <td className="px-3 py-2 text-center">{r.balanceType}</td>
                           </tr>
                         ))}
                       </tbody>
                       <tfoot>
-                        <tr className="bg-white dark:bg-gray-700 font-semibold">
+                        <tr className="bg-blue-100 dark:bg-blue-950 font-semibold">
                           <td className="px-3 py-2 text-right" colSpan={5}>
                             TOTAL (Remaining Balance)
                           </td>
@@ -1149,11 +1117,12 @@ const TrialBalancePage: React.FC = () => {
                           <td className="px-3 py-2 text-right">
                             {(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
+                          <td className="px-3 py-2 text-center"></td>
                         </tr>
                       </tfoot>
                     </table>
                   </div>
-                  <div className="text-xs text-gray-500 mt-2 flex items-center gap-2">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-2">
                     <FiFileText />
                     Rows: {g.rows.length}
                   </div>
