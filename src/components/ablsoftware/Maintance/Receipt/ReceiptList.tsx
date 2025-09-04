@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck } from 'react-icons/fa';
-import * as XLSX from 'xlsx';
+// XLSX is dynamically imported in exportToExcel to avoid SSR issues
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllReceipt, deleteReceipt, updateReceiptStatus } from '@/apis/receipt';
@@ -144,7 +144,7 @@ const ReceiptList = () => {
     }
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     let dataToExport = selectedReceiptIds.length > 0
       ? filteredReceipts.filter((r) => selectedReceiptIds.includes(r.id))
       : filteredReceipts;
@@ -167,10 +167,12 @@ const ReceiptList = () => {
       'Status': r.status || 'Pending',
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(formattedData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Receipts');
-    XLSX.writeFile(workbook, 'Receipts.xlsx');
+    // Dynamically import xlsx to avoid SSR/prerender issues
+    const xlsx = await import('xlsx');
+    const worksheet = xlsx.utils.json_to_sheet(formattedData);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, 'Receipts');
+    xlsx.writeFile(workbook, 'Receipts.xlsx');
   };
 
   return (

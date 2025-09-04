@@ -15,8 +15,10 @@ import { createEquality, getAllEquality, updateEquality, deleteEquality } from '
 const accountSchema = z.object({
   id: z.string().optional(),
   description: z.string().min(1, 'Description is required'),
-  dueDate: z.string().min(1, 'Due Date and Time is required').refine(
+  dueDate: z.string().optional().refine(
     (val) => {
+      // Allow empty or undefined; validate only when a value is provided
+      if (!val || val.trim() === '') return true;
       const textDateRegex = /^\d{2}-[A-Za-z]{3}-\d{4}( \d{2}:\d{2})?$/;
       const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
       return textDateRegex.test(val) || isoDateRegex.test(val);
@@ -315,7 +317,7 @@ const EqualityForm = () => {
       let response: ApiResponse<Account>;
       const processedData = {
         ...data,
-        dueDate: dueDateInputType === 'text' ? parseTextDateToISO(data.dueDate) : data.dueDate,
+        dueDate: data.dueDate ? (dueDateInputType === 'text' ? parseTextDateToISO(data.dueDate) : data.dueDate) : '',
         fixedAmount: data.fixedAmount || '',
       };
       if (editingId) {
