@@ -106,17 +106,18 @@ export const ablSideBarItems = [
         color: '#1a5f3a',
       },
       {
+        text: 'Receipt',
+        href: '/receipt',
+        icon: IoReceiptOutline,
+        color: '#1a5f3a',
+      },
+      {
         text: 'Payment',
         href: '/paymentABL',
         icon: MdOutlinePayments,
         color: '#1a5f3a',
       },
-      {
-        text: 'Receipt',
-        href: '/receipt',
-        icon: IoReceiptOutline,
-        color: '#1a5f3a',
-      }
+      
     ],
   },
   {

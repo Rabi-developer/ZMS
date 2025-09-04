@@ -25,6 +25,7 @@ interface DropdownOption {
 
 interface Consignment {
   id: string;
+  biltyNo: string;
   vehicleNo: string;
   biltyDate: string;
   biltyAmount: number;
@@ -32,7 +33,8 @@ interface Consignment {
 }
 
 interface TableRow {
-  biltyNo: string;
+  biltyNo: string; // Displayed bilty number
+  consignmentId?: string; // Internal id for API calls
   vehicleNo: string;
   biltyDate: string;
   biltyAmount: number;
@@ -56,6 +58,7 @@ const receiptSchema = z.object({
   tableData: z.array(
     z.object({
       biltyNo: z.string().optional(),
+      consignmentId: z.string().optional(),
       vehicleNo: z.string().optional(),
       biltyDate: z.string().optional(),
       biltyAmount: z.number().optional(),
@@ -93,7 +96,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       party: '',
       receiptAmount: 0,
       remarks: '',
-      tableData: [{ biltyNo: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
+      tableData: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
       salesTaxOption: 'without',
       salesTaxRate: '',
       whtOnSbr: '',
@@ -113,8 +116,33 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     { id: 'Bank Transfer', name: 'Bank Transfer' },
   ];
   const bankNames: DropdownOption[] = [
-    { id: 'Bank A', name: 'Bank A' },
-    { id: 'Bank B', name: 'Bank B' },
+   { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
+    { id: 'MCB', name: 'MCB Bank Limited' },
+    { id: 'UBL', name: 'United Bank Limited (UBL)' },
+    { id: 'ABL', name: 'Allied Bank Limited (ABL)' },
+    { id: 'NBP', name: 'National Bank of Pakistan (NBP)' },
+    { id: 'Meezan', name: 'Meezan Bank' },
+    { id: 'BankAlfalah', name: 'Bank Alfalah' },
+    { id: 'Askari', name: 'Askari Bank' },
+    { id: 'Faysal', name: 'Faysal Bank' },
+    { id: 'BankAlHabib', name: 'Bank Al Habib' },
+    { id: 'Soneri', name: 'Soneri Bank' },
+    { id: 'Samba', name: 'Samba Bank' },
+    { id: 'JS', name: 'JS Bank' },
+    { id: 'Silk', name: 'Silk Bank' },
+    { id: 'Summit', name: 'Summit Bank' },
+    { id: 'StandardChartered', name: 'Standard Chartered Bank' },
+    { id: 'BankIslami', name: 'BankIslami Pakistan' },
+    { id: 'DubaiIslamic', name: 'Dubai Islamic Bank Pakistan' },
+    { id: 'AlBaraka', name: 'Al Baraka Bank' },
+    { id: 'ZaraiTaraqiati', name: 'Zarai Taraqiati Bank Limited (ZTBL)' },
+    { id: 'SindhBank', name: 'Sindh Bank' },
+    { id: 'BankOfPunjab', name: 'The Bank of Punjab' },
+    { id: 'FirstWomenBank', name: 'First Women Bank' },
+    { id: 'BankOfKhyber', name: 'The Bank of Khyber' },
+    { id: 'BankOfAzadKashmir', name: 'Bank of Azad Kashmir' },
+    { id: 'IndustrialDevelopment', name: 'Industrial Development Bank of Pakistan' },
+    { id: 'Other', name: 'Other' },
   ];
   const salesTaxOptions: DropdownOption[] = [
     { id: 'with', name: 'With Sales Tax' },
@@ -141,6 +169,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         setConsignments(
           consignmentRes.data.map((item: any) => ({
             id: item.id,
+            biltyNo: item.biltyNo || item.bilty || item.id,
             vehicleNo: item.vehicleNo || 'N/A',
             biltyDate: item.biltyDate || item.consignmentDate || new Date().toISOString().split('T')[0],
             biltyAmount: item.biltyAmount || item.totalAmount || 0,
@@ -187,7 +216,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               setValue('party', receipt.party || '');
               setValue('receiptAmount', receipt.receiptAmount || 0);
               setValue('remarks', receipt.remarks || '');
-              setValue('tableData', receipt.tableData || [{ biltyNo: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }]);
+              setValue('tableData', receipt.tableData || [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }]);
               setValue('salesTaxOption', receipt.salesTaxOption || 'without');
               setValue('salesTaxRate', receipt.salesTaxRate || '');
               setValue('whtOnSbr', receipt.whtOnSbr || '');
@@ -239,7 +268,9 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   }, [tableData, salesTaxOption, salesTaxRate, whtOnSbr, setValue]);
 
   const selectConsignment = (index: number, consignment: Consignment) => {
-    setValue(`tableData.${index}.biltyNo`, consignment.id);
+    // Store the displayed bilty number in the table, and also keep the internal id in a hidden field for API
+    setValue(`tableData.${index}.biltyNo`, consignment.biltyNo);
+    setValue(`tableData.${index}.consignmentId`, consignment.id);
     setValue(`tableData.${index}.vehicleNo`, consignment.vehicleNo);
     setValue(`tableData.${index}.biltyDate`, consignment.biltyDate);
     setValue(`tableData.${index}.biltyAmount`, consignment.biltyAmount);
@@ -301,18 +332,19 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       // Update related consignment(s) receivedAmount based on receipt rows
       const rows = Array.isArray(data.tableData) ? data.tableData : [];
       const updates = rows
-        .filter((r) => r.biltyNo && (r.receiptAmount || 0) > 0)
+        .filter((r) => (r.consignmentId || r.biltyNo) && (r.receiptAmount || 0) > 0)
         .map(async (r) => {
+          const idToUse = r.consignmentId || r.biltyNo;
           try {
             // Fetch current consignment to get existing receivedAmount if available
-            const cons = await getSingleConsignment(r.biltyNo);
+            const cons = await getSingleConsignment(idToUse as string);
             const existing = cons?.data || {};
             const currentReceived = Number(existing.receivedAmount || 0);
             const newReceived = currentReceived + Number(r.receiptAmount || 0);
-            // Perform minimal update by id (biltyNo is used as id in selection)
-            await updateConsignment({ id: r.biltyNo, receivedAmount: newReceived });
+            // Update by actual id
+            await updateConsignment({ id: idToUse, receivedAmount: newReceived });
           } catch (e) {
-            console.error('Failed updating consignment receivedAmount for', r.biltyNo, e);
+            console.error('Failed updating consignment receivedAmount for', idToUse, e);
           }
         });
       await Promise.all(updates);
@@ -328,7 +360,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const addTableRow = () => {
     setValue('tableData', [
       ...tableData,
-      { biltyNo: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 },
+      { biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 },
     ]);
   };
 
@@ -827,7 +859,8 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       onClick={() => selectConsignment(showConsignmentPopup, consignment)}
                       className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-md border border-gray-200 dark:border-gray-600 text-sm"
                     >
-                      <span className="font-medium text-gray-800 dark:text-gray-200">{consignment.id}</span>
+                      <div className="font-medium text-gray-800 dark:text-gray-200">Bilty: {consignment.biltyNo}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Vehicle: {consignment.vehicleNo}</div>
                     </div>
                   ))
                 )}

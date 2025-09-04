@@ -4,6 +4,7 @@ import { FaCheck } from "react-icons/fa";
 import { getAllCharges } from "@/apis/charges";
 import { getAllPaymentABL } from "@/apis/paymentABL";
 import { getAllBookingOrder } from "@/apis/bookingorder";
+import { getAllReceipt } from "@/apis/receipt";
 
 interface Consignment {
   consignor?: string;
@@ -53,6 +54,10 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
   const [paymentsCompletedCount, setPaymentsCompletedCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [bookingInfo, setBookingInfo] = useState<{ orderNo: string; orderDate: string; vehicleNo: string } | null>(null);
+  const [receiptNos, setReceiptNos] = useState<string[]>([]);
+  const [receiptsTotalReceived, setReceiptsTotalReceived] = useState<number>(0);
+  const [paymentNos, setPaymentNos] = useState<string[]>([]);
+  const [paymentsTotalPaid, setPaymentsTotalPaid] = useState<number>(0);
 
   const consignmentCount = consignments?.length || 0;
   const allConsDelivered = useMemo(() => {
@@ -98,10 +103,29 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
         }
 
         const payRes = await getAllPaymentABL(1, 200);
-        const payments = (payRes?.data || []).filter((p: any) => (p.orderNo || "") === orderNo);
+        const allPayments = (payRes?.data || []);
+        const biltyKeys = new Set(
+          (consignments || [])
+            .flatMap((c: any) => [c.biltyNo, c.BiltyNo, c.consignmentNo, c.ConsignmentNo, c.id])
+            .filter(Boolean)
+        );
+        const payments = allPayments.filter((p: any) => {
+          const items = Array.isArray(p.items) ? p.items : [];
+          const topOrder = p.orderNo ?? p.OrderNo ?? "";
+          const matchOrder = (topOrder && topOrder === orderNo) || items.some((it: any) => ((it.orderNo ?? it.OrderNo ?? "") === orderNo));
+          const matchBilty = biltyKeys.size > 0 && items.some((it: any) => {
+            const b = it.biltyNo ?? it.BiltyNo ?? it.consignmentNo ?? it.ConsignmentNo ?? it.id;
+            return b && biltyKeys.has(b);
+          });
+          return matchOrder || matchBilty;
+        });
         const completed = payments.filter((p: any) => (p.status || "").toLowerCase() === "completed");
+        const paymentNosList = payments.map((p: any) => p.paymentNo ?? p.PaymentNo ?? p.payNo ?? "").filter(Boolean);
+        const totalPaid = payments.reduce((sum: number, p: any) => sum + Number(p.paidAmount ?? p.amount ?? 0), 0);
         if (mounted) {
           setPaymentsCompletedCount(completed.length);
+          setPaymentNos(paymentNosList);
+          setPaymentsTotalPaid(totalPaid);
         }
       } catch (err) {
         // Silently ignore in UI, keep counts as 0
@@ -138,11 +162,45 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
     return () => { mounted = false; };
   }, [orderNo, bookingOrder]);
 
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      if (!orderNo) return;
+      try {
+        const res = await getAllReceipt(1, 200);
+        const list = res?.data || [];
+        const biltyKeys = new Set(
+          (consignments || [])
+            .flatMap((c: any) => [c.biltyNo, c.BiltyNo, c.consignmentNo, c.ConsignmentNo, c.id])
+            .filter(Boolean)
+        );
+        const recs = list.filter((r: any) => {
+          const topOrder = r.orderNo ?? r.OrderNo ?? "";
+          const topBilty = r.biltyNo ?? r.BiltyNo ?? "";
+          const matchOrder = topOrder && topOrder === orderNo;
+          const matchBilty = topBilty && biltyKeys.has(topBilty);
+          return matchOrder || matchBilty;
+        });
+        const nos = recs.map((r: any) => r.receiptNo ?? r.ReceiptNo ?? "").filter(Boolean);
+        const total = recs.reduce((sum: number, r: any) => sum + Number(r.receiptAmount ?? r.receivedAmount ?? r.totalAmount ?? 0), 0);
+        if (mounted) {
+          setReceiptNos(nos);
+          setReceiptsTotalReceived(total);
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    run();
+    return () => { mounted = false; };
+  }, [orderNo, consignments]);
+
+  
   const steps: Step[] = useMemo(() => {
     const bookingCompleted = true;
     const consignmentCompleted = consignmentCount > 0;
     const chargesCompleted = chargesCount > 0;
-    const receiptCompleted = totalReceived > 0;
+    const receiptCompleted = (receiptsTotalReceived > 0) || (totalReceived > 0);
     const paymentCompleted = paymentsCompletedCount > 0;
 
     const list: Step[] = [
@@ -168,7 +226,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
         key: "receipt",
         label: "Receipt",
         completed: receiptCompleted,
-        hint: totalReceived > 0 ? `Received ${totalReceived.toLocaleString()}` : "None",
+        hint: receiptsTotalReceived > 0 ? `Received ${receiptsTotalReceived.toLocaleString()}` : (totalReceived > 0 ? `Received ${totalReceived.toLocaleString()}` : "None"),
       },
       {
         key: "payment",
@@ -182,7 +240,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
     if (firstNotDone >= 0) list[firstNotDone].active = true;
 
     return list;
-  }, [bookingStatus, consignmentCount, allConsDelivered, chargesCount, chargesPaidCount, totalReceived, paymentsCompletedCount]);
+  }, [bookingStatus, consignmentCount, allConsDelivered, chargesCount, chargesPaidCount, totalReceived, receiptsTotalReceived, paymentsCompletedCount]);
 
   // Combine data for the single table
   const tableData = useMemo(() => {
@@ -195,30 +253,34 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
 
     // Create a single row combining all data for the same orderNo
     const row: any = {
-      biltyNo: consignments.length > 0 ? consignments.map((c) => c.biltyNo || '').join(', ') : '',
-      receiptNo: consignments.length > 0 ? consignments.map((c) => c.receiptNo || '').join(', ') : '',
+      biltyNo: consignments.length > 0 ? consignments.map((c) => (c.biltyNo ?? (c as any).BiltyNo ?? (c as any).consignmentNo ?? (c as any).ConsignmentNo ?? (c as any).id ?? '')).join(', ') : '',
+      receiptNo: (receiptNos.length > 0)
+        ? receiptNos.join(', ')
+        : (consignments.length > 0 ? consignments.map((c) => (c.receiptNo ?? (c as any).ReceiptNo ?? '')).join(', ') : ''),
+      paymentNo: paymentNos.length > 0 ? paymentNos.join(', ') : '',
       orderNo: bo?.orderNo || '',
       orderDate: bo?.orderDate || '',
       vehicleNo: bo?.vehicleNo || '',
-      consignor: consignments.length > 0 ? consignments.map((c) => c.consignor || '').join(', ') : '',
-      consignee: consignments.length > 0 ? consignments.map((c) => c.consignee || '').join(', ') : '',
-      items: consignments.length > 0 ? consignments.map((c) => c.items?.map((item: any) => item.desc).join(', ') || '').join('; ') : '',
-      qty: consignments.length > 0 ? consignments.map((c) => c.items?.map((item: any) => `${item.qty} ${item.qtyUnit}`).join(', ') || c.qty || '').join('; ') : '',
-      totalAmount: consignments.length > 0 ? consignments.map((c) => c.totalAmount || '').join(', ') : '',
-      receivedAmount: consignments.length > 0 ? consignments.map((c) => c.receivedAmount || '').join(', ') : '-',
-      deliveryDate: consignments.length > 0 ? consignments.map((c) => c.deliveryDate || '').join(', ') : '',
-      consignmentStatus: consignments.length > 0 ? Array.from(new Set(consignments.map((c) => c.status || ''))).filter(Boolean).join(', ') : '',
+      consignor: consignments.length > 0 ? consignments.map((c) => (c.consignor ?? (c as any).Consignor ?? '')).join(', ') : '',
+      consignee: consignments.length > 0 ? consignments.map((c) => (c.consignee ?? (c as any).Consignee ?? '')).join(', ') : '',
+      items: consignments.length > 0 ? consignments.map((c) => (Array.isArray(c.items) ? c.items.map((item: any) => item.desc).join(', ') : '')).join('; ') : '',
+      qty: consignments.length > 0 ? consignments.map((c) => (Array.isArray(c.items) ? c.items.map((item: any) => `${item.qty} ${item.qtyUnit}`).join(', ') : (c as any).qty || '')).join('; ') : '',
+      totalAmount: consignments.length > 0 ? consignments.map((c) => (c.totalAmount ?? (c as any).TotalAmount ?? (c as any).amount ?? '')).join(', ') : '',
+      receivedAmount: receiptsTotalReceived > 0 ? receiptsTotalReceived : (consignments.length > 0 ? consignments.map((c) => (c.receivedAmount ?? (c as any).ReceivedAmount ?? (c as any).receiptAmount ?? '')).join(', ') : '-'),
+      deliveryDate: consignments.length > 0 ? consignments.map((c) => (c.deliveryDate ?? (c as any).DeliveryDate ?? (c as any).date ?? '')).join(', ') : '',
+      consignmentStatus: consignments.length > 0 ? Array.from(new Set(consignments.map((c) => (c.status ?? (c as any).Status ?? '')))).filter(Boolean).join(', ') : '',
       paidToPerson: charges.length > 0 ? charges.map((c) => c.paidToPerson || '').join(', ') : '',
       charges: charges.length > 0 ? charges.map((c) => c.charges || '').join(', ') : '',
       amount: charges.length > 0 ? charges.map((c) => c.amount || '').join(', ') : '',
+      paidAmount: paymentsTotalPaid > 0 ? paymentsTotalPaid : '',
     };
 
     rows.push(row);
     return rows;
-  }, [bookingOrder, bookingInfo, consignments, charges]);
+  }, [bookingOrder, bookingInfo, consignments, charges, receiptNos, paymentsTotalPaid, paymentNos]);
 
   const hideBookingCols = !!hideBookingOrderInfo;
-  const totalCols = hideBookingCols ? 13 : 16;
+  const totalCols = (hideBookingCols ? 13 : 16) + 2;
 
   return (
     <div className="w-full mt-2 bg-white rounded-lg shadow-md mt-4 border border-gray-200">
@@ -232,6 +294,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
               <tr className="bg-[#e0ebe2] from-cyan-500 to-blue-500 text-[#3a614c]">
                  <th className="p-3 font-semibold">Bilty No</th>
                 <th className="p-3 font-semibold">Receipt No</th>
+                <th className="p-3 font-semibold">Payment No</th>
                 {!hideBookingCols && (
                   <>
                     <th className="p-3 font-semibold rounded-tl-lg">Order No</th>
@@ -245,6 +308,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
                 <th className="p-3 font-semibold">Quantity</th>
                 <th className="p-3 font-semibold">Total Amount</th>
                 <th className="p-3 font-semibold">Received Amount</th>
+                <th className="p-3 font-semibold">Paid Amount</th>
                 <th className="p-3 font-semibold">Delivery Date</th>
                 <th className="p-3 font-semibold">Paid to Person</th>
                 <th className="p-3 font-semibold">Charges</th>
@@ -261,6 +325,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
                   >
                     <td className="p-3 truncate max-w-[120px]">{row.biltyNo}</td>
                     <td className="p-3 truncate max-w-[120px]">{row.receiptNo}</td>
+                    <td className="p-3 truncate max-w-[120px]">{row.paymentNo}</td>
                     {!hideBookingCols && (
                       <>
                         <td className="p-3 truncate max-w-[150px]">{row.orderNo}</td>
@@ -274,6 +339,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
                     <td className="p-3 truncate max-w-[150px]" title={row.qty}>{row.qty}</td>
                     <td className="p-3 truncate max-w-[120px]">{row.totalAmount}</td>
                     <td className="p-3 truncate max-w-[120px]">{row.receivedAmount}</td>
+                    <td className="p-3 truncate max-w-[120px]">{row.paidAmount}</td>
                     <td className="p-3 truncate max-w-[120px]">{row.deliveryDate}</td>
                     <td className="p-3 truncate max-w-[150px]" title={row.paidToPerson}>{row.paidToPerson}</td>
                     <td className="p-3 truncate max-w-[150px]" title={row.charges}>{row.charges}</td>

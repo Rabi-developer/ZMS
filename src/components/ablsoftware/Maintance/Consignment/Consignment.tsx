@@ -194,7 +194,14 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             vendor: b.vendor || '',
           }))
         );
-        setUnits(unitRes.data.map((u: any) => ({ id: u.id, name: u.name || u.unitName || u.description })));
+        // Use fixed unit options as requested
+        setUnits([
+          { id: 'Meter', name: 'Meter' },
+          { id: 'Yard', name: 'Yard' },
+          { id: 'Kg', name: 'Kg' },
+          { id: 'Bags', name: 'Bags' },
+          { id: 'Cartin', name: 'Cartin' },
+        ]);
         setSbrTaxes(taxRes.data.map((t: any) => ({ id: t.id, name: t.taxName || t.name })));
         setShippingLines(transporterRes.data.map((t: any) => ({ id: t.id, name: t.name })));
 

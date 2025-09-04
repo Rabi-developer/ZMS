@@ -11,16 +11,16 @@ import { getAllEquality } from '@/apis/equality';
 import { toast } from 'react-toastify';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { FiSearch } from 'react-icons/fi';
+import MainLayout from '@/components/MainLayout/MainLayout';
 
-// Extend jsPDF type to include getNumberOfPages method from jspdf-autotable
+// Extend jsPDF type to include getNumberOfPages method
 declare module 'jspdf' {
   interface jsPDF {
     getNumberOfPages(): number;
   }
 }
-import * as XLSX from 'xlsx';
-import { FiSearch, FiFileText } from 'react-icons/fi';
-import MainLayout from '@/components/MainLayout/MainLayout';
 
 // Types
 interface VoucherDetailRow {
@@ -117,7 +117,7 @@ const collectDescendantIds = (node: Account | null): Set<string> => {
   return ids;
 };
 
-// Hierarchical account selector (compact)
+// Hierarchical account selector
 interface HierarchicalDropdownProps {
   accounts: Account[];
   name: string;
@@ -176,11 +176,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, n
         current = f.children || [];
       }
     }
-    if (selected) {
-      onSelect(id, selected);
-    } else {
-      onSelect('', null);
-    }
+    onSelect(id, selected);
   };
 
   const handlePickFromSearch = (leaf: FlatLeaf) => {
@@ -302,7 +298,19 @@ type GroupedRows = Array<{
   };
 }>;
 
-function exportGroupedToPDF(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
+// Format amounts, preserving negative signs for Debit, absolute for Credit
+const formatAmount = (value: number) => {
+  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+// Format amounts, returning empty string for zero, absolute for Credit
+const formatAmountZeroBlank = (value: number, balanceType?: 'Debit' | 'Credit' | undefined) => {
+  if (value === 0) return '';
+  const displayValue = balanceType === 'Credit' ? Math.abs(value) : value;
+  return formatAmount(displayValue);
+};
+
+function exportGroupedToPDF(titleLine: string, branch: string, filterLine: string, groups: GroupedRows, debitTotal: number, creditTotal: number) {
   const doc = new jsPDF();
   let y = 20;
 
@@ -318,14 +326,10 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   doc.line(105 - cw / 2, y + 1.5, 105 + cw / 2, y + 1.5);
   y += 7;
 
-  // TRIAL BALANCE heading with bg-blue-100 background
+  // TRIAL BALANCE heading
   doc.setFontSize(11);
   doc.setTextColor(COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b);
   const headingText = 'TRIAL BALANCE';
-  const headingWidth = doc.getTextWidth(headingText);
-  const headingX = 105 - headingWidth / 2;
-  doc.setFillColor(BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b);
-  doc.rect(headingX - 2, y - 3, headingWidth + 4, 7, 'F');
   doc.text(headingText, 105, y, { align: 'center' });
   y += 4;
 
@@ -342,101 +346,57 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   }
   y += 8;
 
-  const formatAmount = (value: number) => {
-    return Math.abs(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
+  // Single table for all accounts
+  const body = [
+    ...groups.map((g) => [
+      `${g.description} (${g.listid})`,
+      g.totals.balanceType === 'Debit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Debit') : '',
+      g.totals.balanceType === 'Credit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Credit') : '',
+    ]),
+    ['Total', formatAmountZeroBlank(debitTotal, 'Debit'), formatAmountZeroBlank(creditTotal, 'Credit')],
+  ];
 
-  const formatAmountZeroBlank = (value: number) => {
-    if (!value) return '';
-    return formatAmount(value);
-  };
-
-  groups.forEach((g, idx) => {
-    if (idx > 0) y += 5;
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text(`${g.description} (${g.listid})`, 10, y);
-    y += 4;
-    autoTable(doc, {
-      startY: y,
-      head: [
-        [
-          'Voucher Date',
-          'Voucher No',
-          'Cheque No',
-          'Deposit Slip No',
-          'Narration',
-          'Debit',
-          'Credit',
-          'Balance',
-          'Bal Type',
-        ],
-      ],
-      body: g.rows.map((r) => [
-        r.voucherDate,
-        r.voucherNo,
-        r.chequeNo || '',
-        r.depositSlipNo || '',
-        r.narration || '',
-        formatAmountZeroBlank(r.debit1Num ?? 0),
-        formatAmountZeroBlank(r.credit1Num ?? 0),
-        formatAmount(r.pb1Num ?? 0),
-        r.balanceType || '',
-      ]),
-      foot: [
-        [
-          {
-            content: `Closing Balance (${g.totals.balanceType || 'N/A'})`,
-            colSpan: 5,
-            styles: { halign: 'right', fontStyle: 'bold' },
-          },
-          formatAmount(g.totals.debit1 || 0),
-          formatAmount(g.totals.credit1 || 0),
-          formatAmount(g.totals.pb1 || 0),
-          g.totals.balanceType || '',
-        ],
-      ],
-      headStyles: {
-        fillColor: [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b],
-        textColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
-        fontStyle: 'bold',
-        fontSize: 7,
-        cellPadding: 1,
-      },
-      footStyles: {
-        fillColor: [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b],
-        textColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
-        fontStyle: 'bold',
-        fontSize: 7,
-        cellPadding: 1,
-      },
-      bodyStyles: {
-        fontSize: 6,
-        textColor: [0, 0, 0],
-        cellPadding: 1,
-      },
-      alternateRowStyles: {
-        fillColor: [240, 240, 255],
-      },
-      theme: 'grid',
-      margin: { left: 8, right: 8 },
-      columnStyles: {
-        0: { cellWidth: 18 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 35 },
-        5: { halign: 'right' },
-        6: { halign: 'right' },
-        7: { halign: 'right', cellWidth: 18 },
-        8: { cellWidth: 12, halign: 'center' },
-      },
-    });
-    y = (doc as any).lastAutoTable.finalY + 4;
-    if (y > 270 && idx < groups.length - 1) {
-      doc.addPage();
-      y = 10;
-    }
+  autoTable(doc, {
+    startY: y,
+    head: [['Description', 'Debit Balance', 'Credit Balance']],
+    body,
+    headStyles: {
+      fillColor: [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b],
+      textColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
+      fontStyle: 'bold',
+      fontSize: 8,
+      cellPadding: 2,
+    },
+    bodyStyles: {
+      fontSize: 7,
+      textColor: [0, 0, 0],
+      cellPadding: 2,
+      fillColor: [255, 255, 255],
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245],
+    },
+    footStyles: {
+      fillColor: [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b],
+      textColor: [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b],
+      fontStyle: 'bold',
+      fontSize: 8,
+      cellPadding: 2,
+    },
+    theme: 'grid',
+    margin: { left: 8, right: 8 },
+    columnStyles: {
+      0: { cellWidth: 80 },
+      1: { halign: 'right', cellWidth: 30 },
+      2: { halign: 'right', cellWidth: 30 },
+    },
+    didParseCell: (data) => {
+      if (data.row.index === body.length - 1 && data.section === 'body') {
+        data.cell.styles.fillColor = [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b];
+        data.cell.styles.textColor = [COMPANY_COLOR.r, COMPANY_COLOR.g, COMPANY_COLOR.b];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
   });
 
   // Footer
@@ -457,93 +417,63 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
   doc.save(fname);
 }
 
-function exportGroupedToExcel(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
+function exportGroupedToExcel(titleLine: string, branch: string, filterLine: string, groups: GroupedRows, debitTotal: number, creditTotal: number) {
   const wb = XLSX.utils.book_new();
+  const wsData: any[][] = [];
+  wsData.push([COMPANY_NAME]);
+  wsData.push([`Branch: ${branch}`]);
+  if (filterLine) wsData.push([filterLine]);
+  wsData.push([titleLine.replace('Trial Balance', 'Trial Balance')]);
+  wsData.push([]);
+  wsData.push(['Description', 'Debit Balance', 'Credit Balance']);
   groups.forEach((g) => {
-    const wsData: any[][] = [];
-    wsData.push([COMPANY_NAME]);
-    wsData.push([`Branch: ${branch}`]);
-    if (filterLine) wsData.push([filterLine]);
-    wsData.push([titleLine.replace('Trial Balance', 'Trial Balance')]);
-    wsData.push([`${g.description} (${g.listid})`]);
-    wsData.push([]);
-    wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit', 'Credit', 'Balance', 'Bal Type']);
-    g.rows.forEach((r) => {
-      wsData.push([
-        r.voucherDate,
-        r.voucherNo,
-        r.chequeNo || '-',
-        r.depositSlipNo || '-',
-        r.narration || '-',
-        r.debit1Num ?? 0,
-        r.credit1Num ?? 0,
-        r.pb1Num ?? 0,
-        r.balanceType || '-',
-      ]);
-    });
     wsData.push([
-      `Closing Balance (${g.totals.balanceType || 'N/A'})`, '', '', '', '',
-      (g.totals.debit1 || 0),
-      (g.totals.credit1 || 0),
-      (g.totals.pb1 || 0),
-      g.totals.balanceType || '-',
+      `${g.description} (${g.listid})`,
+      g.totals.balanceType === 'Debit' ? (g.totals.pb1 || 0) : 0,
+      g.totals.balanceType === 'Credit' ? Math.abs(g.totals.pb1 || 0) : 0,
     ]);
-
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    (ws as any)['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
-    ];
-    let mergeIdx = 2;
-    if (filterLine) {
-      (ws as any)['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 8 } });
-      mergeIdx++;
-    }
-    (ws as any)['!merges'].push(
-      { s: { r: mergeIdx, c: 0 }, e: { r: mergeIdx, c: 8 } },
-      { s: { r: mergeIdx + 1, c: 0 }, e: { r: mergeIdx + 1, c: 8 } }
-    );
-
-    (ws as any)['!cols'] = [
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 16 },
-      { wch: 35 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 10 },
-    ];
-
-    const range = XLSX.utils.decode_range(ws['!ref'] as string);
-    const firstDataRow = filterLine ? 7 : 6;
-    for (let R = firstDataRow; R <= range.e.r; R++) {
-      const c5 = XLSX.utils.encode_cell({ r: R, c: 5 });
-      if (ws[c5] && typeof ws[c5].v === 'number') { ws[c5].t = 'n'; (ws[c5] as any).z = '#,##0.00'; }
-      const c6 = XLSX.utils.encode_cell({ r: R, c: 6 });
-      if (ws[c6] && typeof ws[c6].v === 'number') { ws[c6].t = 'n'; (ws[c6] as any).z = '#,##0.00'; }
-      const c7 = XLSX.utils.encode_cell({ r: R, c: 7 });
-      if (ws[c7] && typeof ws[c7].v === 'number') { ws[c7].t = 'n'; (ws[c7] as any).z = '#,##0.00'; }
-    }
-
-    XLSX.utils.book_append_sheet(wb, ws, (g.description || g.listid).slice(0, 25));
   });
+  wsData.push(['Total', debitTotal, Math.abs(creditTotal)]);
+
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+  (ws as any)['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+  ];
+  let mergeIdx = 2;
+  if (filterLine) {
+    (ws as any)['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 2 } });
+    mergeIdx++;
+  }
+  (ws as any)['!merges'].push({ s: { r: mergeIdx, c: 0 }, e: { r: mergeIdx, c: 2 } });
+
+  (ws as any)['!cols'] = [
+    { wch: 50 },
+    { wch: 15 },
+    { wch: 15 },
+  ];
+
+  const firstDataRow = filterLine ? 6 : 5;
+  for (let R = firstDataRow; R <= ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']).e.r : 0; R++) {
+    const c1 = XLSX.utils.encode_cell({ r: R, c: 1 });
+    if (ws[c1] && typeof ws[c1].v === 'number') { ws[c1].t = 'n'; (ws[c1] as any).z = '#,##0.00'; }
+    const c2 = XLSX.utils.encode_cell({ r: R, c: 2 });
+    if (ws[c2] && typeof ws[c2].v === 'number') { ws[c2].t = 'n'; (ws[c2] as any).z = '#,##0.00'; }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Trial Balance');
   const fname = `Trial-Balance-${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fname);
 }
 
-function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
-  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:3px;font-size:10px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}`;
+function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows, debitTotal: number, creditTotal: number) {
+  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:3px;font-size:10px;text-align:right}th:nth-child(1),td:nth-child(1){text-align:left}`;
   const header = `<h2 style="text-align:center;margin:4px 0;color:#000080">${COMPANY_NAME}</h2><div style="text-align:center">Branch: ${branch}</div>${filterLine ? `<div style="text-align:center;margin:2px 0;font-size:10px">${filterLine}</div>` : ''}<h3 style="text-align:center;margin:6px 0;background-color:#dbeafe;color:#000080;padding:3px">TRIAL BALANCE</h3>`;
-  const tableHead = `<tr><th style="background-color:#dbeafe;color:#000080">Voucher Date</th><th style="background-color:#dbeafe;color:#000080">Voucher No</th><th style="background-color:#dbeafe;color:#000080">Cheque No</th><th style="background-color:#dbeafe;color:#000080">Deposit Slip No</th><th style="background-color:#dbeafe;color:#000080">Narration</th><th style="background-color:#dbeafe;color:#000080">Debit</th><th style="background-color:#dbeafe;color:#000080">Credit</th><th style="background-color:#dbeafe;color:#000080">Balance</th><th style="background-color:#dbeafe;color:#000080">Bal Type</th></tr>`;
-  const sections = groups.map((g) => {
-    const rows = g.rows.map((r, idx) => `<tr style="background-color:${idx % 2 === 0 ? '#fff' : '#e6e6ff'}"><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${r.debit1}</td><td>${r.credit1}</td><td>${r.pb1}</td><td>${r.balanceType || '-'}</td></tr>`).join('');
-    const totalsRow = `<tr style="background-color:#dbeafe"><td colspan="5" style="text-align:right;font-weight:bold">Closing Balance (${g.totals.balanceType || 'N/A'})</td><td>${Math.abs(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${g.totals.balanceType || '-'}</td></tr>`;
-    return `<h4 style="margin:8px 0 3px">${g.description} (${g.listid})</h4><table>${tableHead}${rows}${totalsRow}</table>`;
-  }).join('<br/>');
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr style="border-color:#000080"/>${sections}</body></html>`;
+  const tableHead = `<tr><th style="background-color:#dbeafe;color:#000080">Description</th><th style="background-color:#dbeafe;color:#000080">Debit Balance</th><th style="background-color:#dbeafe;color:#000080">Credit Balance</th></tr>`;
+  const rows = groups.map((g, idx) => `<tr style="background-color:${idx % 2 === 0 ? '#fff' : '#e6e6ff'}"><td>${g.description} (${g.listid})</td><td>${g.totals.balanceType === 'Debit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Debit') : ''}</td><td>${g.totals.balanceType === 'Credit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Credit') : ''}</td></tr>`).join('');
+  const totalRow = `<tr style="background-color:#dbeafe;color:#000080;font-weight:bold"><td>Total</td><td>${formatAmountZeroBlank(debitTotal, 'Debit')}</td><td>${formatAmountZeroBlank(creditTotal, 'Credit')}</td></tr>`;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr style="border-color:#000080"/><table>${tableHead}${rows}${totalRow}</table></body></html>`;
   const blob = new Blob([html], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -558,7 +488,7 @@ function exportGroupedToWord(titleLine: string, branch: string, filterLine: stri
 // Page Component
 const TrialBalancePage: React.FC = () => {
   // Filters
-  const [branch, setBranch] = useState('Head Office Karachi');
+  const [branch, setBranch] = useState<string>('Head Office Karachi');
   const [fromDate, setFromDate] = useState<string>('');
   const [toDate, setToDate] = useState<string>('');
   const [status, setStatus] = useState<string>('All');
@@ -576,8 +506,10 @@ const TrialBalancePage: React.FC = () => {
   const [specific1Id, setSpecific1Id] = useState<string>('');
   const [specific2Id, setSpecific2Id] = useState<string>('');
 
-  // Grouped data
+  // Grouped data and totals
   const [groups, setGroups] = useState<GroupedRows>([]);
+  const [debitTotal, setDebitTotal] = useState<number>(0);
+  const [creditTotal, setCreditTotal] = useState<number>(0);
 
   // Load chart of accounts
   useEffect(() => {
@@ -624,6 +556,7 @@ const TrialBalancePage: React.FC = () => {
       } while (pageIndex <= totalPages);
 
       // Filter by date
+      const normalize = (s?: string) => (s ?? '').trim().toLowerCase();
       const from = fromDate ? new Date(fromDate) : null;
       const to = toDate ? new Date(toDate) : null;
       const withinDate = (d?: string) => {
@@ -643,8 +576,8 @@ const TrialBalancePage: React.FC = () => {
         return (s || '').toLowerCase() === status.toLowerCase();
       };
 
-      // Compute previous balance with last entry type
-      const prevMap: Record<string, { date: number; pb: number; lastEntry?: any; lastType?: 'Debit' | 'Credit' }> = {};
+      // Compute previous balance
+      const prevMap: Record<string, { date: number; pb: number; lastEntry?: any; lastType: 'Debit' | 'Credit' | undefined }> = {};
       if (from) {
         all.forEach((v) => {
           const d = v.voucherDate ? new Date(v.voucherDate) : null;
@@ -653,15 +586,15 @@ const TrialBalancePage: React.FC = () => {
           if (d >= from) return;
           (v.voucherDetails || []).forEach((r) => {
             const t = d.getTime();
-            const k1 = (r.account1 ?? '').trim().toLowerCase();
-            const k2 = (r.account2 ?? '').trim().toLowerCase();
+            const k1 = normalize(r.account1);
+            const k2 = normalize(r.account2);
             if (k1) {
-              const prev = prevMap[k1] || { date: 0, pb: 0 };
+              const prev = prevMap[k1] || { date: 0, pb: 0, lastType: undefined };
               if (t > prev.date) {
                 const debit = Number(r.debit1 ?? 0);
                 const credit = Number(r.credit1 ?? 0);
                 const pb = Number(r.projectedBalance1 ?? 0);
-                const lastType = pb > 0 ? 'Debit' : pb < 0 ? 'Credit' : undefined;
+                const lastType: 'Debit' | 'Credit' | undefined = pb > 0 ? 'Debit' : pb < 0 ? 'Credit' : undefined;
                 const lastEntry = {
                   _idx: -1,
                   voucherDate: '-',
@@ -669,11 +602,8 @@ const TrialBalancePage: React.FC = () => {
                   chequeNo: '-',
                   depositSlipNo: '-',
                   narration: `Opening Balance (Previous Period)`,
-                  debit1: '',
-                  credit1: '',
-                  pb1: Math.abs(pb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                  debit1Num: 0,
-                  credit1Num: 0,
+                  debitBalance: pb > 0 ? formatAmountZeroBlank(pb, 'Debit') : '',
+                  creditBalance: pb < 0 ? formatAmountZeroBlank(pb, 'Credit') : '',
                   pb1Num: pb,
                   balanceType: lastType,
                 };
@@ -681,12 +611,12 @@ const TrialBalancePage: React.FC = () => {
               }
             }
             if (k2) {
-              const prev = prevMap[k2] || { date: 0, pb: 0 };
+              const prev = prevMap[k2] || { date: 0, pb: 0, lastType: undefined };
               if (t > prev.date) {
                 const debit = Number(r.debit2 ?? 0);
                 const credit = Number(r.credit2 ?? 0);
                 const pb = Number(r.projectedBalance2 ?? 0);
-                const lastType = pb > 0 ? 'Debit' : pb < 0 ? 'Credit' : undefined;
+                const lastType: 'Debit' | 'Credit' | undefined = pb > 0 ? 'Debit' : pb < 0 ? 'Credit' : undefined;
                 const lastEntry = {
                   _idx: -1,
                   voucherDate: '-',
@@ -694,11 +624,8 @@ const TrialBalancePage: React.FC = () => {
                   chequeNo: '-',
                   depositSlipNo: '-',
                   narration: `Opening Balance (Previous Period)`,
-                  debit1: '',
-                  credit1: '',
-                  pb1: Math.abs(pb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                  debit1Num: 0,
-                  credit1Num: 0,
+                  debitBalance: pb > 0 ? formatAmountZeroBlank(pb, 'Debit') : '',
+                  creditBalance: pb < 0 ? formatAmountZeroBlank(pb, 'Credit') : '',
                   pb1Num: pb,
                   balanceType: lastType,
                 };
@@ -719,23 +646,20 @@ const TrialBalancePage: React.FC = () => {
         if (rangeFromId && rangeToId) {
           const fromListId = accountIndex[rangeFromId]?.listid || rangeFromId;
           const toListId = accountIndex[rangeToId]?.listid || rangeToId;
-          const minCode = fromListId < toListId ? fromListId : toListId;
-          const maxCode = fromListId < toListId ? toListId : fromListId;
+          const minCode = fromListId.localeCompare(toListId) < 0 ? fromListId : toListId;
+          const maxCode = fromListId.localeCompare(toListId) < 0 ? toListId : fromListId;
           selectedAccountIds = Object.keys(accountIndex).filter((id) => {
             const code = accountIndex[id]?.listid || id;
-            return code >= minCode && code <= maxCode;
+            return code.localeCompare(minCode) >= 0 && code.localeCompare(maxCode) <= 0;
           });
         } else if (rangeFromId || rangeToId) {
-          const onlyId = rangeFromId || rangeToId;
+          const onlyId = rangeFromId || rangeToId || '';
           selectedAccountIds = onlyId ? [onlyId] : [];
-        } else {
-          selectedAccountIds = [];
         }
       } else if (filterType === 'specific') {
         selectedAccountIds = Array.from(new Set([specific1Id, specific2Id].filter(Boolean)));
       }
 
-      const normalize = (s?: string) => (s ?? '').trim().toLowerCase();
       const selectedKeys = new Set<string>();
       selectedAccountIds.forEach((id) => {
         if (!id) return;
@@ -760,7 +684,7 @@ const TrialBalancePage: React.FC = () => {
             description: accInfo.description,
             listid: accInfo.listid,
             rows: [],
-            totals: { credit1: 0, debit1: 0, pb1: 0, balanceType: undefined },
+            totals: { credit1: 0, debit1: 0, pb1: 0, balanceType: undefined as 'Debit' | 'Credit' | undefined },
           };
         }
         let debit: number, credit: number, pb: number;
@@ -779,21 +703,7 @@ const TrialBalancePage: React.FC = () => {
         groupMap[key].totals.pb1 = pb;
         groupMap[key].totals.balanceType = pb > 0 ? 'Debit' : pb < 0 ? 'Credit' : undefined;
 
-        groupMap[key].rows.push({
-          _idx: groupMap[key].rows.length,
-          voucherDate: v.voucherDate || '-',
-          voucherNo: v.voucherNo || '-',
-          chequeNo: v.chequeNo || '-',
-          depositSlipNo: v.depositSlipNo || '-',
-          narration: v.narration || v.description || r.narration || '-',
-          debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-          pb1: Math.abs(pb).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-          debit1Num: debit,
-          credit1Num: credit,
-          pb1Num: pb,
-          balanceType: undefined, // No balance type for transaction rows
-        });
+        groupMap[key].rows = []; // No rows stored
       };
 
       filteredVouchers.forEach((v) => {
@@ -815,56 +725,36 @@ const TrialBalancePage: React.FC = () => {
           description: accInfo.description,
           listid: accInfo.listid,
           rows: [],
-          totals: { credit1: 0, debit1: 0, pb1: prevMap[key].pb, balanceType: prevMap[key].pb > 0 ? 'Debit' : prevMap[key].pb < 0 ? 'Credit' : undefined },
+          totals: { credit1: 0, debit1: 0, pb1: prevMap[key].pb, balanceType: prevMap[key].lastType },
         };
+        if (prevMap[key].lastEntry) {
+          groupMap[key].rows = [];
+        }
       });
 
       const grouped: GroupedRows = Object.values(groupMap)
-        .filter((g) => g.rows.length > 0 || (g.totals.pb1 !== 0))
+        .filter((g) => g.totals.pb1 !== 0) // Exclude zero-balance accounts
         .map((g) => {
-          const rowsSorted = [...g.rows].sort((r1: any, r2: any) => {
-            const d1 = new Date(r1.voucherDate || '0000-00-00');
-            const d2 = new Date(r2.voucherDate || '0000-00-00');
-            if (d1 < d2) return -1;
-            if (d1 > d2) return 1;
-            const v1 = (r1.voucherNo || '').toString();
-            const v2 = (r2.voucherNo || '').toString();
-            return v1.localeCompare(v2, undefined, { numeric: true, sensitivity: 'base' });
-          });
-          const periodDebit = rowsSorted.reduce((s, r) => s + (r.debit1Num || 0), 0);
-          const periodCredit = rowsSorted.reduce((s, r) => s + (r.credit1Num || 0), 0);
-          const keyNorm = normalize(g.accountId);
-          const prev = prevMap[keyNorm];
-          const opening = prev ? prev.pb : 0;
-          const closing = rowsSorted.length > 0 ? rowsSorted[rowsSorted.length - 1].pb1Num : opening;
-          const closingType = closing > 0 ? 'Debit' : closing < 0 ? 'Credit' : undefined;
-          const rows: any[] = [];
-          if (prev && prev.lastEntry) {
-            rows.push({ ...prev.lastEntry, narration: `Opening Balance (Previous Period)` });
-          } else if (opening !== 0) {
-            rows.push({
-              _idx: -1,
-              voucherDate: '-',
-              voucherNo: '-',
-              chequeNo: '-',
-              depositSlipNo: '-',
-              narration: `Opening Balance (Previous Period)`,
-              debit1: '',
-              credit1: '',
-              pb1: Math.abs(opening).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-              debit1Num: 0,
-              credit1Num: 0,
-              pb1Num: opening,
-              balanceType: opening > 0 ? 'Debit' : opening < 0 ? 'Credit' : undefined,
-            });
-          }
-          rows.push(...rowsSorted);
-          return { ...g, rows, totals: { debit1: periodDebit, credit1: periodCredit, pb1: closing, balanceType: closingType } };
+          const periodDebit = 0;
+          const periodCredit = 0;
+          const closing = g.totals.pb1;
+          const closingType: 'Debit' | 'Credit' | undefined = closing > 0 ? 'Debit' : closing < 0 ? 'Credit' : undefined;
+          return {
+            ...g,
+            rows: [],
+            totals: { debit1: periodDebit, credit1: periodCredit, pb1: closing, balanceType: closingType },
+          };
         })
         .sort((a, b) => (a.listid || a.description).localeCompare(b.listid || b.description));
 
+      // Calculate totals
+      const debitTotal = grouped.reduce((sum, g) => sum + (g.totals.balanceType === 'Debit' ? g.totals.pb1 : 0), 0);
+      const creditTotal = grouped.reduce((sum, g) => sum + (g.totals.balanceType === 'Credit' ? Math.abs(g.totals.pb1) : 0), 0);
+
       setGroups(grouped);
-      if (grouped.length === 0) toast.info('No accounts matched filters');
+      setDebitTotal(debitTotal);
+      setCreditTotal(creditTotal);
+      if (grouped.length === 0) toast.info('No accounts matched filters or all balances are zero');
     } catch (e) {
       console.error(e);
       toast.error('Failed to load vouchers');
@@ -882,12 +772,11 @@ const TrialBalancePage: React.FC = () => {
   const filterSummary = useMemo(() => {
     let statusPart = status && status !== 'All' ? `Status: ${status}` : '';
     let accPart = '';
-    if (filterType === 'byHead' && headAccountId) accPart = `Filter: By Head (${headAccountId})`;
-    if (filterType === 'range' && (rangeFromId || rangeToId)) accPart = `Filter: Range (${rangeFromId || '-'} to ${rangeToId || '-'})`;
-    if (filterType === 'specific' && (specific1Id || specific2Id)) accPart = `Filter: Specific (${specific1Id || '-'} & ${specific2Id || '-'})`;
-    let summary = [statusPart, accPart].filter(Boolean).join(', ');
-    return summary;
-  }, [status, filterType, headAccountId, rangeFromId, rangeToId, specific1Id, specific2Id]);
+    if (filterType === 'byHead' && headAccountId) accPart = `Filter: By Head (${accountIndex[headAccountId]?.description || headAccountId})`;
+    if (filterType === 'range' && (rangeFromId || rangeToId)) accPart = `Filter: Range (${accountIndex[rangeFromId]?.description || rangeFromId || '-'} to ${accountIndex[rangeToId]?.description || rangeToId || '-'})`;
+    if (filterType === 'specific' && (specific1Id || specific2Id)) accPart = `Filter: Specific (${accountIndex[specific1Id]?.description || specific1Id || '-'} & ${accountIndex[specific2Id]?.description || specific2Id || '-'})`;
+    return [statusPart, accPart].filter(Boolean).join(', ');
+  }, [status, filterType, headAccountId, rangeFromId, rangeToId, specific1Id, specific2Id, accountIndex]);
 
   const clearFilters = () => {
     setBranch('Head Office Karachi');
@@ -901,6 +790,8 @@ const TrialBalancePage: React.FC = () => {
     setSpecific1Id('');
     setSpecific2Id('');
     setGroups([]);
+    setDebitTotal(0);
+    setCreditTotal(0);
   };
 
   return (
@@ -1046,19 +937,19 @@ const TrialBalancePage: React.FC = () => {
                 <div className="text-xs text-gray-500 dark:text-gray-400">Tip: Use search inside account pickers to quickly find accounts.</div>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => exportGroupedToPDF(titleLine, branch, filterSummary, groups)}
+                    onClick={() => exportGroupedToPDF(titleLine, branch, filterSummary, groups, debitTotal, creditTotal)}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md"
                   >
                     Export PDF
                   </Button>
                   <Button
-                    onClick={() => exportGroupedToExcel(titleLine, branch, filterSummary, groups)}
+                    onClick={() => exportGroupedToExcel(titleLine, branch, filterSummary, groups, debitTotal, creditTotal)}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-md"
                   >
                     Export Excel
                   </Button>
                   <Button
-                    onClick={() => exportGroupedToWord(titleLine, branch, filterSummary, groups)}
+                    onClick={() => exportGroupedToWord(titleLine, branch, filterSummary, groups, debitTotal, creditTotal)}
                     className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-md"
                   >
                     Export Word
@@ -1077,69 +968,38 @@ const TrialBalancePage: React.FC = () => {
           {loading ? (
             <div className="px-4 py-6 text-center text-blue-600 dark:text-blue-300">Loading...</div>
           ) : groups.length === 0 ? (
-            <div className="px-4 py-6 text-center text-gray-500 dark:text-gray-400">No data</div>
+            <div className="px-4 py-6 text-center text-gray-500 dark:text-gray-400">No data or all balances are zero</div>
           ) : (
-            <div className="divide-y divide-blue-200 dark:divide-blue-900">
-              {groups.map((g) => (
-                <div key={g.accountId} className="p-4">
-                  <div className="text-sm font-semibold mb-2 text-blue-900 dark:text-blue-200">
-                    {g.description} <span className="font-normal text-gray-500 dark:text-gray-400">({g.listid})</span>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-sm">
-                      <thead className="bg-blue-100 dark:bg-blue-950">
-                        <tr>
-                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Voucher Date</th>
-                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Voucher No</th>
-                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Cheque No</th>
-                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Deposit Slip No</th>
-                          <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Narration</th>
-                          <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Debit</th>
-                          <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Credit</th>
-                          <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Balance</th>
-                          <th className="px-3 py-2 text-center text-blue-900 dark:text-blue-200">Bal Type</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {g.rows.map((r: any, idx: number) => (
-                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-blue-50 dark:bg-gray-700/40'}>
-                            <td className="px-3 py-2">{r.voucherDate}</td>
-                            <td className="px-3 py-2">{r.voucherNo}</td>
-                            <td className="px-3 py-2">{r.chequeNo}</td>
-                            <td className="px-3 py-2">{r.depositSlipNo}</td>
-                            <td className="px-3 py-2">{r.narration}</td>
-                            <td className="px-3 py-2 text-right">{r.debit1}</td>
-                            <td className="px-3 py-2 text-right">{r.credit1}</td>
-                            <td className="px-3 py-2 text-right">{r.pb1}</td>
-                            <td className="px-3 py-2 text-center">{r.balanceType || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-blue-100 dark:bg-blue-950 font-semibold">
-                          <td className="px-3 py-2 text-right" colSpan={5}>
-                            Closing Balance ({g.totals.balanceType || 'N/A'})
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {Math.abs(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-3 py-2 text-center">{g.totals.balanceType || '-'}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-2">
-                    <FiFileText />
-                    Rows: {g.rows.length}
-                  </div>
-                </div>
-              ))}
+            <div className="p-4">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-blue-100 dark:bg-blue-950">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Description</th>
+                      <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Debit Balance</th>
+                      <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Credit Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groups.map((g, idx) => (
+                      <tr key={g.accountId} className={idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-blue-50 dark:bg-gray-700/40'}>
+                        <td className="px-3 py-2">{g.description} ({g.listid})</td>
+                        <td className="px-3 py-2 text-right">
+                          {g.totals.balanceType === 'Debit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Debit') : ''}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {g.totals.balanceType === 'Credit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Credit') : ''}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-blue-100 dark:bg-blue-950 font-bold">
+                      <td className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Total</td>
+                      <td className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">{formatAmountZeroBlank(debitTotal, 'Debit')}</td>
+                      <td className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">{formatAmountZeroBlank(creditTotal, 'Credit')}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
