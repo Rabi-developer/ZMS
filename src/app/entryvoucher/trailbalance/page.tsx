@@ -455,7 +455,9 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
   ];
 
   const firstDataRow = filterLine ? 6 : 5;
-  for (let R = firstDataRow; R <= ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']).e.r : 0; R++) {
+  const ref = (ws as XLSX.WorkSheet)['!ref'] as string | undefined;
+  const endRow = ref ? XLSX.utils.decode_range(ref).e.r : 0;
+  for (let R = firstDataRow; R <= endRow; R++) {
     const c1 = XLSX.utils.encode_cell({ r: R, c: 1 });
     if (ws[c1] && typeof ws[c1].v === 'number') { ws[c1].t = 'n'; (ws[c1] as any).z = '#,##0.00'; }
     const c2 = XLSX.utils.encode_cell({ r: R, c: 2 });
