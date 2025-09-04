@@ -52,7 +52,7 @@ const getSingleReceipt  = async (id: string) => {
   }
 };
 
-const updateReceipt = async (Receipt: any, data: { orderNo: string; biltyNo: string; date: string; consignor: string; consignee: string; items: { desc?: string | undefined; qty?: number | undefined; qtyUnit?: string | undefined; weight?: number | undefined; weightUnit?: string | undefined; }[]; ReceiptMode?: string | undefined; receiptNo?: string | undefined; ReceiptNo?: string | undefined; ReceiptDate?: string | undefined; receiverName?: string | undefined; receiverContactNo?: string | undefined; shippingLine?: string | undefined; containerNo?: string | undefined; port?: string | undefined; destination?: string | undefined; freightFrom?: string | undefined; totalQty?: number | undefined; freight?: number | undefined; sbrTax?: string | undefined; sprAmount?: number | undefined; deliveryCharges?: number | undefined; insuranceCharges?: number | undefined; tollTax?: number | undefined; otherCharges?: number | undefined; totalAmount?: number | undefined; receivedAmount?: number | undefined; incomeTaxDed?: number | undefined; incomeTaxAmount?: number | undefined; deliveryDate?: string | undefined; remarks?: string | undefined; }) => {
+const updateReceipt = async (Receipt: any, ) => {
   try {
     const response = await apiFetch(`Receipt`, {
       method: 'PUT',
