@@ -1,6 +1,10 @@
 "use client";
 import MainLayout from '@/components/MainLayout/MainLayout'
-import ConsignmentList from '@/components/ablsoftware/Maintance/Consignment/ConsignmentList';
+import dynamic from 'next/dynamic';
+const ConsignmentList = dynamic(
+    () => import('@/components/ablsoftware/Maintance/Consignment/ConsignmentList'),
+    { ssr: false }
+  );
 const ABL = () => {
 
     return (

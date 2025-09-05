@@ -1,15 +1,15 @@
 "use client";
-import { Suspense } from 'react';
-import PaymentABLList from '@/components/ablsoftware/Maintance/PaymentABL/PaymentABLList';
+import dynamic from 'next/dynamic';
 import MainLayout from '@/components/MainLayout/MainLayout'
-
+const PaymentABLList = dynamic(
+    () => import('@/components/ablsoftware/Maintance/PaymentABL/PaymentABLList'),
+    { ssr: false }
+  );
 const PaymentABLPage = () => {
 
     return (
-        <MainLayout activeInterface="ABL">
-            <Suspense fallback={<div>Loading...</div>}>
+        <MainLayout activeInterface="ABL">        
                 <PaymentABLList/>
-            </Suspense>
         </MainLayout>
     )
 }

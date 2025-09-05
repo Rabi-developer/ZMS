@@ -117,6 +117,25 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const lines = watch('lines');
   const payments = watch('payments');
 
+  // Local search states for popups
+  const [orderSearch, setOrderSearch] = useState('');
+  const [biltySearch, setBiltySearch] = useState('');
+
+  // Filtered lists based on search
+  const filteredConsignments = consignments.filter((c) => {
+    const q = biltySearch.toLowerCase();
+    return !q || `${c.biltyNo || ''} ${c.id || ''}`.toLowerCase().includes(q);
+  });
+
+  const filteredBookingOrders = bookingOrders.filter((o) => {
+    const q = orderSearch.toLowerCase();
+    return (
+      !q || `${o.id || ''} ${o.vehicleNo || ''} ${o.cargoWeight || ''} ${o.orderDate || ''} ${o.vendor || ''} ${o.vendorName || ''}`
+        .toLowerCase()
+        .includes(q)
+    );
+  });
+
   const bankCashOptions: DropdownOption[] = [
     { id: 'Bank', name: 'Bank' },
     { id: 'Cash', name: 'Cash' },
@@ -623,7 +642,7 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
             {showBiltyPopup && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-                <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-md w-full mx-4">
+                <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-2xl w-full mx-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Bilty</h3>
                     <Button 
@@ -634,23 +653,60 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       <FiX className="text-xl" />
                     </Button>
                   </div>
-                  <div className="max-h-60 overflow-y-auto space-y-2">
-                    {consignments.map((cons) => (
-                      <div 
-                        key={cons.id} 
-                        onClick={() => selectBilty(cons, selectedLineIndex)} 
-                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors"
-                      >
-                        <span className="font-medium text-gray-800 dark:text-gray-200">{cons.biltyNo}</span>
-                      </div>
-                    ))}
+
+                  {/* Search */}
+                  <div className="mb-3">
+                    <input
+                      type="text"
+                      value={biltySearch}
+                      onChange={(e) => setBiltySearch(e.target.value)}
+                      placeholder="Search by Bilty No or ID..."
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-sm"
+                    />
                   </div>
+
+                  {/* Table */}
+                  <div className="max-h-80 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                          <th className="px-3 py-2 text-left font-medium">Bilty No</th>
+                          <th className="px-3 py-2 text-left font-medium">ID</th>
+                          <th className="px-3 py-2 text-left font-medium">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {filteredConsignments.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="px-3 py-4 text-center text-gray-500">No results</td>
+                          </tr>
+                        ) : (
+                          filteredConsignments.map((cons) => (
+                            <tr key={cons.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="px-3 py-2">{cons.biltyNo}</td>
+                              <td className="px-3 py-2">{cons.id}</td>
+                              <td className="px-3 py-2">
+                                <Button
+                                  type="button"
+                                  onClick={() => selectBilty(cons, selectedLineIndex)}
+                                  className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-3 py-1 rounded-md"
+                                >
+                                  Select
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
                   <div className="flex justify-end mt-4">
                     <Button 
                       onClick={() => setShowBiltyPopup(false)}
                       className="bg-gray-500 hover:bg-gray-600 text-white rounded-md"
                     >
-                      Cancel
+                      Close
                     </Button>
                   </div>
                 </div>
@@ -659,7 +715,7 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
             {showOrderPopup && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-                <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4">
+                <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-3xl w-full mx-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
                     <Button 
@@ -670,44 +726,66 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       <FiX className="text-xl" />
                     </Button>
                   </div>
-                  <div className="max-h-60 overflow-y-auto space-y-2">
-                    {bookingOrders.map((order) => (
-                      <div 
-                        key={order.id} 
-                        onClick={() => selectOrder(order)} 
-                        className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
-                      >
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex items-center gap-2">
-                            <MdLocalShipping className="text-[#3a614c] text-lg" />
-                            <span className="font-medium text-gray-800 dark:text-gray-200">Order No: {order.id}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <FaCreditCard className="text-[#3a614c] text-lg" />
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Vehicle No: {order.vehicleNo}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <FaMoneyBillWave className="text-[#3a614c] text-lg" />
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Cargo Weight: {order.cargoWeight}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MdAccountBalance className="text-[#3a614c] text-lg" />
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Order Date: {order.orderDate}</span>
-                          </div>
-                          <div className="flex items-center gap-2 col-span-2">
-                            <MdPayment className="text-[#3a614c] text-lg" />
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Vendor: {order.vendorName}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+
+                  {/* Search */}
+                  <div className="mb-3">
+                    <input
+                      type="text"
+                      value={orderSearch}
+                      onChange={(e) => setOrderSearch(e.target.value)}
+                      placeholder="Search by Order No, Vehicle No, Vendor, Date..."
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-sm"
+                    />
                   </div>
+
+                  {/* Table */}
+                  <div className="max-h-80 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                          <th className="px-3 py-2 text-left font-medium">Order No</th>
+                          <th className="px-3 py-2 text-left font-medium">Vehicle No</th>
+                          <th className="px-3 py-2 text-left font-medium">Cargo Weight</th>
+                          <th className="px-3 py-2 text-left font-medium">Order Date</th>
+                          <th className="px-3 py-2 text-left font-medium">Vendor</th>
+                          <th className="px-3 py-2 text-left font-medium">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {filteredBookingOrders.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-3 py-4 text-center text-gray-500">No results</td>
+                          </tr>
+                        ) : (
+                          filteredBookingOrders.map((order) => (
+                            <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                              <td className="px-3 py-2">{order.id}</td>
+                              <td className="px-3 py-2">{order.vehicleNo}</td>
+                              <td className="px-3 py-2">{order.cargoWeight}</td>
+                              <td className="px-3 py-2">{order.orderDate}</td>
+                              <td className="px-3 py-2">{order.vendorName}</td>
+                              <td className="px-3 py-2">
+                                <Button
+                                  type="button"
+                                  onClick={() => selectOrder(order)}
+                                  className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-3 py-1 rounded-md"
+                                >
+                                  Select
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
                   <div className="flex justify-end mt-4">
                     <Button 
                       onClick={() => setShowOrderPopup(false)}
                       className="bg-gray-500 hover:bg-gray-600 text-white rounded-md"
                     >
-                      Cancel
+                      Close
                     </Button>
                   </div>
                 </div>
