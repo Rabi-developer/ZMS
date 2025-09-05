@@ -21,7 +21,6 @@ const GENERATE_COLUMNS: ColumnKey[] = [
   "serial",
   "orderNo",
   "ablDate",
-  "orderDate",
   "consignor",
   "consignee",
   "vehicleNo",
@@ -352,25 +351,32 @@ const BookingOrderReportExport: React.FC = () => {
   const buildStructure = (selected: ColumnKey[]) => {
     const selectedSet = new Set<ColumnKey>(selected);
 
-    const fixedKeys = ['serial','orderNo','ablDate','orderDate','consignor','consignee'] as const;
+    const fixedKeys = ['serial'] as const;
+    const contractKeys = ['orderNo','ablDate'] as const;
+    const tailKeys1 = ['consignor','consignee'] as const;
     const vehicleKeys = ['vehicleNo','bookingAmount'] as const;
     const biltyKeys = ['biltyNo','biltyAmount'] as const;
-    const tailKeys = ['article','qty','departure','destination','vendor','carrier'] as const;
+    const tailKeys2 = ['article','qty','departure','destination','vendor','carrier'] as const;
 
     const fixed = fixedKeys.filter((k) => selectedSet.has(k)) as ColumnKey[];
+    const contractSubs = contractKeys.filter((k) => selectedSet.has(k)) as ColumnKey[];
+    const tail1 = tailKeys1.filter((k) => selectedSet.has(k)) as ColumnKey[];
     const vehicleSubs = vehicleKeys.filter((k) => selectedSet.has(k)) as ColumnKey[];
     const biltySubs = biltyKeys.filter((k) => selectedSet.has(k)) as ColumnKey[];
-    const tail = tailKeys.filter((k) => selectedSet.has(k)) as ColumnKey[];
+    const tail2 = tailKeys2.filter((k) => selectedSet.has(k)) as ColumnKey[];
 
-    const colOrder: ColumnKey[] = [...fixed, ...vehicleSubs, ...biltySubs, ...tail];
+    const colOrder: ColumnKey[] = [...fixed, ...contractSubs, ...tail1, ...vehicleSubs, ...biltySubs, ...tail2];
 
     const topRow: any[] = [];
     fixed.forEach((k) => topRow.push({ content: labelFor(k), rowSpan: 2 }));
+    if (contractSubs.length > 0) topRow.push({ content: "Contract", colSpan: contractSubs.length });
+    tail1.forEach((k) => topRow.push({ content: labelFor(k), rowSpan: 2 }));
     if (vehicleSubs.length > 0) topRow.push({ content: "Vehicle", colSpan: vehicleSubs.length });
     if (biltySubs.length > 0) topRow.push({ content: "Bilty", colSpan: biltySubs.length });
-    tail.forEach((k) => topRow.push({ content: labelFor(k), rowSpan: 2 }));
+    tail2.forEach((k) => topRow.push({ content: labelFor(k), rowSpan: 2 }));
 
     const subRow: any[] = [];
+    if (contractSubs.length > 0) contractSubs.forEach((k) => subRow.push(labelFor(k)));
     if (vehicleSubs.length > 0) vehicleSubs.forEach((k) => subRow.push(labelFor(k)));
     if (biltySubs.length > 0) biltySubs.forEach((k) => subRow.push(labelFor(k)));
 
@@ -380,11 +386,11 @@ const BookingOrderReportExport: React.FC = () => {
   };
 
   const computeFilterLine = () => {
-    let base = "All data";
+    let base = "";
     if (filterType === "range") {
-      base = fromDate && toDate ? `Date Range: ${formatDate(fromDate)} to ${formatDate(toDate)}` : "All data";
+      base = fromDate && toDate ? `Date Range: ${formatDate(fromDate)} to ${formatDate(toDate)}` : "";
     } else if (filterType === "month") {
-      base = month && year ? `Month: ${month.toString().padStart(2, "0")}-${year}` : "All data";
+      base = month && year ? `Month: ${month.toString().padStart(2, "0")}-${year}` : "";
     }
     const filterText = filterColumn && filterValue ? ` | Filter: ${labelFor(filterColumn)} = ${filterValue}` : "";
     const arr =
@@ -419,10 +425,19 @@ const BookingOrderReportExport: React.FC = () => {
     const rowsToUse = composeView(rows);
     const columnsToUse = useReducedColumns ? GENERATE_COLUMNS : selectedColumns;
     const { colOrder, headRows } = buildStructure(columnsToUse);
-    const filterLine = computeFilterLine();
-    exportBookingOrderToPDF(rowsToUse, columnsToUse, filterLine, colOrder, headRows);
+
+    // Compose filter line with report type prefix
+    const baseFilterLine = computeFilterLine();
+    const reportTypeLabel = useReducedColumns ? "GENERAL REPORT" : "DETAIL REPORT";
+    const filterLine = `${reportTypeLabel}${baseFilterLine ? " | " + baseFilterLine : ""}`;
+
+    // Derive startDate and endDate from filters
+    const startDate = (filterType === "range" && fromDate) ? fromDate : undefined;
+    const endDate = (filterType === "range" && toDate) ? toDate : undefined;
+
+    exportBookingOrderToPDF(rowsToUse, columnsToUse, filterLine, colOrder, headRows, startDate, endDate);
     toast.success("PDF generated");
-  }, [data, generateData, selectedColumns, composeView]);
+  }, [data, generateData, selectedColumns, composeView, filterType, fromDate, toDate]);
 
   const exportBiltiesReceivable = useCallback(async () => {
     let rows = data;
@@ -634,22 +649,22 @@ const BookingOrderReportExport: React.FC = () => {
                   <div>
                     <div className="text-xs font-semibold text-gray-600 mb-2">Preview</div>
                     <div className="flex flex-wrap gap-3">
-                      <button onClick={() => loadDataForPreview(false)} disabled={loading} className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50">{loading ? 'Loading...' : 'Preview All'}</button>
-                      <button onClick={() => loadDataForPreview(true)} disabled={loading} className="px-4 py-2 bg-indigo-500 text-white text-xs font-semibold rounded-lg hover:bg-indigo-600 disabled:opacity-50">{loading ? 'Loading...' : 'Preview Generate'}</button>
+                      <button onClick={() => loadDataForPreview(false)} disabled={loading} className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50">{loading ? 'Loading...' : 'Preview Order Report (All)'}</button>
+                      <button onClick={() => loadDataForPreview(true)} disabled={loading} className="px-4 py-2 bg-indigo-500 text-white text-xs font-semibold rounded-lg hover:bg-indigo-600 disabled:opacity-50">{loading ? 'Loading...' : 'Preview Order Report (General)'}</button>
                     </div>
                   </div>
                   <div>
                     <div className="text-xs font-semibold text-gray-600 mb-2">Export PDF</div>
                     <div className="flex flex-wrap gap-3">
-                      <button onClick={() => exportPDF(false)} disabled={loading} className="px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50">PDF (All)</button>
-                      <button onClick={() => exportPDF(true)} disabled={loading} className="px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50">PDF (Generate)</button>
+                      <button onClick={() => exportPDF(false)} disabled={loading} className="px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50">ORDER REPORT (DETAIL)</button>
+                      <button onClick={() => exportPDF(true)} disabled={loading} className="px-4 py-2 bg-purple-600 text-white text-xs font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50">ORDER REPORT (GENERAL)</button>
                     </div>
                   </div>
                   <div>
                     <div className="text-xs font-semibold text-gray-600 mb-2">Export Excel</div>
                     <div className="flex flex-wrap gap-3">
-                      <button onClick={() => exportExcel(false)} disabled={loading} className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50">Excel (All)</button>
-                      <button onClick={() => exportExcel(true)} disabled={loading} className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50">Excel (Generate)</button>
+                      <button onClick={() => exportExcel(false)} disabled={loading} className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50">ORDER REPORT (DETAIL)</button>
+                      <button onClick={() => exportExcel(true)} disabled={loading} className="px-4 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50">ORDER REPORT (GENERAL)</button>
                     </div>
                   </div>
                 </div>

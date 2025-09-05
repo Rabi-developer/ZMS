@@ -10,12 +10,29 @@ const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
 // const COMPANY_PHONE = "Phone: +92 21 32550917-18";
 const REPORT_TITLE = "Contract Report (Detail)";
 
+const formatDisplayDate = (d?: string): string => {
+  if (!d) return "-";
+  // Expect yyyy-mm-dd or ISO
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    const yyyy = dt.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
+  } catch {
+    return d;
+  }
+};
+
 export const exportBookingOrderToPDF = (
   data: RowData[],
   selectedColumns: ColumnKey[],
   filterLine: string,
   colOrder: ColumnKey[],
-  headRows: any[][]
+  headRows: any[][],
+  startDate?: string,
+  endDate?: string
 ) => {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "A4" });
 
@@ -26,26 +43,29 @@ export const exportBookingOrderToPDF = (
   doc.setTextColor(0, 0, 0);
   doc.text(COMPANY_NAME, pageWidth / 2, 42, { align: "center" });
 
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text(REPORT_TITLE, pageWidth / 2, 70, { align: "center" });
+
+  // Date line (Before table):
+  // "Start From: <date>" (left), "To Date: <date>" (center), "Report: <date> <time>" (right)
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(80, 80, 80);
 
+  const startText = `Start From: ${startDate ? formatDisplayDate(startDate) : "-"}`;
+  const toText = `To Date: ${endDate ? formatDisplayDate(endDate) : "-"}`;
+  const nowText = `Report: ${formatDisplayDate(new Date().toISOString())} ${new Date().toLocaleTimeString()}`;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(0, 0, 0);
-  doc.text(REPORT_TITLE, pageWidth / 2, 92, { align: "center" });
-
-  // Filter info
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text(filterLine, pageWidth / 2, 108, { align: "center" });
+  doc.text(startText, 40, 96, { align: "left" });
+  doc.text(toText, pageWidth / 2, 96, { align: "center" });
+  doc.text(nowText, pageWidth - 40, 96, { align: "right" });
 
   // Separator line
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(1);
-  doc.line(40, 116, pageWidth - 40, 116);
+  doc.line(40, 108, pageWidth - 40, 108);
 
   // Table data
   const tableBody = data.map((row) =>
@@ -62,7 +82,7 @@ export const exportBookingOrderToPDF = (
     body: tableBody,
     styles: {
       font: "helvetica",
-      fontSize: 9,
+      fontSize: 7,
       cellPadding: 6,
       lineColor: [220, 220, 220],
       lineWidth: 0.5,
@@ -74,7 +94,7 @@ export const exportBookingOrderToPDF = (
       fillColor: [200, 200, 200],
       textColor: [0, 0, 0],
       fontStyle: "bold",
-      fontSize: 10,
+      fontSize: 8,
       halign: "center",
     },
     alternateRowStyles: {

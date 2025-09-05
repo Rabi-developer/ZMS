@@ -24,6 +24,11 @@ export interface BiltiesReceivablePdfParams {
   rows: BiltiesReceivableRow[];
   startDate?: string; // yyyy-mm-dd
   endDate?: string; // yyyy-mm-dd
+  dateFilter?: string;
+  columns?: string;
+  valueFilter?: string;
+  sorting?: string;
+  quickActions?: string;
 }
 
 const formatDisplayDate = (d?: string) => {
@@ -41,7 +46,7 @@ const formatDisplayDate = (d?: string) => {
   }
 };
 
-export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate }: BiltiesReceivablePdfParams) => {
+export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate, dateFilter, columns, valueFilter, sorting, quickActions }: BiltiesReceivablePdfParams) => {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "A4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -75,6 +80,25 @@ export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate }: Bilti
   doc.setLineWidth(1);
   doc.line(40, 108, pageWidth - 40, 108);
 
+  // Filter lines
+  let yPos = 120;
+  const lineHeight = 12;
+  const addLine = (label: string, value?: string) => {
+    if (value) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`${label}: ${value}`, 40, yPos, { align: "left" });
+      yPos += lineHeight;
+    }
+  };
+
+  addLine("Date Filter", dateFilter);
+  addLine("Columns", columns);
+  addLine("Value Filter", valueFilter);
+  addLine("Sorting", sorting);
+  addLine("Quick Actions", quickActions);
+
   // Table head & body
   const head = [[
     "Order No",
@@ -103,7 +127,7 @@ export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate }: Bilti
   ]);
 
   autoTable(doc, {
-    startY: 120,
+    startY: 140,
     head,
     body,
     styles: {
@@ -126,7 +150,7 @@ export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate }: Bilti
     alternateRowStyles: {
       fillColor: [245, 245, 245],
     },
-    margin: { top: 120, left: 40, right: 40, bottom: 60 },
+    margin: { top: 140, left: 40, right: 40, bottom: 60 },
     theme: "grid",
     didDrawPage: (d) => {
       const pw = doc.internal.pageSize.getWidth();

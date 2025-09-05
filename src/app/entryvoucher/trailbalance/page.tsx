@@ -348,17 +348,18 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
 
   // Single table for all accounts
   const body = [
-    ...groups.map((g) => [
+    ...groups.map((g, idx) => [
+      `${idx + 1}`,
       `${g.description} (${g.listid})`,
       g.totals.balanceType === 'Debit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Debit') : '',
       g.totals.balanceType === 'Credit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Credit') : '',
     ]),
-    ['Total', formatAmountZeroBlank(debitTotal, 'Debit'), formatAmountZeroBlank(creditTotal, 'Credit')],
+    ['-', 'Total', formatAmountZeroBlank(debitTotal, 'Debit'), formatAmountZeroBlank(creditTotal, 'Credit')],
   ];
 
   autoTable(doc, {
     startY: y,
-    head: [['Description', 'Debit Balance', 'Credit Balance']],
+    head: [['Serial No', 'Description', 'Debit Balance', 'Credit Balance']],
     body,
     headStyles: {
       fillColor: [BG_BLUE_100.r, BG_BLUE_100.g, BG_BLUE_100.b],
@@ -384,11 +385,12 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
       cellPadding: 2,
     },
     theme: 'grid',
-    margin: { left: 8, right: 8 },
+    margin: { left: 12, right: 15 },
     columnStyles: {
-      0: { cellWidth: 80 },
-      1: { halign: 'right', cellWidth: 30 },
-      2: { halign: 'right', cellWidth: 30 },
+      0: { cellWidth: 20, halign: 'center' },
+      1: { cellWidth: 90 },
+      2: { halign: 'right', cellWidth: 40 },
+      3: { halign: 'right', cellWidth: 40 },
     },
     didParseCell: (data) => {
       if (data.row.index === body.length - 1 && data.section === 'body') {
@@ -425,42 +427,44 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
   if (filterLine) wsData.push([filterLine]);
   wsData.push([titleLine.replace('Trial Balance', 'Trial Balance')]);
   wsData.push([]);
-  wsData.push(['Description', 'Debit Balance', 'Credit Balance']);
-  groups.forEach((g) => {
+  wsData.push(['Serial No', 'Description', 'Debit Balance', 'Credit Balance']);
+  groups.forEach((g, idx) => {
     wsData.push([
+      idx + 1,
       `${g.description} (${g.listid})`,
       g.totals.balanceType === 'Debit' ? (g.totals.pb1 || 0) : 0,
       g.totals.balanceType === 'Credit' ? Math.abs(g.totals.pb1 || 0) : 0,
     ]);
   });
-  wsData.push(['Total', debitTotal, Math.abs(creditTotal)]);
+  wsData.push(['-', 'Total', debitTotal, Math.abs(creditTotal)]);
 
   const ws = XLSX.utils.aoa_to_sheet(wsData);
 
   (ws as any)['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
   ];
   let mergeIdx = 2;
   if (filterLine) {
-    (ws as any)['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 2 } });
+    (ws as any)['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 3 } });
     mergeIdx++;
   }
-  (ws as any)['!merges'].push({ s: { r: mergeIdx, c: 0 }, e: { r: mergeIdx, c: 2 } });
+  (ws as any)['!merges'].push({ s: { r: mergeIdx, c: 0 }, e: { r: mergeIdx, c: 3 } });
 
   (ws as any)['!cols'] = [
-    { wch: 50 },
-    { wch: 15 },
-    { wch: 15 },
+    { wch: 10 }, // Serial No
+    { wch: 50 }, // Description
+    { wch: 15 }, // Debit Balance
+    { wch: 15 }, // Credit Balance
   ];
 
   const firstDataRow = filterLine ? 6 : 5;
   const ref = (ws as XLSX.WorkSheet)['!ref'] as string | undefined;
   const endRow = ref ? XLSX.utils.decode_range(ref).e.r : 0;
   for (let R = firstDataRow; R <= endRow; R++) {
-    const c1 = XLSX.utils.encode_cell({ r: R, c: 1 });
+    const c1 = XLSX.utils.encode_cell({ r: R, c: 2 });
     if (ws[c1] && typeof ws[c1].v === 'number') { ws[c1].t = 'n'; (ws[c1] as any).z = '#,##0.00'; }
-    const c2 = XLSX.utils.encode_cell({ r: R, c: 2 });
+    const c2 = XLSX.utils.encode_cell({ r: R, c: 3 });
     if (ws[c2] && typeof ws[c2].v === 'number') { ws[c2].t = 'n'; (ws[c2] as any).z = '#,##0.00'; }
   }
 
@@ -470,11 +474,11 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
 }
 
 function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows, debitTotal: number, creditTotal: number) {
-  const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:3px;font-size:10px;text-align:right}th:nth-child(1),td:nth-child(1){text-align:left}`;
+  const css = `table{border-collapse:collapse;width:100%;max-width:800px;margin:0 auto}th,td{border:1px solid #555;padding:5px;font-size:10px}th:nth-child(1),td:nth-child(1){text-align:center;width:10%}th:nth-child(2),td:nth-child(2){text-align:left;width:50%}th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4){text-align:right;width:20%}`;
   const header = `<h2 style="text-align:center;margin:4px 0;color:#000080">${COMPANY_NAME}</h2><div style="text-align:center">Branch: ${branch}</div>${filterLine ? `<div style="text-align:center;margin:2px 0;font-size:10px">${filterLine}</div>` : ''}<h3 style="text-align:center;margin:6px 0;background-color:#dbeafe;color:#000080;padding:3px">TRIAL BALANCE</h3>`;
-  const tableHead = `<tr><th style="background-color:#dbeafe;color:#000080">Description</th><th style="background-color:#dbeafe;color:#000080">Debit Balance</th><th style="background-color:#dbeafe;color:#000080">Credit Balance</th></tr>`;
-  const rows = groups.map((g, idx) => `<tr style="background-color:${idx % 2 === 0 ? '#fff' : '#e6e6ff'}"><td>${g.description} (${g.listid})</td><td>${g.totals.balanceType === 'Debit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Debit') : ''}</td><td>${g.totals.balanceType === 'Credit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Credit') : ''}</td></tr>`).join('');
-  const totalRow = `<tr style="background-color:#dbeafe;color:#000080;font-weight:bold"><td>Total</td><td>${formatAmountZeroBlank(debitTotal, 'Debit')}</td><td>${formatAmountZeroBlank(creditTotal, 'Credit')}</td></tr>`;
+  const tableHead = `<tr><th style="background-color:#dbeafe;color:#000080">Serial No</th><th style="background-color:#dbeafe;color:#000080">Description</th><th style="background-color:#dbeafe;color:#000080">Debit Balance</th><th style="background-color:#dbeafe;color:#000080">Credit Balance</th></tr>`;
+  const rows = groups.map((g, idx) => `<tr style="background-color:${idx % 2 === 0 ? '#fff' : '#e6e6ff'}"><td>${idx + 1}</td><td>${g.description} (${g.listid})</td><td>${g.totals.balanceType === 'Debit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Debit') : ''}</td><td>${g.totals.balanceType === 'Credit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Credit') : ''}</td></tr>`).join('');
+  const totalRow = `<tr style="background-color:#dbeafe;color:#000080;font-weight:bold"><td>-</td><td>Total</td><td>${formatAmountZeroBlank(debitTotal, 'Debit')}</td><td>${formatAmountZeroBlank(creditTotal, 'Credit')}</td></tr>`;
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /><style>${css}</style></head><body>${header}<hr style="border-color:#000080"/><table>${tableHead}${rows}${totalRow}</table></body></html>`;
   const blob = new Blob([html], { type: 'application/msword' });
   const url = URL.createObjectURL(blob);
@@ -734,12 +738,13 @@ const TrialBalancePage: React.FC = () => {
         }
       });
 
+      const EPS = 1e-6;
       const grouped: GroupedRows = Object.values(groupMap)
-        .filter((g) => g.totals.pb1 !== 0) // Exclude zero-balance accounts
+        .filter((g) => Number.isFinite(g.totals.pb1) && Math.abs(g.totals.pb1 || 0) > EPS)
         .map((g) => {
           const periodDebit = 0;
           const periodCredit = 0;
-          const closing = g.totals.pb1;
+          const closing = Number(g.totals.pb1 || 0);
           const closingType: 'Debit' | 'Credit' | undefined = closing > 0 ? 'Debit' : closing < 0 ? 'Credit' : undefined;
           return {
             ...g,
@@ -963,7 +968,7 @@ const TrialBalancePage: React.FC = () => {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow border border-blue-200 dark:border-blue-900">
-          <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-blue-900 bg-blue-100 dark:bg-blue-950">
+          <div className="px-4 py-3 flex  justify-between border-b border-gray-200 dark:border-blue-900 bg-blue-100 dark:bg-blue-950">
             <h2 className="text-base font-semibold text-blue-900 dark:text-blue-200">{COMPANY_NAME}</h2>
             <div className="text-xs text-blue-700 dark:text-blue-300">{titleLine}</div>
           </div>
@@ -974,33 +979,61 @@ const TrialBalancePage: React.FC = () => {
           ) : (
             <div className="p-4">
               <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-blue-100 dark:bg-blue-950">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Description</th>
-                      <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Debit Balance</th>
-                      <th className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">Credit Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groups.map((g, idx) => (
-                      <tr key={g.accountId} className={idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-blue-50 dark:bg-gray-700/40'}>
-                        <td className="px-3 py-2">{g.description} ({g.listid})</td>
-                        <td className="px-3 py-2 text-right">
-                          {g.totals.balanceType === 'Debit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Debit') : ''}
+                <div className="mx-auto">
+                  <table className="min-w-full text-sm border-collapse">
+                    <thead className="bg-blue-100 dark:bg-blue-950">
+                      <tr>
+                        <th className="px-4 py-2 text-center text-blue-900 dark:text-blue-200 border border-gray-200 dark:border-blue-900 w-[80px]">
+                          Serial No
+                        </th>
+                        <th className="px-4 py-2 text-left text-blue-900 dark:text-blue-200 border border-gray-200 dark:border-blue-900 w-[400px]">
+                          Description
+                        </th>
+                        <th className="px-4 py-2 text-right text-blue-900 dark:text-blue-200 border border-gray-200 dark:border-blue-900 w-[200px]">
+                          Debit Balance
+                        </th>
+                        <th className="px-4 py-2 text-right text-blue-900 dark:text-blue-200 border border-gray-200 dark:border-blue-900 w-[200px]">
+                          Credit Balance
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groups.map((g, idx) => (
+                        <tr
+                          key={g.accountId}
+                          className={idx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-blue-50 dark:bg-gray-700/40'}
+                        >
+                          <td className="px-4 py-2 text-center border border-gray-200 dark:border-blue-900">
+                            {idx + 1}
+                          </td>
+                          <td className="px-4 py-2 border border-gray-200 dark:border-blue-900">
+                            {g.description} ({g.listid})
+                          </td>
+                          <td className="px-4 py-2 text-right border border-gray-200 dark:border-blue-900">
+                            {g.totals.balanceType === 'Debit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Debit') : ''}
+                          </td>
+                          <td className="px-4 py-2 text-right border border-gray-200 dark:border-blue-900">
+                            {g.totals.balanceType === 'Credit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Credit') : ''}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="bg-blue-100 dark:bg-blue-950 font-bold">
+                        <td className="px-4 py-2 text-center text-blue-900 dark:text-blue-200 border border-gray-200 dark:border-blue-900">
+                          -
                         </td>
-                        <td className="px-3 py-2 text-right">
-                          {g.totals.balanceType === 'Credit' ? formatAmountZeroBlank(g.totals.pb1 || 0, 'Credit') : ''}
+                        <td className="px-4 py-2 text-left text-blue-900 dark:text-blue-200 border border-gray-200 dark:border-blue-900">
+                          Total
+                        </td>
+                        <td className="px-4 py-2 text-right text-blue-900 dark:text-blue-200 border border-gray-200 dark:border-blue-900">
+                          {formatAmountZeroBlank(debitTotal, 'Debit')}
+                        </td>
+                        <td className="px-4 py-2 text-right text-blue-900 dark:text-blue-200 border border-gray-200 dark:border-blue-900">
+                          {formatAmountZeroBlank(creditTotal, 'Credit')}
                         </td>
                       </tr>
-                    ))}
-                    <tr className="bg-blue-100 dark:bg-blue-950 font-bold">
-                      <td className="px-3 py-2 text-left text-blue-900 dark:text-blue-200">Total</td>
-                      <td className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">{formatAmountZeroBlank(debitTotal, 'Debit')}</td>
-                      <td className="px-3 py-2 text-right text-blue-900 dark:text-blue-200">{formatAmountZeroBlank(creditTotal, 'Credit')}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
