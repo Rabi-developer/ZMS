@@ -123,7 +123,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       date: '',
       consignmentNo: '',
       consignor: '',
-      consignmentDate: '',
+      consignmentDate: new Date().toISOString().split('T')[0],
       consignee: '',
       receiverName: '',
       receiverContactNo: '',
@@ -156,6 +156,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [parties, setParties] = useState<DropdownOption[]>([]);
   const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
   const [showOrderPopup, setShowOrderPopup] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [shippingLines, setShippingLines] = useState<DropdownOption[]>([]);
   const [units, setUnits] = useState<DropdownOption[]>([]);
   const [sbrTaxes, setSbrTaxes] = useState<DropdownOption[]>([]);
@@ -269,7 +270,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       }
     }
     const freightNum = parseFloat(String(freight ?? '0'));
-    const spr = (isNaN(freightNum) ? 0 : freightNum) * taxPercent;
+    const spr = isNaN(freightNum) ? 0 : (sbrTax && taxPercent > 0 ? freightNum * taxPercent : freightNum);
     setValue('sprAmount', spr, { shouldValidate: true });
 
     const total = (
@@ -1024,9 +1025,9 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
         {showOrderPopup && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
                 <Button
                   onClick={() => setShowOrderPopup(false)}
                   className="text-gray-400 hover:text-gray-600 p-1"
@@ -1035,24 +1036,73 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   <FiX className="text-xl" />
                 </Button>
               </div>
-              <div className="max-h-60 overflow-y-auto space-y-2">
-                {bookingOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    onClick={() => selectOrder(order)}
-                    className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-3 rounded-lg border border-gray-200 dark:border-gray-600 transition-colors"
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium text-gray-800 dark:text-gray-200">Order No: {order.orderNo}</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Vehicle No: {order.vehicleNo}</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Cargo Weight: {order.cargoWeight}</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Order Date: {order.orderDate}</span>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Vendor: {order.vendor}</span>
-                    </div>
-                  </div>
-                ))}
+
+              {/* Search Input */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Search by Order No, Vehicle No, or Vendor..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#3a614c] focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                />
               </div>
-              <div className="flex justify-end mt-4">
+
+              {/* Table */}
+              <div className="overflow-y-auto max-h-96 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                  <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-300">
+                    <tr>
+                      <th className="px-6 py-3 border-b border-gray-200 dark:border-gray-600">Order No</th>
+                      <th className="px-6 py-3 border-b border-gray-200 dark:border-gray-600">Vehicle No</th>
+                      <th className="px-6 py-3 border-b border-gray-200 dark:border-gray-600">Cargo Weight</th>
+                      <th className="px-6 py-3 border-b border-gray-200 dark:border-gray-600">Order Date</th>
+                      <th className="px-6 py-3 border-b border-gray-200 dark:border-gray-600">Vendor</th>
+                      <th className="px-6 py-3 border-b border-gray-200 dark:border-gray-600">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bookingOrders
+                      .filter((order) =>
+                        order.orderNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        order.vehicleNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        order.vendor.toLowerCase().includes(searchTerm.toLowerCase())
+                      )
+                      .map((order) => (
+                        <tr
+                          key={order.id}
+                          className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                            {order.orderNo}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                            {order.vehicleNo}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                            {order.cargoWeight}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                            {order.orderDate}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
+                            {order.vendor}
+                          </td>
+                          <td className="px-6 py-4">
+                            <Button
+                              onClick={() => selectOrder(order)}
+                              className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-3 py-1"
+                            >
+                              Select
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end mt-6">
                 <Button
                   onClick={() => setShowOrderPopup(false)}
                   className="bg-gray-500 hover:bg-gray-600 text-white"

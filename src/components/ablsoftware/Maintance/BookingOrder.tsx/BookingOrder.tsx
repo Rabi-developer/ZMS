@@ -101,7 +101,6 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       vehicleType: '',
       driverName: '',
       contactNo: '',
-      munshayana: '',
       cargoWeight: '',
       bookedDays: '',
       detentionDays: '',
@@ -215,7 +214,6 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType));
                 setValue('driverName', booking.driverName || '');
                 setValue('contactNo', booking.contactNo || '');
-                setValue('munshayana', booking.munshayana || '');
                 setValue('cargoWeight', booking.cargoWeight || '');
                 setValue('bookedDays', booking.bookedDays || '');
                 setValue('detentionDays', booking.detentionDays || '');
@@ -493,19 +491,6 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       error={errors.contactNo?.message}
                       id="contactNo"
                     />
-                    <Controller
-                      name="munshayana"
-                      control={control}
-                      render={({ field }) => (
-                        <AblCustomDropdown
-                          label="Munshayana"
-                          options={munshayanas}
-                          selectedOption={field.value || ''}
-                          onChange={(value) => setValue('munshayana', value, { shouldValidate: true })}
-                          error={errors.munshayana?.message}
-                        />
-                      )}
-                    />
                     <ABLCustomInput
                       label="Cargo Weight"
                       type="text"
@@ -513,6 +498,22 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       register={register}
                       error={errors.cargoWeight?.message}
                       id="cargoWeight"
+                    />
+                    <ABLCustomInput
+                      label="Booked Days"
+                      type="text"
+                      placeholder="Enter booked days"
+                      register={register}
+                      error={errors.bookedDays?.message}
+                      id="bookedDays"
+                    />
+                    <ABLCustomInput
+                      label="Detention Days"
+                      type="text"
+                      placeholder="Enter detention days"
+                      register={register}
+                      error={errors.detentionDays?.message}
+                      id="detentionDays"
                     />
                   </div>
                 </div>

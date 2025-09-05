@@ -242,7 +242,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
     return list;
   }, [bookingStatus, consignmentCount, allConsDelivered, chargesCount, chargesPaidCount, totalReceived, receiptsTotalReceived, paymentsCompletedCount]);
 
-  // Combine data for the single table
+  // Combine data for the table, one row per consignment
   const tableData = useMemo(() => {
     const rows: any[] = [];
     const bo = bookingOrder ?? bookingInfo;
@@ -251,33 +251,57 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
       return rows; // Return empty if no data
     }
 
-    // Create a single row combining all data for the same orderNo
-    const row: any = {
-      biltyNo: consignments.length > 0 ? consignments.map((c) => (c.biltyNo ?? (c as any).BiltyNo ?? (c as any).consignmentNo ?? (c as any).ConsignmentNo ?? (c as any).id ?? '')).join(', ') : '',
-      receiptNo: (receiptNos.length > 0)
-        ? receiptNos.join(', ')
-        : (consignments.length > 0 ? consignments.map((c) => (c.receiptNo ?? (c as any).ReceiptNo ?? '')).join(', ') : ''),
-      paymentNo: paymentNos.length > 0 ? paymentNos.join(', ') : '',
-      orderNo: bo?.orderNo || '',
-      orderDate: bo?.orderDate || '',
-      vehicleNo: bo?.vehicleNo || '',
-      consignor: consignments.length > 0 ? consignments.map((c) => (c.consignor ?? (c as any).Consignor ?? '')).join(', ') : '',
-      consignee: consignments.length > 0 ? consignments.map((c) => (c.consignee ?? (c as any).Consignee ?? '')).join(', ') : '',
-      items: consignments.length > 0 ? consignments.map((c) => (Array.isArray(c.items) ? c.items.map((item: any) => item.desc).join(', ') : '')).join('; ') : '',
-      qty: consignments.length > 0 ? consignments.map((c) => (Array.isArray(c.items) ? c.items.map((item: any) => `${item.qty} ${item.qtyUnit}`).join(', ') : (c as any).qty || '')).join('; ') : '',
-      totalAmount: consignments.length > 0 ? consignments.map((c) => (c.totalAmount ?? (c as any).TotalAmount ?? (c as any).amount ?? '')).join(', ') : '',
-      receivedAmount: receiptsTotalReceived > 0 ? receiptsTotalReceived : (consignments.length > 0 ? consignments.map((c) => (c.receivedAmount ?? (c as any).ReceivedAmount ?? (c as any).receiptAmount ?? '')).join(', ') : '-'),
-      deliveryDate: consignments.length > 0 ? consignments.map((c) => (c.deliveryDate ?? (c as any).DeliveryDate ?? (c as any).date ?? '')).join(', ') : '',
-      consignmentStatus: consignments.length > 0 ? Array.from(new Set(consignments.map((c) => (c.status ?? (c as any).Status ?? '')))).filter(Boolean).join(', ') : '',
-      paidToPerson: charges.length > 0 ? charges.map((c) => c.paidToPerson || '').join(', ') : '',
-      charges: charges.length > 0 ? charges.map((c) => c.charges || '').join(', ') : '',
-      amount: charges.length > 0 ? charges.map((c) => c.amount || '').join(', ') : '',
-      paidAmount: paymentsTotalPaid > 0 ? paymentsTotalPaid : '',
-    };
+    if (consignments.length > 0) {
+      consignments.forEach((c, index) => {
+        const row: any = {
+          biltyNo: c.biltyNo ?? (c as any).BiltyNo ?? (c as any).consignmentNo ?? (c as any).ConsignmentNo ?? (c as any).id ?? '',
+          receiptNo: c.receiptNo ?? (c as any).ReceiptNo ?? (receiptNos.length > 0 ? receiptNos.join(', ') : ''),
+          paymentNo: paymentNos.length > 0 ? paymentNos.join(', ') : '',
+          orderNo: bo?.orderNo || '',
+          orderDate: bo?.orderDate || '',
+          vehicleNo: bo?.vehicleNo || '',
+          consignor: c.consignor ?? (c as any).Consignor ?? '',
+          consignee: c.consignee ?? (c as any).Consignee ?? '',
+          items: Array.isArray(c.items) ? c.items.map((item: any) => item.desc).join(', ') : '',
+          qty: Array.isArray(c.items) ? c.items.map((item: any) => `${item.qty} ${item.qtyUnit}`).join(', ') : (c as any).qty || '',
+          totalAmount: c.totalAmount ?? (c as any).TotalAmount ?? (c as any).amount ?? '',
+          receivedAmount: c.receivedAmount ?? (c as any).ReceivedAmount ?? (c as any).receiptAmount ?? (receiptsTotalReceived > 0 ? receiptsTotalReceived : '-'),
+          deliveryDate: c.deliveryDate ?? (c as any).DeliveryDate ?? (c as any).date ?? '',
+          consignmentStatus: c.status ?? (c as any).Status ?? '',
+          paidToPerson: charges.length > 0 ? charges.map((ch) => ch.paidToPerson || '').join(', ') : '',
+          charges: charges.length > 0 ? charges.map((ch) => ch.charges || '').join(', ') : '',
+          amount: charges.length > 0 ? charges.map((ch) => ch.amount || '').join(', ') : '',
+          paidAmount: paymentsTotalPaid > 0 ? paymentsTotalPaid : '',
+        };
+        rows.push(row);
+      });
+    } else {
+      // No consignments, create one row with booking and other data
+      const row: any = {
+        biltyNo: '',
+        receiptNo: receiptNos.length > 0 ? receiptNos.join(', ') : '',
+        paymentNo: paymentNos.length > 0 ? paymentNos.join(', ') : '',
+        orderNo: bo?.orderNo || '',
+        orderDate: bo?.orderDate || '',
+        vehicleNo: bo?.vehicleNo || '',
+        consignor: '',
+        consignee: '',
+        items: '',
+        qty: '',
+        totalAmount: '',
+        receivedAmount: receiptsTotalReceived > 0 ? receiptsTotalReceived : '-',
+        deliveryDate: '',
+        consignmentStatus: '',
+        paidToPerson: charges.length > 0 ? charges.map((c) => c.paidToPerson || '').join(', ') : '',
+        charges: charges.length > 0 ? charges.map((c) => c.charges || '').join(', ') : '',
+        amount: charges.length > 0 ? charges.map((c) => c.amount || '').join(', ') : '',
+        paidAmount: paymentsTotalPaid > 0 ? paymentsTotalPaid : '',
+      };
+      rows.push(row);
+    }
 
-    rows.push(row);
     return rows;
-  }, [bookingOrder, bookingInfo, consignments, charges, receiptNos, paymentsTotalPaid, paymentNos]);
+  }, [bookingOrder, bookingInfo, consignments, charges, receiptNos, paymentsTotalPaid, paymentNos, receiptsTotalReceived]);
 
   const hideBookingCols = !!hideBookingOrderInfo;
   const totalCols = (hideBookingCols ? 13 : 16) + 2;

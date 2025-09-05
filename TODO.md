@@ -1,22 +1,9 @@
-# TODO: Resolve TypeScript Error in Receipt.tsx
+# TODO: Fix OrderProgress.tsx to display one row per consignment
 
-## Steps to Complete:
-
-1. [ ] Update the `ReceiptFormData` type to include missing properties:
-   - orderNo: string
-   - biltyNo: string  
-   - date: string
-   - consignor: string
-   - consignee: string
-
-2. [ ] Update the Zod schema to validate the new fields
-
-3. [ ] Update the form default values to include the new fields
-
-4. [ ] Modify the `onSubmit` function to map form data to expected API structure
-
-5. [ ] Test the form to ensure it works correctly
-
-## Current Status:
-- Planning completed
-- Ready to implement changes
+## Tasks
+- [x] Modify tableData useMemo to create one row per consignment instead of combining into single row
+- [x] Ensure booking order info (orderNo, orderDate, vehicleNo) is repeated in each row
+- [x] Include consignment-specific data in each row
+- [x] Handle order-level data (charges, payments, receipts) by repeating in each row
+- [x] If no consignments, still show one row with booking and other data
+- [ ] Test the changes to ensure correct display

@@ -107,6 +107,7 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [charges, setCharges] = useState<Charge[]>([]);
   const [showOrderPopup, setShowOrderPopup] = useState<number | null>(null);
   const [showChargePopup, setShowChargePopup] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const paymentModes: DropdownOption[] = [
     { id: 'Cash', name: 'Cash' },
@@ -668,6 +669,13 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   <FiX className="text-base" />
                 </Button>
               </div>
+              <input
+                type="text"
+                placeholder="Search charges..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mb-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
+              />
               <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
                 {charges.length === 0 ? (
                   <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No charges available</p>
@@ -693,29 +701,37 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800">
-                      {charges.map((charge) => (
-                        <tr
-                          key={charge.id}
-                          onClick={() => selectCharge(showChargePopup, charge)}
-                          className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-                        >
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.charge}
-                          </td>
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.orderDate}
-                          </td>
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.dueDate}
-                          </td>
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-right text-gray-800 dark:text-gray-200">
-                            {charge.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-4 py-2 text-right text-gray-800 dark:text-gray-200">
-                            {charge.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                        </tr>
-                      ))}
+                      {charges
+                        .filter((charge) =>
+                          charge.charge.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          charge.orderDate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          charge.dueDate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          charge.amount.toString().includes(searchTerm) ||
+                          charge.balance.toString().includes(searchTerm)
+                        )
+                        .map((charge) => (
+                          <tr
+                            key={charge.id}
+                            onClick={() => selectCharge(showChargePopup, charge)}
+                            className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                          >
+                            <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                              {charge.charge}
+                            </td>
+                            <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                              {charge.orderDate}
+                            </td>
+                            <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                              {charge.dueDate}
+                            </td>
+                            <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-right text-gray-800 dark:text-gray-200">
+                              {charge.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-4 py-2 text-right text-gray-800 dark:text-gray-200">
+                              {charge.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 )}
