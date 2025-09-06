@@ -52,6 +52,7 @@ interface BookingOrder {
 interface Item {
   desc: string;
   qty: number;
+  rate: number;
   qtyUnit: string;
   weight: number;
   weightUnit: string;
@@ -79,6 +80,7 @@ const consignmentSchema = z.object({
     z.object({
       desc: z.string().optional(),
       qty: z.number().optional(),
+      rate: z.number().optional(),
       qtyUnit: z.string().optional(),
       weight: z.number().optional(),
       weightUnit: z.string().optional(),
@@ -98,6 +100,7 @@ const consignmentSchema = z.object({
   incomeTaxAmount: z.number().optional(),
   deliveryDate: z.string().optional(),
   remarks: z.string().optional(),
+  creditAllowed: z.string().optional(),
 });
 
 type ConsignmentFormData = z.infer<typeof consignmentSchema>;
@@ -132,7 +135,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       port: '',
       destination: '',
       freightFrom: '',
-      items: Array(3).fill({ desc: '', qty: 0, qtyUnit: '', weight: 0, weightUnit: '' }),
+      items: Array(3).fill({ desc: '', qty: 0, rate: 0, qtyUnit: '', weight: 0, weightUnit: '' }),
       totalQty: 0,
       freight: '',
       sbrTax: '',
@@ -147,6 +150,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       incomeTaxAmount: 0,
       deliveryDate: '',
       remarks: '',
+      creditAllowed: '',
     },
   });
 
@@ -195,7 +199,6 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             vendor: b.vendor || '',
           }))
         );
-        // Use fixed unit options as requested
         setUnits([
           { id: 'Meter', name: 'Meter' },
           { id: 'Yard', name: 'Yard' },
@@ -227,9 +230,39 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           try {
             const response = await getSingleConsignment(id);
             const consignment = response.data || {};
-            // Set all known fields safely
             const keys: (keyof ConsignmentFormData)[] = [
-              'consignmentMode','receiptNo','orderNo','biltyNo','date','consignmentNo','consignor','consignmentDate','consignee','receiverName','receiverContactNo','shippingLine','containerNo','port','destination','freightFrom','items','totalQty','freight','sbrTax','sprAmount','deliveryCharges','insuranceCharges','tollTax','otherCharges','totalAmount','receivedAmount','incomeTaxDed','incomeTaxAmount','deliveryDate','remarks'
+              'consignmentMode',
+              'receiptNo',
+              'orderNo',
+              'biltyNo',
+              'date',
+              'consignmentNo',
+              'consignor',
+              'consignmentDate',
+              'consignee',
+              'receiverName',
+              'receiverContactNo',
+              'shippingLine',
+              'containerNo',
+              'port',
+              'destination',
+              'freightFrom',
+              'items',
+              'totalQty',
+              'freight',
+              'sbrTax',
+              'sprAmount',
+              'deliveryCharges',
+              'insuranceCharges',
+              'tollTax',
+              'otherCharges',
+              'totalAmount',
+              'receivedAmount',
+              'incomeTaxDed',
+              'incomeTaxAmount',
+              'deliveryDate',
+              'remarks',
+              'creditAllowed',
             ];
             keys.forEach((key) => {
               if (consignment[key] !== undefined) {
@@ -251,10 +284,9 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         const prefix = 'REC';
         const timestamp = Date.now().toString().slice(-6);
         const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        return ``;
+        return `${prefix}-${timestamp}-${random}`;
       };
       setValue('receiptNo', generateReceiptNo());
-
     }
   }, [isEdit, setValue]);
 
@@ -290,15 +322,6 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setValue('orderNo', order.orderNo, { shouldValidate: true });
     setShowOrderPopup(false);
   };
-
-  // const formatOrderNumber = (orderId: string) => {
-  //   // Format order ID to be more readable
-  //   // You can customize this based on your requirements
-  //   if (orderId.length <= 4) {
-  //     return `ORD-${orderId.padStart(3, '0')}`;
-  //   }
-  //   return `BK-${orderId.slice(-6)}`;
-  // };
 
   const getSelectedOrderDetails = () => {
     const orderNo = watch('orderNo');
@@ -713,6 +736,9 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               Qty
                             </th>
                             <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                              Rate
+                            </th>
+                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
                               Unit
                             </th>
                             <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
@@ -746,6 +772,17 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                                   disabled={isFieldDisabled('items')}
                                   className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
                                   placeholder="0"
+                                  min="0"
+                                />
+                              </td>
+                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  {...register(`items.${index}.rate`, { valueAsNumber: true })}
+                                  disabled={isFieldDisabled('items')}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
+                                  placeholder="0.00"
                                   min="0"
                                 />
                               </td>
@@ -914,6 +951,15 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             id="otherCharges"
                             disabled={isFieldDisabled('otherCharges')}
                           />
+                          <ABLCustomInput
+                            label="Credit Allowed"
+                            type="text"
+                            placeholder="Enter credit amount"
+                            register={register}
+                            error={errors.creditAllowed?.message}
+                            id="creditAllowed"
+                            disabled={isFieldDisabled('creditAllowed')}
+                          />
                           <div className="relative">
                             <ABLCustomInput
                               label="Total Amount"
@@ -1037,7 +1083,6 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 </Button>
               </div>
 
-              {/* Search Input */}
               <div className="mb-4">
                 <input
                   type="text"
@@ -1048,7 +1093,6 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 />
               </div>
 
-              {/* Table */}
               <div className="overflow-y-auto max-h-96 border border-gray-200 dark:border-gray-600 rounded-lg">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                   <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-300">
