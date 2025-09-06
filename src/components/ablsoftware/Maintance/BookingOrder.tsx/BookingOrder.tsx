@@ -89,6 +89,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     handleSubmit,
     formState: { errors },
     setValue,
+    getValues,
   } = useForm<BookingOrderFormData>({
     resolver: zodResolver(bookingOrderSchema),
     defaultValues: {
@@ -726,8 +727,14 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </tbody>
           </table>
           <div className="flex justify-end gap-4 mt-4">
-            <Button onClick={() => router.push(`/consignment/create?fromBooking=true`)}>Add Consignment</Button>
-            <Button onClick={() => router.push(`/charges/create?fromBooking=true`)}>Add Charges</Button>
+            <Button onClick={() => {
+              const orderNo = getValues('OrderNo') || '';
+              router.push(`/consignment/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+            }}>Add Consignment</Button>
+            <Button onClick={() => {
+              const orderNo = getValues('OrderNo') || '';
+              router.push(`/charges/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+            }}>Add Charges</Button>
           </div>
         </div>
 
