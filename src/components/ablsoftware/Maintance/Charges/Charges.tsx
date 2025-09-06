@@ -164,6 +164,12 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             vendorName: b.vendorName || b.vendor || 'Unknown',
           }))
         );
+
+        // If opened from Booking Order with orderNo, prefill it
+        if (fromBooking) {
+          const orderNoParam = searchParams.get('orderNo') || '';
+          if (orderNoParam) setValue('orderNo', orderNoParam);
+        }
       } catch (error) {
         toast.error('Failed to load data');
       }
@@ -239,7 +245,14 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         await createCharges(data);
         toast.success('Charges created successfully!');
       }
-      router.push('/charges');
+      // If coming from booking order, stay on this page and populate using orderNo (no redirect)
+      if (fromBooking) {
+        const orderNoParam = searchParams.get('orderNo');
+        toast.success('Charges saved. You can add more or go back to Booking Order.');
+        // Keep current page. Optionally, you could reset or keep existing values.
+      } else {
+        router.push('/charges');
+      }
     } catch (error) {
       toast.error('An error occurred while saving the charges');
     } finally {
