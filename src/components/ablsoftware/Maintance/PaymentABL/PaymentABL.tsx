@@ -60,6 +60,11 @@ const paymentSchema = z.object({
   remarks: z.string().optional(),
   paidTo: z.string().min(1, 'Paid To is required'),
   paidAmount: z.number().optional(),
+  advanced: z.number().optional(),
+  advancedDate: z.string().optional(),
+  pdc: z.number().optional(),
+  pdcDate: z.string().optional(),
+  paymentAmount: z.number().optional(),
   tableData: z.array(
     z.object({
       vehicleNo: z.string().optional(),
@@ -97,6 +102,11 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       remarks: '',
       paidTo: '',
       paidAmount: 0,
+      advanced: 0,
+      advancedDate: '',
+      pdc: 0,
+      pdcDate: '',
+      paymentAmount: 0,
       tableData: [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }],
     },
   });
@@ -115,7 +125,7 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     { id: 'Bank Transfer', name: 'Bank Transfer' },
   ];
   const bankNames: DropdownOption[] = [
-   { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
+    { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
     { id: 'MCB', name: 'MCB Bank Limited' },
     { id: 'UBL', name: 'United Bank Limited (UBL)' },
     { id: 'ABL', name: 'Allied Bank Limited (ABL)' },
@@ -212,6 +222,11 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               setValue('remarks', payment.remarks || '');
               setValue('paidTo', payment.paidTo || '');
               setValue('paidAmount', payment.paidAmount || 0);
+              setValue('advanced', payment.advanced || 0);
+              setValue('advancedDate', payment.advancedDate || '');
+              setValue('pdc', payment.pdc || 0);
+              setValue('pdcDate', payment.pdcDate || '');
+              setValue('paymentAmount', payment.paymentAmount || 0);
               setValue('tableData', payment.tableData || [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }]);
             } else {
               toast.error('Payment not found');
@@ -233,6 +248,13 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     const totalPaidAmount = tableData.reduce((sum, row) => sum + (row.paidAmount || 0), 0);
     setValue('paidAmount', totalPaidAmount);
   }, [tableData, setValue]);
+
+  useEffect(() => {
+    const advanced = parseFloat(watch('advanced')?.toString() || '0') || 0;
+    const pdc = parseFloat(watch('pdc')?.toString() || '0') || 0;
+    const paymentAmount = advanced + pdc;
+    setValue('paymentAmount', paymentAmount, { shouldValidate: true });
+  }, [watch('advanced'), watch('pdc'), setValue]);
 
   const selectOrder = (index: number, order: BookingOrder) => {
     setValue(`tableData.${index}.vehicleNo`, order.vehicleNo);
@@ -397,6 +419,47 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 register={register}
                 error={errors.remarks?.message}
                 id="remarks"
+              />
+              <ABLCustomInput
+                label="Advanced"
+                type="number"
+                placeholder="Enter advanced amount"
+                register={register}
+                error={errors.advanced?.message}
+                id="advanced"
+              />
+              <ABLCustomInput
+                label="Advanced Date"
+                type="date"
+                placeholder="Select advanced date"
+                register={register}
+                error={errors.advancedDate?.message}
+                id="advancedDate"
+              />
+              <ABLCustomInput
+                label="PDC"
+                type="number"
+                placeholder="Enter PDC amount"
+                register={register}
+                error={errors.pdc?.message}
+                id="pdc"
+              />
+              <ABLCustomInput
+                label="PDC Date"
+                type="date"
+                placeholder="Select PDC date"
+                register={register}
+                error={errors.pdcDate?.message}
+                id="pdcDate"
+              />
+              <ABLCustomInput
+                label="Payment Amount"
+                type="number"
+                placeholder="Auto-calculated"
+                register={register}
+                error={errors.paymentAmount?.message}
+                id="paymentAmount"
+                disabled
               />
             </div>
 
@@ -577,7 +640,7 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               <MdInfo className="text-[#3a614c]" />
               <span>Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/payments" className="text-[#3a614c] hover:text-[#6e997f] text-sm font-medium">
+            <Link href="/paymentABL" className="text-[#3a614c] hover:text-[#6e997f] text-sm font-medium">
               Back to Payments
             </Link>
           </div>
