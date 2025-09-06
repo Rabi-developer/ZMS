@@ -121,9 +121,9 @@ export default function Home() {
                 className="relative bg-white dark:bg-[#1a2a22]/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-[#d4a017] overflow-hidden"
               >
                 <div className="absolute inset-0 bg-[url('/transport-bg.jpg')] bg-cover bg-center opacity-10"></div>
-                <div className="relative z-10">
+                <div className="relative z-8">
                   <div className="flex items-center gap-4 mb-4">
-                   <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1755069630/ABL-Logo_lxhwah.png" alt="ABL Logo" className="h-13 w-13" />
+                   <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1757168762/ABL_Logo_1_yiiqgs.png" alt="ABL Logo" className="h-[150] w-13" />
                     <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                       ABL - Transport Logistics
                     </h3>
