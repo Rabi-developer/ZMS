@@ -28,7 +28,7 @@ interface ConsignmentRow {
   orderNo?: string;
   date?: string; // base date
   consignee?: string;
-  consignor?: string; // Added consignor
+  consignor?: string;
   creditAllowed?: string; // days (string)
   items?: ConsignmentItem[];
 }
@@ -48,18 +48,18 @@ interface AgingRow {
   dueDate: string; // yyyy-mm-dd
   agingDays: number;
   consignee: string;
-  consignor: string; // Added consignor
+  consignor: string;
   qty: number;
   rateTotal: number;
-  invoiceAmount: number; // Qty * Rate summed across items
-  sbrAmount: number; // 15%
-  whtAmount: number; // WHT% of SBR amount
-  total: number; // invoice + sbr - wht
+  invoiceAmount: number; // (Sum of Qty) * (Sum of Rate)
+  sbrAmount: number; // 15% of invoiceAmount
+  whtAmount: number; // WHT% of sbrAmount
+  total: number; // invoiceAmount + sbrAmount - whtAmount
   advanced: number;
   pdc: number;
   paymentAmount: number; // advanced + pdc
-  notDue: number;
-  overDue: number;
+  notDue: number; // Based on invoiceAmount
+  overDue: number; // Based on invoiceAmount
 }
 
 interface Column {
@@ -230,7 +230,7 @@ export default function AgingReportPage() {
     { key: 'dueDate', label: 'Due Date', type: 'string', align: 'left', filterType: 'text' },
     { key: 'agingDays', label: 'Aging Days', type: 'number', align: 'right', filterType: 'text' },
     { key: 'consignee', label: 'Consignee', type: 'string', align: 'left', filterType: 'select-multiple' },
-    { key: 'consignor', label: 'Consignor', type: 'string', align: 'left', filterType: 'select-multiple' }, // Added consignor
+    { key: 'consignor', label: 'Consignor', type: 'string', align: 'left', filterType: 'select-multiple' },
     { key: 'qty', label: 'Qty', type: 'number', align: 'right', filterType: 'text' },
     { key: 'rateTotal', label: 'Rate', type: 'number', align: 'right', filterType: 'text' },
     { key: 'invoiceAmount', label: 'Invoice Amount', type: 'number', align: 'right', filterType: 'text' },
@@ -254,7 +254,7 @@ export default function AgingReportPage() {
   const [biltyNoFilter, setBiltyNoFilter] = useState<string>("");
   const [orderNoFilter, setOrderNoFilter] = useState<string>("");
   const [consigneeFilter, setConsigneeFilter] = useState<string>("");
-  const [consignorFilter, setConsignorFilter] = useState<string>(""); // Added consignor
+  const [consignorFilter, setConsignorFilter] = useState<string>("");
   const [visibleColumns, setVisibleColumns] = useState<string[]>(columns.map(c => c.key));
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [showConfig, setShowConfig] = useState(false);
@@ -331,12 +331,12 @@ export default function AgingReportPage() {
           const creditDays = parseInt(String(c.creditAllowed || "0")) || 0;
           const dueDate = addDays(baseDate, creditDays);
           const items = c.items || [];
-          const qty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
-          const rateTotal = items.reduce((s, it) => s + (Number(it.rate) || 0), 0);
-          const invoiceAmount = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.rate) || 0), 0); // Qty * Rate
-          const sbrAmount = invoiceAmount * 0.15;
-          const whtAmount = sbrAmount * (whtPercent / 100);
-          const total = invoiceAmount + sbrAmount - whtAmount;
+          const qty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0); // Total Qty
+          const rateTotal = items.reduce((s, it) => s + (Number(it.rate) || 0), 0); // Total Rate
+          const invoiceAmount = qty * rateTotal; // (Sum of Qty) * (Sum of Rate)
+          const sbrAmount = invoiceAmount * 0.15; // 15% of invoiceAmount
+          const whtAmount = sbrAmount * (whtPercent / 100); // WHT% of sbrAmount
+          const total = invoiceAmount + sbrAmount - whtAmount; // Total including SBR and WHT
 
           const keyToMatch = paymentMatchKey === "biltyNo" ? (orderByBilty[biltyNo || ""] || orderNo) : orderNo;
           const ps = keyToMatch ? (paymentsByOrder[keyToMatch] || []) : [];
@@ -352,8 +352,10 @@ export default function AgingReportPage() {
           const daysBetween = (d1: Date, d2: Date) => Math.floor((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24));
           const agingDays = today <= due ? daysBetween(today, dateForYoung) : daysBetween(today, due);
 
-          const notDue = today < due ? Math.max(0, total - paymentAmount) : 0;
-          const overDue = today >= due ? Math.max(0, total - paymentAmount) : 0;
+          // Calculate notDue and overDue based on invoiceAmount
+          const outstanding = Math.max(0, invoiceAmount - paymentAmount);
+          const notDue = today < due ? outstanding : 0;
+          const overDue = today >= due ? outstanding : 0;
 
           computed.push({
             biltyNo,
@@ -363,7 +365,7 @@ export default function AgingReportPage() {
             dueDate: ymd(dueDate),
             agingDays: Math.max(0, agingDays),
             consignee: c.consignee || "",
-            consignor: c.consignor || "", // Added consignor
+            consignor: c.consignor || "",
             qty,
             rateTotal,
             invoiceAmount,
