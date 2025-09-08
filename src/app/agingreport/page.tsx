@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useMemo, useState } from "react";
 import MainLayout from "@/components/MainLayout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,7 @@ interface ConsignmentRow {
   orderNo?: string;
   date?: string; // base date
   consignee?: string;
+  consignor?: string; // Added consignor
   creditAllowed?: string; // days (string)
   items?: ConsignmentItem[];
 }
@@ -48,9 +48,10 @@ interface AgingRow {
   dueDate: string; // yyyy-mm-dd
   agingDays: number;
   consignee: string;
+  consignor: string; // Added consignor
   qty: number;
   rateTotal: number;
-  invoiceAmount: number;
+  invoiceAmount: number; // Qty * Rate summed across items
   sbrAmount: number; // 15%
   whtAmount: number; // WHT% of SBR amount
   total: number; // invoice + sbr - wht
@@ -229,6 +230,7 @@ export default function AgingReportPage() {
     { key: 'dueDate', label: 'Due Date', type: 'string', align: 'left', filterType: 'text' },
     { key: 'agingDays', label: 'Aging Days', type: 'number', align: 'right', filterType: 'text' },
     { key: 'consignee', label: 'Consignee', type: 'string', align: 'left', filterType: 'select-multiple' },
+    { key: 'consignor', label: 'Consignor', type: 'string', align: 'left', filterType: 'select-multiple' }, // Added consignor
     { key: 'qty', label: 'Qty', type: 'number', align: 'right', filterType: 'text' },
     { key: 'rateTotal', label: 'Rate', type: 'number', align: 'right', filterType: 'text' },
     { key: 'invoiceAmount', label: 'Invoice Amount', type: 'number', align: 'right', filterType: 'text' },
@@ -252,16 +254,21 @@ export default function AgingReportPage() {
   const [biltyNoFilter, setBiltyNoFilter] = useState<string>("");
   const [orderNoFilter, setOrderNoFilter] = useState<string>("");
   const [consigneeFilter, setConsigneeFilter] = useState<string>("");
+  const [consignorFilter, setConsignorFilter] = useState<string>(""); // Added consignor
   const [visibleColumns, setVisibleColumns] = useState<string[]>(columns.map(c => c.key));
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [showConfig, setShowConfig] = useState(false);
+  const [savedVisibleColumns, setSavedVisibleColumns] = useState<string[]>(columns.map(c => c.key));
 
   useEffect(() => {
     const savedColumns = localStorage.getItem('agingVisibleColumns');
     if (savedColumns) {
-      setVisibleColumns(JSON.parse(savedColumns));
+      const parsed = JSON.parse(savedColumns);
+      setVisibleColumns(parsed);
+      setSavedVisibleColumns(parsed);
     } else {
       setVisibleColumns(columns.map(c => c.key));
+      setSavedVisibleColumns(columns.map(c => c.key));
     }
     const savedFilters = localStorage.getItem('agingColumnFilters');
     if (savedFilters) {
@@ -270,8 +277,21 @@ export default function AgingReportPage() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('agingVisibleColumns', JSON.stringify(visibleColumns));
-  }, [visibleColumns]);
+    localStorage.setItem('agingVisibleColumns', JSON.stringify(savedVisibleColumns));
+  }, [savedVisibleColumns]);
+
+  useEffect(() => {
+    // Update visibleColumns based on biltyNoFilter, orderNoFilter, consigneeFilter, or consignorFilter
+    if (biltyNoFilter) {
+      setVisibleColumns(['biltyNo']);
+    } else if (orderNoFilter) {
+      setVisibleColumns(['orderNo']);
+    } else if (consigneeFilter || consignorFilter) {
+      setVisibleColumns(['consignee', 'consignor']);
+    } else {
+      setVisibleColumns(savedVisibleColumns);
+    }
+  }, [biltyNoFilter, orderNoFilter, consigneeFilter, consignorFilter, savedVisibleColumns]);
 
   useEffect(() => {
     localStorage.setItem('agingColumnFilters', JSON.stringify(columnFilters));
@@ -313,7 +333,7 @@ export default function AgingReportPage() {
           const items = c.items || [];
           const qty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
           const rateTotal = items.reduce((s, it) => s + (Number(it.rate) || 0), 0);
-          const invoiceAmount = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.rate) || 0), 0);
+          const invoiceAmount = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.rate) || 0), 0); // Qty * Rate
           const sbrAmount = invoiceAmount * 0.15;
           const whtAmount = sbrAmount * (whtPercent / 100);
           const total = invoiceAmount + sbrAmount - whtAmount;
@@ -343,6 +363,7 @@ export default function AgingReportPage() {
             dueDate: ymd(dueDate),
             agingDays: Math.max(0, agingDays),
             consignee: c.consignee || "",
+            consignor: c.consignor || "", // Added consignor
             qty,
             rateTotal,
             invoiceAmount,
@@ -380,7 +401,7 @@ export default function AgingReportPage() {
     let result = rows;
 
     // Only apply filters if they are explicitly set
-    const hasFilters = dateFrom || dateTo || filter !== "Both" || biltyNoFilter || orderNoFilter || consigneeFilter || Object.keys(columnFilters).length > 0;
+    const hasFilters = dateFrom || dateTo || filter !== "Both" || biltyNoFilter || orderNoFilter || consigneeFilter || consignorFilter || Object.keys(columnFilters).length > 0;
 
     if (hasFilters) {
       if (dateFrom) {
@@ -399,13 +420,16 @@ export default function AgingReportPage() {
         });
       }
       if (biltyNoFilter) {
-        result = result.filter((r) => r.biltyNo.toLowerCase().includes(biltyNoFilter.toLowerCase()));
+        result = result.filter((r) => r.biltyNo.toLowerCase() === biltyNoFilter.toLowerCase());
       }
       if (orderNoFilter) {
-        result = result.filter((r) => r.orderNo.toLowerCase().includes(orderNoFilter.toLowerCase()));
+        result = result.filter((r) => r.orderNo.toLowerCase() === orderNoFilter.toLowerCase());
       }
       if (consigneeFilter) {
         result = result.filter((r) => r.consignee.toLowerCase().includes(consigneeFilter.toLowerCase()));
+      }
+      if (consignorFilter) {
+        result = result.filter((r) => r.consignor.toLowerCase().includes(consignorFilter.toLowerCase()));
       }
       result = result.filter((r) =>
         Object.keys(columnFilters).every((key) => {
@@ -424,15 +448,15 @@ export default function AgingReportPage() {
     }
 
     return result;
-  }, [rows, filter, dateFrom, dateTo, biltyNoFilter, orderNoFilter, consigneeFilter, columnFilters]);
+  }, [rows, filter, dateFrom, dateTo, biltyNoFilter, orderNoFilter, consigneeFilter, consignorFilter, columnFilters]);
 
   const displayedColumns = useMemo(() => {
     return visibleColumns.map((key) => columns.find((c) => c.key === key)!).filter(Boolean);
   }, [visibleColumns]);
 
-  // Filter out biltyNo, orderNo, and consignee from table header filters
+  // Filter out biltyNo, orderNo, consignee, and consignor from table header filters
   const tableFilterColumns = useMemo(() => {
-    return displayedColumns.filter((c) => !['biltyNo', 'orderNo', 'consignee'].includes(c.key));
+    return displayedColumns.filter((c) => !['biltyNo', 'orderNo', 'consignee', 'consignor'].includes(c.key));
   }, [displayedColumns]);
 
   const titleLine = useMemo(() => {
@@ -452,31 +476,40 @@ export default function AgingReportPage() {
     setBiltyNoFilter("");
     setOrderNoFilter("");
     setConsigneeFilter("");
+    setConsignorFilter("");
     setWhtPercent(2);
     setPaymentMatchKey("biltyNo");
     setColumnFilters({});
-    setVisibleColumns(columns.map((c) => c.key));
+    setVisibleColumns(savedVisibleColumns);
   };
 
   const moveColumn = (idx: number, direction: "up" | "down") => {
-    const newArr = [...visibleColumns];
+    const newArr = [...savedVisibleColumns];
     if (direction === "up" && idx > 0) {
       [newArr[idx - 1], newArr[idx]] = [newArr[idx], newArr[idx - 1]];
     } else if (direction === "down" && idx < newArr.length - 1) {
       [newArr[idx], newArr[idx + 1]] = [newArr[idx + 1], newArr[idx]];
     }
-    setVisibleColumns(newArr);
-  };
-
-  const toggleColumn = (key: string, show: boolean) => {
-    if (show) {
-      setVisibleColumns([...visibleColumns, key]);
-    } else {
-      setVisibleColumns(visibleColumns.filter((k) => k !== key));
+    setSavedVisibleColumns(newArr);
+    if (!biltyNoFilter && !orderNoFilter && !consigneeFilter && !consignorFilter) {
+      setVisibleColumns(newArr);
     }
   };
 
-  const hiddenColumns = columns.filter((c) => !visibleColumns.includes(c.key));
+  const toggleColumn = (key: string, show: boolean) => {
+    let newSavedColumns: string[];
+    if (show) {
+      newSavedColumns = [...savedVisibleColumns, key];
+    } else {
+      newSavedColumns = savedVisibleColumns.filter((k) => k !== key);
+    }
+    setSavedVisibleColumns(newSavedColumns);
+    if (!biltyNoFilter && !orderNoFilter && !consigneeFilter && !consignorFilter) {
+      setVisibleColumns(newSavedColumns);
+    }
+  };
+
+  const hiddenColumns = columns.filter((c) => !savedVisibleColumns.includes(c.key));
 
   return (
     <MainLayout activeInterface="ABL">
@@ -524,7 +557,12 @@ export default function AgingReportPage() {
                   <label className="block text-xs text-gray-600 dark:text-gray-300">Bilty No</label>
                   <select
                     value={biltyNoFilter}
-                    onChange={(e) => setBiltyNoFilter(e.target.value)}
+                    onChange={(e) => {
+                      setBiltyNoFilter(e.target.value);
+                      if (e.target.value && orderNoFilter) {
+                        setOrderNoFilter("");
+                      }
+                    }}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:ring-teal-600 focus:border-teal-600"
                   >
                     <option value="">All</option>
@@ -537,7 +575,12 @@ export default function AgingReportPage() {
                   <label className="block text-xs text-gray-600 dark:text-gray-300">Order No</label>
                   <select
                     value={orderNoFilter}
-                    onChange={(e) => setOrderNoFilter(e.target.value)}
+                    onChange={(e) => {
+                      setOrderNoFilter(e.target.value);
+                      if (e.target.value && biltyNoFilter) {
+                        setBiltyNoFilter("");
+                      }
+                    }}
                     className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:ring-teal-600 focus:border-teal-600"
                   >
                     <option value="">All</option>
@@ -555,6 +598,19 @@ export default function AgingReportPage() {
                   >
                     <option value="">All</option>
                     {Array.from(uniqueValues.consignee || []).sort().map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 dark:text-gray-300">Consignor</label>
+                  <select
+                    value={consignorFilter}
+                    onChange={(e) => setConsignorFilter(e.target.value)}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white rounded-md focus:ring-teal-600 focus:border-teal-600"
+                  >
+                    <option value="">All</option>
+                    {Array.from(uniqueValues.consignor || []).sort().map((v) => (
                       <option key={v} value={v}>{v}</option>
                     ))}
                   </select>
@@ -729,7 +785,7 @@ export default function AgingReportPage() {
               <h3 className="text-lg font-semibold mb-4 text-teal-900 dark:text-teal-200">Configure Columns</h3>
               <div className="mb-4">
                 <h4 className="text-sm font-medium mb-2">Visible Columns</h4>
-                {visibleColumns.map((key, idx) => {
+                {savedVisibleColumns.map((key, idx) => {
                   const c = columns.find((cc) => cc.key === key);
                   return (
                     <div key={key} className="flex items-center gap-2 mb-2">
@@ -749,7 +805,7 @@ export default function AgingReportPage() {
                       </Button>
                       <Button
                         onClick={() => moveColumn(idx, "down")}
-                        disabled={idx === visibleColumns.length - 1}
+                        disabled={idx === savedVisibleColumns.length - 1}
                         className="bg-teal-600 hover:bg-teal-700 text-white px-2 py-1 rounded text-xs"
                       >
                         Down
