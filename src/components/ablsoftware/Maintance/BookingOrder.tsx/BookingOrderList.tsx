@@ -382,7 +382,7 @@ const BookingOrderList = () => {
       <div className='h-full w-full flex flex-col'>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
-          w<div className="flex items-center">
+          <div className="flex items-center">
             <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
             <select
               value={selectedStatusFilter}

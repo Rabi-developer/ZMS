@@ -19,6 +19,7 @@ import { FaRupeeSign } from "react-icons/fa";
 import { MdOutlinePayments } from "react-icons/md";
 import { PiInvoiceLight } from "react-icons/pi";
 import { IoReceiptOutline } from "react-icons/io5";
+import { FaPagelines } from "react-icons/fa6";
 
 
 export const ablSideBarItems = [
@@ -228,6 +229,12 @@ export const ablSideBarItems = [
         text: 'Trial Balance',
         href: '/entryvoucher/trailbalance',
         icon: LiaBalanceScaleLeftSolid ,
+        color: '#1a5f3a',
+      },
+      {
+        text: 'Aging Report',
+        href: '/agingreport',
+        icon: FaPagelines  ,
         color: '#1a5f3a',
       },
       
