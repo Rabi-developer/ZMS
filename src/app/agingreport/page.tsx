@@ -334,7 +334,7 @@ export default function AgingReportPage() {
           const qty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0); // Total Qty
           const rateTotal = items.reduce((s, it) => s + (Number(it.rate) || 0), 0); // Total Rate
           const invoiceAmount = qty * rateTotal; // (Sum of Qty) * (Sum of Rate)
-          const sbrAmount = invoiceAmount * 0.15; // 15% of invoiceAmount
+          const sbrAmount = invoiceAmount * 0.; // 15% of invoiceAmount
           const whtAmount = sbrAmount * (whtPercent / 100); // WHT% of sbrAmount
           const total = invoiceAmount + sbrAmount - whtAmount; // Total including SBR and WHT
 
