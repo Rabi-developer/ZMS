@@ -380,7 +380,7 @@ export default function AgingReportPage() {
           const agingDays = today <= due ? daysBetween(today, dateForYoung) : daysBetween(today, due);
 
           // Calculate notDue and overDue based on invoiceAmount
-          const outstanding = Math.max(0, invoiceAmount - paymentAmount);
+          const outstanding = Math.max(0, total - paymentAmount);
           const notDue = today < due ? outstanding : 0;
           const overDue = today >= due ? outstanding : 0;
 
