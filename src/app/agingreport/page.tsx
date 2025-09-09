@@ -8,6 +8,7 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { getAllConsignment } from "@/apis/consignment";
 import { getAllPaymentABL } from "@/apis/paymentABL";
+import { getAllReceipt } from "@/apis/receipt";
 import { FiSearch } from "react-icons/fi";
 
 // Extend jsPDF type to include getNumberOfPages method
@@ -53,7 +54,8 @@ interface AgingRow {
   rateTotal: number;
   invoiceAmount: number; // (Sum of Qty) * (Sum of Rate)
   sbrAmount: number; // 15% of invoiceAmount
-  whtAmount: number; // WHT% of sbrAmount
+  whtAmount: number; // WHT on SBR Amount
+  saleTaxRate: string; // e.g. "2%"
   total: number; // invoiceAmount + sbrAmount - whtAmount
   advanced: number;
   pdc: number;
@@ -234,12 +236,13 @@ export default function AgingReportPage() {
     { key: 'qty', label: 'Qty', type: 'number', align: 'right', filterType: 'text' },
     { key: 'rateTotal', label: 'Rate', type: 'number', align: 'right', filterType: 'text' },
     { key: 'invoiceAmount', label: 'Invoice Amount', type: 'number', align: 'right', filterType: 'text' },
-    { key: 'sbrAmount', label: 'SBR Amount', type: 'number', align: 'right', filterType: 'text' },
-    { key: 'whtAmount', label: 'WHT Amount', type: 'number', align: 'right', filterType: 'text' },
+    { key: 'sbrAmount', label: 'SBR(15%)', type: 'number', align: 'right', filterType: 'text' },
+    { key: 'whtAmount', label: 'WHT on SBR Amount', type: 'number', align: 'right', filterType: 'text' },
+    { key: 'saleTaxRate', label: 'Sale Tax Rate', type: 'string', align: 'left', filterType: 'text' },
     { key: 'total', label: 'Total', type: 'number', align: 'right', filterType: 'text' },
     { key: 'advanced', label: 'Advanced', type: 'number', align: 'right', filterType: 'text' },
     { key: 'pdc', label: 'PDC', type: 'number', align: 'right', filterType: 'text' },
-    { key: 'paymentAmount', label: 'Payment Amount', type: 'number', align: 'right', filterType: 'text' },
+    { key: 'paymentAmount', label: '-Received', type: 'number', align: 'right', filterType: 'text' },
     { key: 'notDue', label: 'Not Due', type: 'number', align: 'right', filterType: 'text' },
     { key: 'overDue', label: 'Over Due', type: 'number', align: 'right', filterType: 'text' },
   ];
@@ -301,12 +304,33 @@ export default function AgingReportPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const [consRes, payRes] = await Promise.all([
+        const [consRes, payRes, recRes] = await Promise.all([
           getAllConsignment(1, 1000),
           getAllPaymentABL(1, 1000),
+          getAllReceipt(1, 1000),
         ]);
         const consignments: ConsignmentRow[] = consRes?.data || [];
         const payments: PaymentRow[] = payRes?.data || [];
+        const receipts: any[] = recRes?.data || [];
+
+        // Build latest receipt info by biltyNo
+        const latestReceiptByBilty: Record<string, { salesTaxRate?: string; whtOnSbr?: string; receiptDate?: string }> = {};
+        for (const r of receipts) {
+          const rDate = r?.receiptDate || r?.ReceiptDate || r?.date || '';
+          const rows = Array.isArray(r?.tableData) ? r.tableData : [];
+          for (const t of rows) {
+            const bno = (t?.biltyNo || '').trim();
+            if (!bno) continue;
+            const prev = latestReceiptByBilty[bno];
+            if (!prev || (rDate && prev.receiptDate && new Date(rDate) > new Date(prev.receiptDate)) || (rDate && !prev?.receiptDate)) {
+              latestReceiptByBilty[bno] = {
+                salesTaxRate: r?.salesTaxRate,
+                whtOnSbr: r?.whtOnSbr,
+                receiptDate: rDate,
+              };
+            }
+          }
+        }
 
         const orderByBilty: Record<string, string> = {};
         for (const c of consignments) {
@@ -334,8 +358,11 @@ export default function AgingReportPage() {
           const qty = items.reduce((s, it) => s + (Number(it.qty) || 0), 0); // Total Qty
           const rateTotal = items.reduce((s, it) => s + (Number(it.rate) || 0), 0); // Total Rate
           const invoiceAmount = qty * rateTotal; // (Sum of Qty) * (Sum of Rate)
-          const sbrAmount = invoiceAmount * 0.; // 15% of invoiceAmount
-          const whtAmount = sbrAmount * (whtPercent / 100); // WHT% of sbrAmount
+          const receiptInfo = latestReceiptByBilty[biltyNo || ""] || {};
+          const saleTaxRateStr = (receiptInfo.salesTaxRate || '').toString();
+          const saleTaxRateNum = Number((saleTaxRateStr.match(/\d+(?:\.\d+)?/) || ["0"])[0]);
+          const sbrAmount = invoiceAmount * 0.15; // 0% here; keep your real logic if needed
+          const whtAmount = sbrAmount * ((Number((receiptInfo.whtOnSbr || '').toString().match(/\d+(?:\.\d+)?/)?.[0] || '0')) / 100);
           const total = invoiceAmount + sbrAmount - whtAmount; // Total including SBR and WHT
 
           const keyToMatch = paymentMatchKey === "biltyNo" ? (orderByBilty[biltyNo || ""] || orderNo) : orderNo;
@@ -371,6 +398,7 @@ export default function AgingReportPage() {
             invoiceAmount,
             sbrAmount,
             whtAmount,
+            saleTaxRate: saleTaxRateStr || '',
             total,
             advanced,
             pdc,
