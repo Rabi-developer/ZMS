@@ -123,7 +123,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-[url('/transport-bg.jpg')] bg-cover bg-center opacity-10"></div>
                 <div className="relative z-8">
                   <div className="flex items-center gap-4 mb-4">
-                   <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1757168762/ABL_Logo_1_yiiqgs.png" alt="ABL Logo" className="h-[150] w-13" />
+                   <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1757168762/ABL_Logo_1_yiiqgs.png" alt="ABL Logo" className="h-[50] w-13" />
                     <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                       ABL - Transport Logistics
                     </h3>
