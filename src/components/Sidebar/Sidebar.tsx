@@ -9,27 +9,27 @@ const Sidebar = ({
   searchQuery,
   activeInterface,
   onMobileToggle,
-  isMobileOpen, // New prop to track mobile sidebar visibility
+  isMobileOpen,
 }: {
   isCollapsed: boolean;
   onToggle: () => void;
   searchQuery: string;
   activeInterface: 'ZMS' | 'ABL';
   onMobileToggle?: () => void;
-  isMobileOpen?: boolean; // Optional prop for mobile sidebar state
+  isMobileOpen?: boolean; 
 }) => {
   return (
     <div
       className={`shadow-right-dark relative h-full transition-all duration-300 ${
         isCollapsed ? 'w-19' : 'w-[310px]'
       } ${activeInterface === 'ABL' ? 'bg-[#1a2a22] dark:bg-[#1a2a22]' : 'bg-white dark:bg-[#030630]'} 
-      ${isMobileOpen ? 'block' : 'hidden md:block'}`} // Show/hide sidebar on mobile
+      ${isMobileOpen ? 'block' : 'hidden md:block'}`} 
     >
       <div className="flex flex-col h-full overflow-y-auto scrollbar-thin scrollbar-rounded">
-        {/* Top spacing for header */}
+       
         <div className="h-16"></div>
 
-        {/* Main content area */}
+    
         <div className="flex-1 px-4">
           <SidebarMenu
             isCollapsed={isCollapsed}
@@ -37,10 +37,9 @@ const Sidebar = ({
             activeInterface={activeInterface}
           />
         </div>
-
-        {/* Toggle button at the bottom */}
+   
         <div className="flex justify-center p-4 border-t border-opacity-20 border-gray-500 dark:border-gray-600">
-          {/* Desktop Toggle Button */}
+
           <button
             onClick={onToggle}
             className={`hidden md:flex group relative items-center justify-center w-10 h-10 rounded-full transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
@@ -65,7 +64,6 @@ const Sidebar = ({
               )}
             </div>
 
-            {/* Tooltip for collapsed state */}
             {isCollapsed && (
               <div className="absolute left-full ml-3 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
                 Expand Sidebar
@@ -74,7 +72,6 @@ const Sidebar = ({
             )}
           </button>
 
-          {/* Mobile Toggle Button */}
           {onMobileToggle && isMobileOpen && (
             <button
               onClick={onMobileToggle}
