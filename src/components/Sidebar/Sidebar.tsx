@@ -9,23 +9,26 @@ const Sidebar = ({
   searchQuery,
   activeInterface,
   onMobileToggle,
+  isMobileOpen, // New prop to track mobile sidebar visibility
 }: {
   isCollapsed: boolean;
   onToggle: () => void;
   searchQuery: string;
   activeInterface: 'ZMS' | 'ABL';
   onMobileToggle?: () => void;
+  isMobileOpen?: boolean; // Optional prop for mobile sidebar state
 }) => {
   return (
     <div
-      className={`shadow-right-dark fixed top-0 left-0 h-full transition-all duration-300 ${
-        isCollapsed ? 'w-19' : 'w-[330px]'
-      } ${activeInterface === 'ABL' ? 'bg-[#1a2a22] dark:bg-[#1a2a22]' : 'bg-white dark:bg-[#030630]'}`}
+      className={`shadow-right-dark relative h-full transition-all duration-300 ${
+        isCollapsed ? 'w-19' : 'w-[310px]'
+      } ${activeInterface === 'ABL' ? 'bg-[#1a2a22] dark:bg-[#1a2a22]' : 'bg-white dark:bg-[#030630]'} 
+      ${isMobileOpen ? 'block' : 'hidden md:block'}`} // Show/hide sidebar on mobile
     >
       <div className="flex flex-col h-full overflow-y-auto scrollbar-thin scrollbar-rounded">
         {/* Top spacing for header */}
         <div className="h-16"></div>
-        
+
         {/* Main content area */}
         <div className="flex-1 px-4">
           <SidebarMenu
@@ -34,7 +37,7 @@ const Sidebar = ({
             activeInterface={activeInterface}
           />
         </div>
-        
+
         {/* Toggle button at the bottom */}
         <div className="flex justify-center p-4 border-t border-opacity-20 border-gray-500 dark:border-gray-600">
           {/* Desktop Toggle Button */}
@@ -50,18 +53,18 @@ const Sidebar = ({
           >
             <div className="relative">
               {isCollapsed ? (
-                <FiMenu 
-                  size={20} 
-                  className="transition-transform duration-300 group-hover:rotate-180" 
+                <FiMenu
+                  size={20}
+                  className="transition-transform duration-300 group-hover:rotate-180"
                 />
               ) : (
-                <FiX 
-                  size={20} 
-                  className="transition-transform duration-300 group-hover:rotate-180" 
+                <FiX
+                  size={20}
+                  className="transition-transform duration-300 group-hover:rotate-180"
                 />
               )}
             </div>
-            
+
             {/* Tooltip for collapsed state */}
             {isCollapsed && (
               <div className="absolute left-full ml-3 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50">
@@ -72,7 +75,7 @@ const Sidebar = ({
           </button>
 
           {/* Mobile Toggle Button */}
-          {onMobileToggle && (
+          {onMobileToggle && isMobileOpen && (
             <button
               onClick={onMobileToggle}
               className={`md:hidden group relative flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 ${
@@ -83,9 +86,9 @@ const Sidebar = ({
               aria-label="Close Sidebar"
               title="Close Sidebar"
             >
-              <FiX 
-                size={20} 
-                className="transition-transform duration-300 group-hover:rotate-180" 
+              <FiX
+                size={20}
+                className="transition-transform duration-300 group-hover:rotate-180"
               />
             </button>
           )}

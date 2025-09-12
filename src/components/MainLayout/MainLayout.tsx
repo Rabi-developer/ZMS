@@ -88,13 +88,14 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
           scrollbar-custom
           ${activeInterface === 'ABL' ? 'bg-white dark:bg-[#1a2a22]' : 'bg-white dark:bg-[#030630]'}`}
       >
-        <Sidebar
-          isCollapsed={isSidebarCollapsed}
-          onToggle={handleSidebarToggle}
-          onMobileToggle={toggleMobileSidebar}
-          searchQuery={searchQuery}
-          activeInterface={activeInterface}
-        />
+       <Sidebar
+  isCollapsed={isSidebarCollapsed}
+  onToggle={handleSidebarToggle}
+  onMobileToggle={toggleMobileSidebar}
+  searchQuery={searchQuery}
+  activeInterface={activeInterface}
+  isMobileOpen={isSidebarOpen} // Pass isSidebarOpen as isMobileOpen
+/>
       </div>
       <div className="flex-1 flex flex-col min-h-screen">
         <div className="fixed top-0 left-0 w-full z-40">
