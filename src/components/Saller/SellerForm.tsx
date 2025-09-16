@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -15,17 +14,17 @@ import { createSeller, updateSeller } from '@/apis/seller';
 
 // Zod schema expects accountNo as a string for API
 const Schema = z.object({
-  SellerName: z.string().min(1, "Seller Name is required"),
-  SellerType: z.string().min(1, "Seller Type is required"),
-  Address: z.string().min(1, "Address is required"),
-  City: z.string().min(1, "City is required"),
-  Country: z.string().min(1, "Country is required"),
-  PhoneNumber: z.string().min(1, "Phone Number is required"),
-  EmailAddress: z.string().email("Invalid email address").optional(),
-  MobileNumber: z.string().min(1, "Mobile Number is required"),
+  SellerName: z.string().min(1, "Seller Name is Required"),
+  SellerType: z.string().optional(),
+  Address: z.string().optional(),
+  City: z.string().optional(),
+  Country: z.string().optional(),
+  PhoneNumber: z.string().optional(),
+  EmailAddress: z.string().optional(),
+  MobileNumber: z.string().optional(),
   FaxNumber: z.string().optional(),
-  STN: z.string().min(1, "STN is required"),
-  MTN: z.string().min(1, "MTN is required"),
+  STN: z.string().optional(),
+  MTN: z.string().optional(),
   PayableCode: z.string().optional().nullable(),
   accountNo: z.string().optional(),
   PaymentStatus: z.string().optional(),
