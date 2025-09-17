@@ -22,7 +22,7 @@ const Sidebar = ({
     <div
       className={`shadow-right-dark relative h-full transition-all duration-300 ${
         isCollapsed ? 'w-19' : 'w-[310px]'
-      } ${activeInterface === 'ABL' ? 'bg-[#1a2a22] dark:bg-[#1a2a22]' : 'bg-white dark:bg-[#030630]'} 
+      } ${activeInterface === 'ABL' ? 'bg-[#1a2a22] dark:bg-[#1a2a22] ' : 'bg-white dark:bg-[#030630] '} 
       ${isMobileOpen ? 'block' : 'hidden md:block'}`} 
     >
       <div className="flex flex-col h-full overflow-y-auto scrollbar-thin scrollbar-rounded">

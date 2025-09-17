@@ -68,7 +68,7 @@ const ProjectTargetList = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 p-6">
+    <div className="container bg-white rounded-md dark:bg-gray-900 ">
       <div className="container mx-auto bg-white dark:bg-gray-800 shadow-2xl rounded-lg p-8">
         {/* Filters */}
         <div className="mb-6">

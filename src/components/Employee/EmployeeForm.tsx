@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 const Schema = z.object({
-  Name: z.string().optional(),
+  Name: z.string().min(1, "Employee Name is Required"),
   EmployeeFirstName: z.string().optional(),
   employeemiddlename: z.string().optional(),
   employeelastname:  z.string().optional(),

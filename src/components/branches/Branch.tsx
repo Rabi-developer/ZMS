@@ -17,16 +17,16 @@ import { Button } from "@/components/ui/button";
 const Schema = z.object({
   name: z.string().min(1, "Branch Name is required"),
   description: z.string().optional(),
-  contactPerson: z.string().min(1, "Contact Person is required"),
-  email: z.string().email("Invalid email address"),
-  website: z.string().url("Invalid URL"),
-  addressLine1: z.string().min(1, "Address Line 1 is required"),
+  contactPerson: z.string().optional(),
+  email: z.string().optional(),
+  website: z.string().optional(),
+  addressLine1: z.string().optional(),
   addressLine2: z.string().optional(),
-  city: z.string().min(1, "City is required"),
-  state: z.string().min(1, "State is required"),
-  country: z.string().min(1, "Country is required"),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
   zip: z.string().optional(),
-  organizationId: z.string().min(1, "Organization is required"),
+  organizationId: z.string().optional(),
 });
 type FormData = z.infer<typeof Schema>;
 

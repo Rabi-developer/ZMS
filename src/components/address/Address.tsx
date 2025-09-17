@@ -1,63 +1,36 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
-
 import { useForm } from "react-hook-form";
-
 import { useRouter } from "next/navigation";
-
 import { toast } from "react-toastify";
-
 import Link from "next/link";
-
 import { z } from "zod";
-
 import { zodResolver } from "@hookform/resolvers/zod";
-
 import { createAddress, updateAddress } from "@/apis/address";
-
 import { getAllBranch } from "@/apis/branchs";
-
 import CustomInput from "@/components/ui/CustomInput"; 
-
 import CustomInputDropdown from "@/components/ui/CustomeInputDropdown"; 
-
 import { Button } from '../ui/button';
-
 import { MdAddBusiness } from "react-icons/md";
 
 // Define Zod schema for validation
 
 const Schema = z.object({
-
   addressLine1: z.string().min(1, "Address Line 1 is required"),
-
   addressLine2: z.string().optional(),
-
-  city: z.string().min(1, "City is required"),
-
-  state: z.string().min(1, "State is required"),
-
-  country: z.string().min(1, "Country is required"),
-
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
   zip: z.string().optional(),
-
-  branchId: z.string().min(1, "Branch is required"),
-
+  branchId: z.string().optional(),
 });
 
 type FormData = z.infer<typeof Schema>;
-
 // Define Branch interface
-
 interface Branch {
-
   id: string;
-
   name: string;
-
   [key: string]: unknown; // For any other properties
-
 }
 
 // Define component props interface

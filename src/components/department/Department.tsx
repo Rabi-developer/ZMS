@@ -17,10 +17,10 @@ import { MdAddBusiness } from "react-icons/md";
 // Define Zod schema for validation
 const Schema = z.object({
   name: z.string().min(1, "Name is required"),
-  shortName: z.string().min(1, "Short Name is required"),
-  headOfDepartment: z.string().min(1, "Head of Department is required"),
-  addressId: z.string().min(1, "Address ID is required"),
-  branchId: z.string().min(1, "Branch ID is required"),
+  shortName: z.string().optional(),
+  headOfDepartment: z.string().optional(),
+  addressId: z.string().optional(),
+  branchId: z.string().optional(),
 });
 
 type FormData = z.infer<typeof Schema>;

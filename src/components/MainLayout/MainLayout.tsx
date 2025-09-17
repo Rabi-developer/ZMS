@@ -81,7 +81,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
       )}
       
       <div
-        className={`fixed top-3 left-0 h-[calc(100%-4rem)] z-30 transition-all duration-300  
+        className={`fixed top-3 left-0 h-[calc(108%-4rem)] z-30 transition-all duration-300  
           ${isSidebarCollapsed ? 'md:w-[70px]' : 'md:w-[310px]'}
           ${isSidebarOpen ? 'w-[310px]' : 'w-0'}
           md:w-auto

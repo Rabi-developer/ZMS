@@ -794,7 +794,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
           />
         </div>
       </div>
-      <div className="mt-4 space-y-2 border-t-2 border-b-2 h-[18vh]">
+      <div className="mt-4 space-y-2 border-t-2 border-b-2 h-[21vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
