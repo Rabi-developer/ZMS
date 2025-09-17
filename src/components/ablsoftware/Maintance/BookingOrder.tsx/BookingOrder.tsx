@@ -12,7 +12,7 @@ import { getAllVendor } from '@/apis/vendors';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllConsignment } from '@/apis/consignment';
 import { toast } from 'react-toastify';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MdLocalShipping, MdInfo, MdLocationOn, MdPhone } from 'react-icons/md';
 import { FaRegBuilding, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
@@ -84,6 +84,8 @@ type BookingOrderFormData = z.infer<typeof bookingOrderSchema>;
 
 const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderNoParam = searchParams.get('orderNo') || '';
   const {
     control,
     register,
@@ -251,6 +253,45 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               toast.error('Failed to load booking order data');
               console.error('Error fetching booking order:', error);
             }
+          }
+        } else if (orderNoParam) {
+          try {
+            const response = await getAllBookingOrder();
+            const booking = response.data.find((b: any) => (b.orderNo || b.id) === orderNoParam || b.id === orderNoParam);
+            if (booking) {
+              setValue('OrderNo', booking.orderNo || booking.id || '');
+              setValue('orderDate', booking.orderDate || '');
+              setValue('transporter', booking.transporter || '');
+              setValue('vendor', booking.vendor || '');
+              setValue('vehicleNo', booking.vehicleNo || '');
+              setValue('containerNo', booking.containerNo || '');
+              setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType));
+              setValue('driverName', booking.driverName || '');
+              setValue('contactNo', booking.contactNo || '');
+              setValue('cargoWeight', booking.cargoWeight || '');
+              setValue('bookedDays', booking.bookedDays || '');
+              setValue('detentionDays', booking.detentionDays || '');
+              setValue('fromLocation', mapLocationIdToName(booking.fromLocation));
+              setValue('departureDate', booking.departureDate || '');
+              setValue('via1', mapLocationIdToName(booking.via1));
+              setValue('via2', mapLocationIdToName(booking.via2));
+              setValue('toLocation', mapLocationIdToName(booking.toLocation));
+              setValue('expectedReachedDate', booking.expectedReachedDate || '');
+              setValue('reachedDate', booking.reachedDate || '');
+              setValue('vehicleMunshyana', booking.vehicleMunshyana || '');
+              setValue('remarks', booking.remarks || '');
+              setValue('contractOwner', booking.contractOwner || '');
+
+              const consRes2 = await getAllConsignment(1, 10, { orderNo: booking.orderNo || orderNoParam });
+              const bookingConsignments2 = consRes2.data || [];
+              setConsignments([...consignmentsData, ...bookingConsignments2]);
+              const selectedBiltyNos2 = bookingConsignments2.map((c: Consignment) => c.biltyNo);
+              setSelectedConsignments(selectedBiltyNos2);
+              setValue('selectedConsignments', selectedBiltyNos2);
+              setTempSelectedConsignments(selectedBiltyNos2);
+            }
+          } catch (error) {
+            console.error('Error preloading booking order by orderNo:', error);
           }
         }
       } catch (error) {

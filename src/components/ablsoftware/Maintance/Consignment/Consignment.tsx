@@ -109,6 +109,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromBooking = searchParams.get('fromBooking') === 'true';
+  const orderNoParam = searchParams.get('orderNo') || '';
   const {
     control,
     register,
@@ -116,6 +117,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     formState: { errors },
     setValue,
     watch,
+    reset,
   } = useForm<ConsignmentFormData>({
     resolver: zodResolver(consignmentSchema),
     defaultValues: {
@@ -338,28 +340,48 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const onSubmit = async (data: ConsignmentFormData) => {
     setIsSubmitting(true);
     try {
+      const payload = {
+        ...data,
+        orderNo: data.orderNo || orderNoParam || '', // Ensure orderNo is included
+      };
       if (isEdit) {
-        await updateConsignment({ ...data, orderNo: data.orderNo || '' } as any);
+        await updateConsignment(payload);
         toast.success('Consignment updated successfully!');
       } else {
-        await createConsignment(data);
+        await createConsignment(payload);
         toast.success('Consignment created successfully!');
       }
-      // If coming from booking order, stay on this page and populate using orderNo (no redirect)
+
       if (fromBooking) {
-        const orderNoParam = searchParams.get('orderNo');
-        // toast.success('Consignment saved. You can add more or go back to Booking Order.');
-        // Keep current page. Optionally, you could reset or keep existing values.
+        if (!orderNoParam) {
+          toast.error('No order number provided for redirection');
+          router.push('/bookingorder/create');
+          return;
+        }
+        // Reset form to allow creating another consignment (optional)
+        reset({
+          ...consignmentSchema.parse({}), // Reset to schema defaults
+          receiptNo: `REC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+          orderNo: orderNoParam, // Keep orderNo for next consignment
+          consignmentDate: new Date().toISOString().split('T')[0],
+          items: Array(3).fill({ desc: '', qty: 0, rate: 0, qtyUnit: '', weight: 0, weightUnit: '' }),
+        });
+        // Delay redirection to allow toast to be visible
+        setTimeout(() => {
+          router.push(`/bookingorder/create?orderNo=${encodeURIComponent(orderNoParam)}`);
+        }, 800);
       } else {
-        router.push('/bookingorder');
+        router.push('/consignment');
       }
-    } catch (error) { 
+    } catch (error) {
       toast.error('An error occurred while saving the consignment');
+      console.error('Error saving consignment:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+ 
   const isFieldDisabled = (field: string) => {
     if (!fromBooking) return false;
     return !['consignor', 'consignee'].includes(field);

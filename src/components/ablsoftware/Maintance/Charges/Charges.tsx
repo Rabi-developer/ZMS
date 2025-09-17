@@ -247,11 +247,12 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       }
       // If coming from booking order, stay on this page and populate using orderNo (no redirect)
       if (fromBooking) {
-        const orderNoParam = searchParams.get('orderNo');
-        toast.success('Charges saved. You can add more or go back to Booking Order.');
-        // Keep current page. Optionally, you could reset or keep existing values.
+        const orderNoParam = searchParams.get('orderNo') || '';
+        setTimeout(() => {
+          router.push(`/bookingorder/create?orderNo=${encodeURIComponent(orderNoParam)}`);
+        }, 800);
       } else {
-        router.push('/bookingorder');
+        router.push('/charges');
       }
     } catch (error) {
       toast.error('An error occurred while saving the charges');
