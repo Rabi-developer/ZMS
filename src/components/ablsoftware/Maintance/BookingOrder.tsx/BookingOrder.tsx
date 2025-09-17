@@ -14,7 +14,7 @@ import { getAllConsignment } from '@/apis/consignment';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdLocalShipping, MdInfo, MdLocationOn, MdPhone } from 'react-icons/md';
-import { FaRegBuilding, FaMoneyBillWave, FaIdCard } from 'react-icons/fa';
+import { FaRegBuilding, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
 import { FiSave, FiX, FiUser } from 'react-icons/fi';
@@ -45,9 +45,9 @@ interface Consignment {
   consignor: string;
   consignee: string;
   item: string;
-  qty: number;
-  totalAmount: number;
-  recvAmount: number;
+  qty: number | null | undefined; // Allow null/undefined
+  totalAmount: number | null | undefined; // Allow null/undefined
+  recvAmount: number | null | undefined; // Allow null/undefined
   delDate: string;
   status: string;
 }
@@ -77,6 +77,7 @@ const bookingOrderSchema = z.object({
   vehicleMunshyana: z.string().optional(),
   remarks: z.string().optional(),
   contractOwner: z.string().optional(),
+  selectedConsignments: z.array(z.string()).optional(),
 });
 
 type BookingOrderFormData = z.infer<typeof bookingOrderSchema>;
@@ -115,6 +116,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       vehicleMunshyana: '',
       remarks: '',
       contractOwner: '',
+      selectedConsignments: [],
     },
   });
 
@@ -126,10 +128,14 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [vehicleTypes, setVehicleTypes] = useState<DropdownOption[]>([]);
   const [munshayanas, setMunshayanas] = useState<DropdownOption[]>([]);
   const [consignments, setConsignments] = useState<Consignment[]>([]);
+  const [selectedConsignments, setSelectedConsignments] = useState<string[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [tempSelectedConsignments, setTempSelectedConsignments] = useState<string[]>([]);
   const [locations, setLocations] = useState<DropdownOption[]>([]);
-  const [idFocused, setIdFocused] = useState(false); // State to manage OrderNo focus
+  const [idFocused, setIdFocused] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Backward compatibility: map legacy numeric values to human-readable text for dummy datasets
+  // Backward compatibility: map legacy numeric values to human-readable text
   const vehicleTypeMap: Record<string, string> = {
     '1': 'Truck',
     '2': 'Van',
@@ -151,24 +157,25 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     '11': 'Gujranwala',
     '12': 'Sargodha',
   };
-  const mapVehicleTypeIdToName = (v?: string) => (v && vehicleTypeMap[v]) ? vehicleTypeMap[v] : (v || '');
-  const mapLocationIdToName = (v?: string) => (v && locationMap[v]) ? locationMap[v] : (v || '');
+  const mapVehicleTypeIdToName = (v?: string) => (v && vehicleTypeMap[v] ? vehicleTypeMap[v] : v || '');
+  const mapLocationIdToName = (v?: string) => (v && locationMap[v] ? locationMap[v] : v || '');
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [transRes, vendRes, munRes] = await Promise.all([
+        const [transRes, vendRes, munRes, consRes] = await Promise.all([
           getAllTransporter(),
           getAllVendor(),
           getAllMunshyana(),
+          getAllConsignment(1, 10, {}),
         ]);
 
         const transportersData = transRes.data.map((t: any) => ({ id: t.id, name: t.name })) || [];
         const vendorsData = vendRes.data.map((v: any) => ({ id: v.id, name: v.name })) || [];
         const munshayanasData = munRes.data.map((m: any) => ({ id: m.id, name: m.chargesDesc })) || [];
+        const consignmentsData = consRes.data || [];
 
-        // Dummy data for vehicle types
         const vehicleTypesData = [
           { id: 'Truck', name: 'Truck' },
           { id: 'Van', name: 'Van' },
@@ -177,7 +184,6 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           { id: 'Pickup', name: 'Pickup' },
         ];
 
-        // Dummy data for locations (using Pakistan cities as example)
         const locationsData = [
           { id: 'Karachi', name: 'Karachi' },
           { id: 'Lahore', name: 'Lahore' },
@@ -198,6 +204,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         setVehicleTypes(vehicleTypesData);
         setMunshayanas(munshayanasData);
         setLocations(locationsData);
+        setConsignments(consignmentsData);
 
         if (isEdit) {
           const id = window.location.pathname.split('/').pop();
@@ -229,30 +236,26 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 setValue('remarks', booking.remarks || '');
                 setValue('contractOwner', booking.contractOwner || '');
 
-                // Fetch consignments for this order
                 const consRes = await getAllConsignment(1, 10, { orderNo: booking.orderNo || id });
-                setConsignments(consRes.data || []);
+                const bookingConsignments = consRes.data || [];
+                setConsignments([...consignmentsData, ...bookingConsignments]);
+                const selectedBiltyNos = bookingConsignments.map((c: Consignment) => c.biltyNo);
+                setSelectedConsignments(selectedBiltyNos);
+                setValue('selectedConsignments', selectedBiltyNos);
+                setTempSelectedConsignments(selectedBiltyNos);
               } else {
                 toast.error('Booking Order not found');
                 router.push('/bookingorder');
               }
             } catch (error) {
-              // toast.error('Failed to load booking order data');
-              // console.error('Error fetching booking order:', error);
+              toast.error('Failed to load booking order data');
+              console.error('Error fetching booking order:', error);
             }
-          }
-        } else {
-          // For create mode, fetch all consignments
-          try {
-            const consRes = await getAllConsignment(1, 10, { orderNo: '' });
-            setConsignments(consRes.data || []);
-          } catch (error) {
-            console.error('Error fetching consignments:', error);
           }
         }
       } catch (error) {
-        // toast.error('Failed to load data');
-        // console.error('Error fetching data:', error);
+        toast.error('Failed to load data');
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -261,14 +264,34 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     fetchData();
   }, [isEdit, setValue, router]);
 
+  const handleConsignmentSelection = (biltyNo: string, checked: boolean) => {
+    setTempSelectedConsignments((prev) => {
+      if (checked) {
+        return [...prev, biltyNo];
+      } else {
+        return prev.filter((id) => id !== biltyNo);
+      }
+    });
+  };
+
+  const handleSaveConsignments = () => {
+    setSelectedConsignments(tempSelectedConsignments);
+    setValue('selectedConsignments', tempSelectedConsignments, { shouldValidate: true });
+    setIsModalOpen(false);
+  };
+
   const onSubmit = async (data: BookingOrderFormData) => {
     setIsSubmitting(true);
     try {
+      const payload = {
+        ...data,
+        selectedConsignments,
+      };
       if (isEdit) {
-        await updateBookingOrder(data.OrderNo!, data);
+        await updateBookingOrder(data.OrderNo!, payload);
         toast.success('Booking Order updated successfully!');
       } else {
-        await createBookingOrder(data);
+        await createBookingOrder(payload);
         toast.success('Booking Order created successfully!');
       }
       router.push('/bookingorder');
@@ -280,14 +303,27 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     }
   };
 
-  // Function to update status
   const updateStatus = (index: number, newStatus: string) => {
-    // Implement API call to update status
-    // For now, update local state
     const updatedConsignments = [...consignments];
     updatedConsignments[index].status = newStatus;
     setConsignments(updatedConsignments);
   };
+
+  // Filter consignments based on search term with null checks
+  const filteredConsignments = consignments.filter((cons) =>
+    [
+      cons.biltyNo || '',
+      cons.receiptNo || '',
+      cons.consignor || '',
+      cons.consignee || '',
+      cons.item || '',
+      cons.qty != null ? cons.qty.toString() : '',
+      cons.totalAmount != null ? cons.totalAmount.toString() : '',
+      cons.recvAmount != null ? cons.recvAmount.toString() : '',
+      cons.delDate || '',
+      cons.status || '',
+    ].some((field) => field.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
@@ -320,7 +356,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 </div>
               </div>
               <div className="flex space-x-3">
-                <Link href="/bookingorders">
+                <Link href="/bookingorder">
                   <Button
                     type="button"
                     className="bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 border border-white/20 backdrop-blur-sm px-4 py-2 shadow-lg hover:shadow-xl"
@@ -655,42 +691,63 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               </div>
             )}
 
-            <div className="flex rid grid-cols-2 md:grid-cols-2 lg:grid-cols-2  justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700 mt-8">
-              <button
-              className={`px-8 py-2 mt-0.1 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm ${
-                activeTab === 'additional'
-                  ? 'border-[#3a614c] text-[#3a614c] dark:text-[#3a614c] font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-              onClick={() => setActiveTab('additional')}
-            >
-              Additional Details
-            </button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-8 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="text-lg" />
-                      <span>{isEdit ? 'Update Booking Order' : 'Create Booking Order'}</span>
-                    </>
-                  )}
-                </div>
-              </Button>
+            {/* Conditionally render buttons */}
+            <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700 mt-8">
+              {activeTab === 'basic' && (
+                <Button
+                  type="button"
+                  className="px-8 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
+                  onClick={() => setActiveTab('additional')}
+                >
+                  Additional Details
+                </Button>
+              )}
+              {activeTab === 'additional' && (
+                <>
+                  <Button
+                    type="button"
+                    className="px-8 py-3 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 font-medium text-sm"
+                    onClick={() => setActiveTab('basic')}
+                  >
+                    Back to Basic Information
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-8 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiSave className="text-lg" />
+                          <span>{isEdit ? 'Update Booking Order' : 'Create Booking Order'}</span>
+                        </>
+                      )}
+                    </div>
+                  </Button>
+                </>
+              )}
             </div>
           </form>
         </div>
 
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
-          <h2 className="text-lg font-semibold mb-4">Consignments</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Consignments</h2>
+            <Button
+              onClick={() => {
+                setTempSelectedConsignments(selectedConsignments);
+                setIsModalOpen(true);
+              }}
+            >
+              Select Consignments
+            </Button>
+          </div>
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
               <tr>
@@ -707,36 +764,43 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               </tr>
             </thead>
             <tbody>
-              {consignments.length === 0 ? (
+              {selectedConsignments.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-4 text-center">No consignments found for this order</td>
+                  <td colSpan={10} className="px-6 py-4 text-center">
+                    No consignments selected
+                  </td>
                 </tr>
               ) : (
-                consignments.map((cons, index) => (
-                  <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                    <td className="px-6 py-4">{cons.biltyNo}</td>
-                    <td className="px-6 py-4">{cons.receiptNo}</td>
-                    <td className="px-6 py-4">{cons.consignor}</td>
-                    <td className="px-6 py-4">{cons.consignee}</td>
-                    <td className="px-6 py-4">{cons.item}</td>
-                    <td className="px-6 py-4">{cons.qty}</td>
-                    <td className="px-6 py-4">{cons.totalAmount}</td>
-                    <td className="px-6 py-4">{cons.recvAmount}</td>
-                    <td className="px-6 py-4">{cons.delDate}</td>
-                    <td className="px-6 py-4">
-                      <AblCustomDropdown
-                        label="Status"
-                        options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map(s => ({ id: s, name: s }))}
-                        selectedOption={cons.status}
-                        onChange={(value) => updateStatus(index, value)}
-                      />
-                    </td>
-                  </tr>
-                ))
+                consignments
+                  .filter((cons) => selectedConsignments.includes(cons.biltyNo))
+                  .map((cons, index) => (
+                    <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                      <td className="px-6 py-4">{cons.biltyNo}</td>
+                      <td className="px-6 py-4">{cons.receiptNo}</td>
+                      <td className="px-6 py-4">{cons.consignor}</td>
+                      <td className="px-6 py-4">{cons.consignee}</td>
+                      <td className="px-6 py-4">{cons.item}</td>
+                      <td className="px-6 py-4">{cons.qty ?? 'N/A'}</td>
+                      <td className="px-6 py-4">{cons.totalAmount ?? 'N/A'}</td>
+                      <td className="px-6 py-4">{cons.recvAmount ?? 'N/A'}</td>
+                      <td className="px-6 py-4">{cons.delDate}</td>
+                      <td className="px-6 py-4">
+                        <AblCustomDropdown
+                          label="Status"
+                          options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map((s) => ({
+                            id: s,
+                            name: s,
+                          }))}
+                          selectedOption={cons.status}
+                          onChange={(value) => updateStatus(index, value)}
+                        />
+                      </td>
+                    </tr>
+                  ))
               )}
             </tbody>
           </table>
-          <div className="flex justify-end gap-4 mt-4">
+         <div className="flex justify-end gap-4 mt-4">
             <Button onClick={() => {
               const orderNo = getValues('OrderNo') || '';
               router.push(`/consignment/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
@@ -748,13 +812,108 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           </div>
         </div>
 
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
+                Select Consignments
+              </h2>
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Search consignments..."
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3a614c]"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                  <tr>
+                    <th className="px-6 py-3">
+                      <input
+                        type="checkbox"
+                        checked={tempSelectedConsignments.length === filteredConsignments.length && filteredConsignments.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setTempSelectedConsignments(filteredConsignments.map((c) => c.biltyNo));
+                          } else {
+                            setTempSelectedConsignments([]);
+                          }
+                        }}
+                      />
+                    </th>
+                    <th className="px-6 py-3">Bilty No</th>
+                    <th className="px-6 py-3">Receipt No</th>
+                    <th className="px-6 py-3">Consignor</th>
+                    <th className="px-6 py-3">Consignee</th>
+                    <th className="px-6 py-3">Item</th>
+                    <th className="px-6 py-3">Qty</th>
+                    <th className="px-6 py-3">Total Amount</th>
+                    <th className="px-6 py-3">Recv. Amount</th>
+                    <th className="px-6 py-3">Del Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredConsignments.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="px-6 py-4 text-center">
+                        No consignments found
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredConsignments.map((cons, index) => (
+                      <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={tempSelectedConsignments.includes(cons.biltyNo)}
+                            onChange={(e) => handleConsignmentSelection(cons.biltyNo, e.target.checked)}
+                          />
+                        </td>
+                        <td className="px-6 py-4">{cons.biltyNo}</td>
+                        <td className="px-6 py-4">{cons.receiptNo}</td>
+                        <td className="px-6 py-4">{cons.consignor}</td>
+                        <td className="px-6 py-4">{cons.consignee}</td>
+                        <td className="px-6 py-4">{cons.item}</td>
+                        <td className="px-6 py-4">{cons.qty ?? 'N/A'}</td>
+                        <td className="px-6 py-4">{cons.totalAmount ?? 'N/A'}</td>
+                        <td className="px-6 py-4">{cons.recvAmount ?? 'N/A'}</td>
+                        <td className="px-6 py-4">{cons.delDate}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              <div className="flex justify-end gap-4 mt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setTempSelectedConsignments(selectedConsignments);
+                    setSearchTerm('');
+                    setIsModalOpen(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveConsignments}>
+                  Save
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
               <MdInfo className="text-[#3a614c]" />
               <span className="text-sm">Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/bookingorder" className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors">
+            <Link
+              href="/bookingorder"
+              className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors"
+            >
               Back to Booking Orders List
             </Link>
           </div>
@@ -764,4 +923,4 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   );
 };
 
-export default BookingOrderForm;  
+export default BookingOrderForm;

@@ -251,7 +251,7 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         toast.success('Charges saved. You can add more or go back to Booking Order.');
         // Keep current page. Optionally, you could reset or keep existing values.
       } else {
-        router.push('/charges');
+        router.push('/bookingorder');
       }
     } catch (error) {
       toast.error('An error occurred while saving the charges');

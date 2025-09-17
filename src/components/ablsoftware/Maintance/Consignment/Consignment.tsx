@@ -348,12 +348,12 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       // If coming from booking order, stay on this page and populate using orderNo (no redirect)
       if (fromBooking) {
         const orderNoParam = searchParams.get('orderNo');
-        toast.success('Consignment saved. You can add more or go back to Booking Order.');
+        // toast.success('Consignment saved. You can add more or go back to Booking Order.');
         // Keep current page. Optionally, you could reset or keep existing values.
       } else {
-        router.push('/consignment');
+        router.push('/bookingorder');
       }
-    } catch (error) {
+    } catch (error) { 
       toast.error('An error occurred while saving the consignment');
     } finally {
       setIsSubmitting(false);
