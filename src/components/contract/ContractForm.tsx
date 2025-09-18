@@ -2246,10 +2246,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
 };
 
   useEffect(() => {
-    if (activeSection === 'DeliveryDetails') {
-      setActiveContractType('Conversion');
-    }
-  }, [activeSection]);
+  if (activeSection === 'DeliveryDetails') {
+    setActiveContractType(null);
+  }
+}, [activeSection]);
 
   return (
     <div className="container mx-auto bg-white shadow-lg rounded-lg dark:bg-[#030630] p-6">
@@ -2813,6 +2813,13 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   Multi Width Contract
                 </Button>
               </div>
+
+            
+            {activeContractType === null && (
+  <p className="text-center text-gray-500 dark:text-gray-300 mt-2">
+    Select a contract type to begin.
+  </p>
+)}
 
               {activeContractType === 'Conversion' && (
                 <div className="mt-6">
