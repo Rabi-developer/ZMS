@@ -54,35 +54,40 @@ interface Consignment {
 
 // Define the schema for booking order form validation
 const bookingOrderSchema = z.object({
-  OrderNo: z.string().optional(),
-  orderDate: z.string().optional(),
-  transporter: z.string().optional(),
-  vendor: z.string().optional(),
-  vehicleNo: z.string().optional(),
-  containerNo: z.string().optional(),
-  vehicleType: z.string().optional(),
-  driverName: z.string().optional(),
-  contactNo: z.string().optional(),
-  munshayana: z.string().optional(),
-  cargoWeight: z.string().optional(),
-  bookedDays: z.string().optional(),
-  detentionDays: z.string().optional(),
-  fromLocation: z.string().optional(),
-  departureDate: z.string().optional(),
-  via1: z.string().optional(),
-  via2: z.string().optional(),
-  toLocation: z.string().optional(),
-  expectedReachedDate: z.string().optional(),
-  reachedDate: z.string().optional(),
-  vehicleMunshyana: z.string().optional(),
-  remarks: z.string().optional(),
-  contractOwner: z.string().optional(),
-  selectedConsignments: z.array(z.string()).optional(),
+  OrderNo: z.string().optional().nullable(),
+  orderDate: z.string().optional().nullable(),
+  transporter: z.string().optional().nullable(),
+  vendor: z.string().optional().nullable(),
+  vehicleNo: z.string().optional().nullable(),
+  containerNo: z.string().optional().nullable(),
+  vehicleType: z.string().optional().nullable(),
+  driverName: z.string().optional().nullable(),
+  contactNo: z.string().optional().nullable(),
+  munshayana: z.string().optional().nullable(),
+  cargoWeight: z.string().optional().nullable(),
+  bookedDays: z.string().optional().nullable(),
+  detentionDays: z.string().optional().nullable(),
+  fromLocation: z.string().optional().nullable(),
+  departureDate: z.string().optional().nullable(),
+  via1: z.string().optional().nullable(),
+  via2: z.string().optional().nullable(),
+  toLocation: z.string().optional().nullable(),
+  expectedReachedDate: z.string().optional().nullable(),
+  reachedDate: z.string().optional().nullable(),
+  vehicleMunshyana: z.string().optional().nullable(),
+  remarks: z.string().optional().nullable(),
+  contractOwner: z.string().optional().nullable(),
+  selectedConsignments: z.array(z.string()).optional().nullable(),
 });
 
 type BookingOrderFormData = z.infer<typeof bookingOrderSchema>;
 
-const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+interface BookingOrderFormProps {
+  isEdit?: boolean;
+  initialData?: any; // shape from backend
+}
+
+const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderNoParam = searchParams.get('orderNo') || '';
@@ -123,6 +128,8 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Keep internal id separate from display OrderNo (which may be auto generated or different)
+  const [bookingId, setBookingId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
   const [transporters, setTransporters] = useState<DropdownOption[]>([]);
@@ -208,13 +215,52 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         setLocations(locationsData);
         setConsignments(consignmentsData);
 
-        if (isEdit) {
+        // If initialData provided (edit page), hydrate directly without re-searching all booking orders list
+        if (isEdit && initialData) {
+          const booking = initialData;
+          setBookingId(booking.id || '');
+          setValue('OrderNo', booking.orderNo || booking.id || '');
+          setValue('orderDate', booking.orderDate || '');
+          setValue('transporter', booking.transporter || '');
+          setValue('vendor', booking.vendor || '');
+          setValue('vehicleNo', booking.vehicleNo || '');
+          setValue('containerNo', booking.containerNo || '');
+          setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType));
+          setValue('driverName', booking.driverName || '');
+          setValue('contactNo', booking.contactNo || '');
+          setValue('cargoWeight', booking.cargoWeight || '');
+          setValue('bookedDays', booking.bookedDays || '');
+          setValue('detentionDays', booking.detentionDays || '');
+          setValue('fromLocation', mapLocationIdToName(booking.fromLocation));
+          setValue('departureDate', booking.departureDate || '');
+          setValue('via1', mapLocationIdToName(booking.via1));
+          setValue('via2', mapLocationIdToName(booking.via2));
+          setValue('toLocation', mapLocationIdToName(booking.toLocation));
+          setValue('expectedReachedDate', booking.expectedReachedDate || '');
+          setValue('reachedDate', booking.reachedDate || '');
+          setValue('vehicleMunshyana', booking.vehicleMunshyana || '');
+          setValue('remarks', booking.remarks || '');
+          setValue('contractOwner', booking.contractOwner || '');
+          // fetch consignments belonging to this order
+          try {
+            const consForBooking = await getAllConsignment(1, 10, { orderNo: booking.orderNo || booking.id });
+            const bookingConsignments = consForBooking.data || [];
+            setConsignments([...consignmentsData, ...bookingConsignments]);
+            const selectedBiltyNos = bookingConsignments.map((c: any) => c.biltyNo);
+            setSelectedConsignments(selectedBiltyNos);
+            setValue('selectedConsignments', selectedBiltyNos);
+            setTempSelectedConsignments(selectedBiltyNos);
+          } catch (e) {
+            console.warn('Failed to fetch consignments for booking', e);
+          }
+        } else if (isEdit) {
           const id = window.location.pathname.split('/').pop();
           if (id) {
             try {
               const response = await getAllBookingOrder();
               const booking = response.data.find((b: any) => b.id === id);
               if (booking) {
+                setBookingId(booking.id || '');
                 setValue('OrderNo', booking.orderNo || booking.id || '');
                 setValue('orderDate', booking.orderDate || '');
                 setValue('transporter', booking.transporter || '');
@@ -259,6 +305,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const response = await getAllBookingOrder();
             const booking = response.data.find((b: any) => (b.orderNo || b.id) === orderNoParam || b.id === orderNoParam);
             if (booking) {
+              setBookingId(booking.id || '');
               setValue('OrderNo', booking.orderNo || booking.id || '');
               setValue('orderDate', booking.orderDate || '');
               setValue('transporter', booking.transporter || '');
@@ -303,7 +350,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     };
 
     fetchData();
-  }, [isEdit, setValue, router]);
+  }, [isEdit, setValue, router, initialData]);
 
   const handleConsignmentSelection = (biltyNo: string, checked: boolean) => {
     setTempSelectedConsignments((prev) => {
@@ -329,7 +376,17 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         selectedConsignments,
       };
       if (isEdit) {
-        await updateBookingOrder(data.OrderNo!, payload);
+        // Prefer internal bookingId, fallback to OrderNo if backend expects id
+        const idToUse = bookingId || data.OrderNo || '';
+        if (!idToUse) {
+          toast.error('Cannot update: missing booking id');
+          return;
+        }
+        // Ensure id present inside body if backend also maps it from payload
+        const updateBody = { ...payload, id: idToUse, orderNo: data.OrderNo || undefined };
+        console.log('[BookingOrderForm] Submitting update', { idToUse, updateBody });
+        await updateBookingOrder(idToUse, updateBody);
+        console.log('[BookingOrderForm] Update success');
         toast.success('Booking Order updated successfully!');
       } else {
         await createBookingOrder(payload);

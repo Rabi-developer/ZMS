@@ -56,12 +56,16 @@ const getSingleBookingOrder  = async (id: string) => {
   }
 };
 
-const updateBookingOrder = async (BookingOrder: any, data?: any) => {
+// BookingOrder-update
+// Expects the unique id (primary key) in the URL and the updated object in the body
+// Usage: updateBookingOrder(id, updatedBookingOrderObject)
+const updateBookingOrder = async (id: string, bookingOrderData: any) => {
   try {
-    const response = await apiFetch(`BookingOrder`, {
+    if(!id) throw new Error('updateBookingOrder: id is required');
+    const response = await apiFetch(`BookingOrder/${id}`, {
       method: 'PUT',
       headers: {},
-      body: JSON.stringify(BookingOrder),
+      body: JSON.stringify(bookingOrderData),
     }, true);
     return response;
   } catch (error: any) {

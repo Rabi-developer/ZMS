@@ -31,7 +31,7 @@ const UpdateBookingOrder = () => {
       {
         !initialData ? <Loader /> :
           <div>
-            <BookingOrderForm isEdit={true} />
+            <BookingOrderForm isEdit={true} initialData={initialData} />
           </div>
       }
     </MainLayout>
