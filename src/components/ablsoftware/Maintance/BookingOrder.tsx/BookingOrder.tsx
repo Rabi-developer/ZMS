@@ -54,7 +54,7 @@ interface Consignment {
 
 // Define the schema for booking order form validation
 const bookingOrderSchema = z.object({
-  OrderNo: z.string().optional().nullable(),
+  OrderNo: z.string().optional(),
   orderDate: z.string().optional().nullable(),
   transporter: z.string().optional().nullable(),
   vendor: z.string().optional().nullable(),

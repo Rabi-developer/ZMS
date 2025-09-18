@@ -337,10 +337,12 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     try {
       const payload = {
         ...data,
-        orderNo: data.orderNo || orderNoParam || '', // Ensure orderNo is included
+        orderNo: data.orderNo || orderNoParam || '',
+         // Add model field for backend validation
       };
       if (isEdit) {
-        await updateConsignment(payload);
+        const newid = window.location.pathname.split('/').pop();
+        await updateConsignment({ ...payload, id: newid });
         toast.success('Consignment updated successfully!');
       } else {
         await createConsignment(payload);

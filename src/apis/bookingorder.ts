@@ -62,7 +62,7 @@ const getSingleBookingOrder  = async (id: string) => {
 const updateBookingOrder = async (id: string, bookingOrderData: any) => {
   try {
     if(!id) throw new Error('updateBookingOrder: id is required');
-    const response = await apiFetch(`BookingOrder/${id}`, {
+    const response = await apiFetch(`BookingOrder`, {
       method: 'PUT',
       headers: {},
       body: JSON.stringify(bookingOrderData),

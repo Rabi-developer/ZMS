@@ -1,15 +1,41 @@
-"use client";
+'use client'
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { getSingleCharges} from '@/apis/charges';
+import Loader from '@/components/ui/Loader';
 import MainLayout from '@/components/MainLayout/MainLayout'
-import BookingOrderForm from '@/components/ablsoftware/Maintance/BookingOrder.tsx/BookingOrder';
 import ChargesForm from '@/components/ablsoftware/Maintance/Charges/Charges';
-import MunshyanaForm from '@/components/ablsoftware/OtherForm/Munshyana/Munshyana';
-const ABL = () => {
 
-    return (
-        <MainLayout activeInterface="ABL">
-              <ChargesForm isEdit={true} />
-        </MainLayout>
-    )
-}
+const UpdateCharges = () => {
+  const { id } = useParams<{ id: string }>(); 
+  const [initialData, setInitialData] = useState(null);
 
-export default ABL
+  const fetchCharges = async (id: string) => {
+    try {
+      const response = await getSingleCharges(id);
+      console.log(response)
+      setInitialData(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      fetchCharges(id);
+    }
+  }, [id]);
+
+  return (
+    <MainLayout activeInterface="ABL">
+      {
+        !initialData ? <Loader /> :
+          <div>
+            <ChargesForm isEdit={true} initialData={initialData} />
+          </div>
+      }
+    </MainLayout>
+  );
+};
+
+export default UpdateCharges;

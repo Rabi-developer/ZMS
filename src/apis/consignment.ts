@@ -56,8 +56,9 @@ const getSingleConsignment  = async (id: string) => {
   }
 };
 
-const updateConsignment = async (consignment: any) => {
-  try {
+const updateConsignment = async ( consignment: any) => {
+   try {
+   
     const response = await apiFetch(`Consignment`, {
       method: 'PUT',
       headers: {},
