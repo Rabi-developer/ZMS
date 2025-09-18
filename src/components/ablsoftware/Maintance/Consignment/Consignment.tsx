@@ -288,13 +288,8 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       };
       fetchConsignment();
     } else {
-      const generateReceiptNo = () => {
-        const prefix = 'REC';
-        const timestamp = Date.now().toString().slice(-6);
-        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        return `${prefix}-${timestamp}-${random}`;
-      };
-      setValue('receiptNo', generateReceiptNo());
+      // Do not auto-generate receiptNo on frontend; backend will assign it
+      setValue('receiptNo', '');
     }
   }, [isEdit, setValue]);
 
@@ -361,7 +356,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         // Reset form to allow creating another consignment (optional)
         reset({
           ...consignmentSchema.parse({}), // Reset to schema defaults
-          receiptNo: `REC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`,
+          receiptNo: '', // Let backend assign
           orderNo: orderNoParam, // Keep orderNo for next consignment
           consignmentDate: new Date().toISOString().split('T')[0],
           items: Array(3).fill({ desc: '', qty: 0, rate: 0, qtyUnit: '', weight: 0, weightUnit: '' }),
