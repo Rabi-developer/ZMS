@@ -166,7 +166,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
         <div className='p-2 w-full'>
           <div className='p-4'>
             <h2 className='text-xl font-bold text-black dark:text-white'>Basic Seller Information</h2>
-            <div className='grid grid-cols-3 gap-4'>
+            <div className='grid grid-cols-6 gap-4'>
               <CustomInput
                 variant="floating"
                 borderThickness='2'
@@ -200,7 +200,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 error={errors.Country?.message}
               />
               <CustomInput
-                type='number'
+   
                 variant="floating"
                 borderThickness='2'
                 label='Phone Number'
@@ -209,7 +209,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 error={errors.PhoneNumber?.message}
               />
               <CustomInput
-                type='number'
+   
                 variant="floating"
                 borderThickness='2'
                 label='Mobile Number'
@@ -227,7 +227,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 error={errors.EmailAddress?.message}
               />
               <CustomInput
-                type='number'
+   
                 variant="floating"
                 borderThickness='2'
                 label='Fax Number'
@@ -236,7 +236,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 error={errors.FaxNumber?.message}
               />
               <CustomInput
-                type='number'
+   
                 variant="floating"
                 borderThickness='2'
                 label='STN'
@@ -245,7 +245,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 error={errors.STN?.message}
               />
               <CustomInput
-                type='number'
+   
                 variant="floating"
                 borderThickness='2'
                 label='NTN'
@@ -261,32 +261,29 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 {...register("Address")}
                 error={errors.Address?.message}
               />
-            </div>
-          </div>
-          <div className='p-4 ml-4 border rounded-2xl mx-auto'>
-            <h2>Payable Code:</h2>
-            <div className='grid grid-cols-3 gap-1'>
-              <CustomInput
-                type='string'
+                <CustomInput
+                type='date'
                 variant="floating"
                 borderThickness='2'
-                label=''
-                id="payableid"
-                {...register("payableid")}
-                error={errors.payableid?.message}
+                label='Order Date'
+                id="OrderDate"
+                {...register("OrderDate")}
+                error={errors.OrderDate?.message}
               />
               <CustomInput
+                type='date'
                 variant="floating"
                 borderThickness='2'
-                label=''
-                id="PayableCode"
-                {...register("PayableCode")}
-                error={errors.PayableCode?.message}
+                label='Delivery Date'
+                id="DeliveryDate"
+                {...register("DeliveryDate")}
+                error={errors.DeliveryDate?.message}
               />
             </div>
           </div>
+         
 
-          <div className='p-4'>
+          <div className='p-8'>
             <h2 className='text-xl font-bold text-black dark:text-white'>Additional Information</h2>
             <div>
               {accountNos.map((accountNo, index) => (
@@ -327,29 +324,35 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 <p className="text-red-500 text-sm mt-2">{errors.accountNo.message}</p>
               )}
             </div>
-            <div className='grid grid-cols-3 gap-4'>
-              <CustomInput
-                type='date'
-                variant="floating"
-                borderThickness='2'
-                label='Order Date'
-                id="OrderDate"
-                {...register("OrderDate")}
-                error={errors.OrderDate?.message}
-              />
-              <CustomInput
-                type='date'
-                variant="floating"
-                borderThickness='2'
-                label='Delivery Date'
-                id="DeliveryDate"
-                {...register("DeliveryDate")}
-                error={errors.DeliveryDate?.message}
-              />
-            </div>
+           
           </div>
-
-          <div className="p-5 ml-7 bg-white shadow-md rounded-lg mx-auto">
+          <div className='p-4 ml-4 border rounded-2xl mx-auto'>
+            <h2 className='ml-10 font-bold text-clifford text-lg'>Payable Code:</h2>
+            
+            <div className='grid grid-cols-3 gap-1 ml-12'>
+              <CustomInput
+                type='string'
+                variant="floating"
+                borderThickness='2'
+                label=''
+                disabled
+                id="payableid"
+                {...register("payableid")}
+                error={errors.payableid?.message}
+              />
+              <CustomInput
+                variant="floating"
+                borderThickness='2'
+                label=''
+                disabled
+                id="PayableCode"
+                {...register("PayableCode")}
+                error={errors.PayableCode?.message}
+              />
+              
+            </div>
+    
+          <div className="p-5 ml-7  mx-auto">
             <textarea
               id="message"
               className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
@@ -360,7 +363,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
             <p className="text-gray-500 mt-2">Character Count: {text.length}</p>
           </div>
         </div>
-
+      </div>
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">
           <Button
             type="submit"

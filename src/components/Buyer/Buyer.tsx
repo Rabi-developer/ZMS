@@ -209,7 +209,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
         <div className='p-2 w-full'>
           <div className='p-4'>
             <h2 className='text-xl font-bold text-black dark:text-white'>Basic Buyer Information</h2>
-            <div className='grid grid-cols-3 gap-4'>
+            <div className='grid grid-cols-6 gap-4'>
               <CustomInput
                 variant="floating"
                 borderThickness='2'
@@ -243,7 +243,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
                 error={errors.Country?.message}
               />
               <CustomInput
-                type='number'
+             
                 variant="floating"
                 borderThickness='2'
                 label='Phone Number'
@@ -252,7 +252,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
                 error={errors.PhoneNumber?.message}
               />
               <CustomInput
-                type='number'
+             
                 variant="floating"
                 borderThickness='2'
                 label='Mobile Number'
@@ -270,7 +270,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
                 error={errors.EmailAddress?.message}
               />
               <CustomInput
-                type='number'
+             
                 variant="floating"
                 borderThickness='2'
                 label='Fax Number'
@@ -279,7 +279,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
                 error={errors.FaxNumber?.message}
               />
               <CustomInput
-                type='number'
+             
                 variant="floating"
                 borderThickness='2'
                 label='STN'
@@ -288,7 +288,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
                 error={errors.STN?.message}
               />
               <CustomInput
-                type='number'
+             
                 variant="floating"
                 borderThickness='2'
                 label='NTN'
@@ -304,46 +304,27 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
                 {...register("Address")}
                 error={errors.Address?.message}
               />
-            </div>
-          </div>
-          <div className='p-4 ml-4 border rounded-2xl mx-auto'>
-            <h2>Payable Code:</h2>
-            <div className='grid grid-cols-3 gap-1'>
               <CustomInput
-                type='string'
+                type='date'
                 variant="floating"
                 borderThickness='2'
-                label=''
-                id="payableid"
-                {...register("payableid")}
-                error={errors.payableid?.message}
+                label='Order Date'
+                id="OrderDate"
+                {...register("OrderDate")}
+                error={errors.OrderDate?.message}
               />
               <CustomInput
+                type='date'
                 variant="floating"
                 borderThickness='2'
-                label=''
-                id="PayableCode"
-                {...register("PayableCode")}
-                error={errors.PayableCode?.message}
+                label='Delivery Date'
+                id="DeliveryDate"
+                {...register("DeliveryDate")}
+                error={errors.DeliveryDate?.message}
               />
-
-              {/* Seller Dropdown */}
-              <CustomInputDropdown
-                label="Seller"
-                options={sellers.map((seller) => ({
-                  id: seller.id,
-                  name: seller.sellerName,
-                }))}
-                selectedOption={watch("Seller") || ''}
-                onChange={(value) => setValue("Seller", value, { shouldValidate: true })}
-                error={errors.Seller?.message}
-                register={register}
-              />
-
             </div>
           </div>
-
-          <div className='p-4'>
+            <div className='p-4'>
             <h2 className='text-xl font-bold text-black dark:text-white'>Additional Information</h2>
             <div>
               {accountNos.map((accountNo, index) => (
@@ -384,27 +365,47 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
                 <p className="text-red-500 text-sm mt-2">{errors.accountNo.message}</p>
               )}
             </div>
-            <div className='grid grid-cols-3 gap-4'>
+                      </div>
+          <div className='p-4 ml-4 border rounded-2xl mx-auto'>
+            <h2>Payable Code:</h2>
+            <div className='grid grid-cols-3 gap-1'>
               <CustomInput
-                type='date'
+                type='string'
                 variant="floating"
                 borderThickness='2'
-                label='Order Date'
-                id="OrderDate"
-                {...register("OrderDate")}
-                error={errors.OrderDate?.message}
+                label=''
+                disabled
+                id="payableid"
+                {...register("payableid")}
+                error={errors.payableid?.message}
               />
               <CustomInput
-                type='date'
                 variant="floating"
                 borderThickness='2'
-                label='Delivery Date'
-                id="DeliveryDate"
-                {...register("DeliveryDate")}
-                error={errors.DeliveryDate?.message}
+                label=''
+                disabled
+                id="PayableCode"
+                {...register("PayableCode")}
+                error={errors.PayableCode?.message}
               />
+
+              {/* Seller Dropdown */}
+              <CustomInputDropdown
+                label="Seller"
+                options={sellers.map((seller) => ({
+                  id: seller.id,
+                  name: seller.sellerName,
+                }))}
+                selectedOption={watch("Seller") || ''}
+                onChange={(value) => setValue("Seller", value, { shouldValidate: true })}
+                error={errors.Seller?.message}
+                register={register}
+              />
+
             </div>
           </div>
+
+        
 
 
         </div>
