@@ -183,8 +183,9 @@ const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
+        const newid = window.location.pathname.split('/').pop();
         // Send actual id in payload for update
-        await updateParty(data.PartyNumber!, { ...data, id: data.PartyNumber });
+        await updateParty(data.PartyNumber!, { ...data, id: newid || '' });
         toast.success('Party updated successfully!');
       } else {
         // For new parties, generate a unique PartyNumber

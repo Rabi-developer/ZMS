@@ -52,7 +52,7 @@ const getSingleMunshyana  = async (id: string) => {
   }
 };
 
-const updateMunshyana = async (Munshyana: any, data: { chargesDesc: string; chargesType: "Payable" | "Receivable"; accountId: string; description: string; id?: string | undefined; }) => {
+const updateMunshyana = async (Munshyana: any) => {
   try {
     const response = await apiFetch(`Munshyana`, {
       method: 'PUT',

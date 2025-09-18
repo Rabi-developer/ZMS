@@ -6,10 +6,10 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createTransporter, updateTransporter, getAllTransporter } from '@/apis/transporter';
+import { createTransporter, updateTransporter } from '@/apis/transporter';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import {  MdLocalShipping, MdInfo, MdLocationOn, MdPhone} from 'react-icons/md';
+import { MdLocalShipping, MdInfo, MdLocationOn, MdPhone } from 'react-icons/md';
 import { FaRegBuilding, FaMoneyBillWave, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
@@ -31,13 +31,18 @@ const transporterSchema = z.object({
   stn: z.string().optional(),
   fax: z.string().optional(),
   buyerCode: z.string().optional(),
-  email: z.string().email().optional(),
-  website: z.union([z.string().url(), z.literal('')]).optional(),
+  email: z.string().email('Invalid email address').optional(),
+  website: z.union([z.string().url('Invalid website URL'), z.literal('')]).optional(),
 });
 
 type TransporterFormData = z.infer<typeof transporterSchema>;
 
-const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+interface TransporterFormProps {
+  isEdit?: boolean;
+  initialData?: Partial<TransporterFormData>;
+}
+
+const TransporterForm = ({ isEdit = false, initialData }: TransporterFormProps) => {
   const router = useRouter();
   const {
     control,
@@ -45,33 +50,52 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     handleSubmit,
     formState: { errors },
     setValue,
+    reset,
   } = useForm<TransporterFormData>({
     resolver: zodResolver(transporterSchema),
-    defaultValues: {
-      TransporterNumber: '',
-      name: '',
-      currency: '',
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      bankName: '',
-      tel: '',
-      ntn: '',
-      mobile: '',
-      stn: '',
-      fax: '',
-      buyerCode: '',
-      email: '',
-      website: '',
-    },
+    defaultValues: initialData
+      ? {
+          TransporterNumber: initialData.TransporterNumber || '',
+          name: initialData.name || '',
+          currency: initialData.currency || '',
+          address: initialData.address || '',
+          city: initialData.city || '',
+          state: initialData.state || '',
+          zipCode: initialData.zipCode || '',
+          bankName: initialData.bankName || '',
+          tel: initialData.tel || '',
+          ntn: initialData.ntn || '',
+          mobile: initialData.mobile || '',
+          stn: initialData.stn || '',
+          fax: initialData.fax || '',
+          buyerCode: initialData.buyerCode || '',
+          email: initialData.email || '',
+          website: initialData.website || '',
+        }
+      : {
+          TransporterNumber: '',
+          name: '',
+          currency: '',
+          address: '',
+          city: '',
+          state: '',
+          zipCode: '',
+          bankName: '',
+          tel: '',
+          ntn: '',
+          mobile: '',
+          stn: '',
+          fax: '',
+          buyerCode: '',
+          email: '',
+          website: '',
+        },
   });
 
   const watchedCity = useWatch({ control, name: 'city' });
 
   const [idFocused, setIdFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' or 'additional'
 
   // Sample data for dropdowns - transform to match AblCustomDropdown requirements
@@ -81,56 +105,73 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     'Quetta', 'Peshawar', 'Islamabad', 'Sialkot', 'Gujranwala', 'Sargodha'
   ].map(city => ({ id: city, name: city }));
 
+  // Generate TransporterNumber for new transporters
   useEffect(() => {
-    if (isEdit) {
-      const fetchTransporter = async () => {
-        setIsLoading(true);
-        const id = window.location.pathname.split('/').pop();
-        if (id) {
-          try {
-            const response = await getAllTransporter(id);
-            const transporter = response.data;
-            if (transporter) {
-              setValue('TransporterNumber', transporter.id || '');
-              setValue('name', transporter.name || '');
-              setValue('currency', transporter.currency || '');
-              setValue('address', transporter.address || '');
-              setValue('city', transporter.city || '');
-              setValue('state', transporter.state || '');
-              setValue('zipCode', transporter.zipCode || '');
-              setValue('bankName', transporter.bankName || '');
-              setValue('tel', transporter.tel || '');
-              setValue('ntn', transporter.ntn || '');
-              setValue('mobile', transporter.mobile || '');
-              setValue('stn', transporter.stn || '');
-              setValue('fax', transporter.fax || '');
-              setValue('buyerCode', transporter.buyerCode || '');
-              setValue('email', transporter.email || '');
-              setValue('website', transporter.website || '');
-            } else {
-              toast.error('Transporter not found');
-              router.push('/transporters');
-            }
-          } catch (error) {
-            console.error('Error fetching transporter:', error);
-            toast.error('Failed to load transporter data');
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      };
-      fetchTransporter();
+    if (!isEdit) {
+      const generatedTransporterNumber = `T${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      setValue('TransporterNumber', generatedTransporterNumber);
     }
-  }, [isEdit, setValue, router]);
+  }, [isEdit, setValue]);
+
+  // Populate form with initialData in edit mode
+  useEffect(() => {
+    if (isEdit && initialData) {
+      reset({
+        TransporterNumber: initialData.TransporterNumber || '',
+        name: initialData.name || '',
+        currency: initialData.currency || '',
+        address: initialData.address || '',
+        city: initialData.city || '',
+        state: initialData.state || '',
+        zipCode: initialData.zipCode || '',
+        bankName: initialData.bankName || '',
+        tel: initialData.tel || '',
+        ntn: initialData.ntn || '',
+        mobile: initialData.mobile || '',
+        stn: initialData.stn || '',
+        fax: initialData.fax || '',
+        buyerCode: initialData.buyerCode || '',
+        email: initialData.email || '',
+        website: initialData.website || '',
+      });
+    }
+  }, [isEdit, initialData, reset]);
 
   const onSubmit = async (data: TransporterFormData) => {
     setIsSubmitting(true);
     try {
+      // Replace with actual user ID logic
+      const payload = {
+        id: isEdit ? initialData?.TransporterNumber || window.location.pathname.split('/').pop() || '' : `T${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        isActive: true,
+        isDeleted: false,
+        // createdDateTime: isEdit ? initialData?.createdDateTime || currentDateTime : currentDateTime,
+        // createdBy: isEdit ? initialData?.createdBy || userId : userId,
+        // modifiedDateTime: currentDateTime,
+        // modifiedBy: userId,
+        transporterNumber: data.TransporterNumber || `T${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        name: data.name || '',
+        currency: data.currency || '',
+        address: data.address || '',
+        city: data.city || '',
+        state: data.state || '',
+        zipCode: data.zipCode || '',
+        bankName: data.bankName || '',
+        tel: data.tel || '',
+        ntn: data.ntn || '',
+        mobile: data.mobile || '',
+        stn: data.stn || '',
+        fax: data.fax || '',
+        buyerCode: data.buyerCode || '',
+        email: data.email || '',
+        website: data.website || '',
+      };
+
       if (isEdit) {
-        await updateTransporter(data.TransporterNumber!, data);
+        await updateTransporter( payload);
         toast.success('Transporter updated successfully!');
       } else {
-        await createTransporter(data);
+        await createTransporter(payload);
         toast.success('Transporter created successfully!');
       }
       router.push('/transporter');
@@ -145,18 +186,6 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">Loading transporter data...</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Main Container */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
@@ -236,10 +265,10 @@ const TransporterForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             {...field}
                             label="ID"
                             type="text"
-                            placeholder="Auto"
+                            placeholder={isEdit ? 'Transporter Number' : 'Auto-generated'}
                             register={register}
                             error={errors.TransporterNumber?.message}
-                            id="id"
+                            id="TransporterNumber"
                             disabled
                           />
                           {idFocused && (

@@ -69,9 +69,14 @@ interface Payment {
 
 // Schema for charges
 const chargesSchema = z.object({
-  ChargeNo: z.string().optional().nullable(),
+  chargeNo: z.string().optional().nullable(),
   chargeDate: z.string().optional().nullable(),
   orderNo: z.string().optional().nullable(),
+  createdBy: z.string().optional().nullable(),
+  creationDate: z.string().optional().nullable(),
+  updatedBy: z.string().optional().nullable(),
+  updationDate: z.string().optional().nullable(),
+  status: z.string().optional().nullable(),
   lines: z.array(z.object({
     charge: z.string().optional(),
     biltyNo: z.string().optional().nullable(),
@@ -116,17 +121,27 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
     resolver: zodResolver(chargesSchema),
     defaultValues: initialData
       ? {
-          ChargeNo: initialData.ChargeNo || '',
+          chargeNo: initialData.chargeNo || '',
           chargeDate: initialData.chargeDate || new Date().toISOString().split('T')[0],
           orderNo: initialData.orderNo || (fromBooking ? orderNoParam : ''),
+          createdBy: initialData.createdBy || '',
+          creationDate: initialData.creationDate || '',
+          updatedBy: initialData.updatedBy || '',
+          updationDate: initialData.updationDate || '',
+          status: initialData.status || '',
           lines: Array.isArray(initialData.lines) ? initialData.lines : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
           payments: Array.isArray(initialData.payments) ? initialData.payments : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }],
           selectedConsignments: Array.isArray(initialData.selectedConsignments) ? initialData.selectedConsignments : [],
         }
       : {
-          ChargeNo: '',
+          chargeNo: '',
           chargeDate: new Date().toISOString().split('T')[0],
           orderNo: fromBooking ? orderNoParam : '',
+          createdBy: '',
+          creationDate: '',
+          updatedBy: '',
+          updationDate: '',
+          status: '',
           lines: [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
           payments: [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }],
           selectedConsignments: [],
@@ -320,30 +335,44 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const updateStatus = (index: number, newStatus: string) => {
     const updatedConsignments = [...consignments];
     updatedConsignments[index].status = newStatus;
-    setConsignments(updatedConsignments);
+    setConsignments(updatedConsignments); 
   };
 
   const onSubmit = async (data: ChargesFormData) => {
     setIsSubmitting(true);
     try {
+      // Build payload to match API spec
       const payload = {
-        ...data,
-        selectedConsignments: data.selectedConsignments,
+        chargeNo: data.chargeNo || '',
+        chargeDate: data.chargeDate || '',
+        orderNo: data.orderNo || '',
+        createdBy: data.createdBy || '',
+        creationDate: data.creationDate || '',
+        updatedBy: data.updatedBy || '',
+        updationDate: data.updationDate || '',
+        status: data.status || '',
+        lines: (data.lines || []).map((line) => ({
+          charge: line.charge || '',
+          biltyNo: line.biltyNo || '',
+          date: line.date || '',
+          vehicle: line.vehicle || '',
+          paidTo: line.paidTo || '',
+          contact: line.contact || '',
+          remarks: line.remarks || '',
+          amount: line.amount || 0,
+        })),
+        payments: (data.payments || []).map((payment) => ({
+          paidAmount: payment.paidAmount || 0,
+          bankCash: payment.bankCash || '',
+          chqNo: payment.chqNo || '',
+          chqDate: payment.chqDate || '',
+          payNo: payment.payNo || '',
+        })),
+        selectedConsignments: data.selectedConsignments || [],
       };
-      let id = window.location.pathname.split('/').pop() || '';
-      if (isEdit && initialData && initialData.ChargeNo) {
-        id = initialData.ChargeNo;
-      }
+      let id = data.chargeNo || '';
       if (isEdit) {
-         const idToUse = orderNoParam || data.ChargeNo || '';
-                if (!idToUse) {
-                  toast.error('Cannot update: missing booking id');
-                  return;
-                }
-          const updateBody = { ...payload, id: idToUse, orderNo: data.ChargeNo || undefined };
-        console.log('[BookingOrderForm] Submitting update', { idToUse, updateBody });
-        // Send id in the payload for update
-        await updateCharges(idToUse, updateBody);
+        await updateCharges(id, payload);
         toast.success('Charges updated successfully!');
       } else {
         await createCharges(payload);

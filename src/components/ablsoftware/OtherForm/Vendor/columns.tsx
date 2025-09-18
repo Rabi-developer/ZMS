@@ -60,7 +60,7 @@ export const columns = (
       const vendorId = row.original.id;
       return (
         <div className='flex gap-2'>
-          <Link href={`/vendors/edit/${vendorId}`}>
+          <Link href={`/vendor/edit/${vendorId}`}>
             <Button variant='outline' size='sm'>
               <Edit className='h-4 w-4' />
             </Button>

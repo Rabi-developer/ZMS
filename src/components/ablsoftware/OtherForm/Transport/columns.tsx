@@ -64,7 +64,7 @@ export const columns = (
       const transporterId = row.original.id;
       return (
         <div className='flex gap-2'>
-          <Link href={`/transporters/edit/${transporterId}`}>
+          <Link href={`/transporter/edit/${transporterId}`}>
             <Button variant='outline' size='sm'>
               <Edit className='h-4 w-4' />
             </Button>

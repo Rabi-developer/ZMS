@@ -6,14 +6,14 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createVendor, updateVendor, getAllVendor } from '@/apis/vendors';
+import { createVendor, updateVendor } from '@/apis/vendors';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdInfo, MdLocationOn, MdPhone, MdEmail, MdBusiness } from 'react-icons/md';
 import { FaMoneyBillWave, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
-import Link from 'next/link'; 
+import Link from 'next/link';
 import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
 // Define the schema for vendor form validation
@@ -26,7 +26,7 @@ const vendorSchema = z.object({
   phone: z.string().optional(),
   mobile: z.string().optional(),
   fax: z.string().optional(),
-  email: z.string().email('').optional(),
+  email: z.string().email('Invalid email address').optional(),
   stn: z.string().optional(),
   ntn: z.string().optional(),
   payableCode: z.string().optional(),
@@ -46,7 +46,20 @@ type LiabilityAccount = {
   paid: string;
 };
 
-const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+interface VendorFormProps {
+  isEdit?: boolean;
+  initialData?: Partial<VendorFormData> & {
+    id?: string;
+    isActive?: boolean;
+    isDeleted?: boolean;
+    createdDateTime?: string;
+    createdBy?: string;
+    modifiedDateTime?: string;
+    modifiedBy?: string;
+  };
+}
+
+const VendorForm = ({ isEdit = false, initialData }: VendorFormProps) => {
   const router = useRouter();
   const {
     control,
@@ -54,37 +67,65 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     handleSubmit,
     formState: { errors },
     setValue,
+    reset,
   } = useForm<VendorFormData>({
     resolver: zodResolver(vendorSchema),
-    defaultValues: {
-      VendorNumber: '',
-      name: '',
-      address: '',
-      country: '',
-      city: '',
-      phone: '',
-      mobile: '',
-      fax: '',
-      email: '',
-      stn: '',
-      ntn: '',
-      payableCode: '',
-    },
+    defaultValues: initialData
+      ? {
+          VendorNumber: initialData.VendorNumber || '',
+          name: initialData.name || '',
+          address: initialData.address || '',
+          country: initialData.country || '',
+          city: initialData.city || '',
+          phone: initialData.phone || '',
+          mobile: initialData.mobile || '',
+          fax: initialData.fax || '',
+          email: initialData.email || '',
+          stn: initialData.stn || '',
+          ntn: initialData.ntn || '',
+          payableCode: initialData.payableCode || '',
+        }
+      : {
+          VendorNumber: '',
+          name: '',
+          address: '',
+          country: '',
+          city: '',
+          phone: '',
+          mobile: '',
+          fax: '',
+          email: '',
+          stn: '',
+          ntn: '',
+          payableCode: '',
+        },
   });
 
   const watchedCity = useWatch({ control, name: 'city' });
 
   const [idFocused, setIdFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic'); // 'basic' or 'additional'
   const [payableAccounts, setPayableAccounts] = useState<{ id: string; name: string }[]>([]);
 
   // Sample data for dropdowns
-  const countries = ['Pakistan', 'United States', 'United Kingdom', 'India'].map(country => ({ id: country, name: country }));
+  const countries = ['Pakistan', 'United States', 'United Kingdom', 'India'].map(country => ({
+    id: country,
+    name: country,
+  }));
   const pakistanCities = [
-    'Karachi', 'Lahore', 'Faisalabad', 'Rawalpindi', 'Multan', 'Hyderabad',
-    'Quetta', 'Peshawar', 'Islamabad', 'Sialkot', 'Gujranwala', 'Sargodha'
+    'Karachi',
+    'Lahore',
+    'Faisalabad',
+    'Rawalpindi',
+    'Multan',
+    'Hyderabad',
+    'Quetta',
+    'Peshawar',
+    'Islamabad',
+    'Sialkot',
+    'Gujranwala',
+    'Sargodha',
   ].map(city => ({ id: city, name: city }));
 
   // Fetch liabilities data for payable accounts
@@ -92,18 +133,14 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     try {
       const response = await getAllAblLiabilities(1, 100); // Get first 100 records
       const liabilitiesData: LiabilityAccount[] = response.data || [];
-      
-      // Transform the data to match AblCustomDropdown requirements
       const transformedAccounts = liabilitiesData.map((liability) => ({
         id: liability.id,
-        name: `${liability.id} - ${liability.description}`
+        name: `${liability.id} - ${liability.description}`,
       }));
-      
       setPayableAccounts(transformedAccounts);
     } catch (error) {
       console.error('Error fetching liabilities:', error);
       toast.error('Failed to load payable accounts');
-      // Set empty array as fallback
       setPayableAccounts([]);
     }
   };
@@ -113,52 +150,65 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     fetchLiabilities();
   }, []);
 
+  // Generate VendorNumber for new vendors
   useEffect(() => {
-    if (isEdit) {
-      const fetchVendor = async () => {
-        setIsLoading(true);
-        const id = window.location.pathname.split('/').pop();
-        if (id) {
-          try {
-            const response = await getAllVendor(id);
-            const vendor = response.data;
-            if (vendor) {
-              setValue('VendorNumber', vendor.id || '');
-              setValue('name', vendor.name || '');
-              setValue('address', vendor.address || '');
-              setValue('country', vendor.country || '');
-              setValue('city', vendor.city || '');
-              setValue('phone', vendor.phone || '');
-              setValue('mobile', vendor.mobile || '');
-              setValue('fax', vendor.fax || '');
-              setValue('email', vendor.email || '');
-              setValue('stn', vendor.stn || '');
-              setValue('ntn', vendor.ntn || '');
-              setValue('payableCode', vendor.payableCode || '');
-            } else {
-              toast.error('Vendor not found');
-              router.push('/vendor');
-            }
-          } catch (error) {
-            console.error('Error fetching vendor:', error);
-            toast.error('Failed to load vendor data');
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      };
-      fetchVendor();
+    if (!isEdit) {
+      const generatedVendorNumber = `V${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      setValue('VendorNumber', generatedVendorNumber);
     }
-  }, [isEdit, setValue, router]);
+  }, [isEdit, setValue]);
+
+  // Populate form with initialData in edit mode
+  useEffect(() => {
+    if (isEdit && initialData) {
+      reset({
+        VendorNumber: initialData.VendorNumber || '',
+        name: initialData.name || '',
+        address: initialData.address || '',
+        country: initialData.country || '',
+        city: initialData.city || '',
+        phone: initialData.phone || '',
+        mobile: initialData.mobile || '',
+        fax: initialData.fax || '',
+        email: initialData.email || '',
+        stn: initialData.stn || '',
+        ntn: initialData.ntn || '',
+        payableCode: initialData.payableCode || '',
+      });
+    }
+  }, [isEdit, initialData, reset]);
 
   const onSubmit = async (data: VendorFormData) => {
     setIsSubmitting(true);
     try {
+      // Replace with actual user ID logic
+      const payload = {
+        id: isEdit ? initialData?.VendorNumber || window.location.pathname.split('/').pop() || '' : `V${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        isActive: true,
+        isDeleted: false,
+        // createdDateTime: isEdit ? initialData?.createdDateTime || currentDateTime : currentDateTime,
+        // createdBy: isEdit ? initialData?.createdBy || userId : userId,
+        // modifiedDateTime: currentDateTime,
+        // modifiedBy: userId,
+        vendorNumber: data.VendorNumber || `V${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        name: data.name || '',
+        address: data.address || '',
+        country: data.country || '',
+        city: data.city || '',
+        phone: data.phone || '',
+        mobile: data.mobile || '',
+        fax: data.fax || '',
+        email: data.email || '',
+        stn: data.stn || '',
+        ntn: data.ntn || '',
+        payableCode: data.payableCode || '',
+      };
+
       if (isEdit) {
-        await updateVendor(data);
+        await updateVendor( payload);
         toast.success('Vendor updated successfully!');
       } else {
-        await createVendor(data);
+        await createVendor(payload);
         toast.success('Vendor created successfully!');
       }
       router.push('/vendor');
@@ -173,18 +223,6 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">Loading vendor data...</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Main Container */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
@@ -253,7 +291,6 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       Vendor Details
                     </h3>
                   </div>
-                  
                   <div className="space-y-5">
                     <Controller
                       name="VendorNumber"
@@ -264,11 +301,13 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             {...field}
                             label="ID"
                             type="text"
-                            placeholder="Auto"
+                            placeholder={isEdit ? 'Vendor Number' : 'Auto-generated'}
                             register={register}
                             error={errors.VendorNumber?.message}
-                            id="id"
+                            id="VendorNumber"
                             disabled
+                            onFocus={() => setIdFocused(true)}
+                            onBlur={() => setIdFocused(false)}
                           />
                           {idFocused && (
                             <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
@@ -278,20 +317,17 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         </div>
                       )}
                     />
-                    
                     <ABLCustomInput
                       label="Vendor Name"
                       type="text"
                       placeholder="Enter vendor name"
-                      register={register} 
+                      register={register}
                       error={errors.name?.message}
                       id="name"
                     />
-                    
-                    
                   </div>
                 </div>
-                
+
                 <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                   <div className="flex items-center gap-2 mb-5">
                     <MdLocationOn className="text-[#3a614c] text-xl" />
@@ -299,13 +335,12 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       Address Information
                     </h3>
                   </div>
-                  
                   <div className="space-y-5">
                     <ABLCustomInput
                       label="Address"
                       type="text"
                       placeholder="Enter complete address"
-                      register={register} 
+                      register={register}
                       error={errors.address?.message}
                       id="address"
                     />
@@ -323,7 +358,6 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         />
                       )}
                     />
-                    
                     <AblCustomDropdown
                       label="City"
                       options={pakistanCities}
@@ -332,11 +366,9 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       error={errors.city?.message}
                       register={register}
                     />
-                    
-                   
                   </div>
                 </div>
-                
+
                 <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                   <div className="flex items-center gap-2 mb-5">
                     <MdPhone className="text-[#3a614c] text-xl" />
@@ -344,31 +376,28 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       Contact Information
                     </h3>
                   </div>
-                  
                   <div className="space-y-5">
                     <ABLCustomInput
                       label="Phone"
                       type="tel"
                       placeholder="Phone number"
-                      register={register} 
+                      register={register}
                       error={errors.phone?.message}
                       id="phone"
                     />
-                    
                     <ABLCustomInput
                       label="Mobile"
                       type="tel"
                       placeholder="Mobile number"
-                      register={register} 
+                      register={register}
                       error={errors.mobile?.message}
                       id="mobile"
                     />
-                    
                     <ABLCustomInput
                       label="Email"
                       type="email"
                       placeholder="Enter email address"
-                      register={register} 
+                      register={register}
                       error={errors.email?.message}
                       id="email"
                     />
@@ -376,7 +405,7 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 </div>
               </div>
             )}
-            
+
             {activeTab === 'additional' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Additional Information */}
@@ -387,28 +416,26 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       Tax Information
                     </h3>
                   </div>
-                  
                   <div className="space-y-5">
                     <ABLCustomInput
                       label="NTN"
                       type="text"
                       placeholder="Tax number"
-                      register={register} 
+                      register={register}
                       error={errors.ntn?.message}
                       id="ntn"
                     />
-                    
                     <ABLCustomInput
                       label="STN"
                       type="text"
                       placeholder="Sales tax"
-                      register={register} 
+                      register={register}
                       error={errors.stn?.message}
                       id="stn"
                     />
                   </div>
                 </div>
-                
+
                 <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                   <div className="flex items-center gap-2 mb-5">
                     <FaIdCard className="text-[#3a614c] text-xl" />
@@ -416,17 +443,16 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       Other Details
                     </h3>
                   </div>
-                  
                   <div className="space-y-5">
                     <ABLCustomInput
                       label="Fax"
                       type="text"
                       placeholder="Fax number"
-                      register={register} 
+                      register={register}
                       error={errors.fax?.message}
                       id="fax"
                     />
-                     <Controller
+                    <Controller
                       name="payableCode"
                       control={control}
                       render={({ field }) => (
@@ -469,7 +495,7 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
           </form>
         </div>
-        
+
         {/* Form Navigation Card */}
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -477,7 +503,10 @@ const VendorForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               <MdInfo className="text-[#3a614c]" />
               <span className="text-sm">Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/vendor" className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors">
+            <Link
+              href="/vendor"
+              className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors"
+            >
               Back to Vendors List
             </Link>
           </div>

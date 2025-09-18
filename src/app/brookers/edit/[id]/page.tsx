@@ -1,14 +1,41 @@
-"use client";
+'use client'
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { getSingleBrooker} from '@/apis/brooker';
+import Loader from '@/components/ui/Loader';
 import MainLayout from '@/components/MainLayout/MainLayout'
-import BookingOrderForm from '@/components/ablsoftware/Maintance/BookingOrder.tsx/BookingOrder';
-import MunshyanaForm from '@/components/ablsoftware/OtherForm/Munshyana/Munshyana';
-const ABL = () => {
+import BrookerForm from '@/components/ablsoftware/OtherForm/Brookers/Brookers';
 
-    return (
-        <MainLayout activeInterface="ABL">
-              <MunshyanaForm isEdit={true} />
-        </MainLayout>
-    )
-}
+const UpdateBrooker = () => {
+  const { id } = useParams<{ id: string }>(); 
+  const [initialData, setInitialData] = useState(null);
 
-export default ABL
+  const fetchBrooker = async (id: string) => {
+    try {
+      const response = await getSingleBrooker(id);
+      console.log(response)
+      setInitialData(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      fetchBrooker(id);
+    }
+  }, [id]);
+
+  return (
+    <MainLayout activeInterface="ABL">
+      {
+        !initialData ? <Loader /> :
+          <div>
+            <BrookerForm isEdit={true} initialData={initialData} />
+          </div>
+      }
+    </MainLayout>
+  );
+};
+
+export default UpdateBrooker;

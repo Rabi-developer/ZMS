@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createMunshyana, updateMunshyana, getSingleMunshyana, getAllMunshyana } from '@/apis/munshyana';
+import { createMunshyana, updateMunshyana } from '@/apis/munshyana';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
 import { getAllAblRevenue } from '@/apis/ablRevenue';
 import { toast } from 'react-toastify';
@@ -39,7 +39,20 @@ type Account = {
   paid: string;
 };
 
-const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+interface MunshyanaFormProps {
+  isEdit?: boolean;
+  initialData?: Partial<MunshyanaFormData> & {
+    id?: string;
+    isActive?: boolean;
+    isDeleted?: boolean;
+    createdDateTime?: string;
+    createdBy?: string;
+    modifiedDateTime?: string;
+    modifiedBy?: string;
+  };
+}
+
+const MunshyanaForm = ({ isEdit = false, initialData }: MunshyanaFormProps) => {
   const router = useRouter();
   const {
     control,
@@ -48,22 +61,31 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     formState: { errors },
     setValue,
     watch,
+    reset,
   } = useForm<MunshyanaFormData>({
     resolver: zodResolver(munshyanaSchema),
-    defaultValues: {
-      MunshyanaNumber: '',
-      chargesDesc: '',
-      chargesType: undefined,
-      accountId: '',
-      description: '',
-    },
+    defaultValues: initialData
+      ? {
+          MunshyanaNumber: initialData.MunshyanaNumber || '',
+          chargesDesc: initialData.chargesDesc || '',
+          chargesType: initialData.chargesType || undefined,
+          accountId: initialData.accountId || '',
+          description: initialData.description || '',
+        }
+      : {
+          MunshyanaNumber: '',
+          chargesDesc: '',
+          chargesType: undefined,
+          accountId: '',
+          description: '',
+        },
   });
 
+  const [idFocused, setIdFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
-  
+
   // Watch the chargesType field to trigger account fetching
   const selectedChargesType = watch('chargesType');
 
@@ -78,13 +100,11 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     try {
       setLoadingAccounts(true);
       let response;
-      
       if (chargesType === 'Payable') {
-        response = await getAllAblLiabilities(1, 100); // Fetch more records
+        response = await getAllAblLiabilities(1, 100);
       } else {
-        response = await getAllAblRevenue(1, 100); // Fetch more records
+        response = await getAllAblRevenue(1, 100);
       }
-      
       setAccounts(response.data || []);
     } catch (error) {
       console.error('Error fetching accounts:', error);
@@ -95,22 +115,44 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     }
   };
 
+  // Generate MunshyanaNumber for new munshyana
+  useEffect(() => {
+    if (!isEdit) {
+      const generatedMunshyanaNumber = `M${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      setValue('MunshyanaNumber', generatedMunshyanaNumber);
+    }
+  }, [isEdit, setValue]);
+
+  // Populate form with initialData in edit mode
+  useEffect(() => {
+    if (isEdit && initialData) {
+      reset({
+        MunshyanaNumber: initialData.MunshyanaNumber || '',
+        chargesDesc: initialData.chargesDesc || '',
+        chargesType: initialData.chargesType || undefined,
+        accountId: initialData.accountId || '',
+        description: initialData.description || '',
+      });
+      // Fetch accounts for the selected charges type
+      if (initialData.chargesType) {
+        fetchAccounts(initialData.chargesType);
+      }
+    }
+  }, [isEdit, initialData, reset]);
+
   // Effect to fetch accounts when charges type changes
   useEffect(() => {
-    if (selectedChargesType) {
+    if (selectedChargesType && (!isEdit || (isEdit && initialData?.chargesType !== selectedChargesType))) {
       fetchAccounts(selectedChargesType);
-      // Clear account selection when charges type changes
       setValue('accountId', '');
       setValue('description', '');
-    } else {
-      setAccounts([]);
     }
-  }, [selectedChargesType, setValue]);
+  }, [selectedChargesType, setValue, isEdit, initialData]);
 
   // Create dropdown options from accounts
   const accountOptions = accounts.map(account => ({
     id: account.id,
-    name: `${account.id} - ${account.description}`
+    name: `${account.id} - ${account.description}`,
   }));
 
   // Handle account selection
@@ -122,50 +164,29 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     }
   };
 
-  useEffect(() => {
-    if (isEdit) {
-      const fetchMunshyana = async () => {
-        setIsLoading(true);
-        const id = window.location.pathname.split('/').pop();
-        if (id) {
-          try {
-            const response = await getAllMunshyana(id);
-            const munshyana = response.data;
-            if (munshyana) {
-              setValue('MunshyanaNumber', munshyana.id || '');
-              setValue('chargesDesc', munshyana.chargesDesc || '');
-              setValue('chargesType', munshyana.chargesType || undefined);
-              setValue('accountId', munshyana.accountId || '');
-              setValue('description', munshyana.description || '');
-              
-              // Fetch accounts for the selected charges type
-              if (munshyana.chargesType) {
-                await fetchAccounts(munshyana.chargesType);
-              }
-            } else {
-              toast.error('Munshyana not found');
-              router.push('/munshyana');
-            }
-          } catch (error) {
-            console.error('Error fetching munshyana:', error);
-            toast.error('Failed to load munshyana data');
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      };
-      fetchMunshyana();
-    }
-  }, [isEdit, setValue, router]);
-
   const onSubmit = async (data: MunshyanaFormData) => {
     setIsSubmitting(true);
     try {
+       // Replace with actual user ID logic
+      const payload = {
+        id: isEdit
+          ? initialData?.MunshyanaNumber || window.location.pathname.split('/').pop() || ''
+          : `M${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        isActive: true,
+        isDeleted: false,
+     
+        munshyanaNumber: data.MunshyanaNumber || `M${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        chargesDesc: data.chargesDesc || '',
+        chargesType: data.chargesType,
+        accountId: data.accountId || '',
+        description: data.description || '',
+      };
+
       if (isEdit) {
-        await updateMunshyana(data.MunshyanaNumber!, data);
+        await updateMunshyana(payload);
         toast.success('Munshyana updated successfully!');
       } else {
-        await createMunshyana(data);
+        await createMunshyana(payload);
         toast.success('Munshyana created successfully!');
       }
       router.push('/munshyana');
@@ -180,18 +201,6 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">Loading munshyana data...</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Main Container */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
@@ -232,25 +241,32 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     Munshyana Details
                   </h3>
                 </div>
-                
                 <div className="space-y-5">
                   <Controller
                     name="MunshyanaNumber"
                     control={control}
                     render={({ field }) => (
-                      <ABLCustomInput
-                        {...field}
-                        label="ID"
-                        type="text"
-                        placeholder="Auto"
-                        register={register}
-                        error={errors.MunshyanaNumber?.message}
-                        id="id"
-                        disabled
-                      />
+                      <div className="relative">
+                        <ABLCustomInput
+                          {...field}
+                          label="ID"
+                          type="text"
+                          placeholder={isEdit ? 'Munshyana Number' : 'Auto-generated'}
+                          register={register}
+                          error={errors.MunshyanaNumber?.message}
+                          id="MunshyanaNumber"
+                          disabled
+                          onFocus={() => setIdFocused(true)}
+                          onBlur={() => setIdFocused(false)}
+                        />
+                        {idFocused && (
+                          <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
+                            Auto-generated
+                          </div>
+                        )}
+                      </div>
                     )}
                   />
-                  
                   <ABLCustomInput
                     label="Charges Description"
                     type="text"
@@ -259,7 +275,6 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     error={errors.chargesDesc?.message}
                     id="chargesDesc"
                   />
-                  
                   <Controller
                     name="chargesType"
                     control={control}
@@ -274,7 +289,6 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       />
                     )}
                   />
-                  
                   {selectedChargesType && (
                     <div className="space-y-2">
                       {loadingAccounts && (
@@ -308,7 +322,6 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       )}
                     </div>
                   )}
-                  
                   {!selectedChargesType && (
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <p className="text-sm text-blue-700">
@@ -316,9 +329,8 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       </p>
                     </div>
                   )}
-                  
                   <ABLCustomInput
-                    label=""
+                    label="Description"
                     type="text"
                     placeholder="Description will be auto-filled"
                     register={register}
@@ -354,7 +366,7 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
           </form>
         </div>
-        
+
         {/* Form Navigation Card */}
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -362,7 +374,10 @@ const MunshyanaForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               <MdDescription className="text-[#3a614c]" />
               <span className="text-sm">Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/munshyana" className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors">
+            <Link
+              href="/munshyana"
+              className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors"
+            >
               Back to Munshyana List
             </Link>
           </div>

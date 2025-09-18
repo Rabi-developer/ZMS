@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
-import { createBrooker, updateBrooker, getAllBrooker } from '@/apis/brooker';
+import { createBrooker, updateBrooker } from '@/apis/brooker';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdAddBusiness, MdLocationOn, MdPhone } from 'react-icons/md';
@@ -14,7 +14,7 @@ import Link from 'next/link';
 
 // Define the schema for brooker form validation
 const brookerSchema = z.object({
-  BrookerNumber : z.string().optional(),
+  BrookerNumber: z.string().optional(),
   name: z.string().min(1, 'Brooker Name is required'),
   mobile: z.string().optional(),
   address: z.string().optional(),
@@ -22,7 +22,20 @@ const brookerSchema = z.object({
 
 type BrookerFormData = z.infer<typeof brookerSchema>;
 
-const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+interface BrookerFormProps {
+  isEdit?: boolean;
+  initialData?: Partial<BrookerFormData> & {
+    id?: string;
+    isActive?: boolean;
+    isDeleted?: boolean;
+    createdDateTime?: string;
+    createdBy?: string;
+    modifiedDateTime?: string;
+    modifiedBy?: string;
+  };
+}
+
+const BrookerForm = ({ isEdit = false, initialData }: BrookerFormProps) => {
   const router = useRouter();
   const {
     control,
@@ -30,57 +43,67 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     handleSubmit,
     formState: { errors },
     setValue,
+    reset,
   } = useForm<BrookerFormData>({
     resolver: zodResolver(brookerSchema),
-    defaultValues: {
-      BrookerNumber: '',
-      name: '',
-      mobile: '',
-      address: '',
-    },
+    defaultValues: initialData
+      ? {
+          BrookerNumber: initialData.BrookerNumber || '',
+          name: initialData.name || '',
+          mobile: initialData.mobile || '',
+          address: initialData.address || '',
+        }
+      : {
+          BrookerNumber: '',
+          name: '',
+          mobile: '',
+          address: '',
+        },
   });
 
+  const [idFocused, setIdFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
+  // Generate BrookerNumber for new brookers
   useEffect(() => {
-    if (isEdit) {
-      const fetchBrooker = async () => {
-        setIsLoading(true);
-        const id = window.location.pathname.split('/').pop();
-        if (id) {
-          try {
-            const response = await getAllBrooker(id);
-            const brooker = response.data;
-            if (brooker) {
-              setValue('BrookerNumber', brooker.id || '');
-              setValue('name', brooker.name || '');
-              setValue('mobile', brooker.mobile || '');
-              setValue('address', brooker.address || '');
-            } else {
-              toast.error('Brooker not found');
-              router.push('/brookers');
-            }
-          } catch (error) {
-            console.error('Error fetching brooker:', error);
-            toast.error('Failed to load brooker data');
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      };
-      fetchBrooker();
+    if (!isEdit) {
+      const generatedBrookerNumber = `B${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      setValue('BrookerNumber', generatedBrookerNumber);
     }
-  }, [isEdit, setValue, router]);
+  }, [isEdit, setValue]);
+
+  // Populate form with initialData in edit mode
+  useEffect(() => {
+    if (isEdit && initialData) {
+      reset({
+        BrookerNumber: initialData.BrookerNumber || '',
+        name: initialData.name || '',
+        mobile: initialData.mobile || '',
+        address: initialData.address || '',
+      });
+    }
+  }, [isEdit, initialData, reset]);
 
   const onSubmit = async (data: BrookerFormData) => {
     setIsSubmitting(true);
     try {
+      // Replace with actual user ID logic
+      const payload = {
+        id: isEdit ? initialData?.BrookerNumber || window.location.pathname.split('/').pop() || '' : `B${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        isActive: true,
+        isDeleted: false,
+      
+        brookerNumber: data.BrookerNumber || `B${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        name: data.name || '',
+        mobile: data.mobile || '',
+        address: data.address || '',
+      };
+
       if (isEdit) {
-        await updateBrooker(data.BrookerNumber!, data);
+        await updateBrooker( payload);
         toast.success('Brooker updated successfully!');
       } else {
-        await createBrooker(data);
+        await createBrooker(payload);
         toast.success('Brooker created successfully!');
       }
       router.push('/brookers');
@@ -95,18 +118,6 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-gray-700 dark:text-gray-300 font-medium">Loading brooker data...</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Main Container */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
@@ -147,25 +158,32 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     Brooker Details
                   </h3>
                 </div>
-                
                 <div className="space-y-5">
                   <Controller
                     name="BrookerNumber"
                     control={control}
                     render={({ field }) => (
-                      <ABLCustomInput
-                        {...field}
-                        label="ID"
-                        type="text"
-                        placeholder="Auto"
-                        register={register}
-                        error={errors.BrookerNumber?.message}
-                        id="id"
-                        disabled
-                      />
+                      <div className="relative">
+                        <ABLCustomInput
+                          {...field}
+                          label="ID"
+                          type="text"
+                          placeholder={isEdit ? 'Brooker Number' : 'Auto-generated'}
+                          register={register}
+                          error={errors.BrookerNumber?.message}
+                          id="BrookerNumber"
+                          disabled
+                          onFocus={() => setIdFocused(true)}
+                          onBlur={() => setIdFocused(false)}
+                        />
+                        {idFocused && (
+                          <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
+                            Auto-generated
+                          </div>
+                        )}
+                      </div>
                     )}
                   />
-                  
                   <ABLCustomInput
                     label="Brooker Name"
                     type="text"
@@ -174,7 +192,6 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     error={errors.name?.message}
                     id="name"
                   />
-                  
                   <ABLCustomInput
                     label="Mobile Number"
                     type="tel"
@@ -183,7 +200,6 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     error={errors.mobile?.message}
                     id="mobile"
                   />
-                  
                   <ABLCustomInput
                     label="Address"
                     type="text"
@@ -220,7 +236,7 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
           </form>
         </div>
-        
+
         {/* Form Navigation Card */}
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">
@@ -228,7 +244,10 @@ const BrookerForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               <MdAddBusiness className="text-[#3a614c]" />
               <span className="text-sm">Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/brookers" className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors">
+            <Link
+              href="/brookers"
+              className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors"
+            >
               Back to Brookers List
             </Link>
           </div>
