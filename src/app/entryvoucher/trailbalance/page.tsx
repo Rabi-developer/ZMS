@@ -971,7 +971,7 @@ const TrialBalancePage: React.FC = () => {
           <div className="px-4 py-3 flex  justify-between border-b border-gray-200 dark:border-blue-900 bg-blue-100 dark:bg-blue-950">
             <h2 className="text-base font-semibold text-blue-900 dark:text-blue-200">{COMPANY_NAME}</h2>
             <div className="text-xs text-blue-700 dark:text-blue-300">{titleLine}</div>
-          </div>
+          </div>  
           {loading ? (
             <div className="px-4 py-6 text-center text-blue-600 dark:text-blue-300">Loading...</div>
           ) : groups.length === 0 ? (

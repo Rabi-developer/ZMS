@@ -2815,11 +2815,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
               </div>
 
             
-            {activeContractType === null && (
-  <p className="text-center text-gray-500 dark:text-gray-300 mt-2">
-    Select a contract type to begin.
-  </p>
-)}
+               {activeContractType === null && (
+               <p className="text-center text-gray-500 dark:text-gray-300 mt-2">
+                Select a contract type to begin.
+               </p>
+               )}
 
               {activeContractType === 'Conversion' && (
                 <div className="mt-6">

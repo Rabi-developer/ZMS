@@ -1,10 +1,14 @@
-import React from 'react';
+"use client";
+import MainLayout from '@/components/MainLayout/MainLayout'
+import BookingOrderForm from '@/components/ablsoftware/Maintance/BookingOrder.tsx/BookingOrder';
+import VendorForm from '@/components/ablsoftware/OtherForm/Vendor/Vendor';
+const ABL = () => {
 
-export default function VendorEditPage() {
-  return (
-    <div>
-      <h1>Vendor Edit Page</h1>
-      <p>This page is under construction.</p>
-    </div>
-  );
+    return (
+        <MainLayout activeInterface="ABL">
+              <VendorForm isEdit={true} />
+        </MainLayout>
+    )
 }
+
+export default ABL

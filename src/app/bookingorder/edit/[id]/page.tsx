@@ -1,12 +1,11 @@
 "use client";
 import MainLayout from '@/components/MainLayout/MainLayout'
 import BookingOrderForm from '@/components/ablsoftware/Maintance/BookingOrder.tsx/BookingOrder';
-import SalesTaxesForm from '@/components/ablsoftware/OtherForm/SaleTexes/SaleTexes';
 const ABL = () => {
 
     return (
         <MainLayout activeInterface="ABL">
-              <SalesTaxesForm isEdit={true} />
+              <BookingOrderForm isEdit={true} />
         </MainLayout>
     )
 }
