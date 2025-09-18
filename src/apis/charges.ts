@@ -59,9 +59,11 @@ const getSingleCharges  = async (id: string) => {
   }
 };
 
-const updateCharges = async (Charges: any, data?: any) => {
+// Charges-update: expects id as first argument, payload as second
+const updateCharges = async (id: string, Charges: any) => {
   try {
-    const response = await apiFetch(`Charges`, {
+    if (!id) throw new Error('updateCharges: id is required');
+    const response = await apiFetch(`Charges/${id}`, {
       method: 'PUT',
       headers: {},
       body: JSON.stringify(Charges),

@@ -51,7 +51,12 @@ type LiabilityAccount = {
   paid: string;
 };
 
-const PartyForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+interface PartyFormProps {
+  isEdit?: boolean;
+  initialData?: Partial<PartyFormData>;
+}
+
+const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
   const router = useRouter();
   const {
     control,
@@ -61,25 +66,45 @@ const PartyForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setValue,
   } = useForm<PartyFormData>({
     resolver: zodResolver(partySchema),
-    defaultValues: {
-      PartyNumber: '',
-      name: '',
-      currency: '',
-      address: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      bankName: '',
-      tel: '',
-      ntn: '',
-      mobile: '',
-      stn: '',
-      fax: '',
-      buyerCode: '',
-      email: '',
-      website: '',
-      receivableAccount: '',
-    },
+    defaultValues: initialData
+      ? {
+          PartyNumber: initialData.PartyNumber || '',
+          name: initialData.name || '',
+          currency: initialData.currency || '',
+          address: initialData.address || '',
+          city: initialData.city || '',
+          state: initialData.state || '',
+          zipCode: initialData.zipCode || '',
+          bankName: initialData.bankName || '',
+          tel: initialData.tel || '',
+          ntn: initialData.ntn || '',
+          mobile: initialData.mobile || '',
+          stn: initialData.stn || '',
+          fax: initialData.fax || '',
+          buyerCode: initialData.buyerCode || '',
+          email: initialData.email || '',
+          website: initialData.website || '',
+          receivableAccount: initialData.receivableAccount || '',
+        }
+      : {
+          PartyNumber: '',
+          name: '',
+          currency: '',
+          address: '',
+          city: '',
+          state: '',
+          zipCode: '',
+          bankName: '',
+          tel: '',
+          ntn: '',
+          mobile: '',
+          stn: '',
+          fax: '',
+          buyerCode: '',
+          email: '',
+          website: '',
+          receivableAccount: '',
+        },
   });
 
   const watchedCity = useWatch({ control, name: 'city' });
@@ -124,45 +149,24 @@ const PartyForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   }, []);
 
   useEffect(() => {
-    if (isEdit) {
-      const fetchParty = async () => {
-        setIsLoading(true);
-        const id = window.location.pathname.split('/').pop();
-        if (id) {
-          try {
-            const response = await getAllPartys(id);
-            const party = response.data;
-            if (party) {
-              setValue('PartyNumber', party.id || '');
-              setValue('name', party.name || '');
-              setValue('currency', party.currency || '');
-              setValue('address', party.address || '');
-              setValue('city', party.city || '');
-              setValue('state', party.state || '');
-              setValue('zipCode', party.zipCode || '');
-              setValue('bankName', party.bankName || '');
-              setValue('tel', party.tel || '');
-              setValue('ntn', party.ntn || '');
-              setValue('mobile', party.mobile || '');
-              setValue('stn', party.stn || '');
-              setValue('fax', party.fax || '');
-              setValue('buyerCode', party.buyerCode || '');
-              setValue('email', party.email || '');
-              setValue('website', party.website || '');
-              setValue('receivableAccount', party.receivableAccount || '');
-            } else {
-              toast.error('Party not found');
-              router.push('/party');
-            }
-          } catch (error) {
-            console.error('Error fetching party:', error);
-            toast.error('Failed to load party data');
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      };
-      fetchParty();
+    if (isEdit && initialData) {
+      setValue('PartyNumber', initialData.PartyNumber || '');
+      setValue('name', initialData.name || '');
+      setValue('currency', initialData.currency || '');
+      setValue('address', initialData.address || '');
+      setValue('city', initialData.city || '');
+      setValue('state', initialData.state || '');
+      setValue('zipCode', initialData.zipCode || '');
+      setValue('bankName', initialData.bankName || '');
+      setValue('tel', initialData.tel || '');
+      setValue('ntn', initialData.ntn || '');
+      setValue('mobile', initialData.mobile || '');
+      setValue('stn', initialData.stn || '');
+      setValue('fax', initialData.fax || '');
+      setValue('buyerCode', initialData.buyerCode || '');
+      setValue('email', initialData.email || '');
+      setValue('website', initialData.website || '');
+      setValue('receivableAccount', initialData.receivableAccount || '');
     }
   }, [isEdit, setValue, router]);
 
@@ -179,7 +183,8 @@ const PartyForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       if (isEdit) {
-        await updateParty(data.PartyNumber!, data);
+        // Send actual id in payload for update
+        await updateParty(data.PartyNumber!, { ...data, id: data.PartyNumber });
         toast.success('Party updated successfully!');
       } else {
         // For new parties, generate a unique PartyNumber

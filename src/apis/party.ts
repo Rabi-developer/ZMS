@@ -44,9 +44,10 @@ const getSingleParty = async (id: string) => {
 };
 
 // Update Party
+// Update Party
 const updateParty = async (id: string, Party: any) => {
   try {
-    const response = await apiFetch(`Party`, {
+    const response = await apiFetch(`Party/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -62,7 +63,7 @@ const updateParty = async (id: string, Party: any) => {
 // Delete Party
 const deleteParty = async (id: string) => {
   try {
-    const response = await apiFetch(`Party/${id}`, {
+    const response = await apiFetch(`Party`, {
       method: 'DELETE',
       headers: {},
     }, true);

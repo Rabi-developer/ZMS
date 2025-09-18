@@ -69,32 +69,37 @@ interface Payment {
 
 // Schema for charges
 const chargesSchema = z.object({
-  ChargeNo: z.string().optional(),
-  chargeDate: z.string().optional(),
-  orderNo: z.string().optional(),
+  ChargeNo: z.string().optional().nullable(),
+  chargeDate: z.string().optional().nullable(),
+  orderNo: z.string().optional().nullable(),
   lines: z.array(z.object({
     charge: z.string().optional(),
-    biltyNo: z.string().optional(),
-    date: z.string().optional(),
-    vehicle: z.string().optional(),
+    biltyNo: z.string().optional().nullable(),
+    date: z.string().optional().nullable(),
+    vehicle: z.string().optional().nullable(),
     paidTo: z.string().optional(),
-    contact: z.string().optional(),
-    remarks: z.string().optional(),
-    amount: z.number().optional(),
+    contact: z.string().optional().nullable(),
+    remarks: z.string().optional().nullable(),
+    amount: z.number().optional().nullable(),
   })),
   payments: z.array(z.object({
-    paidAmount: z.number().optional(),
+    paidAmount: z.number().optional().nullable(),
     bankCash: z.string().optional(),
-    chqNo: z.string().optional(),
-    chqDate: z.string().optional(),
-    payNo: z.string().optional(),
+    chqNo: z.string().optional().nullable(),
+    chqDate: z.string().optional().nullable(),
+    payNo: z.string().optional().nullable(),
   })),
   selectedConsignments: z.array(z.string()).optional().nullable(),
 });
 
 type ChargesFormData = z.infer<typeof chargesSchema>;
 
-const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+interface ChargesFormProps {
+  isEdit?: boolean;
+  initialData?: Partial<ChargesFormData>;
+}
+
+const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromBooking = searchParams.get('fromBooking') === 'true';
@@ -109,14 +114,23 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     getValues,
   } = useForm<ChargesFormData>({
     resolver: zodResolver(chargesSchema),
-    defaultValues: {
-      ChargeNo: '',
-      chargeDate: new Date().toISOString().split('T')[0],
-      orderNo: fromBooking ? orderNoParam : '',
-      lines: [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
-      payments: [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }],
-      selectedConsignments: [],
-    },
+    defaultValues: initialData
+      ? {
+          ChargeNo: initialData.ChargeNo || '',
+          chargeDate: initialData.chargeDate || new Date().toISOString().split('T')[0],
+          orderNo: initialData.orderNo || (fromBooking ? orderNoParam : ''),
+          lines: Array.isArray(initialData.lines) ? initialData.lines : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
+          payments: Array.isArray(initialData.payments) ? initialData.payments : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }],
+          selectedConsignments: Array.isArray(initialData.selectedConsignments) ? initialData.selectedConsignments : [],
+        }
+      : {
+          ChargeNo: '',
+          chargeDate: new Date().toISOString().split('T')[0],
+          orderNo: fromBooking ? orderNoParam : '',
+          lines: [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
+          payments: [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }],
+          selectedConsignments: [],
+        },
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,7 +143,7 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [selectedLineIndex, setSelectedLineIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tempSelectedConsignments, setTempSelectedConsignments] = useState<string[]>([]);
-  const [selectedConsignments, setSelectedConsignments] = useState<string[]>([]);
+  // Remove local selectedConsignments state, use react-hook-form only
   const [searchTerm, setSearchTerm] = useState('');
   const lines = watch('lines');
   const payments = watch('payments');
@@ -206,7 +220,6 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const bookingConsignments = consRes.data || [];
             setConsignments([...consRes.data, ...bookingConsignments]);
             const selectedBiltyNos = bookingConsignments.map((c: Consignment) => c.biltyNo);
-            setSelectedConsignments(selectedBiltyNos);
             setValue('selectedConsignments', selectedBiltyNos);
             setTempSelectedConsignments(selectedBiltyNos);
           } catch (e) {
@@ -214,30 +227,24 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           }
         }
 
-        if (isEdit) {
-          const id = window.location.pathname.split('/').pop();
-          if (id) {
-            try {
-              const response = await getAllCharges(id);
-              const charges = response.data;
-              Object.keys(charges).forEach((key) =>
-                setValue(key as keyof ChargesFormData, charges[key])
-              );
-              // Fetch consignments associated with this charge
-              try {
-                const consRes = await getAllConsignment(1, 10, { chargeNo: charges.ChargeNo || id });
-                const relatedConsignments = consRes.data || [];
-                setConsignments([...consRes.data, ...relatedConsignments]);
-                const selectedBiltyNos = relatedConsignments.map((c: Consignment) => c.biltyNo);
-                setSelectedConsignments(selectedBiltyNos);
-                setValue('selectedConsignments', selectedBiltyNos);
-                setTempSelectedConsignments(selectedBiltyNos);
-              } catch (e) {
-                console.warn('Failed to fetch related consignments', e);
-              }
-            } catch (error) {
-              toast.error('Failed to load charges data');
-            }
+        if (isEdit && initialData) {
+          setValue('ChargeNo', initialData.ChargeNo || '');
+          setValue('chargeDate', initialData.chargeDate || '');
+          setValue('orderNo', initialData.orderNo || '');
+          setValue('lines', Array.isArray(initialData.lines) ? initialData.lines : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }]);
+          setValue('payments', Array.isArray(initialData.payments) ? initialData.payments : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }]);
+          setValue('selectedConsignments', Array.isArray(initialData.selectedConsignments) ? initialData.selectedConsignments : []);
+          setTempSelectedConsignments(Array.isArray(initialData.selectedConsignments) ? initialData.selectedConsignments : []);
+          // Fetch consignments associated with this charge
+          try {
+            const consRes = await getAllConsignment(1, 10, { chargeNo: initialData.ChargeNo });
+            const relatedConsignments = consRes.data || [];
+            setConsignments([...consRes.data, ...relatedConsignments]);
+            const selectedBiltyNos = relatedConsignments.map((c: Consignment) => c.biltyNo);
+            setValue('selectedConsignments', selectedBiltyNos);
+            setTempSelectedConsignments(selectedBiltyNos);
+          } catch (e) {
+            console.warn('Failed to fetch related consignments', e);
           }
         }
       } catch (error) {
@@ -306,9 +313,8 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   };
 
   const handleSaveConsignments = () => {
-    setSelectedConsignments(tempSelectedConsignments);
-    setValue('selectedConsignments', tempSelectedConsignments, { shouldValidate: true });
-    setIsModalOpen(false);
+  setValue('selectedConsignments', tempSelectedConsignments, { shouldValidate: true });
+  setIsModalOpen(false);
   };
 
   const updateStatus = (index: number, newStatus: string) => {
@@ -322,12 +328,22 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     try {
       const payload = {
         ...data,
-        orderNo: data.orderNo || orderNoParam || '',
-        selectedConsignments,
+        selectedConsignments: data.selectedConsignments,
       };
+      let id = window.location.pathname.split('/').pop() || '';
+      if (isEdit && initialData && initialData.ChargeNo) {
+        id = initialData.ChargeNo;
+      }
       if (isEdit) {
-        // Always send ChargeNo in payload for update
-        await updateCharges({ ...payload, ChargeNo: data.ChargeNo || payload.ChargeNo });
+         const idToUse = orderNoParam || data.ChargeNo || '';
+                if (!idToUse) {
+                  toast.error('Cannot update: missing booking id');
+                  return;
+                }
+          const updateBody = { ...payload, id: idToUse, orderNo: data.ChargeNo || undefined };
+        console.log('[BookingOrderForm] Submitting update', { idToUse, updateBody });
+        // Send id in the payload for update
+        await updateCharges(idToUse, updateBody);
         toast.success('Charges updated successfully!');
       } else {
         await createCharges(payload);
@@ -1057,11 +1073,11 @@ const ChargesForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               <div className="flex justify-end gap-4 mt-4">
                 <Button
                   variant="secondary"
-                  onClick={() => {
-                    setTempSelectedConsignments(selectedConsignments);
-                    setSearchTerm('');
-                    setIsModalOpen(false);
-                  }}
+                    onClick={() => {
+                      setTempSelectedConsignments(watch('selectedConsignments') || []);
+                      setSearchTerm('');
+                      setIsModalOpen(false);
+                    }}
                 >
                   Cancel
                 </Button>

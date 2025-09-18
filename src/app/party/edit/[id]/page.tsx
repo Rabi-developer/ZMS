@@ -1,14 +1,41 @@
-"use client";
+'use client'
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { getSingleParty} from '@/apis/party';
+import Loader from '@/components/ui/Loader';
 import MainLayout from '@/components/MainLayout/MainLayout'
-import BookingOrderForm from '@/components/ablsoftware/Maintance/BookingOrder.tsx/BookingOrder';
 import PartyForm from '@/components/ablsoftware/OtherForm/Party/Party';
-const ABL = () => {
 
-    return (
-        <MainLayout activeInterface="ABL">
-              <PartyForm isEdit={true} />
-        </MainLayout>
-    )
-}
+const UpdateParty = () => {
+  const { id } = useParams<{ id: string }>(); 
+  const [initialData, setInitialData] = useState(null);
 
-export default ABL
+  const fetchParty = async (id: string) => {
+    try {
+      const response = await getSingleParty(id);
+      console.log(response)
+      setInitialData(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    if (id) {
+      fetchParty(id);
+    }
+  }, [id]);
+
+  return (
+    <MainLayout activeInterface="ABL">
+      {
+        !initialData ? <Loader /> :
+          <div>
+            <PartyForm isEdit={true} initialData={initialData} />
+          </div>
+      }
+    </MainLayout>
+  );
+};
+
+export default UpdateParty;
