@@ -1,18 +1,18 @@
 'use client'
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getSingleSaleTexes} from '@/apis/salestexes';
+import { getSingleBiltyPaymentInvoice} from '@/apis/biltypaymentnnvoice';
 import Loader from '@/components/ui/Loader';
 import MainLayout from '@/components/MainLayout/MainLayout'
-import SalesTaxesForm from '@/components/ablsoftware/OtherForm/SaleTexes/SaleTexes';
+import BillPaymentInvoiceForm from '@/components/ablsoftware/Maintance/BillPaymentInvoices/BillPaymentInvoices';
 
-const UpdateSalesTaxes = () => {
+const UpdateBillPaymentInvoice = () => {
   const { id } = useParams<{ id: string }>(); 
   const [initialData, setInitialData] = useState(null);
 
-  const fetchSalesTaxes = async (id: string) => {
+  const fetchBillPaymentInvoice = async (id: string) => {
     try {
-      const response = await getSingleSaleTexes(id);
+      const response = await getSingleBiltyPaymentInvoice(id);
       console.log(response)
       setInitialData(response.data);
     } catch (error) {
@@ -22,7 +22,7 @@ const UpdateSalesTaxes = () => {
 
   useEffect(() => {
     if (id) {
-      fetchSalesTaxes(id);
+      fetchBillPaymentInvoice(id);
     }
   }, [id]);
 
@@ -31,11 +31,11 @@ const UpdateSalesTaxes = () => {
       {
         !initialData ? <Loader /> :
           <div>
-            <SalesTaxesForm isEdit={true} initialData={initialData} />
+            <BillPaymentInvoiceForm isEdit={true} initialData={initialData} />
           </div>
       }
     </MainLayout>
   );
 };
 
-export default UpdateSalesTaxes;
+export default UpdateBillPaymentInvoice;

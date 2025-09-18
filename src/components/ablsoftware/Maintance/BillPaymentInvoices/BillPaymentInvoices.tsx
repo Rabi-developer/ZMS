@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createBiltyPaymentInvoice, updateBiltyPaymentInvoice, getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
+import { createBiltyPaymentInvoice, updateBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllBrooker } from '@/apis/brooker';
 import { getAllBookingOrder } from '@/apis/bookingorder';
@@ -30,7 +30,6 @@ interface BookingOrder {
   vehicleNo: string;
   orderNo: string;
   munshayana: string;
-  // other fields if needed
 }
 
 interface Charge {
@@ -52,20 +51,35 @@ interface BillLine {
 const billPaymentSchema = z.object({
   invoiceNo: z.string().optional(),
   paymentDate: z.string().min(1, 'Payment Date is required'),
-  lines: z.array(z.object({
-    vehicleNo: z.string().min(1, 'Vehicle No is required'),
-    orderNo: z.string().min(1, 'Order No is required'),
-    amount: z.number().min(0, 'Amount is required'),
-    munshayana: z.string().optional(),
-    broker: z.string().optional(),
-    dueDate: z.string().optional(),
-    remarks: z.string().optional(),
-  })),
+  lines: z.array(
+    z.object({
+      vehicleNo: z.string().min(1, 'Vehicle No is required'),
+      orderNo: z.string().min(1, 'Order No is required'),
+      amount: z.number().min(0, 'Amount is required'),
+      munshayana: z.string().optional(),
+      broker: z.string().optional(),
+      dueDate: z.string().optional(),
+      remarks: z.string().optional(),
+    })
+  ),
 });
 
 type BillPaymentFormData = z.infer<typeof billPaymentSchema>;
 
-const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+interface BillPaymentInvoiceFormProps {
+  isEdit?: boolean;
+  initialData?: Partial<BillPaymentFormData> & {
+    id?: string;
+    isActive?: boolean;
+    isDeleted?: boolean;
+    createdDateTime?: string;
+    createdBy?: string;
+    modifiedDateTime?: string;
+    modifiedBy?: string;
+  };
+}
+
+const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvoiceFormProps) => {
   const router = useRouter();
   const {
     control,
@@ -74,15 +88,23 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     formState: { errors },
     setValue,
     watch,
+    reset,
   } = useForm<BillPaymentFormData>({
     resolver: zodResolver(billPaymentSchema),
-    defaultValues: {
-      invoiceNo: '',
-      paymentDate: '',
-      lines: [{ vehicleNo: '', orderNo: '', amount: 0, munshayana: '', broker: '', dueDate: '', remarks: '' }],
-    },
+    defaultValues: initialData
+      ? {
+          invoiceNo: initialData.invoiceNo || '',
+          paymentDate: initialData.paymentDate || '',
+          lines: initialData.lines || [{ vehicleNo: '', orderNo: '', amount: 0, munshayana: '', broker: '', dueDate: '', remarks: '' }],
+        }
+      : {
+          invoiceNo: '',
+          paymentDate: '',
+          lines: [{ vehicleNo: '', orderNo: '', amount: 0, munshayana: '', broker: '', dueDate: '', remarks: '' }],
+        },
   });
 
+  const [idFocused, setIdFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [munshyanas, setMunshyanas] = useState<DropdownOption[]>([]);
   const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
@@ -92,6 +114,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [selectedLineIndex, setSelectedLineIndex] = useState(0);
   const lines = watch('lines');
 
+  // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -122,33 +145,47 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         });
         setChargesMap(chargesSum);
       } catch (error) {
+        console.error('Error fetching data:', error);
         toast.error('Failed to load data');
       }
     };
     fetchData();
+  }, []);
 
-    if (isEdit) {
-      const fetchBillPayment = async () => {
-        const id = window.location.pathname.split('/').pop();
-        if (id) {
-          try {
-            const response = await getAllBiltyPaymentInvoice(id);
-            const bill = response.data;
-            Object.keys(bill).forEach(key => setValue(key as keyof BillPaymentFormData, bill[key]));
-          } catch (error) {
-            toast.error('Failed to load bill payment data');
-          }
-        }
-      };
-      fetchBillPayment();
+  // Generate invoiceNo for new bill payment
+  useEffect(() => {
+    if (!isEdit) {
+      const generatedInvoiceNo = `INV${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      setValue('invoiceNo', generatedInvoiceNo);
     }
   }, [isEdit, setValue]);
 
+  // Populate form with initialData in edit mode
+  useEffect(() => {
+    if (isEdit && initialData) {
+      reset({
+        invoiceNo: initialData.invoiceNo || '',
+        paymentDate: initialData.paymentDate || '',
+        lines: initialData.lines?.length
+          ? initialData.lines.map(line => ({
+              vehicleNo: line.vehicleNo || '',
+              orderNo: line.orderNo || '',
+              amount: line.amount || 0,
+              munshayana: line.munshayana || '',
+              broker: line.broker || '',
+              dueDate: line.dueDate || '',
+              remarks: line.remarks || '',
+            }))
+          : [{ vehicleNo: '', orderNo: '', amount: 0, munshayana: '', broker: '', dueDate: '', remarks: '' }],
+      });
+    }
+  }, [isEdit, initialData, reset]);
+
   const selectVehicle = (order: BookingOrder, index: number) => {
-    setValue(`lines.${index}.vehicleNo`, order.vehicleNo);
-    setValue(`lines.${index}.orderNo`, order.orderNo);
-    setValue(`lines.${index}.amount`, chargesMap[order.orderNo] || 0);
-    setValue(`lines.${index}.munshayana`, order.munshayana);
+    setValue(`lines.${index}.vehicleNo`, order.vehicleNo, { shouldValidate: true });
+    setValue(`lines.${index}.orderNo`, order.orderNo, { shouldValidate: true });
+    setValue(`lines.${index}.amount`, chargesMap[order.orderNo] || 0, { shouldValidate: true });
+    setValue(`lines.${index}.munshayana`, order.munshayana, { shouldValidate: true });
     setShowPopup(false);
   };
 
@@ -166,15 +203,35 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const onSubmit = async (data: BillPaymentFormData) => {
     setIsSubmitting(true);
     try {
+       const payload = {
+        id: isEdit
+          ? window.location.pathname.split('/').pop() || ''
+          : `INV${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        isActive: true,
+        isDeleted: false,
+        invoiceNo: data.invoiceNo || `INV${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        paymentDate: data.paymentDate,
+        lines: data.lines.map(line => ({
+          vehicleNo: line.vehicleNo || '',
+          orderNo: line.orderNo || '',
+          amount: line.amount || 0,
+          munshayana: line.munshayana || '',
+          broker: line.broker || '',
+          dueDate: line.dueDate || '',
+          remarks: line.remarks || '',
+        })),
+      };
+
       if (isEdit) {
-        await updateBiltyPaymentInvoice(data.invoiceNo || '', data);
+        await updateBiltyPaymentInvoice(payload);
         toast.success('Bill Payment Invoice updated successfully!');
       } else {
-        await createBiltyPaymentInvoice(data);
+        await createBiltyPaymentInvoice(payload);
         toast.success('Bill Payment Invoice created successfully!');
       }
       router.push('/billpaymentinvoices');
     } catch (error) {
+      console.error('Error saving bill payment invoice:', error);
       toast.error('An error occurred while saving the bill payment invoice');
     } finally {
       setIsSubmitting(false);
@@ -222,15 +279,24 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Basic Information</h3>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <ABLCustomInput
-                  label="Invoice No"
-                  type="text"
-                  placeholder="Auto"
-                  register={register}
-                  error={errors.invoiceNo?.message}
-                  id="invoiceNo"
-                  disabled
-                />
+                <div className="relative">
+                  <ABLCustomInput
+                    label="Invoice No"
+                    type="text"
+                    placeholder={isEdit ? 'Invoice No' : 'Auto-generated'}
+                    register={register}
+                    error={errors.invoiceNo?.message}
+                    id="invoiceNo"
+                    disabled
+                    onFocus={() => setIdFocused(true)}
+                    onBlur={() => setIdFocused(false)}
+                  />
+                  {idFocused && (
+                    <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
+                      Auto-generated
+                    </div>
+                  )}
+                </div>
                 <ABLCustomInput
                   label="Payment Date"
                   type="date"
@@ -248,8 +314,8 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     <MdLocalShipping className="text-gray-600 text-lg" />
                     <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Invoice Lines</h3>
                   </div>
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     onClick={addLine}
                     className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 rounded-md"
                   >
@@ -276,40 +342,53 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                           <td className="px-3 py-2">
                             <div className="space-y-1">
-                              <Button 
-                                type="button" 
-                                onClick={() => { setShowPopup(true); setSelectedLineIndex(index); }}
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  setShowPopup(true);
+                                  setSelectedLineIndex(index);
+                                }}
                                 className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 w-full rounded-md"
                               >
                                 Select
                               </Button>
-                              <input 
-                                {...register(`lines.${index}.vehicleNo`)} 
-                                disabled 
+                              <input
+                                {...register(`lines.${index}.vehicleNo`)}
+                                disabled
                                 className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
                               />
+                              {errors.lines?.[index]?.vehicleNo && (
+                                <p className="text-red-500 text-xs mt-1">{errors.lines[index].vehicleNo.message}</p>
+                              )}
                             </div>
                           </td>
                           <td className="px-3 py-2">
-                            <input 
-                              {...register(`lines.${index}.orderNo`)} 
-                              disabled 
+                            <input
+                              {...register(`lines.${index}.orderNo`)}
+                              disabled
                               className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
                             />
+                            {errors.lines?.[index]?.orderNo && (
+                              <p className="text-red-500 text-xs mt-1">{errors.lines[index].orderNo.message}</p>
+                            )}
                           </td>
                           <td className="px-3 py-2">
-                            <input 
-                              type="number" 
-                              {...register(`lines.${index}.amount`, { valueAsNumber: true })} 
-                              disabled 
+                            <input
+                              type="number"
+                              {...register(`lines.${index}.amount`, { valueAsNumber: true })}
+                              disabled
                               className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
                             />
+                            {errors.lines?.[index]?.amount && (
+                              <p className="text-red-500 text-xs mt-1">{errors.lines[index].amount.message}</p>
+                            )}
                           </td>
                           <td className="px-3 py-2">
-                            <input 
-                              {...register(`lines.${index}.munshayana`)} 
-                              disabled 
+                            <input
+                              {...register(`lines.${index}.munshayana`)}
+                              disabled
                               className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
+                              value={getMunshayanaName(lines[index].munshayana ?? '')}
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -328,21 +407,27 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             />
                           </td>
                           <td className="px-3 py-2">
-                            <input 
-                              type="date" 
-                              {...register(`lines.${index}.dueDate`)} 
+                            <input
+                              type="date"
+                              {...register(`lines.${index}.dueDate`)}
                               className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
                             />
+                            {errors.lines?.[index]?.dueDate && (
+                              <p className="text-red-500 text-xs mt-1">{errors.lines[index].dueDate.message}</p>
+                            )}
                           </td>
                           <td className="px-3 py-2">
-                            <input 
-                              {...register(`lines.${index}.remarks`)} 
+                            <input
+                              {...register(`lines.${index}.remarks`)}
                               className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
                             />
+                            {errors.lines?.[index]?.remarks && (
+                              <p className="text-red-500 text-xs mt-1">{errors.lines[index].remarks.message}</p>
+                            )}
                           </td>
                           <td className="px-3 py-2">
-                            <Button 
-                              type="button" 
+                            <Button
+                              type="button"
                               onClick={() => removeLine(index)}
                               className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
                               disabled={lines.length <= 1}
@@ -355,7 +440,9 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     </tbody>
                     <tfoot className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                       <tr>
-                        <td className="px-3 py-2 font-semibold text-gray-800 dark:text-gray-200" colSpan={2}>Total Amount:</td>
+                        <td className="px-3 py-2 font-semibold text-gray-800 dark:text-gray-200" colSpan={2}>
+                          Total Amount:
+                        </td>
                         <td className="px-3 py-2 font-bold text-gray-900 dark:text-gray-100">{totalAmount.toFixed(2)}</td>
                         <td className="px-3 py-2" colSpan={5}></td>
                       </tr>
@@ -370,7 +457,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-lg w-full mx-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Vehicle</h3>
-                    <Button 
+                    <Button
                       onClick={() => setShowPopup(false)}
                       className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
                       variant="ghost"
@@ -380,9 +467,9 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   </div>
                   <div className="max-h-60 overflow-y-auto space-y-2">
                     {bookingOrders.map((order) => (
-                      <div 
-                        key={order.id} 
-                        onClick={() => selectVehicle(order, selectedLineIndex)} 
+                      <div
+                        key={order.id}
+                        onClick={() => selectVehicle(order, selectedLineIndex)}
                         className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
                       >
                         <div className="grid grid-cols-2 gap-2">
@@ -400,14 +487,16 @@ const BillPaymentInvoiceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           </div>
                           <div className="flex items-center gap-2">
                             <MdPayment className="text-[#3a614c] text-lg" />
-                            <span className="text-sm text-gray-600 dark:text-gray-400">Munshayana: {getMunshayanaName(order.munshayana)}</span>
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              Munshayana: {getMunshayanaName(order.munshayana)}
+                            </span>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
                   <div className="flex justify-end mt-4">
-                    <Button 
+                    <Button
                       onClick={() => setShowPopup(false)}
                       className="bg-gray-500 hover:bg-gray-600 text-white rounded-md"
                     >
