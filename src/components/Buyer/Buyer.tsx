@@ -118,6 +118,12 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
     { id: 2, name: 'Distributor' },
     { id: 3, name: 'Wholesaler' },
     { id: 4, name: 'Retailer' },
+    { id: 5, name: 'Individual' },
+    { id: 6, name: 'Exporter' },
+    { id: 7, name: 'Importer' },
+    { id: 8, name: 'Government' },
+    { id: 9, name: 'Non-Profit' },
+    { id: 10, name: 'Other' },
   ];
 
   useEffect(() => {
@@ -182,8 +188,8 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
         }
       } else {
         response = await createBuyer(data);
-        if (response.statusMessage === "Updated successfully") {
-          toast("Created Successfully", { type: "success" });
+        if (response.statusMessage === "Created successfully") {
+          toast("Created successfully", { type: "success" });
           reset();
           router.push("/buyer");
         } else {
