@@ -245,7 +245,7 @@ const SalesTaxesForm = ({ isEdit = false, initialData }: SalesTaxesFormProps) =>
       };
 
       if (isEdit) {
-        await updateSaleTexes(payload.id, payload);
+        await updateSaleTexes(payload);
         toast.success('Sales Tax updated successfully!');
       } else {
         await createSaleTexes(payload);

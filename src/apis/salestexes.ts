@@ -52,7 +52,7 @@ const getSingleSaleTexes  = async (id: string) => {
   }
 };
 
-const updateSaleTexes = async (SaleTexes: any, data: { taxName: string; taxType: "Sale Tax" | "WHT Tax" | "SBR Tax" | "%"; receivable: { accountId: string; description: string; }; payable: { accountId: string; description: string; }; id?: string | undefined; }) => {
+const updateSaleTexes = async (SaleTexes: any) => {
   try {
     const response = await apiFetch(`SalesTax`, {
       method: 'PUT',
