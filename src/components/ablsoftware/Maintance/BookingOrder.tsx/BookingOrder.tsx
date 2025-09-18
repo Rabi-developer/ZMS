@@ -240,13 +240,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
                 const consRes = await getAllConsignment(1, 10, { orderNo: booking.orderNo || id });
                 const bookingConsignments = consRes.data || [];
-                // Merge consignments uniquely by biltyNo
-                const merged = [...consignmentsData, ...bookingConsignments];
-                const uniqueMerged = merged.filter(
-                  (c, idx, arr) => arr.findIndex((x) => x.biltyNo === c.biltyNo) === idx
-                );
-                setConsignments(uniqueMerged);
-                // On edit, auto-select consignments already linked to this booking
+                setConsignments([...consignmentsData, ...bookingConsignments]);
                 const selectedBiltyNos = bookingConsignments.map((c: Consignment) => c.biltyNo);
                 setSelectedConsignments(selectedBiltyNos);
                 setValue('selectedConsignments', selectedBiltyNos);
@@ -290,12 +284,7 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
               const consRes2 = await getAllConsignment(1, 10, { orderNo: booking.orderNo || orderNoParam });
               const bookingConsignments2 = consRes2.data || [];
-              // Merge consignments uniquely by biltyNo and auto-select when returning via orderNo
-              const merged2 = [...consignmentsData, ...bookingConsignments2];
-              const uniqueMerged2 = merged2.filter(
-                (c, idx, arr) => arr.findIndex((x) => x.biltyNo === c.biltyNo) === idx
-              );
-              setConsignments(uniqueMerged2);
+              setConsignments([...consignmentsData, ...bookingConsignments2]);
               const selectedBiltyNos2 = bookingConsignments2.map((c: Consignment) => c.biltyNo);
               setSelectedConsignments(selectedBiltyNos2);
               setValue('selectedConsignments', selectedBiltyNos2);
@@ -324,23 +313,13 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         return prev.filter((id) => id !== biltyNo);
       }
     });
-    // Also update selectedConsignments if the action comes from the table
-    setSelectedConsignments((prev) => {
-      if (checked) {
-        return [...prev, biltyNo];
-      } else {
-        return prev.filter((id) => id !== biltyNo);
-      }
-    });
-    setValue('selectedConsignments', checked ? [...selectedConsignments, biltyNo] : selectedConsignments.filter((id) => id !== biltyNo), { shouldValidate: true });
   };
 
-    const handleSaveConsignments = () => {
-      setSelectedConsignments(tempSelectedConsignments);
-      setValue('selectedConsignments', tempSelectedConsignments, { shouldValidate: true });
-      setSearchTerm(''); // Clear search term when saving
-      setIsModalOpen(false);
-    };
+  const handleSaveConsignments = () => {
+    setSelectedConsignments(tempSelectedConsignments);
+    setValue('selectedConsignments', tempSelectedConsignments, { shouldValidate: true });
+    setIsModalOpen(false);
+  };
 
   const onSubmit = async (data: BookingOrderFormData) => {
     setIsSubmitting(true);
@@ -875,102 +854,95 @@ const BookingOrderForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         </div>
 
         {isModalOpen && (
-        <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold">Consignments</h2>
-          <Button
-            onClick={() => {
-              setTempSelectedConsignments(selectedConsignments);
-              setIsModalOpen(true);
-            }}
-            className="px-4 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
-          >
-            Select Consignments
-          </Button>
-        </div>
-        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-          <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-            <tr>
-              <th className="px-6 py-3">Bilty No</th>
-              <th className="px-6 py-3">Receipt No</th>
-              <th className="px-6 py-3">Consignor</th>
-              <th className="px-6 py-3">Consignee</th>
-              <th className="px-6 py-3">Item</th>
-              <th className="px-6 py-3">Qty</th>
-              <th className="px-6 py-3">Total Amount</th>
-              <th className="px-6 py-3">Recv. Amount</th>
-              <th className="px-6 py-3">Del Date</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {selectedConsignments.length === 0 ? (
-              <tr>
-                <td colSpan={11} className="px-6 py-4 text-center">
-                  No consignments selected
-                </td>
-              </tr>
-            ) : (
-              consignments
-                .filter((cons) => selectedConsignments.includes(cons.biltyNo))
-                .map((cons, index) => (
-                  <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                    <td className="px-6 py-4">{cons.biltyNo}</td>
-                    <td className="px-6 py-4">{cons.receiptNo}</td>
-                    <td className="px-6 py-4">{cons.consignor}</td>
-                    <td className="px-6 py-4">{cons.consignee}</td>
-                    <td className="px-6 py-4">{cons.item}</td>
-                    <td className="px-6 py-4">{cons.qty ?? 'N/A'}</td>
-                    <td className="px-6 py-4">{cons.totalAmount ?? 'N/A'}</td>
-                    <td className="px-6 py-4">{cons.recvAmount ?? 'N/A'}</td>
-                    <td className="px-6 py-4">{cons.delDate}</td>
-                    <td className="px-6 py-4">
-                      <AblCustomDropdown
-                        label="Status"
-                        options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map((s) => ({
-                          id: s,
-                          name: s,
-                        }))}
-                        selectedOption={cons.status}
-                        onChange={(value) => updateStatus(index, value)}
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
+                Select Consignments
+              </h2>
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Search consignments..."
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3a614c]"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                  <tr>
+                    <th className="px-6 py-3">
+                      <input
+                        type="checkbox"
+                        checked={tempSelectedConsignments.length === filteredConsignments.length && filteredConsignments.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setTempSelectedConsignments(filteredConsignments.map((c) => c.biltyNo));
+                          } else {
+                            setTempSelectedConsignments([]);
+                          }
+                        }}
                       />
-                    </td>
-                    <td className="px-6 py-4">
-                      <Button
-                        variant="secondary"
-                        className="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-800 transition-all duration-200 text-xs"
-                        onClick={() => handleConsignmentSelection(cons.biltyNo, false)}
-                      >
-                        <FiX className="mr-1" /> Cancel
-                      </Button>
-                    </td>
+                    </th>
+                    <th className="px-6 py-3">Bilty No</th>
+                    <th className="px-6 py-3">Receipt No</th>
+                    <th className="px-6 py-3">Consignor</th>
+                    <th className="px-6 py-3">Consignee</th>
+                    <th className="px-6 py-3">Item</th>
+                    <th className="px-6 py-3">Qty</th>
+                    <th className="px-6 py-3">Total Amount</th>
+                    <th className="px-6 py-3">Recv. Amount</th>
+                    <th className="px-6 py-3">Del Date</th>
                   </tr>
-                ))
-            )}
-          </tbody>
-        </table>
-        <div className="flex justify-end gap-4 mt-4">
-          <Button
-            onClick={() => {
-              const orderNo = getValues('OrderNo') || '';
-              router.push(`/consignment/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
-            }}
-            className="px-4 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
-          >
-            Add Consignment
-          </Button>
-          <Button
-            onClick={() => {
-              const orderNo = getValues('OrderNo') || '';
-              router.push(`/charges/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
-            }}
-            className="px-4 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
-          >
-            Add Charges
-          </Button>
-        </div>
-      </div>
+                </thead>
+                <tbody>
+                  {filteredConsignments.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="px-6 py-4 text-center">
+                        No consignments found
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredConsignments.map((cons, index) => (
+                      <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                        <td className="px-6 py-4">
+                          <input
+                            type="checkbox"
+                            checked={tempSelectedConsignments.includes(cons.biltyNo)}
+                            onChange={(e) => handleConsignmentSelection(cons.biltyNo, e.target.checked)}
+                          />
+                        </td>
+                        <td className="px-6 py-4">{cons.biltyNo}</td>
+                        <td className="px-6 py-4">{cons.receiptNo}</td>
+                        <td className="px-6 py-4">{cons.consignor}</td>
+                        <td className="px-6 py-4">{cons.consignee}</td>
+                        <td className="px-6 py-4">{cons.item}</td>
+                        <td className="px-6 py-4">{cons.qty ?? 'N/A'}</td>
+                        <td className="px-6 py-4">{cons.totalAmount ?? 'N/A'}</td>
+                        <td className="px-6 py-4">{cons.recvAmount ?? 'N/A'}</td>
+                        <td className="px-6 py-4">{cons.delDate}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              <div className="flex justify-end gap-4 mt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setTempSelectedConsignments(selectedConsignments);
+                    setSearchTerm('');
+                    setIsModalOpen(false);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveConsignments}>
+                  Save
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
 
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
