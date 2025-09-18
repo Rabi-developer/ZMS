@@ -8,8 +8,8 @@ import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { getAllPartys } from '@/apis/party';
 import { getAllSaleTexes } from '@/apis/salestexes';
-import { getAllConsignment, getSingleConsignment, updateConsignment } from '@/apis/consignment';
-import { createReceipt, getSingleReceipt, updateReceipt } from '@/apis/receipt';
+import { getAllConsignment, updateConsignment } from '@/apis/consignment';
+import { createReceipt, updateReceipt } from '@/apis/receipt';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
@@ -33,8 +33,8 @@ interface Consignment {
 }
 
 interface TableRow {
-  biltyNo: string; // Displayed bilty number
-  consignmentId?: string; // Internal id for API calls
+  biltyNo: string;
+  consignmentId?: string;
   vehicleNo: string;
   biltyDate: string;
   biltyAmount: number;
@@ -47,25 +47,25 @@ interface TableRow {
 // Define the schema for receipt form validation
 const receiptSchema = z.object({
   receiptNo: z.string().optional(),
-  receiptDate: z.string().optional(),
-  paymentMode: z.string().optional(),
+  receiptDate: z.string().min(1, 'Receipt Date is required'),
+  paymentMode: z.string().min(1, 'Payment Mode is required'),
   bankName: z.string().optional(),
   chequeNo: z.string().optional(),
   chequeDate: z.string().optional(),
-  party: z.string().optional(),
-  receiptAmount: z.number().optional(),
+  party: z.string().min(1, 'Party is required'),
+  receiptAmount: z.number().min(0, 'Receipt Amount must be non-negative').optional(),
   remarks: z.string().optional(),
   tableData: z.array(
     z.object({
-      biltyNo: z.string().optional(),
+      biltyNo: z.string().min(1, 'Bilty No is required'),
       consignmentId: z.string().optional(),
       vehicleNo: z.string().optional(),
       biltyDate: z.string().optional(),
-      biltyAmount: z.number().optional(),
-      srbAmount: z.number().optional(),
-      totalAmount: z.number().optional(),
-      balance: z.number().optional(),
-      receiptAmount: z.number().optional(),
+      biltyAmount: z.number().min(0, 'Bilty Amount must be non-negative').optional(),
+      srbAmount: z.number().min(0, 'SRB Amount must be non-negative').optional(),
+      totalAmount: z.number().min(0, 'Total Amount must be non-negative').optional(),
+      balance: z.number().min(0, 'Balance must be non-negative').optional(),
+      receiptAmount: z.number().min(0, 'Receipt Amount must be non-negative').optional(),
     })
   ),
   salesTaxOption: z.string().optional(),
@@ -75,7 +75,20 @@ const receiptSchema = z.object({
 
 type ReceiptFormData = z.infer<typeof receiptSchema>;
 
-const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+interface ReceiptFormProps {
+  isEdit?: boolean;
+  initialData?: Partial<ReceiptFormData> & {
+    id?: string;
+    isActive?: boolean;
+    isDeleted?: boolean;
+    createdDateTime?: string;
+    createdBy?: string;
+    modifiedDateTime?: string;
+    modifiedBy?: string;
+  };
+}
+
+const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const router = useRouter();
   const {
     control,
@@ -84,27 +97,47 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     formState: { errors },
     setValue,
     watch,
+    reset,
   } = useForm<ReceiptFormData>({
     resolver: zodResolver(receiptSchema),
-    defaultValues: {
-      receiptNo: '',
-      receiptDate: '',
-      paymentMode: '',
-      bankName: '',
-      chequeNo: '',
-      chequeDate: '',
-      party: '',
-      receiptAmount: 0,
-      remarks: '',
-      tableData: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
-      salesTaxOption: 'without',
-      salesTaxRate: '',
-      whtOnSbr: '',
-    },
+    defaultValues: initialData
+      ? {
+          receiptNo: initialData.receiptNo || '',
+          receiptDate: initialData.receiptDate || '',
+          paymentMode: initialData.paymentMode || '',
+          bankName: initialData.bankName || '',
+          chequeNo: initialData.chequeNo || '',
+          chequeDate: initialData.chequeDate || '',
+          party: initialData.party || '',
+          receiptAmount: initialData.receiptAmount || 0,
+          remarks: initialData.remarks || '',
+          tableData: initialData.tableData?.length
+            ? initialData.tableData
+            : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
+          salesTaxOption: initialData.salesTaxOption || 'without',
+          salesTaxRate: initialData.salesTaxRate || '',
+          whtOnSbr: initialData.whtOnSbr || '',
+        }
+      : {
+          receiptNo: '',
+          receiptDate: '',
+          paymentMode: '',
+          bankName: '',
+          chequeNo: '',
+          chequeDate: '',
+          party: '',
+          receiptAmount: 0,
+          remarks: '',
+          tableData: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
+          salesTaxOption: 'without',
+          salesTaxRate: '',
+          whtOnSbr: '',
+        },
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [idFocused, setIdFocused] = useState(false);
   const [parties, setParties] = useState<DropdownOption[]>([]);
   const [saleTaxes, setSaleTaxes] = useState<DropdownOption[]>([]);
   const [consignments, setConsignments] = useState<Consignment[]>([]);
@@ -116,7 +149,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     { id: 'Bank Transfer', name: 'Bank Transfer' },
   ];
   const bankNames: DropdownOption[] = [
-   { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
+    { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
     { id: 'MCB', name: 'MCB Bank Limited' },
     { id: 'UBL', name: 'United Bank Limited (UBL)' },
     { id: 'ABL', name: 'Allied Bank Limited (ABL)' },
@@ -154,6 +187,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const salesTaxRate = watch('salesTaxRate');
   const whtOnSbr = watch('whtOnSbr');
 
+  // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -164,7 +198,6 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           getAllConsignment(),
         ]);
         setParties(partyRes.data.map((p: any) => ({ id: p.id, name: p.name })));
-        // Updated mapping to use taxName
         setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.taxName })));
         setConsignments(
           consignmentRes.data.map((item: any) => ({
@@ -184,9 +217,11 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       }
     };
     fetchData();
+  }, []);
 
+  // Generate receiptNo for new receipt
+  useEffect(() => {
     if (!isEdit) {
-      // Generate auto receipt number
       const generateReceiptNo = () => {
         const prefix = 'REC';
         const timestamp = Date.now().toString().slice(-6);
@@ -195,49 +230,43 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       };
       setValue('receiptNo', generateReceiptNo());
     }
-  }, [setValue, isEdit]);
+  }, [isEdit, setValue]);
 
+  // Populate form with initialData in edit mode
   useEffect(() => {
-    if (isEdit) {
-      const fetchReceipt = async () => {
-        setIsLoading(true);
-        const id = window.location.pathname.split('/').pop();
-        if (id) {
-          try {
-            const response = await getSingleReceipt(id);
-            const receipt = response.data;
-            if (receipt) {
-              setValue('receiptNo', receipt.receiptNo || '');
-              setValue('receiptDate', receipt.receiptDate || '');
-              setValue('paymentMode', receipt.paymentMode || '');
-              setValue('bankName', receipt.bankName || '');
-              setValue('chequeNo', receipt.chequeNo || '');
-              setValue('chequeDate', receipt.chequeDate || '');
-              setValue('party', receipt.party || '');
-              setValue('receiptAmount', receipt.receiptAmount || 0);
-              setValue('remarks', receipt.remarks || '');
-              setValue('tableData', receipt.tableData || [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }]);
-              setValue('salesTaxOption', receipt.salesTaxOption || 'without');
-              setValue('salesTaxRate', receipt.salesTaxRate || '');
-              setValue('whtOnSbr', receipt.whtOnSbr || '');
-            } else {
-              toast.error('Receipt not found');
-              router.push('/receipts');
-            }
-          } catch (error) {
-            toast.error('Failed to load receipt data');
-            console.error('Error fetching receipt:', error);
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      };
-      fetchReceipt();
+    if (isEdit && initialData) {
+      reset({
+        receiptNo: initialData.receiptNo || '',
+        receiptDate: initialData.receiptDate || '',
+        paymentMode: initialData.paymentMode || '',
+        bankName: initialData.bankName || '',
+        chequeNo: initialData.chequeNo || '',
+        chequeDate: initialData.chequeDate || '',
+        party: initialData.party || '',
+        receiptAmount: initialData.receiptAmount || 0,
+        remarks: initialData.remarks || '',
+        tableData: initialData.tableData?.length
+          ? initialData.tableData.map(row => ({
+              biltyNo: row.biltyNo || '',
+              consignmentId: row.consignmentId || '',
+              vehicleNo: row.vehicleNo || '',
+              biltyDate: row.biltyDate || '',
+              biltyAmount: row.biltyAmount || 0,
+              srbAmount: row.srbAmount || 0,
+              totalAmount: row.totalAmount || 0,
+              balance: row.balance || 0,
+              receiptAmount: row.receiptAmount || 0,
+            }))
+          : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
+        salesTaxOption: initialData.salesTaxOption || 'without',
+        salesTaxRate: initialData.salesTaxRate || '',
+        whtOnSbr: initialData.whtOnSbr || '',
+      });
     }
-  }, [isEdit, setValue, router]);
+  }, [isEdit, initialData, reset]);
 
+  // Update table calculations
   useEffect(() => {
-    // Calculate totals for table
     const updatedTableData = tableData.map((row) => {
       const totalAmount = (row.biltyAmount || 0) + (row.srbAmount || 0);
       const balance = totalAmount - (row.receiptAmount || 0);
@@ -245,116 +274,18 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     });
     setValue('tableData', updatedTableData);
 
-    // Calculate total receipt amount
-    const totalReceiptAmount = tableData.reduce((sum, row) => sum + (row.receiptAmount || 0), 0);
+    const totalReceiptAmount = updatedTableData.reduce((sum, row) => sum + (row.receiptAmount || 0), 0);
     setValue('receiptAmount', totalReceiptAmount);
-
-    // Calculate sales tax and final total
-    const totalSbrAmount = tableData.reduce((sum, row) => sum + (row.srbAmount || 0), 0);
-    const totalAmount = totalReceiptAmount + totalSbrAmount;
-    let totalAfterSalesTax = totalAmount;
-    if (salesTaxOption === 'with' && salesTaxRate) {
-      const taxPercent = parseFloat(salesTaxRate.match(/\d+/)?.[0] || '0') / 100;
-      totalAfterSalesTax = totalAmount * (1 + taxPercent);
-    }
-
-    // Calculate WHT on SBR Amount
-    let chequeAmount = 0;
-    if (whtOnSbr) {
-      const whtPercent = parseFloat(whtOnSbr.match(/\d+/)?.[0] || '0') / 100;
-      chequeAmount = totalSbrAmount * whtPercent;
-    }
-    setValue('tableData', updatedTableData); // Update table with calculated values
-  }, [tableData, salesTaxOption, salesTaxRate, whtOnSbr, setValue]);
+  }, [tableData, setValue]);
 
   const selectConsignment = (index: number, consignment: Consignment) => {
-    // Store the displayed bilty number in the table, and also keep the internal id in a hidden field for API
-    setValue(`tableData.${index}.biltyNo`, consignment.biltyNo);
-    setValue(`tableData.${index}.consignmentId`, consignment.id);
-    setValue(`tableData.${index}.vehicleNo`, consignment.vehicleNo);
-    setValue(`tableData.${index}.biltyDate`, consignment.biltyDate);
-    setValue(`tableData.${index}.biltyAmount`, consignment.biltyAmount);
-    setValue(`tableData.${index}.srbAmount`, consignment.srbAmount);
+    setValue(`tableData.${index}.biltyNo`, consignment.biltyNo, { shouldValidate: true });
+    setValue(`tableData.${index}.consignmentId`, consignment.id, { shouldValidate: true });
+    setValue(`tableData.${index}.vehicleNo`, consignment.vehicleNo, { shouldValidate: true });
+    setValue(`tableData.${index}.biltyDate`, consignment.biltyDate, { shouldValidate: true });
+    setValue(`tableData.${index}.biltyAmount`, consignment.biltyAmount, { shouldValidate: true });
+    setValue(`tableData.${index}.srbAmount`, consignment.srbAmount, { shouldValidate: true });
     setShowConsignmentPopup(null);
-  };
-
-  const onSubmit = async (data: ReceiptFormData) => {
-    setIsSubmitting(true);
-    try {
-      // Save receipt (create or update)
-      if (isEdit) {
-        const mapped = {
-          orderNo: data.tableData[0]?.biltyNo || '',
-          biltyNo: data.tableData[0]?.biltyNo || '',
-          date: data.receiptDate,
-          consignor: '',
-          consignee: '',
-          items: data.tableData.map(() => ({
-            desc: '',
-            qty: 0,
-            qtyUnit: '',
-            weight: undefined,
-            weightUnit: undefined,
-          })),
-          ReceiptMode: data.paymentMode,
-          receiptNo: data.receiptNo,
-          ReceiptNo: data.receiptNo,
-          ReceiptDate: data.receiptDate,
-          receiverName: '',
-          receiverContactNo: '',
-          shippingLine: '',
-          containerNo: '',
-          port: '',
-          destination: '',
-          freightFrom: '',
-          totalQty: undefined,
-          freight: undefined,
-          sbrTax: data.salesTaxOption,
-          sprAmount: undefined,
-          deliveryCharges: undefined,
-          insuranceCharges: undefined,
-          tollTax: undefined,
-          otherCharges: undefined,
-          totalAmount: undefined,
-          receivedAmount: data.receiptAmount,
-          incomeTaxDed: undefined,
-          incomeTaxAmount: undefined,
-          deliveryDate: undefined,
-          remarks: data.remarks,
-        };
-        await updateReceipt(mapped);
-        toast.success('Updated successfully');
-      } else {
-        await createReceipt(data);
-        toast.success('Created successfully');
-      }
-
-      // Update related consignment(s) receivedAmount based on receipt rows
-      const rows = Array.isArray(data.tableData) ? data.tableData : [];
-      const updates = rows
-        .filter((r) => (r.consignmentId || r.biltyNo) && (r.receiptAmount || 0) > 0)
-        .map(async (r) => {
-          const idToUse = r.consignmentId || r.biltyNo;
-          try {
-            // Fetch current consignment to get existing receivedAmount if available
-            const cons = await getSingleConsignment(idToUse as string);
-            const existing = cons?.data || {};
-            const currentReceived = Number(existing.receivedAmount || 0);
-            const newReceived = currentReceived + Number(r.receiptAmount || 0);
-            // Update by actual id
-            await updateConsignment({ id: idToUse, receivedAmount: newReceived });
-          } catch (e) {
-            console.error('Failed updating consignment receivedAmount for', idToUse, e);
-          }
-        });
-      await Promise.all(updates);
-
-      router.push('/receipts');
-    } catch (error) {
-      toast.error('An error occurred while saving the receipt');
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const addTableRow = () => {
@@ -364,9 +295,83 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     ]);
   };
 
+  const removeTableRow = (index: number) => {
+    if (tableData.length > 1) {
+      const newTableData = tableData.filter((_, i) => i !== index);
+      setValue('tableData', newTableData);
+    }
+  };
+
+  const onSubmit = async (data: ReceiptFormData) => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        id: isEdit
+          ? initialData?.id || window.location.pathname.split('/').pop() || ''
+          : `REC${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        isActive: true,
+        isDeleted: false,
+        receiptNo: data.receiptNo || `REC${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        receiptDate: data.receiptDate,
+        paymentMode: data.paymentMode,
+        bankName: data.bankName || '',
+        chequeNo: data.chequeNo || '',
+        chequeDate: data.chequeDate || '',
+        party: data.party,
+        receiptAmount: data.receiptAmount || 0,
+        remarks: data.remarks || '',
+        tableData: data.tableData.map(row => ({
+          biltyNo: row.biltyNo || '',
+          consignmentId: row.consignmentId || '',
+          vehicleNo: row.vehicleNo || '',
+          biltyDate: row.biltyDate || '',
+          biltyAmount: row.biltyAmount || 0,
+          srbAmount: row.srbAmount || 0,
+          totalAmount: row.totalAmount || 0,
+          balance: row.balance || 0,
+          receiptAmount: row.receiptAmount || 0,
+        })),
+        salesTaxOption: data.salesTaxOption || 'without',
+        salesTaxRate: data.salesTaxRate || '',
+        whtOnSbr: data.whtOnSbr || '',
+      };
+
+      // Save receipt
+      if (isEdit) {
+        await updateReceipt(payload);
+        toast.success('Receipt updated successfully');
+      } else {
+        await createReceipt(payload);
+        toast.success('Receipt created successfully');
+      }
+
+      // Update consignment receivedAmount
+      const updates = data.tableData
+        .filter(row => row.consignmentId && row.receiptAmount > 0)
+        .map(async row => {
+          try {
+            await updateConsignment({
+              id: row.consignmentId,
+              receivedAmount: row.receiptAmount,
+            });
+          } catch (error) {
+            console.error(`Failed to update consignment ${row.consignmentId}:`, error);
+          }
+        });
+      await Promise.all(updates);
+
+      router.push('/receipts');
+    } catch (error) {
+      console.error('Error saving receipt:', error);
+      toast.error('An error occurred while saving the receipt');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4">
-      <div className="h-full w-full flex flex-col ">
+      <div className="h-full w-full flex flex-col">
         {isLoading && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl">
@@ -401,17 +406,26 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
           </div>
 
-          <form className="p-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-              <ABLCustomInput
-                label="Receipt #"
-                type="text"
-                placeholder="Auto-generated"
-                register={register}
-                error={errors.receiptNo?.message}
-                id="receiptNo"
-                disabled
-              />
+              <div className="relative">
+                <ABLCustomInput
+                  label="Receipt #"
+                  type="text"
+                  placeholder={isEdit ? 'Receipt No' : 'Auto-generated'}
+                  register={register}
+                  error={errors.receiptNo?.message}
+                  id="receiptNo"
+                  disabled
+                  onFocus={() => setIdFocused(true)}
+                  onBlur={() => setIdFocused(false)}
+                />
+                {idFocused && (
+                  <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
+                    Auto-generated
+                  </div>
+                )}
+              </div>
               <ABLCustomInput
                 label="Receipt Date"
                 type="date"
@@ -492,7 +506,6 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               />
             </div>
 
-            {/* Enhanced Table */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
               <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 rounded-t-lg">
                 <div className="flex items-center gap-2">
@@ -500,7 +513,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   <h3 className="text-base font-semibold">Consignment Details</h3>
                 </div>
               </div>
-              
+
               <div className="p-4">
                 <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
                   <table className="w-full text-sm">
@@ -530,6 +543,9 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[130px]">
                           Receipt Amount
                         </th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[100px]">
+                          Action
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800">
@@ -543,6 +559,9 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             >
                               {row.biltyNo || 'Select Bilty'}
                             </Button>
+                            {errors.tableData?.[index]?.biltyNo && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].biltyNo.message}</p>
+                            )}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
@@ -601,6 +620,19 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               min="0"
                               step="0.01"
                             />
+                            {errors.tableData?.[index]?.receiptAmount && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].receiptAmount.message}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Button
+                              type="button"
+                              onClick={() => removeTableRow(index)}
+                              className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
+                              disabled={tableData.length <= 1}
+                            >
+                              <FiX />
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -623,13 +655,14 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           {tableData.reduce((sum, row) => sum + (row.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base">
-                          {tableData.reduce((sum, row) => sum + (row.receiptAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {tableData.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
+                        <td className="px-4 py-3"></td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
-                
+
                 <div className="mt-4 flex justify-between items-center">
                   <Button
                     type="button"
@@ -652,15 +685,14 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   <h3 className="text-base font-semibold">Tax & Calculations</h3>
                 </div>
               </div>
-              
+
               <div className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Tax Configuration */}
                   <div className="space-y-4">
                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-600 pb-2">
                       Tax Configuration
                     </h4>
-                    
+
                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                       <Controller
                         name="salesTaxOption"
@@ -676,7 +708,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         )}
                       />
                     </div>
-                    
+
                     {salesTaxOption === 'with' && (
                       <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                         <Controller
@@ -694,7 +726,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         />
                       </div>
                     )}
-                    
+
                     <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                       <Controller
                         name="whtOnSbr"
@@ -711,35 +743,34 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       />
                     </div>
                   </div>
-                  
-                  {/* Calculation Summary */}
+
                   <div className="space-y-4">
                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-600 pb-2">
                       Amount Summary
                     </h4>
-                    
+
                     <div className="space-y-3">
                       <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
                         <span className="font-medium text-sm text-blue-700 dark:text-blue-300">Receipt Amount Total</span>
                         <span className="text-sm font-bold text-blue-800 dark:text-blue-200">
-                          {tableData.reduce((sum, row) => sum + (row.receiptAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {tableData.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-lg border border-purple-200 dark:border-purple-700">
                         <span className="font-medium text-sm text-purple-700 dark:text-purple-300">Total SBR Amount</span>
                         <span className="text-sm font-bold text-purple-800 dark:text-purple-200">
                           {tableData.reduce((sum, row) => sum + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-lg border border-green-200 dark:border-green-700">
                         <span className="font-medium text-sm text-green-700 dark:text-green-300">Subtotal Amount</span>
                         <span className="text-sm font-bold text-green-800 dark:text-green-200">
                           {tableData.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-4 rounded-lg shadow-md">
                         <span className="font-semibold text-sm">Total After Sales Tax</span>
                         <span className="text-lg font-bold">
@@ -753,7 +784,7 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           })()}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-4 rounded-lg border border-orange-200 dark:border-orange-700">
                         <span className="font-medium text-sm text-orange-700 dark:text-orange-300">WHT Deduction Amount</span>
                         <span className="text-sm font-bold text-orange-800 dark:text-orange-200">
@@ -767,27 +798,22 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           })()}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 p-4 rounded-lg border-2 border-gray-300 dark:border-gray-500">
                         <span className="font-bold text-base text-gray-800 dark:text-gray-200">Final Cheque Amount</span>
                         <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
                           {(() => {
                             const totalAmount = tableData.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
                             let finalAmount = totalAmount;
-                            
-                            // Add sales tax if applicable
                             if (salesTaxOption === 'with' && salesTaxRate) {
                               const taxPercent = parseFloat(salesTaxRate.match(/\d+/)?.[0] || '0') / 100;
                               finalAmount = totalAmount * (1 + taxPercent);
                             }
-                            
-                            // Subtract WHT if applicable
                             if (whtOnSbr) {
                               const totalSbrAmount = tableData.reduce((sum, row) => sum + (row.srbAmount || 0), 0);
                               const whtPercent = parseFloat(whtOnSbr.match(/\d+/)?.[0] || '0') / 100;
-                              finalAmount -= (totalSbrAmount * whtPercent);
+                              finalAmount -= totalSbrAmount * whtPercent;
                             }
-                            
                             return finalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                           })()}
                         </span>
@@ -803,7 +829,6 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 type="submit"
                 disabled={isSubmitting}
                 className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                onClick={handleSubmit(onSubmit)}
               >
                 <div className="flex items-center gap-2">
                   {isSubmitting ? (
@@ -835,7 +860,6 @@ const ReceiptForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           </div>
         </div>
 
-        {/* Consignment Selection Popup */}
         {showConsignmentPopup !== null && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl max-w-sm w-full mx-4">

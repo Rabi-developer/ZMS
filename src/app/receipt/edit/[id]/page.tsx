@@ -1,18 +1,18 @@
 'use client'
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getSingleSaleTexes} from '@/apis/salestexes';
+import { getSingleReceipt} from '@/apis/receipt';
 import Loader from '@/components/ui/Loader';
 import MainLayout from '@/components/MainLayout/MainLayout'
-import SalesTaxesForm from '@/components/ablsoftware/OtherForm/SaleTexes/SaleTexes';
+import ReceiptForm from '../../../../components/ablsoftware/Maintance/Receipt/Receipt';
 
-const UpdateSalesTaxes = () => {
+const UpdateReceipt = () => {
   const { id } = useParams<{ id: string }>(); 
   const [initialData, setInitialData] = useState(null);
 
-  const fetchSalesTaxes = async (id: string) => {
+  const fetchReceipt = async (id: string) => {
     try {
-      const response = await getSingleSaleTexes(id);
+      const response = await getSingleReceipt(id);
       console.log(response)
       setInitialData(response.data);
     } catch (error) {
@@ -22,7 +22,7 @@ const UpdateSalesTaxes = () => {
 
   useEffect(() => {
     if (id) {
-      fetchSalesTaxes(id);
+      fetchReceipt(id);
     }
   }, [id]);
 
@@ -31,11 +31,11 @@ const UpdateSalesTaxes = () => {
       {
         !initialData ? <Loader /> :
           <div>
-            <SalesTaxesForm isEdit={true} initialData={initialData} />
+            <ReceiptForm isEdit={true} initialData={initialData} />
           </div>
       }
     </MainLayout>
   );
 };
 
-export default UpdateSalesTaxes;
+export default UpdateReceipt;
