@@ -15,7 +15,7 @@ import { BiSolidErrorAlt } from 'react-icons/bi';
 const UnitOfMeasureSchema = z.object({
   listid: z.string().optional(),
   descriptions: z.string().min(1, 'Description is required'),
-  segment: z.string().min(1, 'At least one segment is required'),
+  segment: z.string().optional(),
 });
 
 type UnitOfMeasureData = z.infer<typeof UnitOfMeasureSchema>;
