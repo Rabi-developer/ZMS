@@ -8,7 +8,7 @@ import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllCharges } from '@/apis/charges';
-import { createPaymentABL, getSinglePaymentABL, updatePaymentABL } from '@/apis/paymentABL';
+import { createPaymentABL, updatePaymentABL } from '@/apis/paymentABL';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
@@ -50,6 +50,20 @@ interface TableRow {
   paidAmount: number;
 }
 
+interface PaymentFormProps {
+  isEdit?: boolean;
+  initialData?: Partial<PaymentFormData> & {
+    id?: string;
+    isActive?: boolean;
+    isDeleted?: boolean;
+    createdDateTime?: string;
+    createdBy?: string;
+    modifiedDateTime?: string;
+    modifiedBy?: string;
+  };
+}
+
+// Define the schema for payment form validation
 const paymentSchema = z.object({
   paymentNo: z.string().optional(),
   paymentDate: z.string().min(1, 'Payment Date is required'),
@@ -59,29 +73,29 @@ const paymentSchema = z.object({
   chequeDate: z.string().optional(),
   remarks: z.string().optional(),
   paidTo: z.string().min(1, 'Paid To is required'),
-  paidAmount: z.number().optional(),
-  advanced: z.number().optional(),
+  paidAmount: z.number().min(0, 'Paid Amount must be non-negative').optional(),
+  advanced: z.number().min(0, 'Advanced Amount must be non-negative').optional(),
   advancedDate: z.string().optional(),
-  pdc: z.number().optional(),
+  pdc: z.number().min(0, 'PDC Amount must be non-negative').optional(),
   pdcDate: z.string().optional(),
-  paymentAmount: z.number().optional(),
+  paymentAmount: z.number().min(0, 'Payment Amount must be non-negative').optional(),
   tableData: z.array(
     z.object({
       vehicleNo: z.string().optional(),
-      orderNo: z.string().optional(),
-      charges: z.string().optional(),
+      orderNo: z.string().min(1, 'Order No is required').optional(),
+      charges: z.string().min(1, 'Charges are required').optional(),
       orderDate: z.string().optional(),
       dueDate: z.string().optional(),
-      expenseAmount: z.number().optional(),
-      balance: z.number().optional(),
-      paidAmount: z.number().optional(),
+      expenseAmount: z.number().min(0, 'Expense Amount must be non-negative').optional(),
+      balance: z.number().min(0, 'Balance must be non-negative').optional(),
+      paidAmount: z.number().min(0, 'Paid Amount must be non-negative').optional(),
     })
   ),
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
 
-const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
+const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const router = useRouter();
   const {
     control,
@@ -90,29 +104,51 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     formState: { errors },
     setValue,
     watch,
+    reset,
   } = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
-    defaultValues: {
-      paymentNo: '',
-      paymentDate: '',
-      paymentMode: '',
-      bankName: '',
-      chequeNo: '',
-      chequeDate: '',
-      remarks: '',
-      paidTo: '',
-      paidAmount: 0,
-      advanced: 0,
-      advancedDate: '',
-      pdc: 0,
-      pdcDate: '',
-      paymentAmount: 0,
-      tableData: [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }],
-    },
+    defaultValues: initialData
+      ? {
+          paymentNo: initialData.paymentNo || '',
+          paymentDate: initialData.paymentDate || '',
+          paymentMode: initialData.paymentMode || '',
+          bankName: initialData.bankName || '',
+          chequeNo: initialData.chequeNo || '',
+          chequeDate: initialData.chequeDate || '',
+          remarks: initialData.remarks || '',
+          paidTo: initialData.paidTo || '',
+          paidAmount: initialData.paidAmount || 0,
+          advanced: initialData.advanced || 0,
+          advancedDate: initialData.advancedDate || '',
+          pdc: initialData.pdc || 0,
+          pdcDate: initialData.pdcDate || '',
+          paymentAmount: initialData.paymentAmount || 0,
+          tableData: initialData.tableData?.length
+            ? initialData.tableData
+            : [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }],
+        }
+      : {
+          paymentNo: '',
+          paymentDate: '',
+          paymentMode: '',
+          bankName: '',
+          chequeNo: '',
+          chequeDate: '',
+          remarks: '',
+          paidTo: '',
+          paidAmount: 0,
+          advanced: 0,
+          advancedDate: '',
+          pdc: 0,
+          pdcDate: '',
+          paymentAmount: 0,
+          tableData: [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }],
+        },
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [idFocused, setIdFocused] = useState(false);
   const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
   const [showOrderPopup, setShowOrderPopup] = useState<number | null>(null);
@@ -156,6 +192,7 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   const tableData = watch('tableData');
 
+  // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -191,7 +228,10 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       }
     };
     fetchData();
+  }, []);
 
+  // Generate paymentNo for new payment
+  useEffect(() => {
     if (!isEdit) {
       const generatePaymentNo = () => {
         const prefix = 'PAY';
@@ -201,75 +241,73 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       };
       setValue('paymentNo', generatePaymentNo());
     }
-  }, [setValue, isEdit]);
+  }, [isEdit, setValue]);
 
+  // Populate form with initialData in edit mode
   useEffect(() => {
-    if (isEdit) {
-      const fetchPayment = async () => {
-        setIsLoading(true);
-        const id = window.location.pathname.split('/').pop();
-        if (id) {
-          try {
-            const response = await getSinglePaymentABL(id);
-            const payment = response.data;
-            if (payment) {
-              setValue('paymentNo', payment.paymentNo || '');
-              setValue('paymentDate', payment.paymentDate || '');
-              setValue('paymentMode', payment.paymentMode || '');
-              setValue('bankName', payment.bankName || '');
-              setValue('chequeNo', payment.chequeNo || '');
-              setValue('chequeDate', payment.chequeDate || '');
-              setValue('remarks', payment.remarks || '');
-              setValue('paidTo', payment.paidTo || '');
-              setValue('paidAmount', payment.paidAmount || 0);
-              setValue('advanced', payment.advanced || 0);
-              setValue('advancedDate', payment.advancedDate || '');
-              setValue('pdc', payment.pdc || 0);
-              setValue('pdcDate', payment.pdcDate || '');
-              setValue('paymentAmount', payment.paymentAmount || 0);
-              setValue('tableData', payment.tableData || [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }]);
-            } else {
-              toast.error('Payment not found');
-              router.push('/paymentABL');
-            }
-          } catch (error) {
-            toast.error('Failed to load payment data');
-            console.error('Error fetching payment:', error);
-          } finally {
-            setIsLoading(false);
-          }
-        }
-      };
-      fetchPayment();
+    if (isEdit && initialData) {
+      reset({
+        paymentNo: initialData.paymentNo || '',
+        paymentDate: initialData.paymentDate || '',
+        paymentMode: initialData.paymentMode || '',
+        bankName: initialData.bankName || '',
+        chequeNo: initialData.chequeNo || '',
+        chequeDate: initialData.chequeDate || '',
+        remarks: initialData.remarks || '',
+        paidTo: initialData.paidTo || '',
+        paidAmount: initialData.paidAmount || 0,
+        advanced: initialData.advanced || 0,
+        advancedDate: initialData.advancedDate || '',
+        pdc: initialData.pdc || 0,
+        pdcDate: initialData.pdcDate || '',
+        paymentAmount: initialData.paymentAmount || 0,
+        tableData: initialData.tableData?.length
+          ? initialData.tableData.map(row => ({
+              vehicleNo: row.vehicleNo || '',
+              orderNo: row.orderNo || '',
+              charges: row.charges || '',
+              orderDate: row.orderDate || '',
+              dueDate: row.dueDate || '',
+              expenseAmount: row.expenseAmount || 0,
+              balance: row.balance || 0,
+              paidAmount: row.paidAmount || 0,
+            }))
+          : [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }],
+      });
     }
-  }, [isEdit, setValue, router]);
+  }, [isEdit, initialData, reset]);
 
+  // Update table calculations
   useEffect(() => {
-    const totalPaidAmount = tableData.reduce((sum, row) => sum + (row.paidAmount || 0), 0);
+    const updatedTableData = tableData.map((row) => {
+      const balance = (row.expenseAmount || 0) - (row.paidAmount || 0);
+      return { ...row, balance };
+    });
+    setValue('tableData', updatedTableData);
+
+    const totalPaidAmount = updatedTableData.reduce((sum, row) => sum + (row.paidAmount || 0), 0);
     setValue('paidAmount', totalPaidAmount);
-  }, [tableData, setValue]);
 
-  useEffect(() => {
     const advanced = parseFloat(watch('advanced')?.toString() || '0') || 0;
     const pdc = parseFloat(watch('pdc')?.toString() || '0') || 0;
-    const paymentAmount = advanced + pdc;
-    setValue('paymentAmount', paymentAmount, { shouldValidate: true });
-  }, [watch('advanced'), watch('pdc'), setValue]);
+    const paymentAmount = totalPaidAmount + advanced + pdc;
+    setValue('paymentAmount', paymentAmount);
+  }, [tableData, watch('advanced'), watch('pdc'), setValue, watch]);
 
   const selectOrder = (index: number, order: BookingOrder) => {
-    setValue(`tableData.${index}.vehicleNo`, order.vehicleNo);
-    setValue(`tableData.${index}.orderNo`, order.id);
-    setValue(`tableData.${index}.orderDate`, order.orderDate);
-    setValue('paidTo', order.vendorName);
+    setValue(`tableData.${index}.vehicleNo`, order.vehicleNo, { shouldValidate: true });
+    setValue(`tableData.${index}.orderNo`, order.id, { shouldValidate: true });
+    setValue(`tableData.${index}.orderDate`, order.orderDate, { shouldValidate: true });
+    setValue('paidTo', order.vendorName, { shouldValidate: true });
     setShowOrderPopup(null);
   };
 
   const selectCharge = (index: number, charge: Charge) => {
-    setValue(`tableData.${index}.charges`, charge.charge);
-    setValue(`tableData.${index}.orderDate`, charge.orderDate);
-    setValue(`tableData.${index}.dueDate`, charge.dueDate);
-    setValue(`tableData.${index}.expenseAmount`, charge.amount);
-    setValue(`tableData.${index}.balance`, charge.balance);
+    setValue(`tableData.${index}.charges`, charge.charge, { shouldValidate: true });
+    setValue(`tableData.${index}.orderDate`, charge.orderDate, { shouldValidate: true });
+    setValue(`tableData.${index}.dueDate`, charge.dueDate, { shouldValidate: true });
+    setValue(`tableData.${index}.expenseAmount`, charge.amount, { shouldValidate: true });
+    setValue(`tableData.${index}.balance`, charge.balance, { shouldValidate: true });
     setShowChargePopup(null);
   };
 
@@ -280,18 +318,64 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     ]);
   };
 
+  const removeTableRow = (index: number) => {
+    if (tableData.length > 1) {
+      const newTableData = tableData.filter((_, i) => i !== index);
+      setValue('tableData', newTableData);
+    }
+  };
+
   const onSubmit = async (data: PaymentFormData) => {
     setIsSubmitting(true);
     try {
+      const currentDateTime = new Date().toISOString();
+      const userId = '3fa85f64-5717-4562-b3fc-2c963f66afa6'; // Replace with actual user ID logic
+      const payload = {
+        id: isEdit
+          ? initialData?.id || window.location.pathname.split('/').pop() || ''
+          : `PAY${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        isActive: true,
+        isDeleted: false,
+        createdDateTime: isEdit ? initialData?.createdDateTime || currentDateTime : currentDateTime,
+        createdBy: isEdit ? initialData?.createdBy || userId : userId,
+        modifiedDateTime: currentDateTime,
+        modifiedBy: userId,
+        paymentNo: data.paymentNo || `PAY${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        paymentDate: data.paymentDate,
+        paymentMode: data.paymentMode,
+        bankName: data.bankName || '',
+        chequeNo: data.chequeNo || '',
+        chequeDate: data.chequeDate || '',
+        remarks: data.remarks || '',
+        paidTo: data.paidTo,
+        paidAmount: data.paidAmount || 0,
+        advanced: data.advanced || 0,
+        advancedDate: data.advancedDate || '',
+        pdc: data.pdc || 0,
+        pdcDate: data.pdcDate || '',
+        paymentAmount: data.paymentAmount || 0,
+        tableData: data.tableData.map(row => ({
+          vehicleNo: row.vehicleNo || '',
+          orderNo: row.orderNo || '',
+          charges: row.charges || '',
+          orderDate: row.orderDate || '',
+          dueDate: row.dueDate || '',
+          expenseAmount: row.expenseAmount || 0,
+          balance: row.balance || 0,
+          paidAmount: row.paidAmount || 0,
+        })),
+      };
+
       if (isEdit) {
-        await updatePaymentABL(data);
-        toast.success('Updated successfully');
+        await updatePaymentABL(payload);
+        toast.success('Payment updated successfully');
       } else {
-        await createPaymentABL(data);
-        toast.success('Created successfully');
+        await createPaymentABL(payload);
+        toast.success('Payment created successfully');
       }
       router.push('/paymentABL');
     } catch (error) {
+      console.error('Error saving payment:', error);
       toast.error('An error occurred while saving the payment');
     } finally {
       setIsSubmitting(false);
@@ -337,15 +421,24 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-              <ABLCustomInput
-                label="Payment #"
-                type="text"
-                placeholder="Auto-generated"
-                register={register}
-                error={errors.paymentNo?.message}
-                id="paymentNo"
-                disabled
-              />
+              <div className="relative">
+                <ABLCustomInput
+                  label="Payment #"
+                  type="text"
+                  placeholder={isEdit ? 'Payment No' : 'Auto-generated'}
+                  register={register}
+                  error={errors.paymentNo?.message}
+                  id="paymentNo"
+                  disabled
+                  onFocus={() => setIdFocused(true)}
+                  onBlur={() => setIdFocused(false)}
+                />
+                {idFocused && (
+                  <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
+                    Auto-generated
+                  </div>
+                )}
+              </div>
               <ABLCustomInput
                 label="Payment Date"
                 type="date"
@@ -397,7 +490,7 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               <ABLCustomInput
                 label="Paid To"
                 type="text"
-                placeholder="Enter paid to"
+                placeholder="Auto-filled from order"
                 register={register}
                 error={errors.paidTo?.message}
                 id="paidTo"
@@ -500,6 +593,9 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[130px]">
                           Paid Amount
                         </th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[100px]">
+                          Action
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800">
@@ -513,6 +609,9 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             >
                               {row.vehicleNo || 'Select Vehicle'}
                             </Button>
+                            {errors.tableData?.[index]?.orderNo && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].orderNo.message}</p>
+                            )}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
@@ -530,6 +629,9 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             >
                               {row.charges || 'Select Charges'}
                             </Button>
+                            {errors.tableData?.[index]?.charges && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].charges.message}</p>
+                            )}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
@@ -572,6 +674,19 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               min="0"
                               step="0.01"
                             />
+                            {errors.tableData?.[index]?.paidAmount && (
+                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].paidAmount.message}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <Button
+                              type="button"
+                              onClick={() => removeTableRow(index)}
+                              className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
+                              disabled={tableData.length <= 1}
+                            >
+                              <FiX />
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -590,6 +705,7 @@ const PaymentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         <td className="px-4 py-3 font-bold text-right text-base">
                           {tableData.reduce((sum, row) => sum + (row.paidAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
+                        <td className="px-4 py-3"></td>
                       </tr>
                     </tfoot>
                   </table>

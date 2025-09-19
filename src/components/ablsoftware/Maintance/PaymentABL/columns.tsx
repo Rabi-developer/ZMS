@@ -61,7 +61,7 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
     accessorKey: 'actions',
     cell: ({ row }: { row: Row<PaymentABL> }) => (
       <div className="flex space-x-2">
-        <Link href={`/paymentabl/edit/${row.original.id}`}>
+        <Link href={`/paymentABL/edit/${row.original.id}`}>
           <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600">
             <Edit size={16} />
           </Button>

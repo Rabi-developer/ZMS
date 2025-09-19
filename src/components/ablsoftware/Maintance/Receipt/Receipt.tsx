@@ -339,20 +339,21 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       // Save receipt
       if (isEdit) {
         await updateReceipt(payload);
-        toast.success('Receipt updated successfully');
+        toast.success('Updated successfully');
       } else {
         await createReceipt(payload);
         toast.success('Receipt created successfully');
       }
+       router.push('/receipt');
 
       // Update consignment receivedAmount
       const updates = data.tableData
-        .filter(row => row.consignmentId && row.receiptAmount > 0)
+        .filter(row => row.consignmentId && (row.receiptAmount ?? 0) > 0)
         .map(async row => {
           try {
             await updateConsignment({
               id: row.consignmentId,
-              receivedAmount: row.receiptAmount,
+              receivedAmount: row.receiptAmount ?? 0,
             });
           } catch (error) {
             console.error(`Failed to update consignment ${row.consignmentId}:`, error);
@@ -360,7 +361,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         });
       await Promise.all(updates);
 
-      router.push('/receipts');
+      router.push('/receipt');
     } catch (error) {
       console.error('Error saving receipt:', error);
       toast.error('An error occurred while saving the receipt');
@@ -395,7 +396,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                   <p className="text-white/80 text-xs">{isEdit ? 'Update receipt record' : 'Create a new receipt record'}</p>
                 </div>
               </div>
-              <Link href="/receipts">
+              <Link href="/receipt">
                 <Button
                   type="button"
                   className="bg-white/10 hover:bg-white/20 text-white rounded-md transition-all duration-200 border border-white/20 px-3 py-1 text-sm"
@@ -619,6 +620,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               type="number"
                               min="0"
                               step="0.01"
+                              value={row.receiptAmount ?? 0}
                             />
                             {errors.tableData?.[index]?.receiptAmount && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].receiptAmount.message}</p>
@@ -854,7 +856,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               <MdInfo className="text-[#3a614c]" />
               <span>Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/receipts" className="text-[#3a614c] hover:text-[#6e997f] text-sm font-medium">
+            <Link href="/receipt" className="text-[#3a614c] hover:text-[#6e997f] text-sm font-medium">
               Back to Receipts
             </Link>
           </div>
