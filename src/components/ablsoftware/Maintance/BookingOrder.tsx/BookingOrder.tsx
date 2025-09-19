@@ -231,7 +231,8 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
 
         // If initialData provided (edit page), hydrate directly without re-searching all booking orders list
         if (isEdit && initialData) {
-          const booking = initialData;
+          // Handle both direct data and wrapped data structure
+          const booking = initialData.data ? initialData.data : initialData;
           setBookingId(booking.id || '');
           setValue('id', booking.id || '');
           setValue('OrderNo', booking.orderNo || booking.id || '');
@@ -240,26 +241,28 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
           setValue('vendor', booking.vendor || '');
           setValue('vehicleNo', booking.vehicleNo || '');
           setValue('containerNo', booking.containerNo || '');
-          setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType));
+          setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType) || booking.vehicleType || '');
           setValue('driverName', booking.driverName || '');
           setValue('contactNo', booking.contactNo || '');
+          setValue('munshayana', booking.munshayana || '');
           setValue('cargoWeight', booking.cargoWeight || '');
           setValue('bookedDays', booking.bookedDays || '');
           setValue('detentionDays', booking.detentionDays || '');
-          setValue('fromLocation', mapLocationIdToName(booking.fromLocation));
+          setValue('fromLocation', mapLocationIdToName(booking.fromLocation) || booking.fromLocation || '');
           setValue('departureDate', booking.departureDate || '');
-          setValue('via1', mapLocationIdToName(booking.via1));
-          setValue('via2', mapLocationIdToName(booking.via2));
-          setValue('toLocation', mapLocationIdToName(booking.toLocation));
+          setValue('via1', mapLocationIdToName(booking.via1) || booking.via1 || '');
+          setValue('via2', mapLocationIdToName(booking.via2) || booking.via2 || '');
+          setValue('toLocation', mapLocationIdToName(booking.toLocation) || booking.toLocation || '');
           setValue('expectedReachedDate', booking.expectedReachedDate || '');
           setValue('reachedDate', booking.reachedDate || '');
           setValue('vehicleMunshyana', booking.vehicleMunshyana || '');
           setValue('remarks', booking.remarks || '');
           setValue('contractOwner', booking.contractOwner || '');
-          // fetch consignments belonging to this order
-          try {
-            const consForBooking = await getAllConsignment(1, 100, { orderNo: booking.orderNo || booking.id });
-            const bookingConsignments = consForBooking.data || [];
+          setValue('status', booking.status || '');
+          
+          // Handle consignments from the booking data
+          if (booking.consignments && Array.isArray(booking.consignments)) {
+            const bookingConsignments = booking.consignments as Consignment[];
             const allConsignments = [...uniqueGeneral, ...bookingConsignments];
             const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values()) as Consignment[];
             setConsignments(uniqueConsignments);
@@ -267,8 +270,21 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
             setSelectedConsignments(selectedBiltyNos);
             setValue('selectedConsignments', selectedBiltyNos);
             setTempSelectedConsignments(selectedBiltyNos);
-          } catch (e) {
-            console.warn('Failed to fetch consignments for booking', e);
+          } else {
+            // fetch consignments belonging to this order if not included in response
+            try {
+              const consForBooking = await getAllConsignment(1, 100, { orderNo: booking.orderNo || booking.id });
+              const bookingConsignments = consForBooking.data || [];
+              const allConsignments = [...uniqueGeneral, ...bookingConsignments];
+              const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values()) as Consignment[];
+              setConsignments(uniqueConsignments);
+              const selectedBiltyNos = bookingConsignments.map((c: any) => c.biltyNo);
+              setSelectedConsignments(selectedBiltyNos);
+              setValue('selectedConsignments', selectedBiltyNos);
+              setTempSelectedConsignments(selectedBiltyNos);
+            } catch (e) {
+              console.warn('Failed to fetch consignments for booking', e);
+            }
           }
         } else if (isEdit) {
           const id = window.location.pathname.split('/').pop();
@@ -285,22 +301,24 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                 setValue('vendor', booking.vendor || '');
                 setValue('vehicleNo', booking.vehicleNo || '');
                 setValue('containerNo', booking.containerNo || '');
-                setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType));
+                setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType) || booking.vehicleType || '');
                 setValue('driverName', booking.driverName || '');
                 setValue('contactNo', booking.contactNo || '');
+                setValue('munshayana', booking.munshayana || '');
                 setValue('cargoWeight', booking.cargoWeight || '');
                 setValue('bookedDays', booking.bookedDays || '');
                 setValue('detentionDays', booking.detentionDays || '');
-                setValue('fromLocation', mapLocationIdToName(booking.fromLocation));
+                setValue('fromLocation', mapLocationIdToName(booking.fromLocation) || booking.fromLocation || '');
                 setValue('departureDate', booking.departureDate || '');
-                setValue('via1', mapLocationIdToName(booking.via1));
-                setValue('via2', mapLocationIdToName(booking.via2));
-                setValue('toLocation', mapLocationIdToName(booking.toLocation));
+                setValue('via1', mapLocationIdToName(booking.via1) || booking.via1 || '');
+                setValue('via2', mapLocationIdToName(booking.via2) || booking.via2 || '');
+                setValue('toLocation', mapLocationIdToName(booking.toLocation) || booking.toLocation || '');
                 setValue('expectedReachedDate', booking.expectedReachedDate || '');
                 setValue('reachedDate', booking.reachedDate || '');
                 setValue('vehicleMunshyana', booking.vehicleMunshyana || '');
                 setValue('remarks', booking.remarks || '');
                 setValue('contractOwner', booking.contractOwner || '');
+                setValue('status', booking.status || '');
 
                 const consRes = await getAllConsignment(1, 100, { orderNo: booking.orderNo || id });
                 const bookingConsignments = consRes.data || [];
@@ -333,22 +351,24 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
               setValue('vendor', booking.vendor || '');
               setValue('vehicleNo', booking.vehicleNo || '');
               setValue('containerNo', booking.containerNo || '');
-              setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType));
+              setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType) || booking.vehicleType || '');
               setValue('driverName', booking.driverName || '');
               setValue('contactNo', booking.contactNo || '');
+              setValue('munshayana', booking.munshayana || '');
               setValue('cargoWeight', booking.cargoWeight || '');
               setValue('bookedDays', booking.bookedDays || '');
               setValue('detentionDays', booking.detentionDays || '');
-              setValue('fromLocation', mapLocationIdToName(booking.fromLocation));
+              setValue('fromLocation', mapLocationIdToName(booking.fromLocation) || booking.fromLocation || '');
               setValue('departureDate', booking.departureDate || '');
-              setValue('via1', mapLocationIdToName(booking.via1));
-              setValue('via2', mapLocationIdToName(booking.via2));
-              setValue('toLocation', mapLocationIdToName(booking.toLocation));
+              setValue('via1', mapLocationIdToName(booking.via1) || booking.via1 || '');
+              setValue('via2', mapLocationIdToName(booking.via2) || booking.via2 || '');
+              setValue('toLocation', mapLocationIdToName(booking.toLocation) || booking.toLocation || '');
               setValue('expectedReachedDate', booking.expectedReachedDate || '');
               setValue('reachedDate', booking.reachedDate || '');
               setValue('vehicleMunshyana', booking.vehicleMunshyana || '');
               setValue('remarks', booking.remarks || '');
               setValue('contractOwner', booking.contractOwner || '');
+              setValue('status', booking.status || '');
 
               const consRes2 = await getAllConsignment(1, 100, { orderNo: booking.orderNo || orderNoParam });
               const bookingConsignments2 = consRes2.data || [];
@@ -437,10 +457,6 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
         vehicleMunshyana: data.vehicleMunshyana || "string",
         remarks: data.remarks || "string",
         contractOwner: data.contractOwner || "string",
-        // createdBy: data.createdBy || "string",
-        // creationDate: data.creationDate || new Date().toISOString(),
-        // updatedBy: data.updatedBy || "string",
-        // updationDate: new Date().toISOString(),
         status: data.status || "string",
         consignments: consignmentObjects,
       };
