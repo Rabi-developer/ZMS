@@ -130,6 +130,7 @@ interface DataTableProps<TData extends { id: string }, TValue> {
   pageIndex: number;
   setPageSize: React.Dispatch<React.SetStateAction<number>>;
   pageSize: number;
+  totalRows?: number;
   onRowClick?: (id: string) => void; // Added prop for row click
 }
 
@@ -150,6 +151,7 @@ export function DataTable<TData extends { id: string }, TValue>({
   pageSize,
   setPageIndex,
   setPageSize,
+  totalRows,
   searchName = "name",
   hide = true,
   onRowClick,
@@ -162,6 +164,12 @@ export function DataTable<TData extends { id: string }, TValue>({
   const [searchMode, setSearchMode] = useState<"global" | "column">("global");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [columnSearches, setColumnSearches] = useState<Record<string, string>>({});
+
+  const handlePaginationChange = (updater: any) => {
+    const newPagination = typeof updater === 'function' ? updater({ pageIndex, pageSize }) : updater;
+    setPageIndex(newPagination.pageIndex);
+    setPageSize(newPagination.pageSize);
+  };
 
   const table = useReactTable({
     data,
@@ -177,11 +185,11 @@ export function DataTable<TData extends { id: string }, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: handlePaginationChange,
     globalFilterFn,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
   });
 
   const searchColumn = table.getColumn(searchName);
@@ -363,7 +371,7 @@ export function DataTable<TData extends { id: string }, TValue>({
                   </Button>
                 )}
                 <div className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-                  {table.getFilteredRowModel().rows.length} of {data.length} records
+                  {table.getFilteredRowModel().rows.length} of {totalRows || data.length} records
                 </div>
               </div>
             </motion.div>
@@ -489,10 +497,14 @@ export function DataTable<TData extends { id: string }, TValue>({
                 <span className="font-medium">Rows per page:</span>
                 <select
                   value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  onChange={(e) => {
+                    const newPageSize = Number(e.target.value);
+                    setPageSize(newPageSize);
+                    setPageIndex(0); // Reset to the first page
+                  }}
                   className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-1 text-sm cursor-pointer focus:ring-2 focus:ring-[#3a614c]/20 focus:border-[#3a614c] transition-all"
                 >
-                  {[100, 200, 300, 400, 500, 1000].map((pageSizeOption) => (
+                  {[10, 20, 50, 100].map((pageSizeOption) => (
                     <option key={pageSizeOption} value={pageSizeOption}>
                       {pageSizeOption}
                     </option>
@@ -500,7 +512,7 @@ export function DataTable<TData extends { id: string }, TValue>({
                 </select>
               </div>
               <div className="hidden sm:block text-sm">
-                Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, data.length)} of {data.length} entries
+                Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, totalRows || data.length)} of {totalRows || data.length} entries
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -524,41 +536,40 @@ export function DataTable<TData extends { id: string }, TValue>({
               </Button>
               <div className="flex items-center gap-1">
                 {Array.from(
-                  { length: 5 },
-                  (_, i) => {
-                    const pageNum = pageIndex < 3 ? i : pageIndex - 2 + i;
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={pageNum === pageIndex ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setPageIndex(pageNum)}
-                        className={cn(
-                          "w-8 h-8 p-0 transition-all duration-200",
-                          pageNum === pageIndex
-                            ? "bg-[#6e997f] text-white hover:bg-[#6e997f]/80"
-                            : "border-[#6e997f] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white"
-                        )}
-                      >
-                        {pageNum + 1}
-                      </Button>
-                    );
-                  }
+                  { length: Math.ceil((totalRows || data.length) / pageSize) },
+                  (_, i) => (
+                    <Button
+                      key={i}
+                      variant={i === pageIndex ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPageIndex(i)}
+                      className={cn(
+                        "w-8 h-8 p-0 transition-all duration-200",
+                        i === pageIndex
+                          ? "bg-[#6e997f] text-white hover:bg-[#6e997f]/80"
+                          : "border-[#6e997f] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white"
+                      )}
+                    >
+                      {i + 1}
+                    </Button>
+                  )
                 )}
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setPageIndex(pageIndex + 1)}
-                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200"
+                disabled={pageIndex >= Math.ceil((totalRows || data.length) / pageSize) - 1}
+                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next <FaAngleRight className="ml-1" />
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageIndex(pageIndex + 1)}
-                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200"
+                onClick={() => setPageIndex(Math.ceil((totalRows || data.length) / pageSize) - 1)}
+                disabled={pageIndex >= Math.ceil((totalRows || data.length) / pageSize) - 1}
+                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Last
               </Button>
