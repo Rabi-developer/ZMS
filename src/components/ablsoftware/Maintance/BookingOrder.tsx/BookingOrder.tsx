@@ -177,13 +177,14 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
           getAllTransporter(),
           getAllVendor(),
           getAllMunshyana(),
-          getAllConsignment(1, 10, {}),
+          getAllConsignment(1, 100, {}),
         ]);
 
         const transportersData = transRes.data.map((t: any) => ({ id: t.id, name: t.name })) || [];
         const vendorsData = vendRes.data.map((v: any) => ({ id: v.id, name: v.name })) || [];
         const munshayanasData = munRes.data.map((m: any) => ({ id: m.id, name: m.chargesDesc })) || [];
         const consignmentsData = consRes.data || [];
+        const uniqueGeneral = Array.from(new Map(consignmentsData.map((c: any) => [c.biltyNo, c])).values());
 
         const vehicleTypesData = [
           { id: 'Truck', name: 'Truck' },
@@ -213,7 +214,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
         setVehicleTypes(vehicleTypesData);
         setMunshayanas(munshayanasData);
         setLocations(locationsData);
-        setConsignments(consignmentsData);
+        setConsignments(uniqueGeneral);
 
         // If initialData provided (edit page), hydrate directly without re-searching all booking orders list
         if (isEdit && initialData) {
@@ -243,9 +244,11 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
           setValue('contractOwner', booking.contractOwner || '');
           // fetch consignments belonging to this order
           try {
-            const consForBooking = await getAllConsignment(1, 10, { orderNo: booking.orderNo || booking.id });
+            const consForBooking = await getAllConsignment(1, 100, { orderNo: booking.orderNo || booking.id });
             const bookingConsignments = consForBooking.data || [];
-            setConsignments([...consignmentsData, ...bookingConsignments]);
+            const allConsignments = [...uniqueGeneral, ...bookingConsignments];
+            const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values());
+            setConsignments(uniqueConsignments);
             const selectedBiltyNos = bookingConsignments.map((c: any) => c.biltyNo);
             setSelectedConsignments(selectedBiltyNos);
             setValue('selectedConsignments', selectedBiltyNos);
@@ -284,9 +287,11 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                 setValue('remarks', booking.remarks || '');
                 setValue('contractOwner', booking.contractOwner || '');
 
-                const consRes = await getAllConsignment(1, 10, { orderNo: booking.orderNo || id });
+                const consRes = await getAllConsignment(1, 100, { orderNo: booking.orderNo || id });
                 const bookingConsignments = consRes.data || [];
-                setConsignments([...consignmentsData, ...bookingConsignments]);
+                const allConsignments = [...uniqueGeneral, ...bookingConsignments];
+                const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values());
+                setConsignments(uniqueConsignments);
                 const selectedBiltyNos = bookingConsignments.map((c: Consignment) => c.biltyNo);
                 setSelectedConsignments(selectedBiltyNos);
                 setValue('selectedConsignments', selectedBiltyNos);
@@ -329,9 +334,11 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
               setValue('remarks', booking.remarks || '');
               setValue('contractOwner', booking.contractOwner || '');
 
-              const consRes2 = await getAllConsignment(1, 10, { orderNo: booking.orderNo || orderNoParam });
+              const consRes2 = await getAllConsignment(1, 100, { orderNo: booking.orderNo || orderNoParam });
               const bookingConsignments2 = consRes2.data || [];
-              setConsignments([...consignmentsData, ...bookingConsignments2]);
+              const allConsignments = [...uniqueGeneral, ...bookingConsignments2];
+              const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values());
+              setConsignments(uniqueConsignments);
               const selectedBiltyNos2 = bookingConsignments2.map((c: Consignment) => c.biltyNo);
               setSelectedConsignments(selectedBiltyNos2);
               setValue('selectedConsignments', selectedBiltyNos2);
@@ -355,7 +362,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
   const handleConsignmentSelection = (biltyNo: string, checked: boolean) => {
     setTempSelectedConsignments((prev) => {
       if (checked) {
-        return [...prev, biltyNo];
+        return [...new Set([...prev, biltyNo])]; // Ensure no duplicates in selection
       } else {
         return prev.filter((id) => id !== biltyNo);
       }
@@ -371,18 +378,18 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
   const onSubmit = async (data: BookingOrderFormData) => {
     setIsSubmitting(true);
     try {
+      // Map selectedConsignments (biltyNo array) to consignment objects
+      const consignmentObjects = consignments.filter(cons => selectedConsignments.includes(cons.biltyNo));
       const payload = {
         ...data,
-        selectedConsignments,
+        consignments: consignmentObjects,
       };
       if (isEdit) {
-        // Prefer internal bookingId, fallback to OrderNo if backend expects id
         const idToUse = bookingId || data.OrderNo || '';
         if (!idToUse) {
           toast.error('Cannot update: missing booking id');
           return;
         }
-        // Ensure id present inside body if backend also maps it from payload
         const updateBody = { ...payload, id: idToUse, orderNo: data.OrderNo || undefined };
         console.log('[BookingOrderForm] Submitting update', { idToUse, updateBody });
         await updateBookingOrder(idToUse, updateBody);
@@ -401,10 +408,10 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
     }
   };
 
-  const updateStatus = (index: number, newStatus: string) => {
-    const updatedConsignments = [...consignments];
-    updatedConsignments[index].status = newStatus;
-    setConsignments(updatedConsignments);
+  const updateStatus = (biltyNo: string, newStatus: string) => {
+    setConsignments((prev) =>
+      prev.map((c) => (c.biltyNo === biltyNo ? { ...c, status: newStatus } : c))
+    );
   };
 
   // Filter consignments based on search term with null checks
@@ -871,8 +878,8 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
               ) : (
                 consignments
                   .filter((cons) => selectedConsignments.includes(cons.biltyNo))
-                  .map((cons, index) => (
-                    <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                  .map((cons) => (
+                    <tr key={cons.biltyNo} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                       <td className="px-6 py-4">{cons.biltyNo}</td>
                       <td className="px-6 py-4">{cons.receiptNo}</td>
                       <td className="px-6 py-4">{cons.consignor}</td>
@@ -890,7 +897,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                             name: s,
                           }))}
                           selectedOption={cons.status}
-                          onChange={(value) => updateStatus(index, value)}
+                          onChange={(value) => updateStatus(cons.biltyNo, value)}
                         />
                       </td>
                     </tr>
@@ -960,8 +967,8 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       </td>
                     </tr>
                   ) : (
-                    filteredConsignments.map((cons, index) => (
-                      <tr key={index} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                    filteredConsignments.map((cons) => (
+                      <tr key={cons.biltyNo} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                         <td className="px-6 py-4">
                           <input
                             type="checkbox"
