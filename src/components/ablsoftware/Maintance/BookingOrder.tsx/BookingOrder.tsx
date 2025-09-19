@@ -40,6 +40,7 @@ interface DropdownOption {
 }
 
 interface Consignment {
+  id?: string; // Add id field for consignments
   biltyNo: string;
   receiptNo: string;
   consignor: string;
@@ -54,6 +55,7 @@ interface Consignment {
 
 // Define the schema for booking order form validation
 const bookingOrderSchema = z.object({
+  id: z.string().optional(),
   OrderNo: z.string().optional(),
   orderDate: z.string().optional().nullable(),
   transporter: z.string().optional().nullable(),
@@ -77,6 +79,11 @@ const bookingOrderSchema = z.object({
   vehicleMunshyana: z.string().optional().nullable(),
   remarks: z.string().optional().nullable(),
   contractOwner: z.string().optional().nullable(),
+  createdBy: z.string().optional().nullable(),
+  creationDate: z.string().optional().nullable(),
+  updatedBy: z.string().optional().nullable(),
+  updationDate: z.string().optional().nullable(),
+  status: z.string().optional().nullable(),
   selectedConsignments: z.array(z.string()).optional().nullable(),
 });
 
@@ -101,6 +108,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
   } = useForm<BookingOrderFormData>({
     resolver: zodResolver(bookingOrderSchema),
     defaultValues: {
+      id: '',
       OrderNo: '',
       orderDate: '',
       transporter: '',
@@ -123,6 +131,11 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
       vehicleMunshyana: '',
       remarks: '',
       contractOwner: '',
+      createdBy: '',
+      creationDate: '',
+      updatedBy: '',
+      updationDate: '',
+      status: '',
       selectedConsignments: [],
     },
   });
@@ -184,7 +197,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
         const vendorsData = vendRes.data.map((v: any) => ({ id: v.id, name: v.name })) || [];
         const munshayanasData = munRes.data.map((m: any) => ({ id: m.id, name: m.chargesDesc })) || [];
         const consignmentsData = consRes.data || [];
-        const uniqueGeneral = Array.from(new Map(consignmentsData.map((c: any) => [c.biltyNo, c])).values());
+        const uniqueGeneral = Array.from(new Map(consignmentsData.map((c: any) => [c.biltyNo, c])).values()) as Consignment[];
 
         const vehicleTypesData = [
           { id: 'Truck', name: 'Truck' },
@@ -220,6 +233,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
         if (isEdit && initialData) {
           const booking = initialData;
           setBookingId(booking.id || '');
+          setValue('id', booking.id || '');
           setValue('OrderNo', booking.orderNo || booking.id || '');
           setValue('orderDate', booking.orderDate || '');
           setValue('transporter', booking.transporter || '');
@@ -247,7 +261,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
             const consForBooking = await getAllConsignment(1, 100, { orderNo: booking.orderNo || booking.id });
             const bookingConsignments = consForBooking.data || [];
             const allConsignments = [...uniqueGeneral, ...bookingConsignments];
-            const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values());
+            const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values()) as Consignment[];
             setConsignments(uniqueConsignments);
             const selectedBiltyNos = bookingConsignments.map((c: any) => c.biltyNo);
             setSelectedConsignments(selectedBiltyNos);
@@ -264,6 +278,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
               const booking = response.data.find((b: any) => b.id === id);
               if (booking) {
                 setBookingId(booking.id || '');
+                setValue('id', booking.id || '');
                 setValue('OrderNo', booking.orderNo || booking.id || '');
                 setValue('orderDate', booking.orderDate || '');
                 setValue('transporter', booking.transporter || '');
@@ -290,7 +305,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                 const consRes = await getAllConsignment(1, 100, { orderNo: booking.orderNo || id });
                 const bookingConsignments = consRes.data || [];
                 const allConsignments = [...uniqueGeneral, ...bookingConsignments];
-                const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values());
+                const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values()) as Consignment[];
                 setConsignments(uniqueConsignments);
                 const selectedBiltyNos = bookingConsignments.map((c: Consignment) => c.biltyNo);
                 setSelectedConsignments(selectedBiltyNos);
@@ -311,6 +326,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
             const booking = response.data.find((b: any) => (b.orderNo || b.id) === orderNoParam || b.id === orderNoParam);
             if (booking) {
               setBookingId(booking.id || '');
+              setValue('id', booking.id || '');
               setValue('OrderNo', booking.orderNo || booking.id || '');
               setValue('orderDate', booking.orderDate || '');
               setValue('transporter', booking.transporter || '');
@@ -378,25 +394,71 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
   const onSubmit = async (data: BookingOrderFormData) => {
     setIsSubmitting(true);
     try {
-      // Map selectedConsignments (biltyNo array) to consignment objects
-      const consignmentObjects = consignments.filter(cons => selectedConsignments.includes(cons.biltyNo));
+      // Map selectedConsignments (biltyNo array) to consignment objects with proper structure
+      const consignmentObjects = consignments
+        .filter(cons => selectedConsignments.includes(cons.biltyNo))
+        .map(cons => ({
+          id: cons.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6", // Use existing id or placeholder
+          biltyNo: cons.biltyNo || "string",
+          receiptNo: cons.receiptNo || "string",
+          consignor: cons.consignor || "string",
+          consignee: cons.consignee || "string",
+          item: cons.item || "string",
+          qty: cons.qty || 0,
+          totalAmount: cons.totalAmount || 0,
+          recvAmount: cons.recvAmount || 0,
+          delDate: cons.delDate || "string",
+          status: cons.status || "string"
+        }));
+
+      // Create the payload matching the API schema
       const payload = {
-        ...data,
+        id: isEdit ? (bookingId || data.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6") : "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        orderNo: data.OrderNo || "string",
+        orderDate: data.orderDate || "string",
+        transporter: data.transporter || "string",
+        vendor: data.vendor || "string",
+        vehicleNo: data.vehicleNo || "string",
+        containerNo: data.containerNo || "string",
+        vehicleType: data.vehicleType || "string",
+        driverName: data.driverName || "string",
+        contactNo: data.contactNo || "string",
+        munshayana: data.munshayana || "string",
+        cargoWeight: data.cargoWeight || "string",
+        bookedDays: data.bookedDays || "string",
+        detentionDays: data.detentionDays || "string",
+        fromLocation: data.fromLocation || "string",
+        departureDate: data.departureDate || "string",
+        via1: data.via1 || "string",
+        via2: data.via2 || "string",
+        toLocation: data.toLocation || "string",
+        expectedReachedDate: data.expectedReachedDate || "string",
+        reachedDate: data.reachedDate || "string",
+        vehicleMunshyana: data.vehicleMunshyana || "string",
+        remarks: data.remarks || "string",
+        contractOwner: data.contractOwner || "string",
+        // createdBy: data.createdBy || "string",
+        // creationDate: data.creationDate || new Date().toISOString(),
+        // updatedBy: data.updatedBy || "string",
+        // updationDate: new Date().toISOString(),
+        status: data.status || "string",
         consignments: consignmentObjects,
       };
+
       if (isEdit) {
-        const idToUse = bookingId || data.OrderNo || '';
+        const idToUse = bookingId || data.id || '';
         if (!idToUse) {
           toast.error('Cannot update: missing booking id');
           return;
         }
-        const updateBody = { ...payload, id: idToUse, orderNo: data.OrderNo || undefined };
-        console.log('[BookingOrderForm] Submitting update', { idToUse, updateBody });
-        await updateBookingOrder(idToUse, updateBody);
+        console.log('[BookingOrderForm] Submitting update', { idToUse, payload });
+        await updateBookingOrder(idToUse, payload);
         console.log('[BookingOrderForm] Update success');
         toast.success('Booking Order updated successfully!');
       } else {
+        console.log('[BookingOrderForm] Submitting create', payload);
         await createBookingOrder(payload);
+        console.log('[BookingOrderForm] Create success');
         toast.success('Booking Order created successfully!');
       }
       router.push('/bookingorder');
