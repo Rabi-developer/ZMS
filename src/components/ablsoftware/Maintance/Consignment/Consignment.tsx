@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { createConsignment, updateConsignment, getSingleConsignment } from '@/apis/consignment';
+import type { ConsignmentOrderPayload } from '@/types/consignment';
 import { getAllPartys } from '@/apis/party';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
@@ -78,6 +79,7 @@ const consignmentSchema = z.object({
   freightFrom: z.string().optional(),
   items: z.array(
     z.object({
+      id: z.string().optional(), // to carry item id on edit
       desc: z.string().optional(),
       qty: z.number().optional(),
       rate: z.number().optional(),
@@ -255,7 +257,6 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               'port',
               'destination',
               'freightFrom',
-              'items',
               'totalQty',
               'freight',
               'sbrTax',
@@ -277,6 +278,34 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 setValue(key as keyof ConsignmentFormData, consignment[key]);
               }
             });
+            // If API returns consignments array (new schema), map to form items and carry IDs for update
+            if (Array.isArray(consignment.consignments)) {
+              const items = consignment.consignments.map((c: any) => {
+                const qty = Number(c.qty ?? 0);
+                const total = Number(c.totalAmount ?? 0);
+                const rate = qty > 0 ? total / qty : 0;
+                return {
+                  id: c.id,
+                  desc: c.item ?? '',
+                  qty,
+                  rate,
+                  qtyUnit: '',
+                  weight: 0,
+                  weightUnit: '',
+                };
+              });
+              setValue('items', items);
+              if (consignment.orderNo) setValue('orderNo', consignment.orderNo);
+              if (consignment.containerNo) setValue('containerNo', consignment.containerNo);
+              if (consignment.destination) setValue('destination', consignment.toLocation || consignment.destination);
+              if (consignment.remarks) setValue('remarks', consignment.remarks);
+              if (consignment.departureDate) setValue('consignmentDate', consignment.departureDate);
+              if (consignment.expectedReachedDate) setValue('deliveryDate', consignment.expectedReachedDate);
+              if (consignment.transporter) setValue('shippingLine', consignment.transporter);
+              if (consignment.vehicleNo) {
+                // not a direct field, but order details panel uses selected order; we keep orderNo only
+              }
+            }
           } catch (error) {
             toast.error('Failed to load consignment data');
           } finally {
@@ -335,14 +364,62 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const onSubmit = async (data: ConsignmentFormData) => {
     setIsSubmitting(true);
     try {
-      const payload = {
-        ...data,
-        orderNo: data.orderNo || orderNoParam || '',
-         // Add model field for backend validation
+      // Build payload aligned with backend schema
+      const selectedOrder = getSelectedOrderDetails();
+
+      const payload: ConsignmentOrderPayload = {
+        // id is added only for update
+        orderNo: (data.orderNo || orderNoParam || '').trim(),
+        orderDate: (selectedOrder?.orderDate || data.date || '').trim(),
+        transporter: (data.shippingLine || '').trim(),
+        vendor: (selectedOrder?.vendor || '').trim(),
+        vehicleNo: (selectedOrder?.vehicleNo || '').trim(),
+        containerNo: (data.containerNo || '').trim(),
+        vehicleType: (data.consignmentMode || '').trim(),
+        driverName: '',
+        contactNo: (data.receiverContactNo || '').trim(),
+        munshayana: '',
+        cargoWeight: (selectedOrder?.cargoWeight || '').toString(),
+        bookedDays: '',
+        detentionDays: '',
+        fromLocation: (data.port || '').trim(),
+        departureDate: (data.consignmentDate || data.date || '').trim(),
+        via1: '',
+        via2: '',
+        toLocation: (data.destination || '').trim(),
+        expectedReachedDate: (data.deliveryDate || '').trim(),
+        reachedDate: '',
+        vehicleMunshyana: '',
+        remarks: (data.remarks || '').trim(),
+        contractOwner: '',
+       
+        status: '',
+        consignments: (data.items || [])
+          .filter((it) => (it.desc && it.desc.trim().length > 0) || (it.qty && it.qty > 0))
+          .map((it) => ({
+            // id included only if present (update)
+            ...(it.id ? { id: it.id } : {}),
+            biltyNo: (data.biltyNo || '').trim(),
+            receiptNo: (data.receiptNo || '').trim(),
+            consignor: (data.consignor || '').trim(),
+            consignee: (data.consignee || '').trim(),
+            item: (it.desc || '').trim(),
+            qty: Number(it.qty || 0),
+            totalAmount: Number((it.qty || 0) * (it.rate || 0)),
+            recvAmount: 0,
+            delDate: (data.deliveryDate || '').trim(),
+            status: '',
+          })),
       };
+
       if (isEdit) {
         const newid = window.location.pathname.split('/').pop();
-        await updateConsignment({ ...payload, id: newid });
+        const updatePayload: ConsignmentOrderPayload = {
+          ...payload,
+          id: newid || undefined,
+          // If we had item IDs from backend, we would include them here; current form doesn't track per-item IDs.
+        };
+        await updateConsignment(updatePayload);
         toast.success('Consignment updated successfully!');
       } else {
         await createConsignment(payload);
