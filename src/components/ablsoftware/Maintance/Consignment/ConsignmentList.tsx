@@ -21,6 +21,8 @@ const ConsignmentList = () => {
   const [deleteId, setDeleteId] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [totalRows, setTotalRows] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedConsignmentIds, setSelectedConsignmentIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
@@ -40,6 +42,12 @@ const ConsignmentList = () => {
       setLoading(true);
       const response = await getAllConsignment(pageIndex + 1, pageSize);
       setConsignments(response?.data || []);
+      // Capture server-side pagination meta if available
+      const misc = response?.misc || {};
+      const serverTotal = misc.total ?? misc.totalCount ?? (response?.data?.length || 0);
+      const serverTotalPages = misc.totalPages ?? (serverTotal && pageSize ? Math.ceil(serverTotal / pageSize) : 0);
+      setTotalRows(Number(serverTotal) || 0);
+      setTotalPages(Number(serverTotalPages) || 0);
     } catch (error) {
       toast('Failed to fetch consignments', { type: 'error' });
     } finally {
@@ -58,6 +66,11 @@ const ConsignmentList = () => {
     }
     setFilteredConsignments(filtered);
   }, [consignments, selectedStatusFilter]);
+
+  // Reset pagination to first page only when status filter changes
+  useEffect(() => {
+    setPageIndex(0);
+  }, [selectedStatusFilter]);
 
   useEffect(() => {
     if (searchParams.get('refresh') === 'true') {
@@ -237,6 +250,8 @@ const ConsignmentList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
+          // Use server total when no client-side status filter is applied; otherwise reflect filtered count
+          totalRows={selectedStatusFilter === 'All' ? totalRows : filteredConsignments.length}
           onRowClick={handleViewOpen}
         />
       </div>

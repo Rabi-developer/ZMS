@@ -519,7 +519,7 @@ export function DataTable<TData extends { id: string }, TValue>({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageIndex(0)}
+                onClick={() => setPageIndex(() => 0)}
                 disabled={pageIndex === 0}
                 className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -528,7 +528,7 @@ export function DataTable<TData extends { id: string }, TValue>({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageIndex(pageIndex - 1)}
+                onClick={() => setPageIndex((prev) => Math.max(prev - 1, 0))}
                 disabled={pageIndex === 0}
                 className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -542,7 +542,7 @@ export function DataTable<TData extends { id: string }, TValue>({
                       key={i}
                       variant={i === pageIndex ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setPageIndex(i)}
+                      onClick={() => setPageIndex(() => i)}
                       className={cn(
                         "w-8 h-8 p-0 transition-all duration-200",
                         i === pageIndex
@@ -555,11 +555,15 @@ export function DataTable<TData extends { id: string }, TValue>({
                   )
                 )}
               </div>
+              {(() => {
+                const lastIndex = Math.max(Math.ceil((totalRows || data.length) / pageSize) - 1, 0);
+                return (
+                  <>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageIndex(pageIndex + 1)}
-                disabled={pageIndex >= Math.ceil((totalRows || data.length) / pageSize) - 1}
+                    onClick={() => setPageIndex((prev) => Math.min(prev + 1, lastIndex))}
+                    disabled={pageIndex >= lastIndex}
                 className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next <FaAngleRight className="ml-1" />
@@ -567,12 +571,15 @@ export function DataTable<TData extends { id: string }, TValue>({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageIndex(Math.ceil((totalRows || data.length) / pageSize) - 1)}
-                disabled={pageIndex >= Math.ceil((totalRows || data.length) / pageSize) - 1}
+                    onClick={() => setPageIndex(() => lastIndex)}
+                    disabled={pageIndex >= lastIndex}
                 className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Last
               </Button>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
