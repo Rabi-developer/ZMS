@@ -26,6 +26,7 @@ import {
   getCoreRowModel,
   getSortedRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
 import {
@@ -180,6 +181,7 @@ export function DataTable<TData extends { id: string }, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
   });
 
   const searchColumn = table.getColumn(searchName);
@@ -498,12 +500,7 @@ export function DataTable<TData extends { id: string }, TValue>({
                 </select>
               </div>
               <div className="hidden sm:block text-sm">
-                Showing {pageIndex * pageSize + 1} to{" "}
-                {Math.min((pageIndex + 1) * pageSize, table.getFilteredRowModel().rows.length)} of{" "}
-                {table.getFilteredRowModel().rows.length} entries
-                {table.getFilteredRowModel().rows.length !== data.length && (
-                  <span className="text-gray-500"> (filtered from {data.length} total)</span>
-                )}
+                Showing {pageIndex * pageSize + 1} to {Math.min((pageIndex + 1) * pageSize, data.length)} of {data.length} entries
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -527,11 +524,9 @@ export function DataTable<TData extends { id: string }, TValue>({
               </Button>
               <div className="flex items-center gap-1">
                 {Array.from(
-                  { length: Math.min(5, Math.ceil(table.getFilteredRowModel().rows.length / pageSize)) },
+                  { length: 5 },
                   (_, i) => {
                     const pageNum = pageIndex < 3 ? i : pageIndex - 2 + i;
-                    const totalPages = Math.ceil(table.getFilteredRowModel().rows.length / pageSize);
-                    if (pageNum >= totalPages) return null;
                     return (
                       <Button
                         key={pageNum}
@@ -555,19 +550,15 @@ export function DataTable<TData extends { id: string }, TValue>({
                 variant="outline"
                 size="sm"
                 onClick={() => setPageIndex(pageIndex + 1)}
-                disabled={table.getFilteredRowModel().rows.length <= (pageIndex + 1) * pageSize}
-                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200"
               >
                 Next <FaAngleRight className="ml-1" />
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() =>
-                  setPageIndex(Math.ceil(table.getFilteredRowModel().rows.length / pageSize) - 1)
-                }
-                disabled={table.getFilteredRowModel().rows.length <= (pageIndex + 1) * pageSize}
-                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setPageIndex(pageIndex + 1)}
+                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200"
               >
                 Last
               </Button>

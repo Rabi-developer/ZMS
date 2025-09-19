@@ -71,8 +71,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
   };
 
   return (
-    <div className="min-h-screen h-screen bg-[#f6f6f6] flex overflow-hidden scrollbar-thin scrollbar-rounded dark:bg-black">
-      {/* Mobile Overlay */}
+    <div className="min-h-[100dvh] bg-[#f6f6f6] flex flex-col md:flex-row overflow-hidden scrollbar-thin scrollbar-rounded dark:bg-black">
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
@@ -81,23 +80,23 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
       )}
       
       <div
-        className={`fixed top-3 left-0 h-[calc(108%-4rem)] z-30 transition-all duration-300  
+        className={`fixed top-0 left-0 h-[100dvh] z-30 transition-all duration-300  
           ${isSidebarCollapsed ? 'md:w-[70px]' : 'md:w-[310px]'}
           ${isSidebarOpen ? 'w-[310px]' : 'w-0'}
           md:w-auto
           scrollbar-custom
           ${activeInterface === 'ABL' ? 'bg-white dark:bg-[#1a2a22]' : 'bg-white dark:bg-[#030630]'}`}
       >
-       <Sidebar
-        isCollapsed={isSidebarCollapsed}
-        onToggle={handleSidebarToggle}
-        onMobileToggle={toggleMobileSidebar}
-        searchQuery={searchQuery}
-        activeInterface={activeInterface}
-        isMobileOpen={isSidebarOpen} 
+        <Sidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggle={handleSidebarToggle}
+          onMobileToggle={toggleMobileSidebar}
+          searchQuery={searchQuery}
+          activeInterface={activeInterface}
+          isMobileOpen={isSidebarOpen}
         />
       </div>
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-[100dvh]">
         <div className="fixed top-0 left-0 w-full z-40">
           <Headers
             toggleSidebar={toggleMobileSidebar}
@@ -110,7 +109,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
           ref={contentRef}
           className={`flex-1 pt-28 px-6 transition-all duration-300 overflow-y-auto scrollbar-thin scrollbar-rounded
             ${isSidebarCollapsed ? 'md:ml-[70px]' : 'md:ml-[320px]'}
-            ml-0`}
+            ml-0 min-h-[calc(100dvh-7rem)] md:min-h-[100dvh]`}
         >
           <ToastContainer />
           {children}

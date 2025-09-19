@@ -181,8 +181,10 @@ const VendorForm = ({ isEdit = false, initialData }: VendorFormProps) => {
   const onSubmit = async (data: VendorFormData) => {
     setIsSubmitting(true);
     try {
+      let payload = {};
+      if (isEdit) {
       // Replace with actual user ID logic
-      const payload = {
+       payload = {
         id: isEdit ? initialData?.VendorNumber || window.location.pathname.split('/').pop() || '' : `V${Date.now()}${Math.floor(Math.random() * 1000)}`,
         isActive: true,
         isDeleted: false,
@@ -202,7 +204,29 @@ const VendorForm = ({ isEdit = false, initialData }: VendorFormProps) => {
         stn: data.stn || '',
         ntn: data.ntn || '',
         payableCode: data.payableCode || '',
+      };}else{
+         payload = {
+      //  id: isEdit ? initialData?.VendorNumber || window.location.pathname.split('/').pop() || '' : `V${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        isActive: true,
+        isDeleted: false,
+        // createdDateTime: isEdit ? initialData?.createdDateTime || currentDateTime : currentDateTime,
+        // createdBy: isEdit ? initialData?.createdBy || userId : userId,
+        // modifiedDateTime: currentDateTime,
+        // modifiedBy: userId,
+         vendorNumber: data.VendorNumber || ``,
+        name: data.name || '',
+        address: data.address || '',
+        country: data.country || '',
+        city: data.city || '',
+        phone: data.phone || '',
+        mobile: data.mobile || '',
+        fax: data.fax || '',
+        email: data.email || '',
+        stn: data.stn || '',
+        ntn: data.ntn || '',
+        payableCode: data.payableCode || '',
       };
+      }
 
       if (isEdit) {
         await updateVendor( payload);

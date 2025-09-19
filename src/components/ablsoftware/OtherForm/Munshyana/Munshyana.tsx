@@ -167,25 +167,30 @@ const MunshyanaForm = ({ isEdit = false, initialData }: MunshyanaFormProps) => {
   const onSubmit = async (data: MunshyanaFormData) => {
     setIsSubmitting(true);
     try {
-       // Replace with actual user ID logic
-      const payload = {
-        id: isEdit
-          ? initialData?.MunshyanaNumber || window.location.pathname.split('/').pop() || ''
-          : `M${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        isActive: true,
-        isDeleted: false,
-     
-        munshyanaNumber: data.MunshyanaNumber || `M${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        chargesDesc: data.chargesDesc || '',
-        chargesType: data.chargesType,
-        accountId: data.accountId || '',
-        description: data.description || '',
-      };
-
+      let payload = {};
       if (isEdit) {
+        payload = {
+          id: initialData?.id || initialData?.MunshyanaNumber || window.location.pathname.split('/').pop() || '',
+          isActive: true,
+          isDeleted: false,
+          munshyanaNumber: data.MunshyanaNumber || '',
+          chargesDesc: data.chargesDesc || '',
+          chargesType: data.chargesType,
+          accountId: data.accountId || '',
+          description: data.description || '',
+        };
         await updateMunshyana(payload);
         toast.success('Munshyana updated successfully!');
       } else {
+        payload = {
+          isActive: true,
+          isDeleted: false,
+          munshyanaNumber: data.MunshyanaNumber || `M${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          chargesDesc: data.chargesDesc || '',
+          chargesType: data.chargesType,
+          accountId: data.accountId || '',
+          description: data.description || '',
+        };
         await createMunshyana(payload);
         toast.success('Munshyana created successfully!');
       }
