@@ -60,7 +60,7 @@ const BookingOrderList = () => {
   const [pdfStartDate, setPdfStartDate] = useState<string>('');
   const [pdfEndDate, setPdfEndDate] = useState<string>('');
 
-  const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'UnApproved' , 'Closed'];
+  const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'UnApproved', 'Closed'];
   const statusOptionsConfig = [
     { id: 1, name: 'Prepared', color: '#3b82f6' },
     { id: 2, name: 'Approved', color: '#10b981' },
@@ -68,6 +68,14 @@ const BookingOrderList = () => {
     { id: 4, name: 'UnApproved', color: '#f59e0b' },
     { id: 5, name: 'Closed', color: '#6b7280' },
   ];
+
+  // Define status transition logic
+  const getNextStatus = (currentStatus: string) => {
+    const statusCycle = ['Prepared', 'Approved', 'Closed', 'Canceled', 'UnApproved'];
+    const currentIndex = statusCycle.indexOf(currentStatus);
+    const nextIndex = (currentIndex + 1) % statusCycle.length;
+    return statusCycle[nextIndex];
+  };
 
   const fetchBookingOrdersAndConsignments = async () => {
     try {
@@ -151,8 +159,27 @@ const BookingOrderList = () => {
   };
 
   const handleViewOpen = async (orderId: string) => {
+    // Toggle row selection for viewing consignments
     setSelectedRowId((prev) => (prev === orderId ? null : orderId));
     await fetchConsignments(orderId);
+
+    // Update status on row click
+    try {
+      setUpdating(true);
+      const order = bookingOrders.find((o) => o.id === orderId);
+      if (!order) return;
+
+      const newStatus = getNextStatus(order.status || 'Prepared');
+      await updateBookingOrderStatus({ id: orderId, status: newStatus });
+      toast(`Status updated to ${newStatus}`, { type: 'success' });
+
+      // Refresh data to reflect the updated status
+      await fetchBookingOrdersAndConsignments();
+    } catch (error) {
+      toast('Failed to update status', { type: 'error' });
+    } finally {
+      setUpdating(false);
+    }
   };
 
   const handleCheckboxChange = async (orderId: string, checked: boolean) => {
@@ -259,10 +286,8 @@ const BookingOrderList = () => {
 
   const handleGenerateReceivablePdf = () => {
     try {
-      // Filter: Only booking orders without any consignment having a biltyNo
       const targetOrders = filteredBookingOrders.filter((o) => {
         const cons = consignments[o.id] || [];
-        // Include if there is NO consignment with non-empty biltyNo
         return cons.every((c) => !c.biltyNo || c.biltyNo.trim() === '');
       });
 
@@ -301,7 +326,6 @@ const BookingOrderList = () => {
       const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'A4' });
       const pageWidth = doc.internal.pageSize.getWidth();
 
-      // Header
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
       doc.text('AL NASAR BASHEER LOGISTICS', pageWidth / 2, 42, { align: 'center' });
@@ -309,7 +333,6 @@ const BookingOrderList = () => {
       doc.setFontSize(14);
       doc.text('Booking Orders (All)', pageWidth / 2, 70, { align: 'center' });
 
-      // Date line
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.setTextColor(80, 80, 80);
@@ -320,7 +343,6 @@ const BookingOrderList = () => {
       doc.text(toText, pageWidth / 2, 96, { align: 'center' });
       doc.text(nowText, pageWidth - 40, 96, { align: 'right' });
 
-      // Separator
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(1);
       doc.line(40, 108, pageWidth - 40, 108);
@@ -380,207 +402,206 @@ const BookingOrderList = () => {
   };
 
   return (
-    <div className="container   mt-4  p-6 h-[110vh]">
+    <div className="container mt-4 p-6 h-[110vh]">
       <div className='h-full w-full flex flex-col'>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center">
-            <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
-            <select
-              value={selectedStatusFilter}
-              onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center">
+              <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
+              <select
+                value={selectedStatusFilter}
+                onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={fetchBookingOrdersAndConsignments}
+              className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
             >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
+              Refresh Data
+            </button>
           </div>
-          <button
-            onClick={fetchBookingOrdersAndConsignments}
-            className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
-          >
-            Refresh Data
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportToExcel}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+            >
+              <FaFileExcel size={18} />
+              Download Excel
+            </button>
+            <button
+              onClick={openPdfDialog}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+              title="Bilties Receivable"
+            >
+              <FaFilePdf size={18} />
+              PDF
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={exportToExcel}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-          >
-            <FaFileExcel size={18} />
-            Download Excel
-          </button>
-          <button
-            onClick={openPdfDialog}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-            title="Bilties Receivable"
-          >
-            <FaFilePdf size={18} />
-            PDF
-          </button>
-        </div>
-      </div>
-      <div>
-        <DataTable
-          columns={columns(handleDeleteOpen)}
-          data={filteredBookingOrders}
-          loading={loading}
-          link="/bookingorder/create"
-          setPageIndex={setPageIndex}
-          pageIndex={pageIndex}
-          pageSize={pageSize}
-          setPageSize={setPageSize}
-          onRowClick={handleViewOpen}
-        />
-      </div>
-      {selectedRowId && (
-        <div className="mt-4">
-          <OrderProgress
-            orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
-            bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
-            consignments={consignments[selectedRowId] || []}
-            hideBookingOrderInfo
+        <div>
+          <DataTable
+            columns={columns(handleDeleteOpen)}
+            data={filteredBookingOrders}
+            loading={loading}
+            link="/bookingorder/create"
+            setPageIndex={setPageIndex}
+            pageIndex={pageIndex}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            onRowClick={handleViewOpen}
           />
         </div>
-      )}
-      {selectedOrderIds.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold text-[#06b6d4]">Selected Orders and Consignments</h3>
-          {selectedOrderIds.map((orderId) => {
-            const order = bookingOrders.find((o) => o.id === orderId);
-            const cons = consignments[orderId] || [];
+        {selectedRowId && (
+          <div className="mt-4">
+            <OrderProgress
+              orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
+              bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
+              consignments={consignments[selectedRowId] || []}
+              hideBookingOrderInfo
+            />
+          </div>
+        )}
+        {selectedOrderIds.length > 0 && (
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold text-[#06b6d4]">Selected Orders and Consignments</h3>
+            {selectedOrderIds.map((orderId) => {
+              const order = bookingOrders.find((o) => o.id === orderId);
+              const cons = consignments[orderId] || [];
 
-            return (
-              <div key={orderId} className="mt-4">
-                <h4 className="text-md font-medium">Order: {order?.orderNo || '-'}</h4>
-                <OrderProgress
-                  orderNo={order?.orderNo}
-                  bookingStatus={order?.status}
-                  consignments={cons}
-                  hideBookingOrderInfo
-                />
-                <table className="w-full text-left border-collapse text-sm md:text-base mt-2">
-                  <thead>
-                    <tr className="bg-[#06b6d4] text-white">
-                      <th className="p-3">Bilty No</th>
-                      <th className="p-3">Receipt No</th>
-                      <th className="p-3">Consignor</th>
-                      <th className="p-3">Consignee</th>
-                      <th className="p-3">Item</th>
-                      <th className="p-3">Qty</th>
-                      <th className="p-3">Total Amount</th>
-                      <th className="p-3">Recv. Amount</th>
-                      <th className="p-3">Del. Date</th>
-                      <th className="p-3">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fetchingConsignments[orderId] ? (
-                      <tr>
-                        <td colSpan={10} className="p-3 text-center text-gray-500">
-                          Loading consignments...
-                        </td>
+              return (
+                <div key={orderId} className="mt-4">
+                  <h4 className="text-md font-medium">Order: {order?.orderNo || '-'}</h4>
+                  <OrderProgress
+                    orderNo={order?.orderNo}
+                    bookingStatus={order?.status}
+                    consignments={cons}
+                    hideBookingOrderInfo
+                  />
+                  <table className="w-full text-left border-collapse text-sm md:text-base mt-2">
+                    <thead>
+                      <tr className="bg-[#06b6d4] text-white">
+                        <th className="p-3">Bilty No</th>
+                        <th className="p-3">Receipt No</th>
+                        <th className="p-3">Consignor</th>
+                        <th className="p-3">Consignee</th>
+                        <th className="p-3">Item</th>
+                        <th className="p-3">Qty</th>
+                        <th className="p-3">Total Amount</th>
+                        <th className="p-3">Recv. Amount</th>
+                        <th className="p-3">Del. Date</th>
+                        <th className="p-3">Status</th>
                       </tr>
-                    ) : cons.length > 0 ? (
-                      cons.map((c) => (
-                        <tr key={c.id} className="border-b">
-                          <td className="p-3">{c.biltyNo || '-'}</td>
-                          <td className="p-3">{c.receiptNo || '-'}</td>
-                          <td className="p-3">{c.consignor || '-'}</td>
-                          <td className="p-3">{c.consignee || '-'}</td>
-                          <td className="p-3">{c.item || '-'}</td>
-                          <td className="p-3">{c.qty || '-'}</td>
-                          <td className="p-3">{c.totalAmount || '-'}</td>
-                          <td className="p-3">{c.receivedAmount || '-'}</td>
-                          <td className="p-3">{c.deliveryDate || '-'}</td>
-                          <td className="p-3">
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles(c.status || 'Pending')}`}>
-                              {c.status || 'Pending'}
-                            </span>
+                    </thead>
+                    <tbody>
+                      {fetchingConsignments[orderId] ? (
+                        <tr>
+                          <td colSpan={10} className="p-3 text-center text-gray-500">
+                            Loading consignments...
                           </td>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={10} className="p-3 text-gray-500">No consignments for this order</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })}
+                      ) : cons.length > 0 ? (
+                        cons.map((c) => (
+                          <tr key={c.id} className="border-b">
+                            <td className="p-3">{c.biltyNo || '-'}</td>
+                            <td className="p-3">{c.receiptNo || '-'}</td>
+                            <td className="p-3">{c.consignor || '-'}</td>
+                            <td className="p-3">{c.consignee || '-'}</td>
+                            <td className="p-3">{c.item || '-'}</td>
+                            <td className="p-3">{c.qty || '-'}</td>
+                            <td className="p-3">{c.totalAmount || '-'}</td>
+                            <td className="p-3">{c.receivedAmount || '-'}</td>
+                            <td className="p-3">{c.deliveryDate || '-'}</td>
+                            <td className="p-3">
+                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles(c.status || 'Pending')}`}>
+                                {c.status || 'Pending'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={10} className="p-3 text-gray-500">No consignments for this order</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="mt-4 space-y-2 h-[18vh]">
+          <div className="flex flex-wrap p-3 gap-3">
+            {statusOptionsConfig.map((option) => {
+              const isSelected = selectedBulkStatus === option.name;
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => handleBulkStatusUpdate(option.name)}
+                  disabled={updating}
+                  className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
+                    ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
+                    ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <span className="text-sm font-semibold text-center">{option.name}</span>
+                  {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      )}
-      <div className="mt-4 space-y-2 h-[18vh]">
-        <div className="flex flex-wrap p-3 gap-3">
-          {statusOptionsConfig.map((option) => {
-            const isSelected = selectedBulkStatus === option.name;
-            return (
-              <button
-                key={option.id}
-                onClick={() => handleBulkStatusUpdate(option.name)}
-                disabled={updating}
-                className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-                  ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
-                  ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span className="text-sm font-semibold text-center">{option.name}</span>
-                {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      {openDelete && (
-        <DeleteConfirmModel
-          handleDeleteclose={handleDeleteClose}
-          handleDelete={handleDelete}
-          isOpen={openDelete}
-        />
-      )}
+        {openDelete && (
+          <DeleteConfirmModel
+            handleDeleteclose={handleDeleteClose}
+            handleDelete={handleDelete}
+            isOpen={openDelete}
+          />
+        )}
 
-      {/* PDF Modal */}
-      {openPdfModal && (
-        <div
-          id="pdfModal"
-          className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
-          onClick={(e) => {
-            const target = e.target as HTMLElement;
-            if (target.id === 'pdfModal') closePdfDialog();
-          }}
-        >
-          <div className="bg-white rounded shadow p-5 w-full max-w-md">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">Bilties Receivable</h3>
-              <button onClick={closePdfDialog} className="text-gray-500 hover:text-black">✕</button>
-            </div>
-            <div className="space-y-3">
-              <CustomSingleDatePicker
-                label="Start From"
-                selectedDate={pdfStartDate}
-                onChange={setPdfStartDate}
-                name="startDate"
-              />
-              <CustomSingleDatePicker
-                label="To Date"
-                selectedDate={pdfEndDate}
-                onChange={setPdfEndDate}
-                name="endDate"
-              />
-              <div className="flex justify-end gap-2 pt-2">
-                <button onClick={closePdfDialog} className="px-4 py-2 rounded border">Cancel</button>
-                <button onClick={handleGenerateGeneralPdf} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white">General PDF</button>
-                <button onClick={handleGenerateReceivablePdf} className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Bilties Receivable</button>
+        {/* PDF Modal */}
+        {openPdfModal && (
+          <div
+            id="pdfModal"
+            className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.id === 'pdfModal') closePdfDialog();
+            }}
+          >
+            <div className="bg-white rounded shadow p-5 w-full max-w-md">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold">Bilties Receivable</h3>
+                <button onClick={closePdfDialog} className="text-gray-500 hover:text-black">✕</button>
+              </div>
+              <div className="space-y-3">
+                <CustomSingleDatePicker
+                  label="Start From"
+                  selectedDate={pdfStartDate}
+                  onChange={setPdfStartDate}
+                  name="startDate"
+                />
+                <CustomSingleDatePicker
+                  label="To Date"
+                  selectedDate={pdfEndDate}
+                  onChange={setPdfEndDate}
+                  name="endDate"
+                />
+                <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={closePdfDialog} className="px-4 py-2 rounded border">Cancel</button>
+                  <button onClick={handleGenerateGeneralPdf} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white">General PDF</button>
+                  <button onClick={handleGenerateReceivablePdf} className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Bilties Receivable</button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
+        )}
       </div>
     </div>
   );
