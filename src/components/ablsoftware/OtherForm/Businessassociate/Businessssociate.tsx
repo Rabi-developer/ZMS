@@ -87,25 +87,28 @@ const BusinessAssociateForm = ({ isEdit = false, initialData }: BusinessAssociat
   const onSubmit = async (data: BusinessAssociateFormData) => {
     setIsSubmitting(true);
     try {
-       // Replace with actual user ID logic
-      const payload = {
-        id: isEdit
-          ? initialData?.BusinessAssociateNumber || window.location.pathname.split('/').pop() || ''
-          : `BA${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        isActive: true,
-        isDeleted: false,
-       
-        businessAssociateNumber:
-          data.BusinessAssociateNumber || `BA${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        name: data.name || '',
-        mobile: data.mobile || '',
-        address: data.address || '',
-      };
-
+      let payload;
       if (isEdit) {
-        await updateBusinessAssociate( payload);
+        payload = {
+          id: initialData?.id || initialData?.BusinessAssociateNumber || window.location.pathname.split('/').pop() || '',
+          isActive: true,
+          isDeleted: false,
+          businessAssociateNumber: data.BusinessAssociateNumber || '',
+          name: data.name || '',
+          mobile: data.mobile || '',
+          address: data.address || '',
+        };
+        await updateBusinessAssociate(payload);
         toast.success('Business Associate updated successfully!');
       } else {
+        payload = {
+          isActive: true,
+          isDeleted: false,
+          businessAssociateNumber: data.BusinessAssociateNumber || `BA${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          name: data.name || '',
+          mobile: data.mobile || '',
+          address: data.address || '',
+        };
         await createBusinessAssociate(payload);
         toast.success('Business Associate created successfully!');
       }

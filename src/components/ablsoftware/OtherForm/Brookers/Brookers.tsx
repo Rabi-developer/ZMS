@@ -87,22 +87,28 @@ const BrookerForm = ({ isEdit = false, initialData }: BrookerFormProps) => {
   const onSubmit = async (data: BrookerFormData) => {
     setIsSubmitting(true);
     try {
-      // Replace with actual user ID logic
-      const payload = {
-        id: isEdit ? initialData?.BrookerNumber || window.location.pathname.split('/').pop() || '' : `B${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        isActive: true,
-        isDeleted: false,
-      
-        brookerNumber: data.BrookerNumber || `B${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        name: data.name || '',
-        mobile: data.mobile || '',
-        address: data.address || '',
-      };
-
+      let payload;
       if (isEdit) {
-        await updateBrooker( payload);
+        payload = {
+          id: initialData?.id || initialData?.BrookerNumber || window.location.pathname.split('/').pop() || '',
+          isActive: true,
+          isDeleted: false,
+          brookerNumber: data.BrookerNumber || '',
+          name: data.name || '',
+          mobile: data.mobile || '',
+          address: data.address || '',
+        };
+        await updateBrooker(payload);
         toast.success('Brooker updated successfully!');
       } else {
+        payload = {
+          isActive: true,
+          isDeleted: false,
+          brookerNumber: data.BrookerNumber || `B${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          name: data.name || '',
+          mobile: data.mobile || '',
+          address: data.address || '',
+        };
         await createBrooker(payload);
         toast.success('Brooker created successfully!');
       }
