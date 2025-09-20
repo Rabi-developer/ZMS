@@ -251,37 +251,64 @@ const BookingOrderReportExport: React.FC = () => {
         return true; // none => no filtering
       });
 
-      // Map to rows
-      const rows: RowData[] = filteredOrders.map((o, idx) => {
+      // Map to rows, creating separate rows for each consignment
+      const rows: RowData[] = [];
+      filteredOrders.forEach((o) => {
         const ono = o.orderNo || o.id || "";
         const odate = o.orderDate || o.date || "";
-        const cons = consByOrder[ono] || [];
         const chs = chargesByOrder[ono] || [];
+        const cons = consByOrder[ono] || [];
 
-        const consignor = cons
-          .map((c: any) => {
-            const val = c.consignor ?? c.Consignor ?? c.consignorId ?? c.ConsignorId ?? "";
-            return (val && partyMap.get(String(val))) || String(val);
-          })
-          .filter(Boolean)
-          .join(", ");
-        const consignee = cons
-          .map((c: any) => {
-            const val = c.consignee ?? c.Consignee ?? c.consigneeId ?? c.ConsigneeId ?? "";
-            return (val && partyMap.get(String(val))) || String(val);
-          })
-          .filter(Boolean)
-          .join(", ");
+        const bookingAmount = chs.reduce((sum: number, ch: any) => {
+          const chAmt = Array.isArray(ch.lines) ? ch.lines.reduce((lsum: number, line: any) => lsum + numberOr0(line.amount), 0) : numberOr0(ch.amount);
+          return sum + chAmt;
+        }, 0);
+
         const vehicleNo = o.vehicleNo || o.vehicle || "";
-        const biltyNos = cons
-          .map((c: any) => c.biltyNo ?? c.BiltyNo ?? c.consignmentNo ?? c.ConsignmentNo ?? "")
-          .filter(Boolean)
-          .join(", ");
+        const departure = o.fromLocation || o.from || "-";
+        const destination = o.toLocation || o.to || "-";
+        const vendor = o.vendor || o.vendorName || "-";
+        const carrier = o.transporter || o.carrier || "-";
 
-        const qtyList = cons
-          .map((c: any) => {
+        if (cons.length === 0) {
+          // Add a single row for orders without consignments
+          rows.push({
+            serial: 0, // Will be assigned later
+            orderNo: ono,
+            ablDate: formatABLDate(odate),
+            orderDate: odate || "",
+            consignor: "",
+            consignee: "",
+            vehicleNo: vehicleNo || "",
+            bookingAmount,
+            biltyNo: "-",
+            biltyAmount: 0,
+            article: "-",
+            qty: "-",
+            departure,
+            destination,
+            vendor,
+            carrier,
+          });
+        } else {
+          cons.forEach((c: any) => {
+            const consignorVal = c.consignor ?? c.Consignor ?? c.consignorId ?? c.ConsignorId ?? "";
+            const consignor = (consignorVal && partyMap.get(String(consignorVal))) || String(consignorVal) || "";
+
+            const consigneeVal = c.consignee ?? c.Consignee ?? c.consigneeId ?? c.ConsigneeId ?? "";
+            const consignee = (consigneeVal && partyMap.get(String(consigneeVal))) || String(consigneeVal) || "";
+
+            const biltyNo = c.biltyNo ?? c.BiltyNo ?? c.consignmentNo ?? c.ConsignmentNo ?? "-";
+
+            let article = "-";
+            let qty = "-";
             if (Array.isArray(c.items) && c.items.length > 0) {
-              return c.items
+              article = c.items
+                .map((it: any) => it.desc ?? it.description ?? it.itemDesc ?? it.Description ?? "")
+                .filter(Boolean)
+                .join(", ");
+
+              qty = c.items
                 .map((it: any) => {
                   const unitKey = it.qtyUnit ?? it.qtyUnitId ?? it.QtyUnit ?? it.QtyUnitId ?? "";
                   const unitName = unitMap.get(String(unitKey)) ?? String(unitKey);
@@ -289,53 +316,33 @@ const BookingOrderReportExport: React.FC = () => {
                 })
                 .filter(Boolean)
                 .join(", ");
+            } else {
+              article = c.itemDesc || c.description || c.Description || (typeof c.items === "string" ? c.items : "") || "-";
+              qty = String(c.qty ?? c.Qty ?? "") || "-";
             }
-            return c.qty ?? c.Qty ?? "";
-          })
-          .filter(Boolean)
-          .join("; ");
 
-        const articleList = cons
-          .map((c: any) => {
-            if (Array.isArray(c.items) && c.items.length > 0) {
-              return c.items
-                .map((it: any) => it.desc ?? it.description ?? it.itemDesc ?? it.Description ?? "")
-                .filter(Boolean)
-                .join(", ");
-            }
-            return c.itemDesc || c.description || c.Description || (typeof c.items === "string" ? c.items : "");
-          })
-          .filter(Boolean)
-          .join("; ");
+            const biltyAmount = numberOr0(c.totalAmount ?? c.TotalAmount ?? c.biltyAmount ?? c.BiltyAmount ?? 0);
 
-        const biltyAmount = cons.reduce(
-          (sum: number, c: any) => sum + numberOr0(c.totalAmount ?? c.TotalAmount ?? c.biltyAmount ?? c.BiltyAmount),
-          0
-        );
-
-        const bookingAmount = chs.reduce((sum: number, ch: any) => {
-          const chAmt = Array.isArray(ch.lines) ? ch.lines.reduce((lsum: number, line: any) => lsum + numberOr0(line.amount), 0) : numberOr0(ch.amount);
-          return sum + chAmt;
-        }, 0);
-
-        return {
-          serial: idx + 1,
-          orderNo: ono,
-          ablDate: formatABLDate(odate),
-          orderDate: odate || "",
-          consignor: consignor || "",
-          consignee: consignee || "",
-          vehicleNo: vehicleNo || "",
-          bookingAmount,
-          biltyNo: biltyNos || "-",
-          biltyAmount,
-          article: articleList || "-",
-          qty: qtyList || "-",
-          departure: o.fromLocation || o.from || "-",
-          destination: o.toLocation || o.to || "-",
-          vendor: o.vendor || o.vendorName || "-",
-          carrier: o.transporter || o.carrier || "-",
-        };
+            rows.push({
+              serial: 0, // Will be assigned later
+              orderNo: ono,
+              ablDate: formatABLDate(odate),
+              orderDate: odate || "",
+              consignor,
+              consignee,
+              vehicleNo: vehicleNo || "",
+              bookingAmount,
+              biltyNo,
+              biltyAmount,
+              article,
+              qty,
+              departure,
+              destination,
+              vendor,
+              carrier,
+            });
+          });
+        }
       });
 
       return rows;
