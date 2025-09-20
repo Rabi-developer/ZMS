@@ -8,7 +8,7 @@ import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllConsignment, deleteConsignment, updateConsignmentStatus } from '@/apis/consignment';
 import { getAllBookingOrder } from '@/apis/bookingorder';
-import { columns, Consignment } from './columns';
+import { columns, Consignment, getStatusStyles } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
 const ConsignmentList = () => {
@@ -30,11 +30,13 @@ const ConsignmentList = () => {
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
-  const statusOptions = ['All', 'Pending', 'In Transit', 'Delivered'];
+  const statusOptions = ['All', 'Prepared', 'Canceled', 'Closed', 'UnApproved', 'Pending'];
   const statusOptionsConfig = [
-    { id: 1, name: 'Pending', color: '#f59e0b' },
-    { id: 2, name: 'In Transit', color: '#5673ba' },
-    { id: 3, name: 'Delivered', color: '#869719' },
+    { id: 1, name: 'Prepared', color: '#f59e0b' },
+    { id: 2, name: 'Canceled', color: '#ef4444' },
+    { id: 3, name: 'Closed', color: '#6b7280' },
+    { id: 4, name: 'UnApproved', color: '#10b981' },
+    { id: 5, name: 'Pending', color: '#3b82f6' },
   ];
 
   const fetchConsignments = async () => {
@@ -42,7 +44,6 @@ const ConsignmentList = () => {
       setLoading(true);
       const response = await getAllConsignment(pageIndex + 1, pageSize);
       setConsignments(response?.data || []);
-      // Capture server-side pagination meta if available
       const misc = response?.misc || {};
       const serverTotal = misc.total ?? misc.totalCount ?? (response?.data?.length || 0);
       const serverTotalPages = misc.totalPages ?? (serverTotal && pageSize ? Math.ceil(serverTotal / pageSize) : 0);
@@ -67,7 +68,6 @@ const ConsignmentList = () => {
     setFilteredConsignments(filtered);
   }, [consignments, selectedStatusFilter]);
 
-  // Reset pagination to first page only when status filter changes
   useEffect(() => {
     setPageIndex(0);
   }, [selectedStatusFilter]);
@@ -102,25 +102,50 @@ const ConsignmentList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = async (consignmentId: string) => {
-    setSelectedRowId((prev) => (prev === consignmentId ? null : consignmentId));
-    const consignment = consignments.find((item) => item.id === consignmentId);
-    if (consignment?.orderNo) {
-      try {
-        const response = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
-        const booking = response?.data.find((b: any) => b.orderNo === consignment.orderNo);
-        setBookingStatus(booking?.status || null);
-      } catch (error) {
-        toast('Failed to fetch booking status', { type: 'error' });
+  const handleRowClick = async (consignmentId: string) => {
+    // If the row is not selected, select it and show OrderProgress
+    if (!selectedConsignmentIds.includes(consignmentId)) {
+      setSelectedConsignmentIds((prev) => [...prev, consignmentId]);
+      setSelectedRowId(consignmentId);
+      const consignment = consignments.find((item) => item.id === consignmentId);
+      if (consignment?.orderNo) {
+        try {
+          const response = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
+          const booking = response?.data.find((b: any) => b.orderNo === consignment.orderNo);
+          setBookingStatus(booking?.status || null);
+        } catch (error) {
+          toast('Failed to fetch booking status', { type: 'error' });
+        }
       }
     }
+    // Update selected bulk status for UI consistency
+    setTimeout(() => {
+      const selected = consignments.filter((c) => selectedConsignmentIds.includes(c.id));
+      const statuses = selected.map((c) => c.status).filter((status, index, self) => self.indexOf(status) === index);
+      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
+    }, 100);
   };
 
-  const handleCheckboxChange = (consignmentId: string, checked: boolean) => {
+  const handleCheckboxChange = async (consignmentId: string, checked: boolean) => {
     if (checked) {
       setSelectedConsignmentIds((prev) => [...prev, consignmentId]);
+      setSelectedRowId(consignmentId); // Show OrderProgress for the last checked row
+      const consignment = consignments.find((item) => item.id === consignmentId);
+      if (consignment?.orderNo) {
+        try {
+          const response = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
+          const booking = response?.data.find((b: any) => b.orderNo === consignment.orderNo);
+          setBookingStatus(booking?.status || null);
+        } catch (error) {
+          toast('Failed to fetch booking status', { type: 'error' });
+        }
+      }
     } else {
       setSelectedConsignmentIds((prev) => prev.filter((id) => id !== consignmentId));
+      if (selectedRowId === consignmentId) {
+        setSelectedRowId(null); // Hide OrderProgress if the deselected row was shown
+        setBookingStatus(null);
+      }
     }
 
     setTimeout(() => {
@@ -143,6 +168,8 @@ const ConsignmentList = () => {
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
       setSelectedConsignmentIds([]);
+      setSelectedRowId(null);
+      setBookingStatus(null);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
       toast('Consignment Status Updated Successfully', { type: 'success' });
@@ -208,7 +235,7 @@ const ConsignmentList = () => {
   };
 
   return (
-    <div className="container p-6 ">
+    <div className="container p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -242,7 +269,7 @@ const ConsignmentList = () => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen)}
+          columns={columns(handleDeleteOpen, handleCheckboxChange, selectedConsignmentIds)}
           data={filteredConsignments}
           loading={loading}
           link="/consignment/create"
@@ -250,12 +277,11 @@ const ConsignmentList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
-          // Use server total when no client-side status filter is applied; otherwise reflect filtered count
           totalRows={selectedStatusFilter === 'All' ? totalRows : filteredConsignments.length}
-          onRowClick={handleViewOpen}
+          onRowClick={handleRowClick}
         />
       </div>
-      {selectedRowId && (
+      {selectedRowId && selectedConsignmentIds.length === 1 && (
         <div className="mt-4">
           <OrderProgress
             orderNo={consignments.find((c) => c.id === selectedRowId)?.orderNo}
@@ -269,6 +295,7 @@ const ConsignmentList = () => {
           />
         </div>
       )}
+     
       <div className="mt-4 space-y-2 h-[18vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {

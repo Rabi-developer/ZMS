@@ -1,16 +1,21 @@
 import { Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Row } from '@tanstack/react-table'; // Import Row type
+import { Row, ColumnDef } from '@tanstack/react-table'; // Import Row and ColumnDef types
 
+// Updated getStatusStyles to match BookingOrderList statuses
 export const getStatusStyles = (status: string) => {
   switch (status) {
-    case 'Pending':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'In Transit':
+    case 'Prepared':
       return 'bg-blue-100 text-blue-800';
-    case 'Delivered':
+    case 'Approved':
       return 'bg-green-100 text-green-800';
+    case 'Canceled':
+      return 'bg-red-100 text-red-800';
+    case 'UnApproved':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'Closed':
+      return 'bg-gray-100 text-gray-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }
@@ -24,9 +29,39 @@ export interface BookingOrder {
   branch: string;
   status: string;
   remarks: string;
+  vehicleNo: string;
+  vendor: string;
+  transporter: string;
+  fromLocation: string;
+  toLocation: string;
 }
 
-export const columns = (handleDeleteOpen: (id: string) => void) => [
+// Add onRowSelect to handle checkbox changes
+export const columns = (
+  handleDeleteOpen: (id: string) => void,
+  onRowSelect: (id: string, checked: boolean) => void,
+  selectedOrderIds: string[]
+): ColumnDef<BookingOrder>[] => [
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        checked={table.getIsAllRowsSelected()}
+        onChange={table.getToggleAllRowsSelectedHandler()}
+        className="cursor-pointer"
+      />
+    ),
+    cell: ({ row }: { row: Row<BookingOrder> }) => (
+      <input
+        type="checkbox"
+        checked={selectedOrderIds.includes(row.original.id)}
+        onChange={(e) => onRowSelect(row.original.id, e.target.checked)}
+        onClick={(e) => e.stopPropagation()} // Prevent row click when checking
+        className="cursor-pointer"
+      />
+    ),
+  },
   {
     header: 'Order No',
     accessorKey: 'orderNo',
@@ -47,7 +82,7 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
     header: 'Transporter',
     accessorKey: 'transporter',
   },
-    {
+  {
     header: 'From',
     accessorKey: 'fromLocation',
   },
@@ -56,15 +91,19 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
     accessorKey: 'toLocation',
   },
   {
-    header: '',
+    header: 'Name', // Assuming this is a placeholder; adjust if needed
     accessorKey: 'name',
   },
   {
     header: 'Status',
     accessorKey: 'status',
     cell: ({ row }: { row: Row<BookingOrder> }) => (
-      <span className={`px-2 py-1 rounded-full ${getStatusStyles(row.original.status || 'Pending')}`}>
-        {row.original.status || 'Pending'}
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles(
+          row.original.status || 'Prepared'
+        )}`}
+      >
+        {row.original.status || 'Prepared'}
       </span>
     ),
   },

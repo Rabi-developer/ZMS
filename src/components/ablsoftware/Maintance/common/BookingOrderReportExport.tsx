@@ -19,10 +19,9 @@ const GENERATE_COLUMNS: ColumnKey[] = [
   "serial",
   "orderNo",
   "ablDate",
-  "consignor",
-  "consignee",
   "vehicleNo",
   "biltyNo",
+  "biltyAmount",
   "article",
   "qty",
   "departure",
@@ -277,13 +276,18 @@ const BookingOrderReportExport: React.FC = () => {
         const carrier = o.transporter || o.carrier || "-";
 
         if (cons.length === 0) {
+          // Use partyMap for consignor/consignee in general report
+          const consignorVal = o.consignor ?? o.Consignor ?? o.consignorId ?? o.ConsignorId ?? "";
+          const consignor = (consignorVal && partyMap.get(String(consignorVal))) || String(consignorVal) || "";
+          const consigneeVal = o.consignee ?? o.Consignee ?? o.consigneeId ?? o.ConsigneeId ?? "";
+          const consignee = (consigneeVal && partyMap.get(String(consigneeVal))) || String(consigneeVal) || "";
           rows.push({
             serial: 0,
             orderNo: ono,
             ablDate: formatABLDate(odate),
             orderDate: odate || "",
-            consignor: "",
-            consignee: "",
+            consignor,
+            consignee,
             vehicleNo: vehicleNo || "",
             bookingAmount,
             biltyNo: "-",

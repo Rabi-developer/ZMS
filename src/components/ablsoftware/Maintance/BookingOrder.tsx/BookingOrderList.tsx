@@ -69,14 +69,6 @@ const BookingOrderList = () => {
     { id: 5, name: 'Closed', color: '#6b7280' },
   ];
 
-  // Define status transition logic
-  const getNextStatus = (currentStatus: string) => {
-    const statusCycle = ['Prepared', 'Approved', 'Closed', 'Canceled', 'UnApproved'];
-    const currentIndex = statusCycle.indexOf(currentStatus);
-    const nextIndex = (currentIndex + 1) % statusCycle.length;
-    return statusCycle[nextIndex];
-  };
-
   const fetchBookingOrdersAndConsignments = async () => {
     try {
       setLoading(true);
@@ -102,13 +94,16 @@ const BookingOrderList = () => {
       const order = bookingOrders.find((o) => o.id === orderId);
       if (!order) return;
 
-      setFetchingConsignments((prev) => ({ ...prev, [orderId]: true }));
-      const response = await getAllConsignment(1, 100, { orderNo: order.orderNo });
-      const notes = response?.data.filter((c: Consignment) => c.orderNo === order.orderNo) || [];
-      setConsignments((prev) => ({ ...prev, [orderId]: notes }));
-      setBookingOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, relatedConsignments: notes } : o))
-      );
+      // Only fetch if consignments for this orderId are not already loaded
+      if (!consignments[orderId]) {
+        setFetchingConsignments((prev) => ({ ...prev, [orderId]: true }));
+        const response = await getAllConsignment(1, 100, { orderNo: order.orderNo });
+        const notes = response?.data.filter((c: Consignment) => c.orderNo === order.orderNo) || [];
+        setConsignments((prev) => ({ ...prev, [orderId]: notes }));
+        setBookingOrders((prev) =>
+          prev.map((o) => (o.id === orderId ? { ...o, relatedConsignments: notes } : o))
+        );
+      }
     } catch (error) {
       toast('Failed to fetch consignments', { type: 'error' });
     } finally {
@@ -158,36 +153,34 @@ const BookingOrderList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = async (orderId: string) => {
-    // Toggle row selection for viewing consignments
-    setSelectedRowId((prev) => (prev === orderId ? null : orderId));
-    await fetchConsignments(orderId);
-
-    // Update status on row click
-    try {
-      setUpdating(true);
-      const order = bookingOrders.find((o) => o.id === orderId);
-      if (!order) return;
-
-      const newStatus = getNextStatus(order.status || 'Prepared');
-      await updateBookingOrderStatus({ id: orderId, status: newStatus });
-      toast(`Status updated to ${newStatus}`, { type: 'success' });
-
-      // Refresh data to reflect the updated status
-      await fetchBookingOrdersAndConsignments();
-    } catch (error) {
-      toast('Failed to update status', { type: 'error' });
-    } finally {
-      setUpdating(false);
+  const handleRowClick = async (orderId: string) => {
+    // If the row is not selected, select it and show OrderProgress
+    if (!selectedOrderIds.includes(orderId)) {
+      setSelectedOrderIds((prev) => [...prev, orderId]);
+      setSelectedRowId(orderId);
+      await fetchConsignments(orderId);
     }
+    // If the row is already selected, do not toggle OrderProgress or deselect
+    // Update selected bulk status for UI consistency
+    setTimeout(() => {
+      const selected = bookingOrders.filter((order) => selectedOrderIds.includes(order.id));
+      const statuses = selected.map((order) => order.status).filter((status, index, self) => self.indexOf(status) === index);
+      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
+    }, 100);
   };
 
   const handleCheckboxChange = async (orderId: string, checked: boolean) => {
     if (checked) {
       setSelectedOrderIds((prev) => [...prev, orderId]);
-      await fetchConsignments(orderId);
+      if (!consignments[orderId]) {
+        await fetchConsignments(orderId);
+      }
+      setSelectedRowId(orderId); // Show OrderProgress for the last checked row
     } else {
       setSelectedOrderIds((prev) => prev.filter((id) => id !== orderId));
+      if (selectedRowId === orderId) {
+        setSelectedRowId(null); // Hide OrderProgress if the deselected row was shown
+      }
     }
 
     setTimeout(() => {
@@ -209,10 +202,11 @@ const BookingOrderList = () => {
       );
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
-      setSelectedOrderIds([]);
+      setSelectedOrderIds([]); // Clear selection after update
+      setSelectedRowId(null); // Clear OrderProgress view
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
-      toast('Booking Order Status Updated Successfully', { type: 'success' });
+      toast(`Booking Order Status Updated to ${newStatus}`, { type: 'success' });
       await fetchBookingOrdersAndConsignments();
     } catch (error) {
       toast('Failed to update status', { type: 'error' });
@@ -240,7 +234,7 @@ const BookingOrderList = () => {
           'Order Date': order.orderDate || '-',
           'Company': order.company || '-',
           'Branch': order.branch || '-',
-          'Order Status': order.status || 'Pending',
+          'Order Status': order.status || 'Prepared',
           'Remarks': order.remarks || '-',
           'Bilty No': '-',
           'Receipt No': '-',
@@ -260,7 +254,7 @@ const BookingOrderList = () => {
         'Order Date': index === 0 ? order.orderDate || '-' : '',
         'Company': index === 0 ? order.company || '-' : '',
         'Branch': index === 0 ? order.branch || '-' : '',
-        'Order Status': index === 0 ? order.status || 'Pending' : '',
+        'Order Status': index === 0 ? order.status || 'Prepared' : '',
         'Remarks': index === 0 ? order.remarks || '-' : '',
         'Bilty No': c.biltyNo || '-',
         'Receipt No': c.receiptNo || '-',
@@ -447,7 +441,7 @@ const BookingOrderList = () => {
         </div>
         <div>
           <DataTable
-            columns={columns(handleDeleteOpen)}
+            columns={columns(handleDeleteOpen, handleCheckboxChange, selectedOrderIds)}
             data={filteredBookingOrders}
             loading={loading}
             link="/bookingorder/create"
@@ -455,10 +449,10 @@ const BookingOrderList = () => {
             pageIndex={pageIndex}
             pageSize={pageSize}
             setPageSize={setPageSize}
-            onRowClick={handleViewOpen}
+            onRowClick={handleRowClick}
           />
         </div>
-        {selectedRowId && (
+        {selectedRowId && selectedOrderIds.length === 1 && (
           <div className="mt-4">
             <OrderProgress
               orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
@@ -468,7 +462,7 @@ const BookingOrderList = () => {
             />
           </div>
         )}
-        {selectedOrderIds.length > 0 && (
+        {selectedOrderIds.length > 1 && (
           <div className="mt-4">
             <h3 className="text-lg font-semibold text-[#06b6d4]">Selected Orders and Consignments</h3>
             {selectedOrderIds.map((orderId) => {
@@ -484,54 +478,7 @@ const BookingOrderList = () => {
                     consignments={cons}
                     hideBookingOrderInfo
                   />
-                  <table className="w-full text-left border-collapse text-sm md:text-base mt-2">
-                    <thead>
-                      <tr className="bg-[#06b6d4] text-white">
-                        <th className="p-3">Bilty No</th>
-                        <th className="p-3">Receipt No</th>
-                        <th className="p-3">Consignor</th>
-                        <th className="p-3">Consignee</th>
-                        <th className="p-3">Item</th>
-                        <th className="p-3">Qty</th>
-                        <th className="p-3">Total Amount</th>
-                        <th className="p-3">Recv. Amount</th>
-                        <th className="p-3">Del. Date</th>
-                        <th className="p-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fetchingConsignments[orderId] ? (
-                        <tr>
-                          <td colSpan={10} className="p-3 text-center text-gray-500">
-                            Loading consignments...
-                          </td>
-                        </tr>
-                      ) : cons.length > 0 ? (
-                        cons.map((c) => (
-                          <tr key={c.id} className="border-b">
-                            <td className="p-3">{c.biltyNo || '-'}</td>
-                            <td className="p-3">{c.receiptNo || '-'}</td>
-                            <td className="p-3">{c.consignor || '-'}</td>
-                            <td className="p-3">{c.consignee || '-'}</td>
-                            <td className="p-3">{c.item || '-'}</td>
-                            <td className="p-3">{c.qty || '-'}</td>
-                            <td className="p-3">{c.totalAmount || '-'}</td>
-                            <td className="p-3">{c.receivedAmount || '-'}</td>
-                            <td className="p-3">{c.deliveryDate || '-'}</td>
-                            <td className="p-3">
-                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles(c.status || 'Pending')}`}>
-                                {c.status || 'Pending'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={10} className="p-3 text-gray-500">No consignments for this order</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                  
                 </div>
               );
             })}
