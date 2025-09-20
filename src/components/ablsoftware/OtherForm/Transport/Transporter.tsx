@@ -140,37 +140,52 @@ const TransporterForm = ({ isEdit = false, initialData }: TransporterFormProps) 
   const onSubmit = async (data: TransporterFormData) => {
     setIsSubmitting(true);
     try {
-      // Replace with actual user ID logic
-      const payload = {
-        id: isEdit ? initialData?.TransporterNumber || window.location.pathname.split('/').pop() || '' : `T${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        isActive: true,
-        isDeleted: false,
-        // createdDateTime: isEdit ? initialData?.createdDateTime || currentDateTime : currentDateTime,
-        // createdBy: isEdit ? initialData?.createdBy || userId : userId,
-        // modifiedDateTime: currentDateTime,
-        // modifiedBy: userId,
-        transporterNumber: data.TransporterNumber || `T${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        name: data.name || '',
-        currency: data.currency || '',
-        address: data.address || '',
-        city: data.city || '',
-        state: data.state || '',
-        zipCode: data.zipCode || '',
-        bankName: data.bankName || '',
-        tel: data.tel || '',
-        ntn: data.ntn || '',
-        mobile: data.mobile || '',
-        stn: data.stn || '',
-        fax: data.fax || '',
-        buyerCode: data.buyerCode || '',
-        email: data.email || '',
-        website: data.website || '',
-      };
-
+      let payload;
       if (isEdit) {
-        await updateTransporter( payload);
+        payload = {
+          id: initialData?.TransporterNumber || window.location.pathname.split('/').pop() || '',
+          isActive: true,
+          isDeleted: false,
+          transporterNumber: data.TransporterNumber || '',
+          name: data.name || '',
+          currency: data.currency || '',
+          address: data.address || '',
+          city: data.city || '',
+          state: data.state || '',
+          zipCode: data.zipCode || '',
+          bankName: data.bankName || '',
+          tel: data.tel || '',
+          ntn: data.ntn || '',
+          mobile: data.mobile || '',
+          stn: data.stn || '',
+          fax: data.fax || '',
+          buyerCode: data.buyerCode || '',
+          email: data.email || '',
+          website: data.website || '',
+        };
+        await updateTransporter(payload);
         toast.success('Transporter updated successfully!');
       } else {
+        payload = {
+          isActive: true,
+          isDeleted: false,
+          transporterNumber: data.TransporterNumber || `T${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          name: data.name || '',
+          currency: data.currency || '',
+          address: data.address || '',
+          city: data.city || '',
+          state: data.state || '',
+          zipCode: data.zipCode || '',
+          bankName: data.bankName || '',
+          tel: data.tel || '',
+          ntn: data.ntn || '',
+          mobile: data.mobile || '',
+          stn: data.stn || '',
+          fax: data.fax || '',
+          buyerCode: data.buyerCode || '',
+          email: data.email || '',
+          website: data.website || '',
+        };
         await createTransporter(payload);
         toast.success('Transporter created successfully!');
       }
