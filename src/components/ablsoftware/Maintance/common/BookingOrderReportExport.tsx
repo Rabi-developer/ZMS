@@ -818,14 +818,14 @@ const BookingOrderReportExport: React.FC = () => {
                         disabled={loading}
                         className="px-6 py-3 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
                       >
-                        ORDER REPORT (DETAIL)
+                        Export Detail Report PDF
                       </button>
                       <button
                         onClick={() => exportPDF(true)}
                         disabled={loading}
-                        className="px-6 py-3 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                        className="px-6 py-3 bg-pink-600 text-white text-sm font-bold rounded-lg hover:bg-pink-700 transition-colors disabled:opacity-50"
                       >
-                        ORDER REPORT (GENERAL)
+                        Export General Report PDF
                       </button>
                     </div>
                   </div>

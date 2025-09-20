@@ -38,6 +38,16 @@ interface ExtendedBookingOrder extends BookingOrder {
 }
 
 const BookingOrderList = () => {
+  // Local ABL date formatter
+  const formatABLDate = (dateStr?: string): string => {
+    if (!dateStr) return "-";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "-";
+    const day = d.getDate().toString().padStart(2, '0');
+    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+    const year = d.getFullYear() % 100;
+    return `ABL/${day}/${month}-${year}`;
+  };
   const router = useRouter();
   const searchParams = useSearchParams();
   const [bookingOrders, setBookingOrders] = useState<ExtendedBookingOrder[]>([]);
@@ -342,29 +352,57 @@ const BookingOrderList = () => {
       doc.line(40, 108, pageWidth - 40, 108);
 
       const head = [[
+        'Serial',
         'Order No',
-        'Order Date',
-        'Company',
-        'Branch',
-        'Status',
+        'ABL Date',
         'Vehicle No',
-        'Transporter',
+        'Bilty No',
+        'Bilty Amount',
+        'Article',
+        'Qty',
+        'Departure',
+        'Destination',
         'Vendor',
-        'From',
-        'To',
+        'Carrier',
       ]];
-      const body = pageData.map((o) => [
-        o.orderNo || '-',
-        o.orderDate || '-',
-        (o as any).company || '-',
-        (o as any).branch || '-',
-        o.status || '-',
-        (o as any).vehicleNo || '-',
-        (o as any).transporter || (o as any).carrier || '-',
-        (o as any).vendor || '-',
-        (o as any).fromLocation || '-',
-        (o as any).toLocation || '-',
-      ]);
+      const body = pageData.map((o, idx) => {
+        // Find consignment for this order if available
+        const cons = consignments[o.id] && consignments[o.id][0] ? consignments[o.id][0] : undefined;
+        // ABL Date formatting
+        const ablDate = o.orderDate ? formatABLDate(o.orderDate) : '-';
+        // Vehicle No
+        const vehicleNo = o.vehicleNo || '-';
+        // Bilty No
+        const biltyNo = cons ? (cons.biltyNo || '-') : '-';
+        // Bilty Amount
+        const biltyAmount = cons ? (cons.totalAmount || '-') : '-';
+        // Article
+        const article = cons ? (cons.item || '-') : '-';
+        // Qty
+        const qty = cons ? (cons.qty || '-') : '-';
+        // Departure
+        const departure = o.fromLocation || '-';
+        // Destination
+        const destination = o.toLocation || '-';
+        // Vendor
+        const vendor = o.vendor || '-';
+        // Carrier
+        const carrier = o.transporter || '-';
+        return [
+          idx + 1,
+          o.orderNo || '-',
+          ablDate,
+          vehicleNo,
+          biltyNo,
+          biltyAmount,
+          article,
+          qty,
+          departure,
+          destination,
+          vendor,
+          carrier,
+        ];
+      });
 
       autoTable(doc, {
         startY: 120,
@@ -436,6 +474,14 @@ const BookingOrderList = () => {
             >
               <FaFilePdf size={18} />
               PDF
+            </button>
+            <button
+              onClick={handleGenerateGeneralPdf}
+              className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+              title="General Report PDF"
+            >
+              <FaFilePdf size={18} />
+              Export General Report PDF
             </button>
           </div>
         </div>
