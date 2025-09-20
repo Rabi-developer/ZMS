@@ -60,11 +60,13 @@ const BookingOrderList = () => {
   const [pdfStartDate, setPdfStartDate] = useState<string>('');
   const [pdfEndDate, setPdfEndDate] = useState<string>('');
 
-  const statusOptions = ['All', 'Pending', 'In Transit', 'Delivered'];
+  const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'UnApproved' , 'Closed'];
   const statusOptionsConfig = [
-    { id: 1, name: 'Pending', color: '#f59e0b' },
-    { id: 2, name: 'In Transit', color: '#5673ba' },
-    { id: 3, name: 'Delivered', color: '#869719' },
+    { id: 1, name: 'Prepared', color: '#3b82f6' },
+    { id: 2, name: 'Approved', color: '#10b981' },
+    { id: 3, name: 'Canceled', color: '#ef4444' },
+    { id: 4, name: 'UnApproved', color: '#f59e0b' },
+    { id: 5, name: 'Closed', color: '#6b7280' },
   ];
 
   const fetchBookingOrdersAndConsignments = async () => {
