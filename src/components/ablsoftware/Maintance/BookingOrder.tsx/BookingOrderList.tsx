@@ -467,14 +467,7 @@ const BookingOrderList = () => {
               <FaFileExcel size={18} />
               Download Excel
             </button>
-            <button
-              onClick={openPdfDialog}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-              title="Bilties Receivable"
-            >
-              <FaFilePdf size={18} />
-              PDF
-            </button>
+            <button onClick={handleGenerateReceivablePdf} className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Bilties Receivable</button>
             <button
               onClick={handleGenerateGeneralPdf}
               className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md transition-all duration-200"
