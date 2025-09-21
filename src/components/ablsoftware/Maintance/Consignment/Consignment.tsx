@@ -8,6 +8,8 @@ import ABLNewCustomInput from '@/components/ui/ABLNewCustomInput';
 import AblNewCustomDrpdown from '@/components/ui/AblNewCustomDrpdown';
 import { createConsignment, updateConsignment, getSingleConsignment } from '@/apis/consignment';
 import { getAllPartys } from '@/apis/party';
+import { MdAddBusiness } from 'react-icons/md';
+import Link from 'next/link';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllSaleTexes } from '@/apis/salestexes';
@@ -17,7 +19,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { MdLocalShipping, MdInfo, MdPhone } from 'react-icons/md';
 import { FaIdCard, FaMoneyBillWave } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
-import Link from 'next/link';
 import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
 // Extend ABLNewCustomInputProps to include onFocus and onBlur
@@ -60,43 +61,41 @@ interface Item {
 
 // Define the schema for consignment form validation
 const consignmentSchema = z.object({
-  consignmentMode: z.string().optional(),
-  receiptNo: z.string().optional(),
-  orderNo: z.string().optional(),
-  biltyNo: z.string().optional(),
-  date: z.string().optional(),
-  consignmentNo: z.string().optional(),
-  consignor: z.string().optional(),
-  consignmentDate: z.string().optional(),
-  consignee: z.string().optional(),
-  receiverName: z.string().optional(),
-  receiverContactNo: z.string().optional(),
-  shippingLine: z.string().optional(),
-  containerNo: z.string().optional(),
-  port: z.string().optional(),
-  destination: z.string().optional(),
-  freightFrom: z.string().optional(),
+  receiptNo: z.string().min(1, 'Receipt No is required'),
+  orderNo: z.string().min(1, 'Order No is required'),
+  biltyNo: z.string().min(1, 'Bilty No is required'),
+  date: z.string().min(1, 'Date is required'),
+  consignmentNo: z.string().min(1, 'Consignment No is required'),
+  consignor: z.string().min(1, 'Consignor is required'),
+  consignmentDate: z.string().min(1, 'Consignment Date is required'),
+  consignee: z.string().min(1, 'Consignee is required'),
+  receiverName: z.string().min(1, 'Receiver Name is required'),
+  receiverContactNo: z.string().min(1, 'Receiver Contact No is required'),
+  shippingLine: z.string().min(1, 'Shipping Line is required'),
+  containerNo: z.string().min(1, 'Container No is required'),
+  port: z.string().min(1, 'Port is required'),
+  destination: z.string().min(1, 'Destination is required'),
   items: z.array(
     z.object({
-      desc: z.string().optional(),
-      qty: z.number().optional(),
-      rate: z.number().optional(),
-      qtyUnit: z.string().optional(),
-      weight: z.number().optional(),
-      weightUnit: z.string().optional(),
+      desc: z.string().min(1, 'Item Description is required'),
+      qty: z.string().min(1, 'Quantity is required'),
+      weight: z.string().min(1, 'Weight is required'),
     })
   ),
-  totalQty: z.number().optional(),
-  freight: z.string().optional(),
-  sbrTax: z.string().optional(),
-  sprAmount: z.number().optional(),
-  deliveryCharges: z.string().optional(),
+  totalQty: z.string().min(1, 'Total Quantity is required'),
+  freight: z.string().min(1, 'Freight is required'),
+  srbAmount: z.string().min(1, 'SRB Amount is required'),
+  deliveryCharges: z.string().min(1, 'Delivery Charges is required'),
   insuranceCharges: z.string().optional(),
   tollTax: z.string().optional(),
   otherCharges: z.string().optional(),
-  totalAmount: z.number().optional(),
-  receivedAmount: z.number().optional(),
-  incomeTaxDed: z.number().optional(),
+  totalAmount: z.string().min(1, 'Total Amount is required'),
+  receivedAmount: z.string().min(1, 'Received Amount is required'),
+  incomeTaxDeduction: z.string().optional(),
+  incomeTaxAmount: z.string().optional(),
+  deliveryDate: z.string().min(1, 'Delivery Date is required'),
+  freightFrom: z.string().min(1, 'Freight From is required'),
+  remarks: z.string().optional()
   incomeTaxAmount: z.number().optional(),
   deliveryDate: z.string().optional(),
   remarks: z.string().optional(),
@@ -174,7 +173,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   ];
   const items = watch('items');
   const freight = watch('freight');
-  const sbrTax = watch('sbrTax');
+  const srbAmount = watch('srbAmount');
   const deliveryCharges = watch('deliveryCharges');
   const insuranceCharges = watch('insuranceCharges');
   const tollTax = watch('tollTax');
