@@ -4,22 +4,20 @@ import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
+import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import ABLNewCustomInput from '@/components/ui/ABLNewCustomInput';
 import AblNewCustomDrpdown from '@/components/ui/AblNewCustomDrpdown';
 import { createConsignment, updateConsignment, getSingleConsignment } from '@/apis/consignment';
 import { getAllPartys } from '@/apis/party';
-import { MdAddBusiness } from 'react-icons/md';
-import Link from 'next/link';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllSaleTexes } from '@/apis/salestexes';
 import { getAllTransporter } from '@/apis/transporter';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MdLocalShipping, MdInfo, MdPhone } from 'react-icons/md';
-import { FaIdCard, FaMoneyBillWave } from 'react-icons/fa';
-import { HiDocumentText } from 'react-icons/hi';
-import { FiSave, FiX, FiUser } from 'react-icons/fi';
+import { MdLocalShipping, MdInfo } from 'react-icons/md';
+import Link from 'next/link';
+import { FiSave, FiX } from 'react-icons/fi';
 
 // Extend ABLNewCustomInputProps to include onFocus and onBlur
 interface ABLNewCustomInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -61,41 +59,43 @@ interface Item {
 
 // Define the schema for consignment form validation
 const consignmentSchema = z.object({
-  receiptNo: z.string().min(1, 'Receipt No is required'),
-  orderNo: z.string().min(1, 'Order No is required'),
-  biltyNo: z.string().min(1, 'Bilty No is required'),
-  date: z.string().min(1, 'Date is required'),
-  consignmentNo: z.string().min(1, 'Consignment No is required'),
-  consignor: z.string().min(1, 'Consignor is required'),
-  consignmentDate: z.string().min(1, 'Consignment Date is required'),
-  consignee: z.string().min(1, 'Consignee is required'),
-  receiverName: z.string().min(1, 'Receiver Name is required'),
-  receiverContactNo: z.string().min(1, 'Receiver Contact No is required'),
-  shippingLine: z.string().min(1, 'Shipping Line is required'),
-  containerNo: z.string().min(1, 'Container No is required'),
-  port: z.string().min(1, 'Port is required'),
-  destination: z.string().min(1, 'Destination is required'),
+  consignmentMode: z.string().optional(),
+  receiptNo: z.string().optional(),
+  orderNo: z.string().optional(),
+  biltyNo: z.string().optional(),
+  date: z.string().optional(),
+  consignmentNo: z.string().optional(),
+  consignor: z.string().optional(),
+  consignmentDate: z.string().optional(),
+  consignee: z.string().optional(),
+  receiverName: z.string().optional(),
+  receiverContactNo: z.string().optional(),
+  shippingLine: z.string().optional(),
+  containerNo: z.string().optional(),
+  port: z.string().optional(),
+  destination: z.string().optional(),
+  freightFrom: z.string().optional(),
   items: z.array(
     z.object({
-      desc: z.string().min(1, 'Item Description is required'),
-      qty: z.string().min(1, 'Quantity is required'),
-      weight: z.string().min(1, 'Weight is required'),
+      desc: z.string().optional(),
+      qty: z.number().optional(),
+      rate: z.number().optional(),
+      qtyUnit: z.string().optional(),
+      weight: z.number().optional(),
+      weightUnit: z.string().optional(),
     })
   ),
-  totalQty: z.string().min(1, 'Total Quantity is required'),
-  freight: z.string().min(1, 'Freight is required'),
-  srbAmount: z.string().min(1, 'SRB Amount is required'),
-  deliveryCharges: z.string().min(1, 'Delivery Charges is required'),
+  totalQty: z.number().optional(),
+  freight: z.string().optional(),
+  sbrTax: z.string().optional(),
+  sprAmount: z.number().optional(),
+  deliveryCharges: z.string().optional(),
   insuranceCharges: z.string().optional(),
   tollTax: z.string().optional(),
   otherCharges: z.string().optional(),
-  totalAmount: z.string().min(1, 'Total Amount is required'),
-  receivedAmount: z.string().min(1, 'Received Amount is required'),
-  incomeTaxDeduction: z.string().optional(),
-  incomeTaxAmount: z.string().optional(),
-  deliveryDate: z.string().min(1, 'Delivery Date is required'),
-  freightFrom: z.string().min(1, 'Freight From is required'),
-  remarks: z.string().optional()
+  totalAmount: z.number().optional(),
+  receivedAmount: z.number().optional(),
+  incomeTaxDed: z.number().optional(),
   incomeTaxAmount: z.number().optional(),
   deliveryDate: z.string().optional(),
   remarks: z.string().optional(),
@@ -173,7 +173,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   ];
   const items = watch('items');
   const freight = watch('freight');
-  const srbAmount = watch('srbAmount');
+  const sbrTax = watch('sbrTax');
   const deliveryCharges = watch('deliveryCharges');
   const insuranceCharges = watch('insuranceCharges');
   const tollTax = watch('tollTax');
@@ -331,14 +331,15 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     return bookingOrders.find(order => order.orderNo === orderNo);
   };
 
+  const [submitMode, setSubmitMode] = useState<'back' | 'addAnother' | 'list'>('back');
+
   const onSubmit = async (data: ConsignmentFormData) => {
     setIsSubmitting(true);
     try {
       const payload = {
         ...data,
         orderNo: data.orderNo || orderNoParam || '',
-        items: data.items, // Always send latest items array
-        // Add model field for backend validation
+        items: data.items,
       };
       if (isEdit) {
         const newid = window.location.pathname.split('/').pop();
@@ -355,20 +356,28 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           router.push('/bookingorder/create');
           return;
         }
-        // Reset form to allow creating another consignment (optional)
-        reset({
-          ...consignmentSchema.parse({}), // Reset to schema defaults
-          receiptNo: '', // Let backend assign
-          orderNo: orderNoParam, // Keep orderNo for next consignment
-          consignmentDate: new Date().toISOString().split('T')[0],
-          items: Array(3).fill({ desc: '', qty: 0, rate: 0, qtyUnit: '', weight: 0, weightUnit: '' }),
-        });
-        // Delay redirection to allow toast to be visible
+
+        if (submitMode === 'addAnother') {
+          // Reset and stay on this page to add another consignment for same order
+          reset({
+            ...consignmentSchema.parse({}),
+            receiptNo: '',
+            orderNo: orderNoParam,
+            consignmentDate: new Date().toISOString().split('T')[0],
+            items: Array(3).fill({ desc: '', qty: 0, rate: 0, qtyUnit: '', weight: 0, weightUnit: '' }),
+          });
+          return;
+        }
+
+        // Default: go back to booking order page
         setTimeout(() => {
           router.push(`/bookingorder/create?orderNo=${encodeURIComponent(orderNoParam)}`);
-        }, 800);
+        }, 600);
       } else {
-        router.push('/consignment');
+        // Non-booking flow
+        if (submitMode === 'list') {
+          router.push('/consignment');
+        }
       }
     } catch (error) {
       toast.error('An error occurred while saving the consignment');
@@ -378,10 +387,8 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     }
   };
 
- 
-  const isFieldDisabled = (field: string) => {
-    if (!fromBooking) return false;
-    return !['consignor', 'consignee'].includes(field);
+  const isFieldDisabled = () => {
+    return false; // All fields are editable
   };
 
   return (
@@ -398,7 +405,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -427,657 +434,602 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
           </div>
 
-        
-
           <form onSubmit={handleSubmit(onSubmit)} className="p-8">
-            {fromBooking && (
-              <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
-                  <MdInfo className="text-xl" />
-                  <span className="font-medium">Restricted Mode</span>
-                </div>
-                <p className="text-sm text-blue-600 dark:text-blue-300 mt-1">
-                  You can only edit Consignor and Consignee fields when creating from booking order.
-                </p>
-              </div>
-            )}
-                         <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="col-span-1 ">
-               
-                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                 {/* 1 */}
-                   <Controller
-                        name="receiptNo"
-                        control={control}
-                        render={({ field }) => (
-                          <div className="relative">
-                            <ABLNewCustomInput
-                              {...field}
-                              label="Receipt No"
-                              type="text"
-                              placeholder="Auto Generated"
-                              register={register}
-                              error={errors.receiptNo?.message}
-                              id="receiptNo"
-                              disabled
-                              onFocus={() => setReceiptNoFocused(true)}
-                              onBlur={() => setReceiptNoFocused(false)}
-                            />
-                            {receiptNoFocused && (
-                              <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
-                                Auto-generated
-                              </div>
-                            )}
+            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="col-span-1">
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  <Controller
+                    name="receiptNo"
+                    control={control}
+                    render={({ field }) => (
+                      <div className="relative">
+                        <ABLNewCustomInput
+                          {...field}
+                          label="Receipt No"
+                          type="text"
+                          placeholder="Auto Generated"
+                          register={register}
+                          error={errors.receiptNo?.message}
+                          id="receiptNo"
+                          disabled
+                          onFocus={() => setReceiptNoFocused(true)}
+                          onBlur={() => setReceiptNoFocused(false)}
+                        />
+                        {receiptNoFocused && (
+                          <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
+                            Auto-generated
                           </div>
                         )}
+                      </div>
+                    )}
+                  />
+                  <div className="gap-2 grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2">
+                    <ABLNewCustomInput
+                      label="Bilty No"
+                      type="text"
+                      placeholder="Enter bilty number"
+                      register={register}
+                      error={errors.biltyNo?.message}
+                      id="biltyNo"
+                    />
+                    <ABLNewCustomInput
+                      label="Date"
+                      type="date"
+                      placeholder="Select date"
+                      register={register}
+                      error={errors.date?.message}
+                      id="date"
+                    />
+                    <Controller
+                      name="consignor"
+                      control={control}
+                      render={({ field }) => (
+                        <AblNewCustomDrpdown
+                          label="Consignor"
+                          options={parties}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('consignor', value, { shouldValidate: true })}
+                          error={errors.consignor?.message}
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="consignee"
+                      control={control}
+                      render={({ field }) => (
+                        <AblNewCustomDrpdown
+                          label="Consignee"
+                          options={parties}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('consignee', value, { shouldValidate: true })}
+                          error={errors.consignee?.message}
+                        />
+                      )}
+                    />
+                    <Controller
+                      name="freightFrom"
+                      control={control}
+                      render={({ field }) => (
+                        <AblNewCustomDrpdown
+                          label="Freight From"
+                          options={freightFromOptions}
+                          selectedOption={field.value || ''}
+                          onChange={(value) => setValue('freightFrom', value, { shouldValidate: true })}
+                          error={errors.freightFrom?.message}
+                        />
+                      )}
+                    />
+                    <ABLNewCustomInput
+                      label="Credit Allowed"
+                      type="text"
+                      placeholder="Enter credit amount"
+                      register={register}
+                      error={errors.creditAllowed?.message}
+                      id="creditAllowed"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-span-1 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  <div>
+                    <Button
+                      type="button"
+                      onClick={() => setShowOrderPopup(true)}
+                      className="mb-3 w-full bg-[#3a614c] hover:bg-[#3a614c]/90 text-white"
+                    >
+                      Select Order No
+                    </Button>
+                    <ABLNewCustomInput
+                      label="Order No"
+                      type="text"
+                      placeholder="Select from orders"
+                      register={register}
+                      error={errors.orderNo?.message}
+                      id="orderNo"
+                      disabled
+                    />
+                    {getSelectedOrderDetails() && (
+                      <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-600">
+                        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Selected Order Details</h4>
+                        <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                          <tbody>
+                            <tr className="border-b dark:border-gray-700">
+                              <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Order No</td>
+                              <td className="py-2 px-3">{getSelectedOrderDetails()?.orderNo}</td>
+                            </tr>
+                            <tr className="border-b dark:border-gray-700">
+                              <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Vehicle No</td>
+                              <td className="py-2 px-3">{getSelectedOrderDetails()?.vehicleNo}</td>
+                            </tr>
+                            <tr className="border-b dark:border-gray-700">
+                              <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Cargo Weight</td>
+                              <td className="py-2 px-3">{getSelectedOrderDetails()?.cargoWeight}</td>
+                            </tr>
+                            <tr className="border-b dark:border-gray-700">
+                              <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Order Date</td>
+                              <td className="py-2 px-3">{getSelectedOrderDetails()?.orderDate}</td>
+                            </tr>
+                            <tr>
+                              <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Vendor</td>
+                              <td className="py-2 px-3">{getSelectedOrderDetails()?.vendor}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                  <ABLNewCustomInput
+                    label="Con.No"
+                    type="text"
+                    placeholder="Enter consignment number"
+                    register={register}
+                    error={errors.consignmentNo?.message}
+                    id="consignmentNo"
+                  />
+                  <ABLNewCustomInput
+                    label="Cons.Date"
+                    type="date"
+                    placeholder="Select consignment date"
+                    register={register}
+                    error={errors.consignmentDate?.message}
+                    id="consignmentDate"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="col-span-1">
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  <ABLNewCustomInput
+                    label="Receive.N"
+                    type="text"
+                    placeholder="Enter receiver name"
+                    register={register}
+                    error={errors.receiverName?.message}
+                    id="receiverName"
+                  />
+                  <ABLNewCustomInput
+                    label="Container No"
+                    type="text"
+                    placeholder="Enter container number"
+                    register={register}
+                    error={errors.containerNo?.message}
+                    id="containerNo"
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-1 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  <ABLNewCustomInput
+                    label="Receiver C.No"
+                    type="text"
+                    placeholder="Enter contact number"
+                    register={register}
+                    error={errors.receiverContactNo?.message}
+                    id="receiverContactNo"
+                  />
+                  <Controller
+                    name="consignmentMode"
+                    control={control}
+                    render={({ field }) => (
+                      <AblNewCustomDrpdown
+                        label="Cons.Mode"
+                        options={consignmentModes}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('consignmentMode', value, { shouldValidate: true })}
+                        error={errors.consignmentMode?.message}
                       />
-                      <div className="flex items-center gap-2 mb-5">
-                      {fromBooking && (
-                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <Controller
+                name="shippingLine"
+                control={control}
+                render={({ field }) => (
+                  <AblNewCustomDrpdown
+                    label="Shipping Line"
+                    options={shippingLines}
+                    selectedOption={field.value || ''}
+                    onChange={(value) => setValue('shippingLine', value, { shouldValidate: true })}
+                    error={errors.shippingLine?.message}
+                  />
+                )}
+              />
+              <ABLNewCustomInput
+                label="Port"
+                type="text"
+                placeholder="Enter port"
+                register={register}
+                error={errors.port?.message}
+                id="port"
+              />
+              <Controller
+                name="destination"
+                control={control}
+                render={({ field }) => (
+                  <AblNewCustomDrpdown
+                    label="Destination"
+                    options={parties}
+                    selectedOption={field.value || ''}
+                    onChange={(value) => setValue('destination', value, { shouldValidate: true })}
+                    error={errors.destination?.message}
+                  />
+                )}
+              />
+            </div>
+
+            <div className="col-span-1 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+              <div className="flex gap-2 ml-10 p-3">
+                <MdInfo className="text-[#3a614c] text-xl" />
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Items Details</h3>
+              </div>
+
+              <div className="p-3">
+                <div className="overflow-x-auto">
+                  <table className="w-full md:w-4/5 sm:w-3/4 text-sm mx-auto">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          #
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          Item Description
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          Qty
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          Rate
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          Unit
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
+                          Weight
+                        </th>
+                        <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide">
+                          W.Unit
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                      {items.map((_, index) => (
+                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center justify-center w-6 h-6 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
+                              {index + 1}
+                            </div>
+                          </td>
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <input
+                              {...register(`items.${index}.desc`)}
+                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                              placeholder="Item description"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <input
+                              {...register(`items.${index}.qty`, { valueAsNumber: true })}
+                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
+                              placeholder="0"
+                              min="0"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <input
+                              step="0.01"
+                              {...register(`items.${index}.rate`, { valueAsNumber: true })}
+                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
+                              placeholder="0.00"
+                              min="0"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <Controller
+                              name={`items.${index}.qtyUnit`}
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  {...field}
+                                  className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                                >
+                                  <option value="">Unit</option>
+                                  {units.map((unit) => (
+                                    <option key={unit.id} value={unit.id}>
+                                      {unit.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
+                            <input
+                              step="0.01"
+                              {...register(`items.${index}.weight`, { valueAsNumber: true })}
+                              className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
+                              placeholder="0.0"
+                              min="0"
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <Controller
+                              name={`items.${index}.weightUnit`}
+                              control={control}
+                              render={({ field }) => (
+                                <select
+                                  {...field}
+                                  className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
+                                >
+                                  <option value="">Unit</option>
+                                  {units.map((unit) => (
+                                    <option key={unit.id} value={unit.id}>
+                                      {unit.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full"></div>
+                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300"></span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Qty:</label>
+                        <input
+                          {...register('totalQty')}
+                          disabled
+                          className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-gray-100 dark:bg-gray-700 text-center font-semibold"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <ABLNewCustomInput
+                  label="Freight"
+                  type="text"
+                  placeholder="Enter freight"
+                  register={register}
+                  error={errors.freight?.message}
+                  id="freight"
+                />
+                <Controller
+                  name="sbrTax"
+                  control={control}
+                  render={({ field }) => (
+                    <AblNewCustomDrpdown
+                      label="SBR Tax"
+                      options={sbrTaxes}
+                      selectedOption={field.value || ''}
+                      onChange={(value) => setValue('sbrTax', value, { shouldValidate: true })}
+                      error={errors.sbrTax?.message}
+                    />
+                  )}
+                />
+                <ABLNewCustomInput
+                  label="SPR Amount"
+                  type="text"
+                  placeholder="Auto-calculated"
+                  register={register}
+                  error={errors.sprAmount?.message}
+                  id="sprAmount"
+                  disabled
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="col-span-1">
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  <ABLNewCustomInput
+                    label="Delivery.C"
+                    type="text"
+                    placeholder="Enter delivery charges"
+                    register={register}
+                    error={errors.deliveryCharges?.message}
+                    id="deliveryCharges"
+                  />
+                  <ABLNewCustomInput
+                    label="Toll Tax"
+                    type="text"
+                    placeholder="Enter toll tax"
+                    register={register}
+                    error={errors.tollTax?.message}
+                    id="tollTax"
+                  />
+                  <ABLNewCustomInput
+                    label="Total Amount"
+                    type="text"
+                    placeholder="Auto-calculated"
+                    register={register}
+                    error={errors.totalAmount?.message}
+                    id="totalAmount"
+                    disabled
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-1 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  <ABLNewCustomInput
+                    label="Insurance.C"
+                    type="text"
+                    placeholder="Enter insurance charges"
+                    register={register}
+                    error={errors.insuranceCharges?.message}
+                    id="insuranceCharges"
+                  />
+                  <ABLNewCustomInput
+                    label="Other Charges"
+                    type="text"
+                    placeholder="Enter other charges"
+                    register={register}
+                    error={errors.otherCharges?.message}
+                    id="otherCharges"
+                  />
+                  <ABLNewCustomInput
+                    label="Delivery Date"
+                    type="date"
+                    placeholder="Select delivery date"
+                    register={register}
+                    error={errors.deliveryDate?.message}
+                    id="deliveryDate"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="gap-2 grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+              <ABLNewCustomInput
+                label="Remarks"
+                type="text"
+                placeholder="Enter remarks"
+                register={register}
+                error={errors.remarks?.message}
+                id="remarks"
+              />
+            </div>
+
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <ABLCustomInput
+                  label="Received Amount"
+                  type="text"
+                  placeholder="Auto-calculated"
+                  register={register}
+                  error={errors.receivedAmount?.message}
+                  id="receivedAmount"
+                  disabled
+                />
+                <ABLCustomInput
+                  label="Income Tax Ded."
+                  type="text"
+                  placeholder="Auto-calculated"
+                  register={register}
+                  error={errors.incomeTaxDed?.message}
+                  id="incomeTaxDed"
+                  disabled
+                />
+                <ABLCustomInput
+                  label="Income Tax Amount"
+                  type="text"
+                  placeholder="Auto-calculated"
+                  register={register}
+                  error={errors.incomeTaxAmount?.message}
+                  id="incomeTaxAmount"
+                  disabled
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700 mt-8">
+              {fromBooking ? (
+                <>
+                  <Button
+                    type="submit"
+                    onClick={() => setSubmitMode('back')}
+                    disabled={isSubmitting}
+                    className="px-6 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiSave className="text-lg" />
+                          <span>Save & Back</span>
+                        </>
                       )}
                     </div>
-                     
-                      <div className=" gap-2  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2">
-                     <ABLNewCustomInput
-                        label="Bilty No"
-                        type="text"
-                        placeholder="Enter bilty number"
-                        register={register}
-                        error={errors.biltyNo?.message}
-                        id="biltyNo"
-                        disabled={isFieldDisabled('biltyNo')}
-                      />
-                        <ABLNewCustomInput
-                        label="Date"
-                        type="date"
-                        placeholder="Select date"
-                        register={register}
-                        error={errors.date?.message}
-                        id="date"
-                        disabled={isFieldDisabled('date')}
-                      />
-                                    <Controller
-                        name="consignor"
-                        control={control}
-                        render={({ field }) => (
-                          <AblNewCustomDrpdown
-                            label="Consignor"
-                            options={parties}
-                            selectedOption={field.value || ''}
-                            onChange={(value) => setValue('consignor', value, { shouldValidate: true })}
-                            error={errors.consignor?.message}
-                            disabled={isFieldDisabled('consignor')}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name="consignee"
-                        control={control}
-                        render={({ field }) => (
-                          <AblNewCustomDrpdown
-                            label="Consignee"
-                            options={parties}
-                            selectedOption={field.value || ''}
-                            onChange={(value) => setValue('consignee', value, { shouldValidate: true })}
-                            error={errors.consignee?.message}
-                            disabled={isFieldDisabled('consignee')}
-                          />
-                        )}
-                      />
-
-                       <Controller
-                        name="freightFrom"
-                        control={control}
-                        render={({ field }) => (
-                          <AblNewCustomDrpdown
-                            label="Freight From"
-                            options={freightFromOptions}
-                            selectedOption={field.value || ''}
-                            onChange={(value) => setValue('freightFrom', value, { shouldValidate: true })}
-                            error={errors.freightFrom?.message}
-                            disabled={isFieldDisabled('freightFrom')}
-                          />
-                        )}
-                      />
-                       <ABLNewCustomInput
-                            label="Credit Allowed"
-                            type="text"
-                            placeholder="Enter credit amount"
-                            register={register}
-                            error={errors.creditAllowed?.message}
-                            id="creditAllowed"
-                            disabled={isFieldDisabled('creditAllowed')}
-                          />
-                      </div>
-                   
-                </div>
-              </div>
-                  
-            
-
-
-              <div className="col-span-1 shadow-sm">
-               
-                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                  
-                 {/* 2 */}
-
-                        <div>
-                        <Button
-                          type="button"
-                          onClick={() => setShowOrderPopup(true)}
-                          className="mb-3 w-full bg-[#3a614c] hover:bg-[#3a614c]/90 text-white"
-                          disabled={isFieldDisabled('orderNo')}
-                        >
-                          Select Order No
-                        </Button>
-                        <ABLNewCustomInput
-                          label="Order No"
-                          type="text"
-                          placeholder="Select from orders"
-                          register={register}
-                          error={errors.orderNo?.message}
-                          id="orderNo"
-                          disabled
-                        />
-                        {getSelectedOrderDetails() && (
-                          <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-600">
-                            <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Selected Order Details</h4>
-                            <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                              <tbody>
-                                <tr className="border-b dark:border-gray-700">
-                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Order No</td>
-                                  <td className="py-2 px-3"> {getSelectedOrderDetails()?.orderNo}</td>
-                                </tr>
-                                <tr className="border-b dark:border-gray-700">
-                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Vehicle No</td>
-                                  <td className="py-2 px-3">{getSelectedOrderDetails()?.vehicleNo}</td>
-                                </tr>
-                                <tr className="border-b dark:border-gray-700">
-                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Cargo Weight</td>
-                                  <td className="py-2 px-3">{getSelectedOrderDetails()?.cargoWeight}</td>
-                                </tr>
-                                <tr className="border-b dark:border-gray-700">
-                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Order Date</td>
-                                  <td className="py-2 px-3">{getSelectedOrderDetails()?.orderDate}</td>
-                                </tr>
-                                <tr>
-                                  <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">Vendor</td>
-                                  <td className="py-2 px-3">{getSelectedOrderDetails()?.vendor}</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>   
-                       <ABLNewCustomInput
-                        label="Con.No"
-                        type="text"
-                        placeholder="Enter consignment number"
-                        register={register}
-                        error={errors.consignmentNo?.message}
-                        id="consignmentNo"
-                        disabled={isFieldDisabled('consignmentNo')}
-                      />    
-                          <ABLNewCustomInput
-                        label="Cons.Date"
-                        type="date"
-                        placeholder="Select consignment date"
-                        register={register}
-                        error={errors.consignmentDate?.message}
-                        id="consignmentDate"
-                        disabled={isFieldDisabled('consignmentDate')}
-                      />     
-                </div>
-              </div>
-              
-            </div>
- 
-                   
-          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="col-span-1 ">
-               
-                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                 {/* 1 */}
-                   
-                        <ABLNewCustomInput
-                        label="Receive.N"
-                        type="text"
-                        placeholder="Enter receiver name"
-                        register={register}
-                        error={errors.receiverName?.message}
-                        id="receiverName"
-                        disabled={isFieldDisabled('receiverName')}
-                      />
-                      <ABLNewCustomInput
-                        label="Container No"
-                        type="text"
-                        placeholder="Enter container number"
-                        register={register}
-                        error={errors.containerNo?.message}
-                        id="containerNo"
-                        disabled={isFieldDisabled('containerNo')}
-                      />
-                       
-                   
-                </div>
-              </div>
-                  
-            
-
-
-              <div className="col-span-1 shadow-sm">
-               
-                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                  
-                 {/* 2 */}
-
-                    <ABLNewCustomInput
-                        label="Receiver C.No"
-                        type="text"
-                        placeholder="Enter contact number"
-                        register={register}
-                        error={errors.receiverContactNo?.message}
-                        id="receiverContactNo"
-                        disabled={isFieldDisabled('receiverContactNo')}
-                      />
-                       <Controller
-                        name="consignmentMode"
-                        control={control}
-                        render={({ field }) => (
-                          <AblNewCustomDrpdown
-                            label="Cons.Mode"
-                            options={consignmentModes}
-                            selectedOption={field.value || ''}
-                            onChange={(value) => setValue('consignmentMode', value, { shouldValidate: true })}
-                            error={errors.consignmentMode?.message}
-                            disabled={isFieldDisabled('consignmentMode')}
-                          />
-                        )}
-                      />
-                              
-                </div>
-              </div>
-              
-            </div>
-
-          <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-             <Controller
-                        name="shippingLine"
-                        control={control}
-                        render={({ field }) => (
-                          <AblNewCustomDrpdown
-                            label="Shipping Line"
-                            options={shippingLines}
-                            selectedOption={field.value || ''}
-                            onChange={(value) => setValue('shippingLine', value, { shouldValidate: true })}
-                            error={errors.shippingLine?.message}
-                            disabled={isFieldDisabled('shippingLine')}
-                          />
-                        )}
-                      />
-                       <ABLNewCustomInput
-                        label="Port"
-                        type="text"
-                        placeholder="Enter port"
-                        register={register}
-                        error={errors.port?.message}
-                        id="port"
-                        disabled={isFieldDisabled('port')}
-                      />              
-                       <Controller
-                        name="destination"
-                        control={control}
-                        render={({ field }) => (
-                          <AblNewCustomDrpdown
-                            label="Destination"
-                            options={parties}
-                            selectedOption={field.value || ''}
-                            onChange={(value) => setValue('destination', value, { shouldValidate: true })}
-                            error={errors.destination?.message}
-                            disabled={isFieldDisabled('destination')}
-                          />
-                        )}
-                      />         
-                </div>
- 
-           
-
-           
-              <>
-                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="flex  gap-2 ml-10 p-3">
-                    <HiDocumentText className="text-[#3a614c] text-xl" />
-                    <h3 className="text-lg  font-semibold text-gray-800 dark:text-gray-200">Items Details</h3>
-                    {fromBooking && (
-                      <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
-                    )}x
-                  </div>
-
-                  <div className="p-3">
-                    <div className="overflow-x-auto">
-                      <table className="w-full md:w-4/5 sm:w-3/4 text-sm mx-auto">
-                        <thead>
-                          <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
-                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                              #
-                            </th>
-                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                              Item Description
-                            </th>
-                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                              Qty
-                            </th>
-                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                              Rate
-                            </th>
-                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                              Unit
-                            </th>
-                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
-                              Weight
-                            </th>
-                            <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide">
-                              W.Unit
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                          {items.map((_, index) => (
-                            <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
-                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                                <div className="flex items-center justify-center w-6 h-6 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
-                                  {index + 1}
-                                </div>
-                              </td>
-                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                                <input
-                                  {...register(`items.${index}.desc`)}
-                                  disabled={isFieldDisabled('items')}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
-                                  placeholder="Item description"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                                <input
-                                  
-                                  {...register(`items.${index}.qty`, { valueAsNumber: true })}
-                                  disabled={isFieldDisabled('items')}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
-                                  placeholder="0"
-                                  min="0"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                                <input
-                                  
-                                  step="0.01"
-                                  {...register(`items.${index}.rate`, { valueAsNumber: true })}
-                                  disabled={isFieldDisabled('items')}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
-                                  placeholder="0.00"
-                                  min="0"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                                <Controller
-                                  name={`items.${index}.qtyUnit`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <select
-                                      {...field}
-                                      disabled={isFieldDisabled('items')}
-                                      className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
-                                    >
-                                      <option value="">Unit</option>
-                                      {units.map((unit) => (
-                                        <option key={unit.id} value={unit.id}>
-                                          {unit.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  )}
-                                />
-                              </td>
-                              <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
-                                <input
-                                  
-                                  step="0.01"
-                                  {...register(`items.${index}.weight`, { valueAsNumber: true })}
-                                  disabled={isFieldDisabled('items')}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
-                                  placeholder="0.0"
-                                  min="0"
-                                />
-                              </td>
-                              <td className="px-2 py-1.5">
-                                <Controller
-                                  name={`items.${index}.weightUnit`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <select
-                                      {...field}
-                                      disabled={isFieldDisabled('items')}
-                                      className="w-full px-1 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all"
-                                    >
-                                      <option value="">Unit</option>
-                                      {units.map((unit) => (
-                                        <option key={unit.id} value={unit.id}>
-                                          {unit.name}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  )}
-                                />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                  </Button>
+                  <Button
+                    type="submit"
+                    onClick={() => setSubmitMode('addAnother')}
+                    disabled={isSubmitting}
+                    className="px-6 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiSave className="text-lg" />
+                          <span>Save & Add Another</span>
+                        </>
+                      )}
                     </div>
-
-                    <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2  rounded-full"></div>
-                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300"></span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Total Qty:</label>
-                            <input
-                              {...register('totalQty')}
-                              disabled
-                              className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs bg-gray-100 dark:bg-gray-700 text-center font-semibold"
-                              placeholder="0"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="submit"
+                  onClick={() => setSubmitMode('list')}
+                  disabled={isSubmitting}
+                  className="px-8 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
+                >
+                  <div className="flex items-center gap-2">
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiSave className="text-lg" />
+                        <span>{isEdit ? 'Update Consignment' : 'Create Consignment'}</span>
+                      </>
+                    )}
                   </div>
-
-                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <ABLNewCustomInput
-                            label="Freight"
-                            type="text"
-                            placeholder="Enter freight"
-                            register={register}
-                            error={errors.freight?.message}
-                            id="freight"
-                            disabled={isFieldDisabled('freight')}
-                          />
-                           <Controller
-                            name="sbrTax"
-                            control={control}
-                            render={({ field }) => (
-                              <AblNewCustomDrpdown
-                                label="SBR Tax"
-                                options={sbrTaxes}
-                                selectedOption={field.value || ''}
-                                onChange={(value) => setValue('sbrTax', value, { shouldValidate: true })}
-                                error={errors.sbrTax?.message}
-                                disabled={isFieldDisabled('sbrTax')}
-                              />
-                            )}
-                          />
-                           <ABLNewCustomInput
-                            label="SPR Amount"
-                            type="text"
-                            placeholder="Auto-calculated"
-                            register={register}
-                            error={errors.sprAmount?.message}
-                            id="sprAmount"
-                            disabled
-                          />
-                        </div>
-                </div>
-
-
-                           
-              </>
-          
-
-             <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="col-span-1 ">
-               
-                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                 {/* 1 */}
-                 <ABLNewCustomInput
-                            label="Delivery.C"
-                            type="text"
-                            placeholder="Enter delivery charges"
-                            register={register}
-                            error={errors.deliveryCharges?.message}
-                            id="deliveryCharges"
-                            disabled={isFieldDisabled('deliveryCharges')}
-                          />
-                          
-                          <ABLNewCustomInput
-                            label="Toll Tax"
-                            type="text"
-                            placeholder="Enter toll tax"
-                            register={register}
-                            error={errors.tollTax?.message}
-                            id="tollTax"
-                            disabled={isFieldDisabled('tollTax')}
-                         />
-                          <ABLNewCustomInput
-                              label="Total Amount"
-                              type="text"
-                              placeholder="Auto-calculated"
-                              register={register}
-                              error={errors.totalAmount?.message}
-                              id="totalAmount"
-                              disabled
-                            />
-                        
-                </div>
-              </div>
-                  
-            
-
-
-              <div className="col-span-1 shadow-sm">
-               
-                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                  
-                 {/* 2 */}
-                 <ABLNewCustomInput
-                            label="Insurance.C"
-                            type="text"
-                            placeholder="Enter insurance charges"
-                            register={register}
-                            error={errors.insuranceCharges?.message}
-                            id="insuranceCharges"
-                            disabled={isFieldDisabled('insuranceCharges')}
-                          />  
-                          
-                          <ABLNewCustomInput
-                            label="Other Charges"
-                            type="text"
-                            placeholder="Enter other charges"
-                            register={register}
-                            error={errors.otherCharges?.message}
-                            id="otherCharges"
-                            disabled={isFieldDisabled('otherCharges')}
-                          />    
-                           <ABLNewCustomInput
-                            label="Delivery Date"
-                            type="date"
-                            placeholder="Select delivery date"
-                            register={register}
-                            error={errors.deliveryDate?.message}
-                            id="deliveryDate"
-                            disabled={isFieldDisabled('deliveryDate')}
-                          />    
-                                  
-                </div>
-              </div>
-              
-            </div>
-          <div className=" gap-2 grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-               <ABLNewCustomInput
-                            label="Remarks"
-                            type="text"
-                            placeholder="Enter remarks"
-                            register={register}
-                            error={errors.remarks?.message}
-                            id="remarks"
-                            disabled={isFieldDisabled('remarks')}
-                          />
-            </div>
-  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <ABLNewCustomInput
-                            label="Received Amount"
-                            type="text"
-                            placeholder="Auto-calculated"
-                            register={register}
-                            error={errors.receivedAmount?.message}
-                            id="receivedAmount"
-                            disabled
-                          />
-                          <ABLNewCustomInput
-                            label="Income Tax Ded."
-                            type="text"
-                            placeholder="Auto-calculated"
-                            register={register}
-                            error={errors.incomeTaxDed?.message}
-                            id="incomeTaxDed"
-                            disabled
-                          />
-                          <ABLNewCustomInput
-                            label="Income Tax Amount"
-                            type="text"
-                            placeholder="Auto-calculated"
-                            register={register}
-                            error={errors.incomeTaxAmount?.message}
-                            id="incomeTaxAmount"
-                            disabled
-                          />
-                        </div>
-                      </div>
-            <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700 mt-8">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-8 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="text-lg" />
-                      <span>{isEdit ? 'Update Consignment' : 'Create Consignment'}</span>
-                    </>
-                  )}
-                </div>
-              </Button>
+                </Button>
+              )}
             </div>
           </form>
         </div>
@@ -1110,8 +1062,6 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   <FiX className="text-xl" />
                 </Button>
               </div>
-              
-                      
 
               <div className="mb-4">
                 <input

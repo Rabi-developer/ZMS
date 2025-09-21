@@ -196,7 +196,7 @@ const BillPaymentInvoicesList = () => {
   };
 
   return (
-    <div className="container p-6 h-[110vh]">
+    <div className="container mx-auto mt-4  max-w-screen  p-6 ">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">

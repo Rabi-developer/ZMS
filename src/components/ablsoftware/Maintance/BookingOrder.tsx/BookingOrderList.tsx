@@ -434,7 +434,7 @@ const BookingOrderList = () => {
   };
 
   return (
-    <div className="container mt-4 p-6   w-screen-xl ">
+    <div className="container mx-auto mt-4  max-w-screen  p-6 ">
       <div className='h-full w-full flex flex-col'>
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-wrap">

@@ -58,9 +58,9 @@ const bookingOrderSchema = z.object({
   id: z.string().optional(),
   OrderNo: z.string().optional(),
   orderDate: z.string().optional().nullable(),
-  transporter: z.string().optional().nullable(),
+  transporter: z.string().min(1, 'Transporter is required').nullable(),
   vendor: z.string().optional().nullable(),
-  vehicleNo: z.string().optional().nullable(),
+  vehicleNo:z.string().min(1, 'Vehicle NO is required').nullable(),
   containerNo: z.string().optional().nullable(),
   vehicleType: z.string().optional().nullable(),
   driverName: z.string().optional().nullable(),
@@ -69,7 +69,7 @@ const bookingOrderSchema = z.object({
   cargoWeight: z.string().optional().nullable(),
   bookedDays: z.string().optional().nullable(),
   detentionDays: z.string().optional().nullable(),
-  fromLocation: z.string().optional().nullable(),
+  fromLocation: z.string().min(1, 'From Location is required').nullable(),
   departureDate: z.string().optional().nullable(),
   via1: z.string().optional().nullable(),
   via2: z.string().optional().nullable(),
@@ -411,14 +411,14 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
     setIsModalOpen(false);
   };
 
-  const onSubmit = async (data: BookingOrderFormData) => {
-    setIsSubmitting(true);
-    try {
-      // Map selectedConsignments (biltyNo array) to consignment objects with proper structure
-      const consignmentObjects = consignments
-        .filter(cons => selectedConsignments.includes(cons.biltyNo))
-        .map(cons => ({
-          id: cons.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6", // Use existing id or placeholder
+  // Build payload and save booking order without redirect
+  const saveBookingOnly = async (data: BookingOrderFormData) => {
+    // Map selectedConsignments (biltyNo array) to consignment objects with proper structure
+    const bookingOrderId = isEdit ? (bookingId || data.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6") : undefined;
+    const consignmentObjects = consignments
+      .filter(cons => selectedConsignments.includes(cons.biltyNo))
+      .map(cons => {
+        const base = {
           biltyNo: cons.biltyNo || "string",
           receiptNo: cons.receiptNo || "string",
           consignor: cons.consignor || "string",
@@ -429,53 +429,76 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
           recvAmount: cons.recvAmount || 0,
           delDate: cons.delDate || "string",
           status: cons.status || "string"
-        }));
-
-      // Create the payload matching the API schema
-      const payload = {
-        id: isEdit ? (bookingId || data.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6") : "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-        orderNo: data.OrderNo || "string",
-        orderDate: data.orderDate || "string",
-        transporter: data.transporter || "string",
-        vendor: data.vendor || "string",
-        vehicleNo: data.vehicleNo || "string",
-        containerNo: data.containerNo || "string",
-        vehicleType: data.vehicleType || "string",
-        driverName: data.driverName || "string",
-        contactNo: data.contactNo || "string",
-        munshayana: data.munshayana || "string",
-        cargoWeight: data.cargoWeight || "string",
-        bookedDays: data.bookedDays || "string",
-        detentionDays: data.detentionDays || "string",
-        fromLocation: data.fromLocation || "string",
-        departureDate: data.departureDate || "string",
-        via1: data.via1 || "string",
-        via2: data.via2 || "string",
-        toLocation: data.toLocation || "string",
-        expectedReachedDate: data.expectedReachedDate || "string",
-        reachedDate: data.reachedDate || "string",
-        vehicleMunshyana: data.vehicleMunshyana || "string",
-        remarks: data.remarks || "string",
-        contractOwner: data.contractOwner || "string",
-        status: data.status || "string",
-        consignments: consignmentObjects,
-      };
-
-      if (isEdit) {
-        const idToUse = bookingId || data.id || '';
-        if (!idToUse) {
-          toast.error('Cannot update: missing booking id');
-          return;
+        };
+        // Only send IDs when updating
+        if (isEdit) {
+          return {
+            ...base,
+            id: cons.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            bookingOrderId: bookingOrderId,
+          };
         }
-        console.log('[BookingOrderForm] Submitting update', { idToUse, payload });
-        await updateBookingOrder(idToUse, payload);
-        console.log('[BookingOrderForm] Update success');
-        toast.success('Booking Order updated successfully!');
-      } else {
-        console.log('[BookingOrderForm] Submitting create', payload);
-        await createBookingOrder(payload);
-        console.log('[BookingOrderForm] Create success');
-        toast.success('Booking Order created successfully!');
+        return base;
+      });
+
+    // Create the payload matching the API schema
+    const payload = {
+      // Only send booking order ID when updating
+      ...(isEdit ? { id: bookingOrderId } : {}),
+      orderNo: data.OrderNo || "string",
+      orderDate: data.orderDate || "string",
+      transporter: data.transporter || "string",
+      vendor: data.vendor || "string",
+      vehicleNo: data.vehicleNo || "string",
+      containerNo: data.containerNo || "string",
+      vehicleType: data.vehicleType || "string",
+      driverName: data.driverName || "string",
+      contactNo: data.contactNo || "string",
+      munshayana: data.munshayana || "string",
+      cargoWeight: data.cargoWeight || "string",
+      bookedDays: data.bookedDays || "string",
+      detentionDays: data.detentionDays || "string",
+      fromLocation: data.fromLocation || "string",
+      departureDate: data.departureDate || "string",
+      via1: data.via1 || "string",
+      via2: data.via2 || "string",
+      toLocation: data.toLocation || "string",
+      expectedReachedDate: data.expectedReachedDate || "string",
+      reachedDate: data.reachedDate || "string",
+      vehicleMunshyana: data.vehicleMunshyana || "string",
+      remarks: data.remarks || "string",
+      contractOwner: data.contractOwner || "string",
+      status: data.status || "string",
+      consignments: consignmentObjects,
+    };
+
+    if (isEdit) {
+      const idToUse = bookingId || data.id || '';
+      if (!idToUse) {
+        toast.error('Cannot update: missing booking id');
+        throw new Error('Missing booking id');
+      }
+      console.log('[BookingOrderForm] Submitting update', { idToUse, payload });
+      await updateBookingOrder(idToUse, payload);
+      console.log('[BookingOrderForm] Update success');
+      toast.success('Booking Order updated successfully!');
+      return { id: idToUse, orderNo: data.OrderNo };
+    } else {
+      console.log('[BookingOrderForm] Submitting create', payload);
+      await createBookingOrder(payload);
+      console.log('[BookingOrderForm] Create success');
+      toast.success('Booking Order created successfully!');
+      return { id: payload.id, orderNo: data.OrderNo };
+    }
+  };
+
+  const onSubmit = async (data: BookingOrderFormData) => {
+    setIsSubmitting(true);
+    try {
+      const saved = await saveBookingOnly(data);
+      // Always set the latest order number after save
+      if (saved?.orderNo) {
+        setValue('OrderNo', saved.orderNo);
       }
       router.push('/bookingorder');
     } catch (error) {
@@ -906,17 +929,45 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                 Select Consignments
               </Button>
               <Button
-                onClick={() => {
-                  const orderNo = getValues('OrderNo') || '';
-                  router.push(`/consignment/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                onClick={async () => {
+                  const values = getValues();
+                  // Validate required fields
+                  if (!values.transporter || !values.vehicleNo || !values.fromLocation) {
+                    toast.error('Please fill all transporter ,vehicleNo, fromLocation  before proceeding to consignment.');
+                    return;
+                  }
+                  try {
+                    setIsSubmitting(true);
+                    const saved = await saveBookingOnly(values);
+                    const orderNo = saved?.orderNo || values.OrderNo || '';
+                    router.push(`/consignment/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                  } catch (e) {
+                    toast.error('Failed to save booking before navigating');
+                  } finally {
+                    setIsSubmitting(false);
+                  }
                 }}
               >
                 Add Consignment
               </Button>
               <Button
-                onClick={() => {
-                  const orderNo = getValues('OrderNo') || '';
-                  router.push(`/charges/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                onClick={async () => {
+                  const values = getValues();
+                  // Validate required fields
+                  if (!values.transporter || !values.vehicleNo || !values.fromLocation) {
+                    toast.error('Please fill all required fields before proceeding to charges.');
+                    return;
+                  }
+                  try {
+                    setIsSubmitting(true);
+                    const saved = await saveBookingOnly(values);
+                    const orderNo = saved?.orderNo || values.OrderNo || '';
+                    router.push(`/charges/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                  } catch (e) {
+                    toast.error('Failed to save booking before navigating');
+                  } finally {
+                    setIsSubmitting(false);
+                  }
                 }}
               >
                 Add Charges
