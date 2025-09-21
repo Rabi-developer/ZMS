@@ -4,8 +4,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import ABLCustomInput from '@/components/ui/ABLCustomInput';
-import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
+import ABLNewCustomInput from '@/components/ui/ABLNewCustomInput';
+import AblNewCustomDrpdown from '@/components/ui/AblNewCustomDrpdown';
 import { createBookingOrder, updateBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllTransporter } from '@/apis/transporter';
 import { getAllVendor } from '@/apis/vendors';
@@ -19,8 +19,8 @@ import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
 import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
-// Extend ABLCustomInputProps to include onFocus and onBlur
-interface ABLCustomInputProps {
+// Extend ABLNewCustomInputProps to include onFocus and onBlur
+interface ABLNewCustomInputProps {
   label: string;
   type: string;
   placeholder: string;
@@ -561,19 +561,17 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-8">
             {/* Show all sections on one page, compact layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <FaIdCard className="text-[#3a614c] text-xl" />
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Order Details</h3>
-                </div>
-                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="col-span-1 ">
+               
+                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                 {/* 1 */}
                   <Controller
                     name="OrderNo"
                     control={control}
                     render={({ field }) => (
                       <div className="relative">
-                        <ABLCustomInput
+                        <ABLNewCustomInput
                           {...field}
                           label="Order No"
                           type="text"
@@ -593,19 +591,12 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       </div>
                     )}
                   />
-                  <ABLCustomInput
-                    label="Order Date"
-                    type="date"
-                    placeholder="Enter order date"
-                    register={register}
-                    error={errors.orderDate?.message}
-                    id="orderDate"
-                  />
+
                   <Controller
                     name="transporter"
                     control={control}
                     render={({ field }) => (
-                      <AblCustomDropdown
+                      <AblNewCustomDrpdown
                         label="Transporter"
                         options={transporters}
                         selectedOption={field.value || ''}
@@ -614,11 +605,51 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
+                  
+                  <ABLNewCustomInput
+                    label="Vehicle No"
+                    type="text"
+                    placeholder="Enter vehicle no"
+                    register={register}
+                    error={errors.vehicleNo?.message}
+                    id="vehicleNo"
+                  />
+                   <ABLNewCustomInput
+                    label="Driver Name"
+                    type="text"
+                    placeholder="Enter driver name"
+                    register={register}
+                    error={errors.driverName?.message}
+                    id="driverName"
+                  />
+
+                    
+
+                </div>
+              </div>
+                  
+            
+
+
+              <div className="col-span-1 shadow-sm">
+               
+                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  
+                 {/* 2 */}
+                 <ABLNewCustomInput
+                    label="Order Date"
+                    type="date"
+                    placeholder="Enter order date"
+                    register={register}
+                    error={errors.orderDate?.message}
+                    id="orderDate"
+                  />
+
                   <Controller
                     name="vendor"
                     control={control}
                     render={({ field }) => (
-                      <AblCustomDropdown
+                      <AblNewCustomDrpdown
                         label="Vendor"
                         options={vendors}
                         selectedOption={field.value || ''}
@@ -627,36 +658,11 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
-                </div>
-              </div>
-
-              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <MdLocalShipping className="text-[#3a614c] text-xl" />
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Vehicle Details</h3>
-                </div>
-                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
-                  <ABLCustomInput
-                    label="Vehicle No"
-                    type="text"
-                    placeholder="Enter vehicle no"
-                    register={register}
-                    error={errors.vehicleNo?.message}
-                    id="vehicleNo"
-                  />
-                  <ABLCustomInput
-                    label="Container No"
-                    type="text"
-                    placeholder="Enter container no"
-                    register={register}
-                    error={errors.containerNo?.message}
-                    id="containerNo"
-                  />
-                  <Controller
+                     <Controller
                     name="vehicleType"
                     control={control}
                     render={({ field }) => (
-                      <AblCustomDropdown
+                      <AblNewCustomDrpdown
                         label="Vehicle Type"
                         options={vehicleTypes}
                         selectedOption={field.value || ''}
@@ -665,32 +671,25 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
-                  <ABLCustomInput
-                    label="Driver Name"
+
+                    <ABLNewCustomInput
+                    label="Container No"
                     type="text"
-                    placeholder="Enter driver name"
+                    placeholder="Enter container no"
                     register={register}
-                    error={errors.driverName?.message}
-                    id="driverName"
+                    error={errors.containerNo?.message}
+                    id="containerNo"
                   />
+                   
                 </div>
               </div>
-
-              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <MdPhone className="text-[#3a614c] text-xl" />
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Contact & Cargo</h3>
-                </div>
-                <div className="gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2  ">
-                  <ABLCustomInput
-                    label="Contact No"
-                    type="tel"
-                    placeholder="Enter contact no"
-                    register={register}
-                    error={errors.contactNo?.message}
-                    id="contactNo"
-                  />
-                  <ABLCustomInput
+              
+            </div>
+ 
+            <div className="col-span-1  dark:border-gray-700 ">
+                
+                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                   <ABLNewCustomInput
                     label="Cargo Weight"
                     type="text"
                     placeholder="Enter cargo weight"
@@ -698,7 +697,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     error={errors.cargoWeight?.message}
                     id="cargoWeight"
                   />
-                  <ABLCustomInput
+                  <ABLNewCustomInput
                     label="Booked Days"
                     type="text"
                     placeholder="Enter booked days"
@@ -706,7 +705,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     error={errors.bookedDays?.message}
                     id="bookedDays"
                   />
-                  <ABLCustomInput
+                  <ABLNewCustomInput
                     label="Detention Days"
                     type="text"
                     placeholder="Enter detention days"
@@ -714,20 +713,19 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     error={errors.detentionDays?.message}
                     id="detentionDays"
                   />
+                 
                 </div>
               </div>
-
-              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <MdLocationOn className="text-[#3a614c] text-xl" />
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Location Details</h3>
-                </div>
-                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
-                  <Controller
+                          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="col-span-1 ">
+                
+                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                 {/* 1 */}
+                 <Controller
                     name="fromLocation"
                     control={control}
                     render={({ field }) => (
-                      <AblCustomDropdown
+                      <AblNewCustomDrpdown
                         label="From Location"
                         options={locations}
                         selectedOption={field.value || ''}
@@ -736,11 +734,66 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
+                   
                    <Controller
+                    name="via1"
+                    control={control}
+                    render={({ field }) => (
+                      <AblNewCustomDrpdown
+                        label=" Via  1"
+                        options={locations}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('via1', value, { shouldValidate: true })}
+                        error={errors.via1?.message}
+                      />
+                    )}
+                  />
+
+                  <ABLNewCustomInput
+                    label="Departure Date"
+                    type="date"
+                    placeholder="Enter departure date"
+                    register={register}
+                    error={errors.departureDate?.message}
+                    id="departureDate"
+                  />
+
+                   <ABLNewCustomInput
+                    label="Reached Date"
+                    type="date"
+                    placeholder="Enter reached date"
+                    register={register}
+                    error={errors.reachedDate?.message}
+                    id="reachedDate"
+                  />
+
+                   <ABLNewCustomInput
+                    label="Contact No"
+                    type="tel"
+                    placeholder="Enter contact no"
+                    register={register}
+                    error={errors.contactNo?.message}
+                    id="contactNo"
+                  />
+
+                    
+
+                </div>
+              </div>
+                  
+            
+
+
+              <div className="col-span-1 ">
+                
+                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  
+                 {/* 2 */}
+                 <Controller
                     name="toLocation"
                     control={control}
                     render={({ field }) => (
-                      <AblCustomDropdown
+                      <AblNewCustomDrpdown
                         label="To Location"
                         options={locations}
                         selectedOption={field.value || ''}
@@ -749,33 +802,13 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
-                  <ABLCustomInput
-                    label="Departure Date"
-                    type="date"
-                    placeholder="Enter departure date"
-                    register={register}
-                    error={errors.departureDate?.message}
-                    id="departureDate"
-                  />
+                  
                   <Controller
-                    name="via1"
-                    control={control}
-                    render={({ field }) => (
-                      <AblCustomDropdown
-                        label="Via 1"
-                        options={locations}
-                        selectedOption={field.value || ''}
-                        onChange={(value) => setValue('via1', value, { shouldValidate: true })}
-                        error={errors.via1?.message}
-                      />
-                    )}
-                  />
-                    <Controller
                     name="via2"
                     control={control}
                     render={({ field }) => (
-                      <AblCustomDropdown
-                        label="Via 2"
+                      <AblNewCustomDrpdown
+                        label="Via 2     "
                         options={locations}
                         selectedOption={field.value || ''}
                         onChange={(value) => setValue('via2', value, { shouldValidate: true })}
@@ -783,49 +816,26 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
-                   <ABLCustomInput
-                    label="Expected Reached Date"
+ 
+                <ABLNewCustomInput
+                    label="E.Reached Date"
                     type="date"
                     placeholder="Enter expected reached date"
                     register={register}
                     error={errors.expectedReachedDate?.message}
                     id="expectedReachedDate"
                   />
-                </div>
-              </div>
 
-
-              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <FaRegBuilding className="text-[#3a614c] text-xl" />
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Other Details</h3>
-                </div>
-                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
-                  <ABLCustomInput
-                    label="Reached Date"
-                    type="date"
-                    placeholder="Enter reached date"
-                    register={register}
-                    error={errors.reachedDate?.message}
-                    id="reachedDate"
-                  />
-                  <ABLCustomInput
-                    label="Vehicle Munshyana"
+                   <ABLNewCustomInput
+                    label="V.Munshyana"
                     type="text"
                     placeholder="Enter vehicle munshyana"
                     register={register}
                     error={errors.vehicleMunshyana?.message}
                     id="vehicleMunshyana"
                   />
-                  <ABLCustomInput
-                    label="Remarks"
-                    type="text"
-                    placeholder="Enter remarks"
-                    register={register}
-                    error={errors.remarks?.message}
-                    id="remarks"
-                  />
-                  <ABLCustomInput
+
+                   <ABLNewCustomInput
                     label="Contract Owner"
                     type="text"
                     placeholder="Enter contract owner"
@@ -833,16 +843,30 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     error={errors.contractOwner?.message}
                     id="contractOwner"
                   />
+                   
                 </div>
               </div>
-               <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+              
+            </div>
+
+               <div className="col-span-1  dark:border-gray-700 ">
                 
-                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
-                  
+                <div className=" gap-2 grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                   
+                   <ABLNewCustomInput
+                    label="Remarks"
+                    type="text"
+                    placeholder="Enter remarks"
+                    register={register}
+                    error={errors.remarks?.message}
+                    id="remarks"
+                  />
+                 
                  
                 </div>
               </div>
-            </div>
+
+             
 
             {/* Actions */}
             <div className="flex flex-wrap justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
@@ -955,7 +979,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                           <td className="px-6 py-3">{cons.recvAmount ?? 'N/A'}</td>
                           <td className="px-6 py-3">{cons.delDate}</td>
                           <td className="px-6 py-3">
-                            <AblCustomDropdown
+                            <AblNewCustomDrpdown
                               label="Status"
                               options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map((s) => ({
                                 id: s,

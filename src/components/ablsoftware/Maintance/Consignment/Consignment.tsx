@@ -4,8 +4,8 @@ import { useForm, Controller, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
-import ABLCustomInput from '@/components/ui/ABLCustomInput';
-import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
+import ABLNewCustomInput from '@/components/ui/ABLNewCustomInput';
+import AblNewCustomDrpdown from '@/components/ui/AblNewCustomDrpdown';
 import { createConsignment, updateConsignment, getSingleConsignment } from '@/apis/consignment';
 import { getAllPartys } from '@/apis/party';
 import { getAllBookingOrder } from '@/apis/bookingorder';
@@ -20,8 +20,8 @@ import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
 import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
-// Extend ABLCustomInputProps to include onFocus and onBlur
-interface ABLCustomInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+// Extend ABLNewCustomInputProps to include onFocus and onBlur
+interface ABLNewCustomInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   type: string;
   placeholder: string;
@@ -338,7 +338,8 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       const payload = {
         ...data,
         orderNo: data.orderNo || orderNoParam || '',
-         // Add model field for backend validation
+        items: data.items, // Always send latest items array
+        // Add model field for backend validation
       };
       if (isEdit) {
         const newid = window.location.pathname.split('/').pop();
@@ -427,30 +428,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
           </div>
 
-          <div className="flex border-b border-gray-200 dark:border-gray-700 px-8 bg-gray-50 dark:bg-gray-850">
-            <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
-                activeTab === 'basic'
-                  ? 'border-[#3a614c] text-[#3a614c] dark:text-[#3a614c] font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-              onClick={() => setActiveTab('basic')}
-            >
-              <FiUser className={activeTab === 'basic' ? 'text-[#3a614c]' : 'text-gray-400'} />
-              Basic Information
-            </button>
-            <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
-                activeTab === 'items'
-                  ? 'border-[#3a614c] text-[#3a614c] dark:text-[#3a614c] font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-              onClick={() => setActiveTab('items')}
-            >
-              <HiDocumentText className={activeTab === 'items' ? 'text-[#3a614c]' : 'text-gray-400'} />
-              Items & Financial Details
-            </button>
-          </div>
+        
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-8">
             {fromBooking && (
@@ -464,25 +442,17 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 </p>
               </div>
             )}
-
-            {activeTab === 'basic' && (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
-                  <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                    <div className="flex items-center gap-2 mb-5">
-                      <FaIdCard className="text-[#3a614c] text-xl" />
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Basic Details</h3>
-                      {fromBooking && (
-                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
-                      )}
-                    </div>
-                    <div className="space-y-5">
-                      <Controller
+                         <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="col-span-1 ">
+               
+                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                 {/* 1 */}
+                   <Controller
                         name="receiptNo"
                         control={control}
                         render={({ field }) => (
                           <div className="relative">
-                            <ABLCustomInput
+                            <ABLNewCustomInput
                               {...field}
                               label="Receipt No"
                               type="text"
@@ -502,7 +472,14 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           </div>
                         )}
                       />
-                      <ABLCustomInput
+                      <div className="flex items-center gap-2 mb-5">
+                      {fromBooking && (
+                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
+                      )}
+                    </div>
+                     
+                      <div className=" gap-2  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2">
+                     <ABLNewCustomInput
                         label="Bilty No"
                         type="text"
                         placeholder="Enter bilty number"
@@ -511,7 +488,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         id="biltyNo"
                         disabled={isFieldDisabled('biltyNo')}
                       />
-                      <ABLCustomInput
+                        <ABLNewCustomInput
                         label="Date"
                         type="date"
                         placeholder="Select date"
@@ -520,52 +497,73 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         id="date"
                         disabled={isFieldDisabled('date')}
                       />
-                      <ABLCustomInput
-                        label="Consignment No"
-                        type="text"
-                        placeholder="Enter consignment number"
-                        register={register}
-                        error={errors.consignmentNo?.message}
-                        id="consignmentNo"
-                        disabled={isFieldDisabled('consignmentNo')}
+                                    <Controller
+                        name="consignor"
+                        control={control}
+                        render={({ field }) => (
+                          <AblNewCustomDrpdown
+                            label="Consignor"
+                            options={parties}
+                            selectedOption={field.value || ''}
+                            onChange={(value) => setValue('consignor', value, { shouldValidate: true })}
+                            error={errors.consignor?.message}
+                            disabled={isFieldDisabled('consignor')}
+                          />
+                        )}
                       />
-                    </div>
-                    <div className="flex items-center gap-2 mb-5 mt-5">
-                      <MdPhone className="text-[#3a614c] text-xl" />
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Receiver Details</h3>
-                    </div>
-                    <div className="space-y-5">
-                      <ABLCustomInput
-                        label="Receiver Name"
-                        type="text"
-                        placeholder="Enter receiver name"
-                        register={register}
-                        error={errors.receiverName?.message}
-                        id="receiverName"
-                        disabled={isFieldDisabled('receiverName')}
+                      <Controller
+                        name="consignee"
+                        control={control}
+                        render={({ field }) => (
+                          <AblNewCustomDrpdown
+                            label="Consignee"
+                            options={parties}
+                            selectedOption={field.value || ''}
+                            onChange={(value) => setValue('consignee', value, { shouldValidate: true })}
+                            error={errors.consignee?.message}
+                            disabled={isFieldDisabled('consignee')}
+                          />
+                        )}
                       />
-                      <ABLCustomInput
-                        label="Receiver Contact No"
-                        type="text"
-                        placeholder="Enter contact number"
-                        register={register}
-                        error={errors.receiverContactNo?.message}
-                        id="receiverContactNo"
-                        disabled={isFieldDisabled('receiverContactNo')}
-                      />
-                    </div>
-                  </div>
 
-                  <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                    <div className="flex items-center gap-2 mb-5">
-                      <FiUser className="text-[#3a614c] text-xl" />
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Party Details</h3>
-                      {fromBooking && (
-                        <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Editable</span>
-                      )}
-                    </div>
-                    <div className="space-y-5">
-                      <div>
+                       <Controller
+                        name="freightFrom"
+                        control={control}
+                        render={({ field }) => (
+                          <AblNewCustomDrpdown
+                            label="Freight From"
+                            options={freightFromOptions}
+                            selectedOption={field.value || ''}
+                            onChange={(value) => setValue('freightFrom', value, { shouldValidate: true })}
+                            error={errors.freightFrom?.message}
+                            disabled={isFieldDisabled('freightFrom')}
+                          />
+                        )}
+                      />
+                       <ABLNewCustomInput
+                            label="Credit Allowed"
+                            type="text"
+                            placeholder="Enter credit amount"
+                            register={register}
+                            error={errors.creditAllowed?.message}
+                            id="creditAllowed"
+                            disabled={isFieldDisabled('creditAllowed')}
+                          />
+                      </div>
+                   
+                </div>
+              </div>
+                  
+            
+
+
+              <div className="col-span-1 shadow-sm">
+               
+                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  
+                 {/* 2 */}
+
+                        <div>
                         <Button
                           type="button"
                           onClick={() => setShowOrderPopup(true)}
@@ -574,7 +572,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         >
                           Select Order No
                         </Button>
-                        <ABLCustomInput
+                        <ABLNewCustomInput
                           label="Order No"
                           type="text"
                           placeholder="Select from orders"
@@ -612,62 +610,84 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             </table>
                           </div>
                         )}
-                      </div>
-                      <Controller
-                        name="consignor"
-                        control={control}
-                        render={({ field }) => (
-                          <AblCustomDropdown
-                            label="Consignor"
-                            options={parties}
-                            selectedOption={field.value || ''}
-                            onChange={(value) => setValue('consignor', value, { shouldValidate: true })}
-                            error={errors.consignor?.message}
-                            disabled={isFieldDisabled('consignor')}
-                          />
-                        )}
-                      />
-                      <Controller
-                        name="consignee"
-                        control={control}
-                        render={({ field }) => (
-                          <AblCustomDropdown
-                            label="Consignee"
-                            options={parties}
-                            selectedOption={field.value || ''}
-                            onChange={(value) => setValue('consignee', value, { shouldValidate: true })}
-                            error={errors.consignee?.message}
-                            disabled={isFieldDisabled('consignee')}
-                          />
-                        )}
-                      />
-                      <ABLCustomInput
-                        label="Consignment Date"
+                      </div>   
+                       <ABLNewCustomInput
+                        label="Con.No"
+                        type="text"
+                        placeholder="Enter consignment number"
+                        register={register}
+                        error={errors.consignmentNo?.message}
+                        id="consignmentNo"
+                        disabled={isFieldDisabled('consignmentNo')}
+                      />    
+                          <ABLNewCustomInput
+                        label="Cons.Date"
                         type="date"
                         placeholder="Select consignment date"
                         register={register}
                         error={errors.consignmentDate?.message}
                         id="consignmentDate"
                         disabled={isFieldDisabled('consignmentDate')}
+                      />     
+                </div>
+              </div>
+              
+            </div>
+ 
+                   
+          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="col-span-1 ">
+               
+                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                 {/* 1 */}
+                   
+                        <ABLNewCustomInput
+                        label="Receive.N"
+                        type="text"
+                        placeholder="Enter receiver name"
+                        register={register}
+                        error={errors.receiverName?.message}
+                        id="receiverName"
+                        disabled={isFieldDisabled('receiverName')}
                       />
-                    </div>
-                  </div>
+                      <ABLNewCustomInput
+                        label="Container No"
+                        type="text"
+                        placeholder="Enter container number"
+                        register={register}
+                        error={errors.containerNo?.message}
+                        id="containerNo"
+                        disabled={isFieldDisabled('containerNo')}
+                      />
+                       
+                   
+                </div>
+              </div>
+                  
+            
 
-                  <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                    <div className="flex items-center gap-2 mb-5">
-                      <MdLocalShipping className="text-[#3a614c] text-xl" />
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Shipping Information</h3>
-                      {fromBooking && (
-                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
-                      )}
-                    </div>
-                    <div className="space-y-5">
-                      <Controller
+
+              <div className="col-span-1 shadow-sm">
+               
+                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  
+                 {/* 2 */}
+
+                    <ABLNewCustomInput
+                        label="Receiver C.No"
+                        type="text"
+                        placeholder="Enter contact number"
+                        register={register}
+                        error={errors.receiverContactNo?.message}
+                        id="receiverContactNo"
+                        disabled={isFieldDisabled('receiverContactNo')}
+                      />
+                       <Controller
                         name="consignmentMode"
                         control={control}
                         render={({ field }) => (
-                          <AblCustomDropdown
-                            label="Consignment Mode"
+                          <AblNewCustomDrpdown
+                            label="Cons.Mode"
                             options={consignmentModes}
                             selectedOption={field.value || ''}
                             onChange={(value) => setValue('consignmentMode', value, { shouldValidate: true })}
@@ -676,11 +696,18 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           />
                         )}
                       />
-                      <Controller
+                              
+                </div>
+              </div>
+              
+            </div>
+
+          <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+             <Controller
                         name="shippingLine"
                         control={control}
                         render={({ field }) => (
-                          <AblCustomDropdown
+                          <AblNewCustomDrpdown
                             label="Shipping Line"
                             options={shippingLines}
                             selectedOption={field.value || ''}
@@ -690,16 +717,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           />
                         )}
                       />
-                      <ABLCustomInput
-                        label="Container No"
-                        type="text"
-                        placeholder="Enter container number"
-                        register={register}
-                        error={errors.containerNo?.message}
-                        id="containerNo"
-                        disabled={isFieldDisabled('containerNo')}
-                      />
-                      <ABLCustomInput
+                       <ABLNewCustomInput
                         label="Port"
                         type="text"
                         placeholder="Enter port"
@@ -707,12 +725,12 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         error={errors.port?.message}
                         id="port"
                         disabled={isFieldDisabled('port')}
-                      />
-                      <Controller
+                      />              
+                       <Controller
                         name="destination"
                         control={control}
                         render={({ field }) => (
-                          <AblCustomDropdown
+                          <AblNewCustomDrpdown
                             label="Destination"
                             options={parties}
                             selectedOption={field.value || ''}
@@ -721,36 +739,20 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             disabled={isFieldDisabled('destination')}
                           />
                         )}
-                      />
-                      <Controller
-                        name="freightFrom"
-                        control={control}
-                        render={({ field }) => (
-                          <AblCustomDropdown
-                            label="Freight From"
-                            options={freightFromOptions}
-                            selectedOption={field.value || ''}
-                            onChange={(value) => setValue('freightFrom', value, { shouldValidate: true })}
-                            error={errors.freightFrom?.message}
-                            disabled={isFieldDisabled('freightFrom')}
-                          />
-                        )}
-                      />
-                    </div>
-                  </div>
+                      />         
                 </div>
-              </>
-            )}
+ 
+           
 
-            {activeTab === 'items' && (
+           
               <>
                 <div className="col-span-1 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 p-3">
+                  <div className="flex  gap-2 ml-10 p-3">
                     <HiDocumentText className="text-[#3a614c] text-xl" />
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Items Details</h3>
+                    <h3 className="text-lg  font-semibold text-gray-800 dark:text-gray-200">Items Details</h3>
                     {fromBooking && (
                       <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
-                    )}
+                    )}x
                   </div>
 
                   <div className="p-3">
@@ -799,7 +801,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               </td>
                               <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
                                 <input
-                                  type="number"
+                                  
                                   {...register(`items.${index}.qty`, { valueAsNumber: true })}
                                   disabled={isFieldDisabled('items')}
                                   className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
@@ -809,7 +811,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               </td>
                               <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
                                 <input
-                                  type="number"
+                                  
                                   step="0.01"
                                   {...register(`items.${index}.rate`, { valueAsNumber: true })}
                                   disabled={isFieldDisabled('items')}
@@ -840,7 +842,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               </td>
                               <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
                                 <input
-                                  type="number"
+                                  
                                   step="0.01"
                                   {...register(`items.${index}.weight`, { valueAsNumber: true })}
                                   disabled={isFieldDisabled('items')}
@@ -878,8 +880,8 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Summary</span>
+                          <div className="w-2 h-2  rounded-full"></div>
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300"></span>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-2">
@@ -896,24 +898,8 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     </div>
                   </div>
 
-                  <div className="p-3">
-                    <div className="flex items-center gap-2 mb-5">
-                      <FaMoneyBillWave className="text-[#3a614c] text-xl" />
-                      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Financial Details</h3>
-                      {fromBooking && (
-                        <span className="ml-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
-                      )}
-                    </div>
-                    <div className="space-y-4">
-                      <div className="p-2 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-[#3a614c] rounded-full"></div>
-                          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                            Tax & Freight Details
-                          </h4>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <ABLCustomInput
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <ABLNewCustomInput
                             label="Freight"
                             type="text"
                             placeholder="Enter freight"
@@ -922,11 +908,11 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             id="freight"
                             disabled={isFieldDisabled('freight')}
                           />
-                          <Controller
+                           <Controller
                             name="sbrTax"
                             control={control}
                             render={({ field }) => (
-                              <AblCustomDropdown
+                              <AblNewCustomDrpdown
                                 label="SBR Tax"
                                 options={sbrTaxes}
                                 selectedOption={field.value || ''}
@@ -936,7 +922,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               />
                             )}
                           />
-                          <ABLCustomInput
+                           <ABLNewCustomInput
                             label="SPR Amount"
                             type="text"
                             placeholder="Auto-calculated"
@@ -946,9 +932,20 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             disabled
                           />
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-1">
-                          <ABLCustomInput
-                            label="Delivery Charges"
+                </div>
+
+
+                           
+              </>
+          
+
+             <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="col-span-1 ">
+               
+                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                 {/* 1 */}
+                 <ABLNewCustomInput
+                            label="Delivery.C"
                             type="text"
                             placeholder="Enter delivery charges"
                             register={register}
@@ -956,16 +953,8 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             id="deliveryCharges"
                             disabled={isFieldDisabled('deliveryCharges')}
                           />
-                          <ABLCustomInput
-                            label="Insurance Charges"
-                            type="text"
-                            placeholder="Enter insurance charges"
-                            register={register}
-                            error={errors.insuranceCharges?.message}
-                            id="insuranceCharges"
-                            disabled={isFieldDisabled('insuranceCharges')}
-                          />
-                          <ABLCustomInput
+                          
+                          <ABLNewCustomInput
                             label="Toll Tax"
                             type="text"
                             placeholder="Enter toll tax"
@@ -973,27 +962,8 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             error={errors.tollTax?.message}
                             id="tollTax"
                             disabled={isFieldDisabled('tollTax')}
-                          />
-                          <ABLCustomInput
-                            label="Other Charges"
-                            type="text"
-                            placeholder="Enter other charges"
-                            register={register}
-                            error={errors.otherCharges?.message}
-                            id="otherCharges"
-                            disabled={isFieldDisabled('otherCharges')}
-                          />
-                          <ABLCustomInput
-                            label="Credit Allowed"
-                            type="text"
-                            placeholder="Enter credit amount"
-                            register={register}
-                            error={errors.creditAllowed?.message}
-                            id="creditAllowed"
-                            disabled={isFieldDisabled('creditAllowed')}
-                          />
-                          <div className="relative">
-                            <ABLCustomInput
+                         />
+                          <ABLNewCustomInput
                               label="Total Amount"
                               type="text"
                               placeholder="Auto-calculated"
@@ -1002,9 +972,38 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               id="totalAmount"
                               disabled
                             />
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                          </div>
-                          <ABLCustomInput
+                        
+                </div>
+              </div>
+                  
+            
+
+
+              <div className="col-span-1 shadow-sm">
+               
+                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  
+                 {/* 2 */}
+                 <ABLNewCustomInput
+                            label="Insurance.C"
+                            type="text"
+                            placeholder="Enter insurance charges"
+                            register={register}
+                            error={errors.insuranceCharges?.message}
+                            id="insuranceCharges"
+                            disabled={isFieldDisabled('insuranceCharges')}
+                          />  
+                          
+                          <ABLNewCustomInput
+                            label="Other Charges"
+                            type="text"
+                            placeholder="Enter other charges"
+                            register={register}
+                            error={errors.otherCharges?.message}
+                            id="otherCharges"
+                            disabled={isFieldDisabled('otherCharges')}
+                          />    
+                           <ABLNewCustomInput
                             label="Delivery Date"
                             type="date"
                             placeholder="Select delivery date"
@@ -1012,8 +1011,14 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             error={errors.deliveryDate?.message}
                             id="deliveryDate"
                             disabled={isFieldDisabled('deliveryDate')}
-                          />
-                          <ABLCustomInput
+                          />    
+                                  
+                </div>
+              </div>
+              
+            </div>
+          <div className=" gap-2 grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+               <ABLNewCustomInput
                             label="Remarks"
                             type="text"
                             placeholder="Enter remarks"
@@ -1022,12 +1027,10 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             id="remarks"
                             disabled={isFieldDisabled('remarks')}
                           />
-                        </div>
-                      </div>
-
-                      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            </div>
+  <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <ABLCustomInput
+                          <ABLNewCustomInput
                             label="Received Amount"
                             type="text"
                             placeholder="Auto-calculated"
@@ -1036,7 +1039,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             id="receivedAmount"
                             disabled
                           />
-                          <ABLCustomInput
+                          <ABLNewCustomInput
                             label="Income Tax Ded."
                             type="text"
                             placeholder="Auto-calculated"
@@ -1045,7 +1048,7 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                             id="incomeTaxDed"
                             disabled
                           />
-                          <ABLCustomInput
+                          <ABLNewCustomInput
                             label="Income Tax Amount"
                             type="text"
                             placeholder="Auto-calculated"
@@ -1056,12 +1059,6 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           />
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
             <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700 mt-8">
               <Button
                 type="submit"
@@ -1114,6 +1111,8 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   <FiX className="text-xl" />
                 </Button>
               </div>
+              
+                      
 
               <div className="mb-4">
                 <input
