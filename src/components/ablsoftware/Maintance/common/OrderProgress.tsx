@@ -307,10 +307,10 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
   const totalCols = (hideBookingCols ? 13 : 16) + 2;
 
   return (
-    <div className="w-full max-h-[240px] overflow-y-auto  bg-white rounded-lg shadow-md  border border-gray-200">
+    <div className="w-full  bg-white rounded-lg shadow-md  border border-gray-200">
       
       {/* Combined Data Table */}
-      <div className="">
+      <div className="max-h-[240px] overflow-y-auto ">
         <h4 className="text-lg font-semibold text-gray-800 mb-4">Order Details</h4>
         <div className="overflow-x-auto ">
           <table className="w-full text-left border-collapse text-sm">
