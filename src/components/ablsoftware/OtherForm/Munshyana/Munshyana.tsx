@@ -216,7 +216,7 @@ const MunshyanaForm = ({ isEdit = false, initialData }: MunshyanaFormProps) => {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold">
-                    {isEdit ? 'Edit Munshyana' : 'Add New Munshyana'}
+                    {isEdit ? 'Edit Charges' : 'Add New Charges'}
                   </h1>
                   <p className="text-white/90 mt-1 text-sm">
                     {isEdit ? 'Update munshyana information' : 'Create a new munshyana record'}
@@ -243,7 +243,7 @@ const MunshyanaForm = ({ isEdit = false, initialData }: MunshyanaFormProps) => {
                 <div className="flex items-center gap-2 mb-5">
                   <MdDescription className="text-[#3a614c] text-xl" />
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                    Munshyana Details
+                    Charges Details
                   </h3>
                 </div>
                 <div className="space-y-5">
@@ -363,7 +363,7 @@ const MunshyanaForm = ({ isEdit = false, initialData }: MunshyanaFormProps) => {
                   ) : (
                     <>
                       <FiSave className="text-lg" />
-                      <span>{isEdit ? 'Update Munshyana' : 'Create Munshyana'}</span>
+                      <span>{isEdit ? 'Update Charges' : 'Create Charges'}</span>
                     </>
                   )}
                 </div>
@@ -383,7 +383,7 @@ const MunshyanaForm = ({ isEdit = false, initialData }: MunshyanaFormProps) => {
               href="/munshyana"
               className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors"
             >
-              Back to Munshyana List
+              Back to Charges List
             </Link>
           </div>
         </div>

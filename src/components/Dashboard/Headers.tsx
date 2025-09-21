@@ -211,7 +211,7 @@ const Headers = ({
                                 { name: 'Vendors', path: '/vendor' },
                                 { name: 'Brokers', path: '/brookers' },
                                 { name: 'Business Associates', path: '/businessassociate' },
-                                { name: 'Munshyana/Charges', path: '/munshyana'},
+                                { name: 'Charges', path: '/munshyana'},
                                 { name: 'Sale Taxes', path: '/salestexes' },
                               ].map((item, index) => (
                                 <Link
