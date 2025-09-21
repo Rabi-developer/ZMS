@@ -184,10 +184,10 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     const fetchData = async () => {
       try {
         const [partRes, bookRes, unitRes, taxRes, transporterRes] = await Promise.all([
-          getAllPartys(),
+          getAllPartys(1, 1000),
           getAllBookingOrder(),
-          getAllUnitOfMeasures(1, 100),
-          getAllSaleTexes(1, 100),
+          getAllUnitOfMeasures(1, 1000),
+          getAllSaleTexes(1, 1000),
           getAllTransporter(),
         ]);
         setParties(partRes.data.map((p: any) => ({ id: p.id, name: p.name })));
