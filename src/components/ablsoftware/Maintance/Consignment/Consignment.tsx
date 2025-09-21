@@ -1093,10 +1093,10 @@ const ConsignmentForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               <span className="text-sm">Fill in all required fields marked with an asterisk (*)</span>
             </div>
             <Link
-              href="/consignment"
+              href="/bookingorder/create"
               className="text-[#3a614c] hover:text-[#6e997f] dark:text-[#3a614c] dark:hover:text-[#6e997f] text-sm font-medium transition-colors"
             >
-              Back to Consignments List
+              Back to Booking Order
             </Link>
           </div>
         </div>

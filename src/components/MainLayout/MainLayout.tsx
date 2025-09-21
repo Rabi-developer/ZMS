@@ -71,7 +71,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#f6f6f6] flex flex-col md:flex-row overflow-hidden scrollbar-thin scrollbar-rounded dark:bg-black">
+    <div className="min-h-[100dvh] bg-[#f6f6f6] flex flex-col md:flex-row overflow-hidden  dark:bg-black">
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"

@@ -551,370 +551,320 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
             </div>
           </div>
 
-          <div className="flex border-b border-gray-200 dark:border-gray-700 px-8 bg-gray-50 dark:bg-gray-850">
-            <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
-                activeTab === 'basic'
-                  ? 'border-[#3a614c] text-[#3a614c] dark:text-[#3a614c] font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-              onClick={() => setActiveTab('basic')}
-            >
-              <FiUser className={activeTab === 'basic' ? 'text-[#3a614c]' : 'text-gray-400'} />
-              Basic Information
-            </button>
-            <button
-              className={`py-4 px-6 font-medium text-sm border-b-2 transition-colors flex items-center gap-2 ${
-                activeTab === 'additional'
-                  ? 'border-[#3a614c] text-[#3a614c] dark:text-[#3a614c] font-semibold'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-              onClick={() => setActiveTab('additional')}
-            >
-              <HiDocumentText className={activeTab === 'additional' ? 'text-[#3a614c]' : 'text-gray-400'} />
-              Additional Details
-            </button>
+          {/* Tabs removed to show all sections on a single page */}
+          <div className="border-b border-gray-200 dark:border-gray-700 px-8 bg-gray-50 dark:bg-gray-850 py-3">
+            <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
+              <FiUser className="text-[#3a614c]" />
+              <span>All Details</span>
+            </div>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-8">
-            {activeTab === 'basic' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 mb-5">
-                    <FaIdCard className="text-[#3a614c] text-xl" />
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                      Order Details
-                    </h3>
-                  </div>
-                  <div className="space-y-5">
-                    <Controller
-                      name="OrderNo"
-                      control={control}
-                      render={({ field }) => (
-                        <div className="relative">
-                          <ABLCustomInput
-                            {...field}
-                            label="Order No"
-                            type="text"
-                            placeholder="Auto"
-                            register={register}
-                            error={errors.OrderNo?.message}
-                            id="orderNo"
-                            disabled
-                            onFocus={() => setIdFocused(true)}
-                            onBlur={() => setIdFocused(false)}
-                          />
-                          {idFocused && (
-                            <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
-                              Auto-generated
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    />
-                    <ABLCustomInput
-                      label="Order Date"
-                      type="date"
-                      placeholder="Enter order date"
-                      register={register}
-                      error={errors.orderDate?.message}
-                      id="orderDate"
-                    />
-                    <Controller
-                      name="transporter"
-                      control={control}
-                      render={({ field }) => (
-                        <AblCustomDropdown
-                          label="Transporter"
-                          options={transporters}
-                          selectedOption={field.value || ''}
-                          onChange={(value) => setValue('transporter', value, { shouldValidate: true })}
-                          error={errors.transporter?.message}
-                        />
-                      )}
-                    />
-                    <Controller
-                      name="vendor"
-                      control={control}
-                      render={({ field }) => (
-                        <AblCustomDropdown
-                          label="Vendor"
-                          options={vendors}
-                          selectedOption={field.value || ''}
-                          onChange={(value) => setValue('vendor', value, { shouldValidate: true })}
-                          error={errors.vendor?.message}
-                        />
-                      )}
-                    />
-                  </div>
+            {/* Show all sections on one page, compact layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <FaIdCard className="text-[#3a614c] text-xl" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Order Details</h3>
                 </div>
-                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 mb-5">
-                    <MdLocalShipping className="text-[#3a614c] text-xl" />
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                      Vehicle Details
-                    </h3>
-                  </div>
-                  <div className="space-y-5">
-                    <ABLCustomInput
-                      label="Vehicle No"
-                      type="text"
-                      placeholder="Enter vehicle no"
-                      register={register}
-                      error={errors.vehicleNo?.message}
-                      id="vehicleNo"
-                    />
-                    <ABLCustomInput
-                      label="Container No"
-                      type="text"
-                      placeholder="Enter container no"
-                      register={register}
-                      error={errors.containerNo?.message}
-                      id="containerNo"
-                    />
-                    <Controller
-                      name="vehicleType"
-                      control={control}
-                      render={({ field }) => (
-                        <AblCustomDropdown
-                          label="Vehicle Type"
-                          options={vehicleTypes}
-                          selectedOption={field.value || ''}
-                          onChange={(value) => setValue('vehicleType', value, { shouldValidate: true })}
-                          error={errors.vehicleType?.message}
+                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+                  <Controller
+                    name="OrderNo"
+                    control={control}
+                    render={({ field }) => (
+                      <div className="relative">
+                        <ABLCustomInput
+                          {...field}
+                          label="Order No"
+                          type="text"
+                          placeholder="Auto"
+                          register={register}
+                          error={errors.OrderNo?.message}
+                          id="orderNo"
+                          disabled
+                          onFocus={() => setIdFocused(true)}
+                          onBlur={() => setIdFocused(false)}
                         />
-                      )}
-                    />
-                    <ABLCustomInput
-                      label="Driver Name"
-                      type="text"
-                      placeholder="Enter driver name"
-                      register={register}
-                      error={errors.driverName?.message}
-                      id="driverName"
-                    />
-                  </div>
-                </div>
-                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 mb-5">
-                    <MdPhone className="text-[#3a614c] text-xl" />
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                      Contact & Cargo
-                    </h3>
-                  </div>
-                  <div className="space-y-5">
-                    <ABLCustomInput
-                      label="Contact No"
-                      type="tel"
-                      placeholder="Enter contact no"
-                      register={register}
-                      error={errors.contactNo?.message}
-                      id="contactNo"
-                    />
-                    <ABLCustomInput
-                      label="Cargo Weight"
-                      type="text"
-                      placeholder="Enter cargo weight"
-                      register={register}
-                      error={errors.cargoWeight?.message}
-                      id="cargoWeight"
-                    />
-                    <ABLCustomInput
-                      label="Booked Days"
-                      type="text"
-                      placeholder="Enter booked days"
-                      register={register}
-                      error={errors.bookedDays?.message}
-                      id="bookedDays"
-                    />
-                    <ABLCustomInput
-                      label="Detention Days"
-                      type="text"
-                      placeholder="Enter detention days"
-                      register={register}
-                      error={errors.detentionDays?.message}
-                      id="detentionDays"
-                    />
-                  </div>
+                        {idFocused && (
+                          <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
+                            Auto-generated
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  />
+                  <ABLCustomInput
+                    label="Order Date"
+                    type="date"
+                    placeholder="Enter order date"
+                    register={register}
+                    error={errors.orderDate?.message}
+                    id="orderDate"
+                  />
+                  <Controller
+                    name="transporter"
+                    control={control}
+                    render={({ field }) => (
+                      <AblCustomDropdown
+                        label="Transporter"
+                        options={transporters}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('transporter', value, { shouldValidate: true })}
+                        error={errors.transporter?.message}
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="vendor"
+                    control={control}
+                    render={({ field }) => (
+                      <AblCustomDropdown
+                        label="Vendor"
+                        options={vendors}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('vendor', value, { shouldValidate: true })}
+                        error={errors.vendor?.message}
+                      />
+                    )}
+                  />
                 </div>
               </div>
-            )}
-            {activeTab === 'additional' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 mb-5">
-                    <MdLocationOn className="text-[#3a614c] text-xl" />
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                      Location Details
-                    </h3>
-                  </div>
-                  <div className="space-y-5">
-                    <Controller
-                      name="fromLocation"
-                      control={control}
-                      render={({ field }) => (
-                        <AblCustomDropdown
-                          label="From Location"
-                          options={locations}
-                          selectedOption={field.value || ''}
-                          onChange={(value) => setValue('fromLocation', value, { shouldValidate: true })}
-                          error={errors.fromLocation?.message}
-                        />
-                      )}
-                    />
-                    <ABLCustomInput
-                      label="Departure Date"
-                      type="date"
-                      placeholder="Enter departure date"
-                      register={register}
-                      error={errors.departureDate?.message}
-                      id="departureDate"
-                    />
-                    <Controller
-                      name="via1"
-                      control={control}
-                      render={({ field }) => (
-                        <AblCustomDropdown
-                          label="Via 1"
-                          options={locations}
-                          selectedOption={field.value || ''}
-                          onChange={(value) => setValue('via1', value, { shouldValidate: true })}
-                          error={errors.via1?.message}
-                        />
-                      )}
-                    />
-                  </div>
-                </div>
-                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 mb-5">
-                    <MdLocationOn className="text-[#3a614c] text-xl" />
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                      Route Details
-                    </h3>
-                  </div>
-                  <div className="space-y-5">
-                    <Controller
-                      name="via2"
-                      control={control}
-                      render={({ field }) => (
-                        <AblCustomDropdown
-                          label="Via 2"
-                          options={locations}
-                          selectedOption={field.value || ''}
-                          onChange={(value) => setValue('via2', value, { shouldValidate: true })}
-                          error={errors.via2?.message}
-                        />
-                      )}
-                    />
-                    <Controller
-                      name="toLocation"
-                      control={control}
-                      render={({ field }) => (
-                        <AblCustomDropdown
-                          label="To Location"
-                          options={locations}
-                          selectedOption={field.value || ''}
-                          onChange={(value) => setValue('toLocation', value, { shouldValidate: true })}
-                          error={errors.toLocation?.message}
-                        />
-                      )}
-                    />
-                    <ABLCustomInput
-                      label="Expected Reached Date"
-                      type="date"
-                      placeholder="Enter expected reached date"
-                      register={register}
-                      error={errors.expectedReachedDate?.message}
-                      id="expectedReachedDate"
-                    />
-                  </div>
-                </div>
-                <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 mb-5">
-                    <FaRegBuilding className="text-[#3a614c] text-xl" />
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                      Other Details
-                    </h3>
-                  </div>
-                  <div className="space-y-5">
-                    <ABLCustomInput
-                      label="Reached Date"
-                      type="date"
-                      placeholder="Enter reached date"
-                      register={register}
-                      error={errors.reachedDate?.message}
-                      id="reachedDate"
-                    />
-                    <ABLCustomInput
-                      label="Vehicle Munshyana"
-                      type="text"
-                      placeholder="Enter vehicle munshyana"
-                      register={register}
-                      error={errors.vehicleMunshyana?.message}
-                      id="vehicleMunshyana"
-                    />
-                    <ABLCustomInput
-                      label="Remarks"
-                      type="text"
-                      placeholder="Enter remarks"
-                      register={register}
-                      error={errors.remarks?.message}
-                      id="remarks"
-                    />
-                    <ABLCustomInput
-                      label="Contract Owner"
-                      type="text"
-                      placeholder="Enter contract owner"
-                      register={register}
-                      error={errors.contractOwner?.message}
-                      id="contractOwner"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* Conditionally render buttons */}
-            <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700 mt-8">
-              {activeTab === 'basic' && (
-                <Button
-                  type="button"
-                  className="px-8 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
-                  onClick={() => setActiveTab('additional')}
-                >
-                  Additional Details
-                </Button>
-              )}
-              {activeTab === 'additional' && (
-                <>
-                  <Button
-                    type="button"
-                    className="px-8 py-3 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-xl transition-all duration-300 font-medium text-sm"
-                    onClick={() => setActiveTab('basic')}
-                  >
-                    Back to Basic Information
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-8 py-3 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>Saving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <FiSave className="text-lg" />
-                          <span>{isEdit ? 'Update Booking Order' : 'Create Booking Order'}</span>
-                        </>
-                      )}
-                    </div>
-                  </Button>
-                </>
-              )}
+              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <MdLocalShipping className="text-[#3a614c] text-xl" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Vehicle Details</h3>
+                </div>
+                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+                  <ABLCustomInput
+                    label="Vehicle No"
+                    type="text"
+                    placeholder="Enter vehicle no"
+                    register={register}
+                    error={errors.vehicleNo?.message}
+                    id="vehicleNo"
+                  />
+                  <ABLCustomInput
+                    label="Container No"
+                    type="text"
+                    placeholder="Enter container no"
+                    register={register}
+                    error={errors.containerNo?.message}
+                    id="containerNo"
+                  />
+                  <Controller
+                    name="vehicleType"
+                    control={control}
+                    render={({ field }) => (
+                      <AblCustomDropdown
+                        label="Vehicle Type"
+                        options={vehicleTypes}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('vehicleType', value, { shouldValidate: true })}
+                        error={errors.vehicleType?.message}
+                      />
+                    )}
+                  />
+                  <ABLCustomInput
+                    label="Driver Name"
+                    type="text"
+                    placeholder="Enter driver name"
+                    register={register}
+                    error={errors.driverName?.message}
+                    id="driverName"
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <MdPhone className="text-[#3a614c] text-xl" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Contact & Cargo</h3>
+                </div>
+                <div className="gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2  ">
+                  <ABLCustomInput
+                    label="Contact No"
+                    type="tel"
+                    placeholder="Enter contact no"
+                    register={register}
+                    error={errors.contactNo?.message}
+                    id="contactNo"
+                  />
+                  <ABLCustomInput
+                    label="Cargo Weight"
+                    type="text"
+                    placeholder="Enter cargo weight"
+                    register={register}
+                    error={errors.cargoWeight?.message}
+                    id="cargoWeight"
+                  />
+                  <ABLCustomInput
+                    label="Booked Days"
+                    type="text"
+                    placeholder="Enter booked days"
+                    register={register}
+                    error={errors.bookedDays?.message}
+                    id="bookedDays"
+                  />
+                  <ABLCustomInput
+                    label="Detention Days"
+                    type="text"
+                    placeholder="Enter detention days"
+                    register={register}
+                    error={errors.detentionDays?.message}
+                    id="detentionDays"
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <MdLocationOn className="text-[#3a614c] text-xl" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Location Details</h3>
+                </div>
+                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+                  <Controller
+                    name="fromLocation"
+                    control={control}
+                    render={({ field }) => (
+                      <AblCustomDropdown
+                        label="From Location"
+                        options={locations}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('fromLocation', value, { shouldValidate: true })}
+                        error={errors.fromLocation?.message}
+                      />
+                    )}
+                  />
+                   <Controller
+                    name="toLocation"
+                    control={control}
+                    render={({ field }) => (
+                      <AblCustomDropdown
+                        label="To Location"
+                        options={locations}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('toLocation', value, { shouldValidate: true })}
+                        error={errors.toLocation?.message}
+                      />
+                    )}
+                  />
+                  <ABLCustomInput
+                    label="Departure Date"
+                    type="date"
+                    placeholder="Enter departure date"
+                    register={register}
+                    error={errors.departureDate?.message}
+                    id="departureDate"
+                  />
+                  <Controller
+                    name="via1"
+                    control={control}
+                    render={({ field }) => (
+                      <AblCustomDropdown
+                        label="Via 1"
+                        options={locations}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('via1', value, { shouldValidate: true })}
+                        error={errors.via1?.message}
+                      />
+                    )}
+                  />
+                    <Controller
+                    name="via2"
+                    control={control}
+                    render={({ field }) => (
+                      <AblCustomDropdown
+                        label="Via 2"
+                        options={locations}
+                        selectedOption={field.value || ''}
+                        onChange={(value) => setValue('via2', value, { shouldValidate: true })}
+                        error={errors.via2?.message}
+                      />
+                    )}
+                  />
+                   <ABLCustomInput
+                    label="Expected Reached Date"
+                    type="date"
+                    placeholder="Enter expected reached date"
+                    register={register}
+                    error={errors.expectedReachedDate?.message}
+                    id="expectedReachedDate"
+                  />
+                </div>
+              </div>
+
+
+              <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <FaRegBuilding className="text-[#3a614c] text-xl" />
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Other Details</h3>
+                </div>
+                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+                  <ABLCustomInput
+                    label="Reached Date"
+                    type="date"
+                    placeholder="Enter reached date"
+                    register={register}
+                    error={errors.reachedDate?.message}
+                    id="reachedDate"
+                  />
+                  <ABLCustomInput
+                    label="Vehicle Munshyana"
+                    type="text"
+                    placeholder="Enter vehicle munshyana"
+                    register={register}
+                    error={errors.vehicleMunshyana?.message}
+                    id="vehicleMunshyana"
+                  />
+                  <ABLCustomInput
+                    label="Remarks"
+                    type="text"
+                    placeholder="Enter remarks"
+                    register={register}
+                    error={errors.remarks?.message}
+                    id="remarks"
+                  />
+                  <ABLCustomInput
+                    label="Contract Owner"
+                    type="text"
+                    placeholder="Enter contract owner"
+                    register={register}
+                    error={errors.contractOwner?.message}
+                    id="contractOwner"
+                  />
+                </div>
+              </div>
+               <div className="col-span-1 bg-gray-50 dark:bg-gray-750 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                
+                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+                  
+                 
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow"
+              >
+                <div className="flex items-center gap-2">
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiSave className="text-base" />
+                      <span>{isEdit ? 'Update Booking Order' : 'Create Booking Order'}</span>
+                    </>
+                  )}
+                </div>
+              </Button>
             </div>
           </form>
         </div>
@@ -922,76 +872,105 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
         <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Consignments</h2>
-            <Button
-              onClick={() => {
-                setTempSelectedConsignments(selectedConsignments);
-                setIsModalOpen(true);
-              }}
-            >
-              Select Consignments
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setTempSelectedConsignments(selectedConsignments);
+                  setIsModalOpen(true);
+                }}
+              >
+                Select Consignments
+              </Button>
+              <Button
+                onClick={() => {
+                  const orderNo = getValues('OrderNo') || '';
+                  router.push(`/consignment/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                }}
+              >
+                Add Consignment
+              </Button>
+              <Button
+                onClick={() => {
+                  const orderNo = getValues('OrderNo') || '';
+                  router.push(`/charges/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                }}
+              >
+                Add Charges
+              </Button>
+              <Button
+                onClick={() => {
+                  const orderNo = getValues('OrderNo') || '';
+                  router.push(`/receipt/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                }}
+              >
+                Receipt
+              </Button>
+              <Button
+                onClick={() => {
+                  const orderNo = getValues('OrderNo') || '';
+                  router.push(`/paymentABL/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                }}
+              >
+                Payment
+              </Button>
+            </div>
           </div>
-          <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-              <tr>
-                <th className="px-6 py-3">Bilty No</th>
-                <th className="px-6 py-3">Receipt No</th>
-                <th className="px-6 py-3">Consignor</th>
-                <th className="px-6 py-3">Consignee</th>
-                <th className="px-6 py-3">Item</th>
-                <th className="px-6 py-3">Qty</th>
-                <th className="px-6 py-3">Total Amount</th>
-                <th className="px-6 py-3">Recv. Amount</th>
-                <th className="px-6 py-3">Del Date</th>
-                <th className="px-6 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedConsignments.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="px-6 py-4 text-center">
-                    No consignments selected
-                  </td>
-                </tr>
-              ) : (
-                consignments
-                  .filter((cons) => selectedConsignments.includes(cons.biltyNo))
-                  .map((cons) => (
-                    <tr key={cons.biltyNo} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                      <td className="px-6 py-4">{cons.biltyNo}</td>
-                      <td className="px-6 py-4">{cons.receiptNo}</td>
-                      <td className="px-6 py-4">{cons.consignor}</td>
-                      <td className="px-6 py-4">{cons.consignee}</td>
-                      <td className="px-6 py-4">{cons.item}</td>
-                      <td className="px-6 py-4">{cons.qty ?? 'N/A'}</td>
-                      <td className="px-6 py-4">{cons.totalAmount ?? 'N/A'}</td>
-                      <td className="px-6 py-4">{cons.recvAmount ?? 'N/A'}</td>
-                      <td className="px-6 py-4">{cons.delDate}</td>
-                      <td className="px-6 py-4">
-                        <AblCustomDropdown
-                          label="Status"
-                          options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map((s) => ({
-                            id: s,
-                            name: s,
-                          }))}
-                          selectedOption={cons.status}
-                          onChange={(value) => updateStatus(cons.biltyNo, value)}
-                        />
+          {/* Scrollable table wrapper for 4+ rows with sticky header */}
+          <div className="relative rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="max-h-[240px] overflow-y-auto">
+              <table className="min-w-full text-sm text-left text-gray-600 dark:text-gray-300">
+                <thead className="sticky top-0 z-10 text-xs text-gray-700 dark:text-gray-200 uppercase bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3">Bilty No</th>
+                    <th className="px-6 py-3">Receipt No</th>
+                    <th className="px-6 py-3">Consignor</th>
+                    <th className="px-6 py-3">Consignee</th>
+                    <th className="px-6 py-3">Item</th>
+                    <th className="px-6 py-3">Qty</th>
+                    <th className="px-6 py-3">Total Amount</th>
+                    <th className="px-6 py-3">Recv. Amount</th>
+                    <th className="px-6 py-3">Del Date</th>
+                    <th className="px-6 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedConsignments.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="px-6 py-4 text-center">
+                        No consignments selected
                       </td>
                     </tr>
-                  ))
-              )}
-            </tbody>
-          </table>
-         <div className="flex justify-end gap-4 mt-4">
-            <Button onClick={() => {
-              const orderNo = getValues('OrderNo') || '';
-              router.push(`/consignment/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
-            }}>Add Consignment</Button>
-            <Button onClick={() => {
-              const orderNo = getValues('OrderNo') || '';
-              router.push(`/charges/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
-            }}>Add Charges</Button>
+                  ) : (
+                    consignments
+                      .filter((cons) => selectedConsignments.includes(cons.biltyNo))
+                      .map((cons) => (
+                        <tr key={cons.biltyNo} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                          <td className="px-6 py-3">{cons.biltyNo}</td>
+                          <td className="px-6 py-3">{cons.receiptNo}</td>
+                          <td className="px-6 py-3">{cons.consignor}</td>
+                          <td className="px-6 py-3">{cons.consignee}</td>
+                          <td className="px-6 py-3">{cons.item}</td>
+                          <td className="px-6 py-3">{cons.qty ?? 'N/A'}</td>
+                          <td className="px-6 py-3">{cons.totalAmount ?? 'N/A'}</td>
+                          <td className="px-6 py-3">{cons.recvAmount ?? 'N/A'}</td>
+                          <td className="px-6 py-3">{cons.delDate}</td>
+                          <td className="px-6 py-3">
+                            <AblCustomDropdown
+                              label="Status"
+                              options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map((s) => ({
+                                id: s,
+                                name: s,
+                              }))}
+                              selectedOption={cons.status}
+                              onChange={(value) => updateStatus(cons.biltyNo, value)}
+                            />
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

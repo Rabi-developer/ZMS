@@ -41,6 +41,7 @@ interface Consignment {
 
 interface BookingOrder {
   id: string;
+  orderNo: string;
   vehicleNo: string;
   cargoWeight: string;
   orderDate: string;
@@ -219,6 +220,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
         setBookingOrders(
           bookRes.data.map((b: any) => ({
             id: b.id,
+            orderNo: b.orderNo || '',
             vehicleNo: b.vehicleNo || '',
             cargoWeight: b.cargoWeight || '',
             orderDate: b.orderDate || '',
@@ -275,7 +277,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   };
 
   const selectOrder = (order: BookingOrder) => {
-    setValue('orderNo', order.id);
+    setValue('orderNo', order.orderNo);
     setShowOrderPopup(false);
   };
 
@@ -342,13 +344,12 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
     setIsSubmitting(true);
     try {
       // Build payload to match API spec
-      const payload = {
-        chargeNo: data.chargeNo || '',
+      const payload: any = {
         chargeDate: data.chargeDate || '',
         orderNo: data.orderNo || '',
-        createdBy: data.createdBy || '',
+     //   createdBy: data.createdBy || '',
         creationDate: data.creationDate || '',
-        updatedBy: data.updatedBy || '',
+       // updatedBy: data.updatedBy || '',
         updationDate: data.updationDate || '',
         status: data.status || '',
         lines: (data.lines || []).map((line) => ({
@@ -370,6 +371,10 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
         })),
         selectedConsignments: data.selectedConsignments || [],
       };
+      // Only include chargeNo if editing
+      if (isEdit && data.chargeNo) {
+        payload.chargeNo = data.chargeNo;
+      }
       let id = data.chargeNo || '';
       if (isEdit) {
         await updateCharges(id, payload);
@@ -987,7 +992,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                     ) : (
                       filteredBookingOrders.map((order) => (
                         <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                          <td className="px-3 py-2">{order.id}</td>
+                          <td className="px-3 py-2">{order.orderNo}</td>
                           <td className="px-3 py-2">{order.vehicleNo}</td>
                           <td className="px-3 py-2">{order.cargoWeight}</td>
                           <td className="px-3 py-2">{order.orderDate}</td>
