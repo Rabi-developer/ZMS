@@ -310,77 +310,79 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
     <div className="w-full  bg-white rounded-lg shadow-md  border border-gray-200">
       
       {/* Combined Data Table */}
-      <div className="max-h-[240px] overflow-y-auto ">
+      <div className=" ">
         <h4 className="text-lg font-semibold text-gray-800 mb-4">Order Details</h4>
-        <div className="overflow-x-auto ">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="bg-[#e0ebe2] from-cyan-500 to-blue-500 text-[#3a614c]">
-                 <th className="p-3 font-semibold">Bilty No</th>
-                <th className="p-3 font-semibold">Receipt No</th>
-                <th className="p-3 font-semibold">Payment No</th>
-                {!hideBookingCols && (
-                  <>
-                    <th className="p-3 font-semibold rounded-tl-lg">Order No</th>
-                    <th className="p-3 font-semibold">Order Date</th>
-                    <th className="p-3 font-semibold">Vehicle No</th>
-                  </>
-                )}
-                <th className="p-3 font-semibold">Consignor</th>
-                <th className="p-3 font-semibold">Consignee</th>
-                <th className="p-3 font-semibold">Items</th>
-                <th className="p-3 font-semibold">Quantity</th>
-                <th className="p-3 font-semibold">Total Amount</th>
-                <th className="p-3 font-semibold">Received Amount</th>
-                <th className="p-3 font-semibold">Paid Amount</th>
-                <th className="p-3 font-semibold">Delivery Date</th>
-                <th className="p-3 font-semibold">Paid to Person</th>
-                <th className="p-3 font-semibold">Charges</th>
-                <th className="p-3 font-semibold rounded-tr-lg">Amount</th>
-                <th className="p-3 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.length > 0 ? (
-                tableData.map((row, index) => (
-                  <tr
-                    key={index}
-                    className={`border-b border-gray-200 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100 transition-colors duration-150`}
-                  >
-                    <td className="p-3 truncate max-w-[120px]">{row.biltyNo}</td>
-                    <td className="p-3 truncate max-w-[120px]">{row.receiptNo}</td>
-                    <td className="p-3 truncate max-w-[120px]">{row.paymentNo}</td>
-                    {!hideBookingCols && (
-                      <>
-                        <td className="p-3 truncate max-w-[150px]">{row.orderNo}</td>
-                        <td className="p-3 truncate max-w-[120px]">{row.orderDate}</td>
-                        <td className="p-3 truncate max-w-[120px]">{row.vehicleNo}</td>
-                      </>
-                    )}
-                    <td className="p-3 truncate max-w-[150px]" title={row.consignor}>{row.consignor}</td>
-                    <td className="p-3 truncate max-w-[150px]" title={row.consignee}>{row.consignee}</td>
-                    <td className="p-3 truncate max-w-[200px]" title={row.items}>{row.items}</td>
-                    <td className="p-3 truncate max-w-[150px]" title={row.qty}>{row.qty}</td>
-                    <td className="p-3 truncate max-w-[120px]">{row.totalAmount}</td>
-                    <td className="p-3 truncate max-w-[120px]">{row.receivedAmount}</td>
-                    <td className="p-3 truncate max-w-[120px]">{row.paidAmount}</td>
-                    <td className="p-3 truncate max-w-[120px]">{row.deliveryDate}</td>
-                    <td className="p-3 truncate max-w-[150px]" title={row.paidToPerson}>{row.paidToPerson}</td>
-                    <td className="p-3 truncate max-w-[150px]" title={row.charges}>{row.charges}</td>
-                    <td className="p-3 truncate max-w-[120px]">{row.amount}</td>
-                    <td className="p-3 truncate max-w-[120px]">{row.consignmentStatus}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={totalCols} className="p-4 text-center text-gray-500">
-                    No data available.
-                  </td>
-                </tr>
+      <div className="overflow-x-auto">
+      <div className="max-h-[250px] overflow-y-auto"> {/* Adjust max-h based on 3 rows */}
+        <table className="w-full text-left border-collapse text-sm">
+          <thead className="sticky top-0 z-10 bg-[#e0ebe2]">
+            <tr className="text-[#3a614c]">
+              <th className="p-3 font-semibold">Bilty No</th>
+              <th className="p-3 font-semibold">Receipt No</th>
+              <th className="p-3 font-semibold">Payment No</th>
+              {!hideBookingCols && (
+                <>
+                  <th className="p-3 font-semibold rounded-tl-lg">Order No</th>
+                  <th className="p-3 font-semibold">Order Date</th>
+                  <th className="p-3 font-semibold">Vehicle No</th>
+                </>
               )}
-            </tbody>
-          </table>
-        </div>
+              <th className="p-3 font-semibold">Consignor</th>
+              <th className="p-3 font-semibold">Consignee</th>
+              <th className="p-3 font-semibold">Items</th>
+              <th className="p-3 font-semibold">Quantity</th>
+              <th className="p-3 font-semibold">Total Amount</th>
+              <th className="p-3 font-semibold">Received Amount</th>
+              <th className="p-3 font-semibold">Paid Amount</th>
+              <th className="p-3 font-semibold">Delivery Date</th>
+              <th className="p-3 font-semibold">Paid to Person</th>
+              <th className="p-3 font-semibold">Charges</th>
+              <th className="p-3 font-semibold rounded-tr-lg">Amount</th>
+              <th className="p-3 font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableData.length > 0 ? (
+              tableData.map((row, index) => (
+                <tr
+                  key={index}
+                  className={`border-b border-gray-200 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100 transition-colors duration-150`}
+                >
+                  <td className="p-3 truncate max-w-[120px]">{row.biltyNo}</td>
+                  <td className="p-3 truncate max-w-[120px]">{row.receiptNo}</td>
+                  <td className="p-3 truncate max-w-[120px]">{row.paymentNo}</td>
+                  {!hideBookingCols && (
+                    <>
+                      <td className="p-3 truncate max-w-[150px]">{row.orderNo}</td>
+                      <td className="p-3 truncate max-w-[120px]">{row.orderDate}</td>
+                      <td className="p-3 truncate max-w-[120px]">{row.vehicleNo}</td>
+                    </>
+                  )}
+                  <td className="p-3 truncate max-w-[150px]" title={row.consignor}>{row.consignor}</td>
+                  <td className="p-3 truncate max-w-[150px]" title={row.consignee}>{row.consignee}</td>
+                  <td className="p-3 truncate max-w-[200px]" title={row.items}>{row.items}</td>
+                  <td className="p-3 truncate max-w-[150px]" title={row.qty}>{row.qty}</td>
+                  <td className="p-3 truncate max-w-[120px]">{row.totalAmount}</td>
+                  <td className="p-3 truncate max-w-[120px]">{row.receivedAmount}</td>
+                  <td className="p-3 truncate max-w-[120px]">{row.paidAmount}</td>
+                  <td className="p-3 truncate max-w-[120px]">{row.deliveryDate}</td>
+                  <td className="p-3 truncate max-w-[150px]" title={row.paidToPerson}>{row.paidToPerson}</td>
+                  <td className="p-3 truncate max-w-[150px]" title={row.charges}>{row.charges}</td>
+                  <td className="p-3 truncate max-w-[120px]">{row.amount}</td>
+                  <td className="p-3 truncate max-w-[120px]">{row.consignmentStatus}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={totalCols} className="p-4 text-center text-gray-500">
+                  No data available.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
       </div>
 
       {/* Progress Steps */}
