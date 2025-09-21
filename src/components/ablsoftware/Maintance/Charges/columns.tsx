@@ -18,7 +18,7 @@ export interface Charge {
   id: string;
   chargeNo: string;
   chargeDate: string;
-  orderNo: string;
+orderNo: string | null;
   unpaidCharges: string;
   payment: string;
   charges: string;
@@ -52,6 +52,10 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
     accessorKey: 'orderNo',
   },
   {
+    header: 'Amount',
+    accessorKey: 'amount', // Now correctly mapped from lines
+  },
+  { 
     header: 'Unpaid Charges',
     accessorKey: 'unpaidCharges',
   },

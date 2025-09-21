@@ -281,22 +281,9 @@ const ConsignmentList = () => {
           onRowClick={handleRowClick}
         />
       </div>
-      {selectedRowId && selectedConsignmentIds.length === 1 && (
-        <div className="mt-4">
-          <OrderProgress
-            orderNo={consignments.find((c) => c.id === selectedRowId)?.orderNo}
-            bookingStatus={bookingStatus}
-            consignments={consignments.filter((c) => c.id === selectedRowId).map(consignment => ({
-              ...consignment,
-              items: Array.isArray(consignment.items)
-                ? consignment.items
-                : undefined
-            }))}
-          />
-        </div>
-      )}
+    
      
-      <div className="mt-4 space-y-2 h-[18vh]">
+      <div className=" space-y-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -316,6 +303,21 @@ const ConsignmentList = () => {
           })}
         </div>
       </div>
+
+        {selectedRowId && selectedConsignmentIds.length === 1 && (
+        <div className="">
+          <OrderProgress
+            orderNo={consignments.find((c) => c.id === selectedRowId)?.orderNo}
+            bookingStatus={bookingStatus}
+            consignments={consignments.filter((c) => c.id === selectedRowId).map(consignment => ({
+              ...consignment,
+              items: Array.isArray(consignment.items)
+                ? consignment.items
+                : undefined
+            }))}
+          />
+        </div>
+      )}
       {openDelete && (
         <DeleteConfirmModel
           handleDeleteclose={handleDeleteClose}

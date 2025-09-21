@@ -44,7 +44,7 @@ const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
-  <div className="relative w-full overflow-auto">
+  <div className="relative w-full overflow-x-auto" style={{ width: '100%' }}>
     <table
       ref={ref}
       className={cn("w-full caption-bottom text-sm", className)}
@@ -380,7 +380,7 @@ export function DataTable<TData extends { id: string }, TValue>({
         <div className="px-6 pb-6">
           <div className="overflow-hidden rounded-lg border-2 border-[#6e997f] dark:border-[#6e997f] shadow-sm">
             <div className="overflow-x-auto">
-              <div className="max-h-[600px] overflow-y-auto">
+              <div className="max-h-[350px] overflow-y-auto">
                 <Table className="w-full">
                   <TableHeader className="bg-[#3a614c]/5 sticky top-0 z-10">
                     {table.getHeaderGroups().map((headerGroup) => (

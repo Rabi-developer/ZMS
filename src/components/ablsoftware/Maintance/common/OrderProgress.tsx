@@ -307,10 +307,10 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
   const totalCols = (hideBookingCols ? 13 : 16) + 2;
 
   return (
-    <div className="w-full mt-2 bg-white rounded-lg shadow-md mt-4 border border-gray-200">
+    <div className="w-full bg-white rounded-lg shadow-md  border border-gray-200">
       
       {/* Combined Data Table */}
-      <div className="p-4 ">
+      <div className="">
         <h4 className="text-lg font-semibold text-gray-800 mb-4">Order Details</h4>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
@@ -345,7 +345,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
                 tableData.map((row, index) => (
                   <tr
                     key={index}
-                    className={`border-b border-gray-200 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100 transition-colors duration-150`}
+                    className={`border-b max-h-[240px] overflow-y-auto border-gray-200 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-gray-100 transition-colors duration-150`}
                   >
                     <td className="p-3 truncate max-w-[120px]">{row.biltyNo}</td>
                     <td className="p-3 truncate max-w-[120px]">{row.receiptNo}</td>

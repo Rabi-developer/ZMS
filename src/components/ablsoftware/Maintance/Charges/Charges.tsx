@@ -245,7 +245,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
         }
 
         if (isEdit && initialData) {
-          setValue('ChargeNo', initialData.ChargeNo || '');
+          setValue('chargeNo', initialData.chargeNo || '');
           setValue('chargeDate', initialData.chargeDate || '');
           setValue('orderNo', initialData.orderNo || '');
           setValue('lines', Array.isArray(initialData.lines) ? initialData.lines : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }]);
@@ -254,7 +254,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           setTempSelectedConsignments(Array.isArray(initialData.selectedConsignments) ? initialData.selectedConsignments : []);
           // Fetch consignments associated with this charge
           try {
-            const consRes = await getAllConsignment(1, 10, { chargeNo: initialData.ChargeNo });
+            const consRes = await getAllConsignment(1, 10, { chargeNo: initialData.chargeNo });
             const relatedConsignments = consRes.data || [];
             setConsignments([...consRes.data, ...relatedConsignments]);
             const selectedBiltyNos = relatedConsignments.map((c: Consignment) => c.biltyNo);
@@ -346,7 +346,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
       // Build payload to match API spec
       const payload: any = {
         chargeDate: data.chargeDate || '',
-        orderNo: data.orderNo || '',
+        orderNo: data.orderNo || orderNoParam || '',
      //   createdBy: data.createdBy || '',
         creationDate: data.creationDate || '',
        // updatedBy: data.updatedBy || '',
@@ -465,7 +465,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                   type="text"
                   placeholder="Auto"
                   register={register}
-                  error={errors.ChargeNo?.message}
+                  error={errors.chargeNo?.message}
                   id="chargeNo"
                   disabled
                 />

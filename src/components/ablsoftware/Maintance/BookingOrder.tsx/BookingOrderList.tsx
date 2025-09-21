@@ -434,7 +434,7 @@ const BookingOrderList = () => {
   };
 
   return (
-    <div className="container mt-4 p-6 h-[110vh]">
+    <div className="container mt-4 p-6   w-screen-xl ">
       <div className='h-full w-full flex flex-col'>
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-wrap">
@@ -491,16 +491,7 @@ const BookingOrderList = () => {
             onRowClick={handleRowClick}
           />
         </div>
-        {selectedRowId && selectedOrderIds.length === 1 && (
-          <div className="mt-4">
-            <OrderProgress
-              orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
-              bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
-              consignments={consignments[selectedRowId] || []}
-              hideBookingOrderInfo
-            />
-          </div>
-        )}
+        
         {selectedOrderIds.length > 1 && (
           <div className="mt-4">
             <h3 className="text-lg font-semibold text-[#06b6d4]">Selected Orders and Consignments</h3>
@@ -523,7 +514,8 @@ const BookingOrderList = () => {
             })}
           </div>
         )}
-        <div className="mt-4 space-y-2 h-[18vh]">
+        
+        <div className=" space-y-2 h-[10vh]">
           <div className="flex flex-wrap p-3 gap-3">
             {statusOptionsConfig.map((option) => {
               const isSelected = selectedBulkStatus === option.name;
@@ -543,6 +535,16 @@ const BookingOrderList = () => {
             })}
           </div>
         </div>
+        {selectedRowId && selectedOrderIds.length === 1 && (
+          <div className="">
+            <OrderProgress
+              orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
+              bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
+              consignments={consignments[selectedRowId] || []}
+              hideBookingOrderInfo
+            />
+          </div>
+        )}
         {openDelete && (
           <DeleteConfirmModel
             handleDeleteclose={handleDeleteClose}

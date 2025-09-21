@@ -39,7 +39,19 @@ const ChargesList = () => {
     try {
       setLoading(true);
       const response = await getAllCharges(pageIndex + 1, pageSize);
-      setCharges(response?.data || []);
+      const transformedCharges = response?.data.map((charge: any) => ({
+        ...charge,
+        orderNo: charge.orderNo || '-', // Fallback for null or empty orderNo
+        amount: charge.lines?.reduce((sum: number, line: any) => sum + (line.amount || 0), 0).toString() || '0', // Sum amounts from lines
+        biltyNo: charge.lines?.[0]?.biltyNo || '-',
+        date: charge.lines?.[0]?.date || '-',
+        vehicleNo: charge.lines?.[0]?.vehicle || '-',
+        paidToPerson: charge.lines?.[0]?.paidTo || '-',
+        contactNo: charge.lines?.[0]?.contact || '-',
+        remarks: charge.lines?.[0]?.remarks || '-',
+        status: charge.status || 'Unpaid',
+      }));
+      setCharges(transformedCharges || []);
     } catch (error) {
       toast('Failed to fetch charges', { type: 'error' });
     } finally {
@@ -92,7 +104,7 @@ const ChargesList = () => {
   const handleViewOpen = async (chargeId: string) => {
     setSelectedRowId((prev) => (prev === chargeId ? null : chargeId));
     const charge = charges.find((item) => item.id === chargeId);
-    if (charge?.orderNo) {
+    if (charge?.orderNo && charge.orderNo !== '-') {
       try {
         const response = await getAllConsignment(1, 100, { orderNo: charge.orderNo });
         setConsignments(response?.data || []);
@@ -180,7 +192,7 @@ const ChargesList = () => {
   };
 
   return (
-    <div className="container p-6 h-[110vh]">
+    <div className="container p-6 min-h-screen  ">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -225,17 +237,7 @@ const ChargesList = () => {
           onRowClick={handleViewOpen}
         />
       </div>
-      {selectedRowId && (
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold text-[#3a614c]"></h3>
-          <OrderProgress
-            orderNo={charges.find((c) => c.id === selectedRowId)?.orderNo}
-            bookingStatus={null}
-            consignments={consignments}
-          />
-        </div>
-      )}
-      <div className="mt-4 space-y-2 h-[18vh]">
+         <div className="space-y-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -255,6 +257,17 @@ const ChargesList = () => {
           })}
         </div>
       </div>
+      {selectedRowId && (
+        <div className="mt-4">
+          <h3 className="text-lg font-semibold text-[#3a614c]"></h3>
+          <OrderProgress
+            orderNo={charges.find((c) => c.id === selectedRowId)?.orderNo}
+            bookingStatus={null}
+            consignments={consignments}
+          />
+        </div>
+      )}
+   
       {openDelete && (
         <DeleteConfirmModel
           handleDeleteclose={handleDeleteClose}
