@@ -409,7 +409,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const maxRows = Math.max(lines.length, payments.length);
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-3 overflow-hidden">
+          <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="h-full w-full flex flex-col">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-full flex flex-col">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 flex-shrink-0">
