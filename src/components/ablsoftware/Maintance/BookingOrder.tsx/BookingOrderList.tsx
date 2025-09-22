@@ -8,8 +8,14 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllBookingOrder, deleteBookingOrder, updateBookingOrderStatus } from '@/apis/bookingorder';
-import { getAllConsignment, deleteConsignment } from '@/apis/consignment';
+import {
+  getAllBookingOrder,
+  deleteBookingOrder,
+  updateBookingOrderStatus,
+  getConsignmentsForBookingOrder,
+} from '@/apis/bookingorder';
+import { getAllVendor } from '@/apis/vendors';
+import { getAllTransporter } from '@/apis/transporter';
 import { Edit, Trash } from 'lucide-react';
 import { columns, getStatusStyles, BookingOrder } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
@@ -19,7 +25,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 interface Consignment {
-  orderNo: any;
   id: string;
   biltyNo: string;
   receiptNo: string;
@@ -35,24 +40,33 @@ interface Consignment {
 
 interface ExtendedBookingOrder extends BookingOrder {
   relatedConsignments?: Consignment[];
+  vehicleType?: string;
+}
+
+interface DropdownOption {
+  id: string;
+  name: string;
 }
 
 const BookingOrderList = () => {
   // Local ABL date formatter
   const formatABLDate = (dateStr?: string): string => {
-    if (!dateStr) return "-";
+    if (!dateStr) return '-';
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "-";
+    if (isNaN(d.getTime())) return '-';
     const day = d.getDate().toString().padStart(2, '0');
     const month = (d.getMonth() + 1).toString().padStart(2, '0');
     const year = d.getFullYear() % 100;
     return `ABL/${day}/${month}-${year}`;
   };
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const [bookingOrders, setBookingOrders] = useState<ExtendedBookingOrder[]>([]);
   const [filteredBookingOrders, setFilteredBookingOrders] = useState<ExtendedBookingOrder[]>([]);
   const [consignments, setConsignments] = useState<{ [orderId: string]: Consignment[] }>({});
+  const [vendors, setVendors] = useState<DropdownOption[]>([]);
+  const [transporters, setTransporters] = useState<DropdownOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [deleteId, setDeleteId] = useState('');
@@ -79,21 +93,51 @@ const BookingOrderList = () => {
     { id: 5, name: 'Closed', color: '#6b7280' },
   ];
 
+  // Helper to resolve a party id/name to a readable name
+  const resolvePartyName = (val?: string): string => {
+    if (!val) return '-';
+    const fromVendors = vendors.find((v) => v.id === val || v.name === val);
+    if (fromVendors) return fromVendors.name;
+    const fromTransporters = transporters.find((t) => t.id === val || t.name === val);
+    if (fromTransporters) return fromTransporters.name;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+      console.warn(`Unresolved party ID: ${val}`);
+      return `Unresolved ID: ${val.substring(0, 8)}...`;
+    }
+    return val;
+  };
+
   const fetchBookingOrdersAndConsignments = async () => {
     try {
       setLoading(true);
-      const response = await getAllBookingOrder(pageIndex + 1, pageSize);
-      const orders = response?.data || [];
+      const [ordersRes, vendorsRes, transportersRes] = await Promise.all([
+        getAllBookingOrder(pageIndex + 1, pageSize),
+        getAllVendor(),
+        getAllTransporter(),
+      ]);
+
+      const orders = ordersRes?.data || [];
+      const vendorsData = vendorsRes.data?.map((v: any) => ({ id: v.id, name: v.name })) || [];
+      const transportersData = transportersRes.data?.map((t: any) => ({ id: t.id, name: t.name })) || [];
+
+      setVendors(vendorsData);
+      setTransporters(transportersData);
       setBookingOrders(orders);
 
       const consignmentsMap: { [orderId: string]: Consignment[] } = {};
       for (const order of orders) {
-        const consRes = await getAllConsignment(1, 100, { orderNo: order.orderNo });
-        consignmentsMap[order.id] = consRes?.data.filter((c: Consignment) => c.orderNo === order.orderNo) || [];
+        const consRes = await getConsignmentsForBookingOrder(order.id, 1, 100);
+        consignmentsMap[order.id] = consRes?.data?.map((c: any) => ({
+          ...c,
+          consignor: resolvePartyName(c.consignor),
+          consignee: resolvePartyName(c.consignee),
+          orderNo: order.orderNo,
+        })) || [];
       }
       setConsignments(consignmentsMap);
     } catch (error) {
       toast('Failed to fetch data', { type: 'error' });
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -104,11 +148,15 @@ const BookingOrderList = () => {
       const order = bookingOrders.find((o) => o.id === orderId);
       if (!order) return;
 
-      // Only fetch if consignments for this orderId are not already loaded
       if (!consignments[orderId]) {
         setFetchingConsignments((prev) => ({ ...prev, [orderId]: true }));
-        const response = await getAllConsignment(1, 100, { orderNo: order.orderNo });
-        const notes = response?.data.filter((c: Consignment) => c.orderNo === order.orderNo) || [];
+        const response = await getConsignmentsForBookingOrder(orderId, 1, 100);
+        const notes = response?.data?.map((c: any) => ({
+          ...c,
+          consignor: resolvePartyName(c.consignor),
+          consignee: resolvePartyName(c.consignee),
+          orderNo: order.orderNo,
+        })) || [];
         setConsignments((prev) => ({ ...prev, [orderId]: notes }));
         setBookingOrders((prev) =>
           prev.map((o) => (o.id === orderId ? { ...o, relatedConsignments: notes } : o))
@@ -116,6 +164,7 @@ const BookingOrderList = () => {
       }
     } catch (error) {
       toast('Failed to fetch consignments', { type: 'error' });
+      console.error('Error fetching consignments:', error);
     } finally {
       setFetchingConsignments((prev) => ({ ...prev, [orderId]: false }));
     }
@@ -164,14 +213,11 @@ const BookingOrderList = () => {
   };
 
   const handleRowClick = async (orderId: string) => {
-    // If the row is not selected, select it and show OrderProgress
     if (!selectedOrderIds.includes(orderId)) {
       setSelectedOrderIds((prev) => [...prev, orderId]);
       setSelectedRowId(orderId);
       await fetchConsignments(orderId);
     }
-    // If the row is already selected, do not toggle OrderProgress or deselect
-    // Update selected bulk status for UI consistency
     setTimeout(() => {
       const selected = bookingOrders.filter((order) => selectedOrderIds.includes(order.id));
       const statuses = selected.map((order) => order.status).filter((status, index, self) => self.indexOf(status) === index);
@@ -185,11 +231,11 @@ const BookingOrderList = () => {
       if (!consignments[orderId]) {
         await fetchConsignments(orderId);
       }
-      setSelectedRowId(orderId); // Show OrderProgress for the last checked row
+      setSelectedRowId(orderId);
     } else {
       setSelectedOrderIds((prev) => prev.filter((id) => id !== orderId));
       if (selectedRowId === orderId) {
-        setSelectedRowId(null); // Hide OrderProgress if the deselected row was shown
+        setSelectedRowId(null);
       }
     }
 
@@ -212,8 +258,8 @@ const BookingOrderList = () => {
       );
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
-      setSelectedOrderIds([]); // Clear selection after update
-      setSelectedRowId(null); // Clear OrderProgress view
+      setSelectedOrderIds([]);
+      setSelectedRowId(null);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
       toast(`Booking Order Status Updated to ${newStatus}`, { type: 'success' });
@@ -303,14 +349,14 @@ const BookingOrderList = () => {
       const rows = targetOrders.map((o) => ({
         orderNo: o.orderNo,
         orderDate: o.orderDate,
-        vehicleNo: (o as any).vehicleNo,
-        consignor: (o as any).consignor,
-        consignee: (o as any).consignee,
-        carrier: (o as any).transporter || (o as any).carrier,
-        vendor: (o as any).vendor,
-        departure: (o as any).fromLocation,
-        destination: (o as any).toLocation,
-        vehicleType: (o as any).vehicleType,
+        vehicleNo: o.vehicleNo,
+        consignor: consignments[o.id]?.[0]?.consignor || '-',
+        consignee: consignments[o.id]?.[0]?.consignee || '-',
+        carrier: o.transporter,
+        vendor: o.vendor,
+        departure: o.fromLocation,
+        destination: o.toLocation,
+        vehicleType: o.vehicleType,
       }));
 
       exportBiltiesReceivableToPDF({ rows, startDate: pdfStartDate, endDate: pdfEndDate });
@@ -364,30 +410,23 @@ const BookingOrderList = () => {
         'Destination',
         'Vendor',
         'Carrier',
+        'Consignor',
+        'Consignee',
       ]];
       const body = pageData.map((o, idx) => {
-        // Find consignment for this order if available
-        const cons = consignments[o.id] && consignments[o.id][0] ? consignments[o.id][0] : undefined;
-        // ABL Date formatting
+        const cons = consignments[o.id]?.[0] || undefined;
         const ablDate = o.orderDate ? formatABLDate(o.orderDate) : '-';
-        // Vehicle No
         const vehicleNo = o.vehicleNo || '-';
-        // Bilty No
         const biltyNo = cons ? (cons.biltyNo || '-') : '-';
-        // Bilty Amount
         const biltyAmount = cons ? (cons.totalAmount || '-') : '-';
-        // Article
         const article = cons ? (cons.item || '-') : '-';
-        // Qty
         const qty = cons ? (cons.qty || '-') : '-';
-        // Departure
         const departure = o.fromLocation || '-';
-        // Destination
         const destination = o.toLocation || '-';
-        // Vendor
         const vendor = o.vendor || '-';
-        // Carrier
         const carrier = o.transporter || '-';
+        const consignor = cons ? (cons.consignor || '-') : '-';
+        const consignee = cons ? (cons.consignee || '-') : '-';
         return [
           idx + 1,
           o.orderNo || '-',
@@ -401,6 +440,8 @@ const BookingOrderList = () => {
           destination,
           vendor,
           carrier,
+          consignor,
+          consignee,
         ];
       });
 
@@ -408,9 +449,9 @@ const BookingOrderList = () => {
         startY: 120,
         head,
         body,
-        styles: { font: 'helvetica', fontSize: 9, cellPadding: 6, lineColor: [220,220,220], lineWidth: 0.5, textColor: [30,30,30] },
-        headStyles: { fillColor: [200,200,200], textColor: [0,0,0], fontStyle: 'bold', fontSize: 10, halign: 'center' },
-        alternateRowStyles: { fillColor: [245,245,245] },
+        styles: { font: 'helvetica', fontSize: 9, cellPadding: 6, lineColor: [220, 220, 220], lineWidth: 0.5, textColor: [30, 30, 30] },
+        headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 10, halign: 'center' },
+        alternateRowStyles: { fillColor: [245, 245, 245] },
         margin: { top: 120, left: 40, right: 40, bottom: 60 },
         theme: 'grid',
         didDrawPage: (d) => {
@@ -434,8 +475,8 @@ const BookingOrderList = () => {
   };
 
   return (
-    <div className="container mx-auto mt-4  max-w-screen  p-6 ">
-      <div className='h-full w-full flex flex-col'>
+    <div className="container mx-auto mt-4 max-w-screen p-6">
+      <div className="h-full w-full flex flex-col">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center">
@@ -467,7 +508,12 @@ const BookingOrderList = () => {
               <FaFileExcel size={18} />
               Download Excel
             </button>
-            <button onClick={handleGenerateReceivablePdf} className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Bilties Receivable</button>
+            <button
+              onClick={openPdfDialog}
+              className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white"
+            >
+              Bilties Receivable
+            </button>
             <button
               onClick={handleGenerateGeneralPdf}
               className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md transition-all duration-200"
@@ -491,7 +537,7 @@ const BookingOrderList = () => {
             onRowClick={handleRowClick}
           />
         </div>
-        
+
         {selectedOrderIds.length > 1 && (
           <div className="mt-4">
             <h3 className="text-lg font-semibold text-[#06b6d4]">Selected Orders and Consignments</h3>
@@ -508,14 +554,13 @@ const BookingOrderList = () => {
                     consignments={cons}
                     hideBookingOrderInfo
                   />
-                  
                 </div>
               );
             })}
           </div>
         )}
-        
-        <div className=" space-y-2 h-[10vh]">
+
+        <div className="space-y-2 h-[10vh]">
           <div className="flex flex-wrap p-3 gap-3">
             {statusOptionsConfig.map((option) => {
               const isSelected = selectedBulkStatus === option.name;

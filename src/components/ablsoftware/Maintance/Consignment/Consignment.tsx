@@ -122,7 +122,7 @@ type ConsignmentFormData = z.infer<typeof consignmentSchema>;
 const ConsignmentForm = ({ isEdit = false }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const fromBooking = searchParams.get('fromBooking') === 'false';
+  const fromBooking = searchParams.get('fromBooking') === 'true';
   const bookingOrderId = searchParams.get('bookingOrderId') || '';
   const orderNoParam = searchParams.get('orderNo') || '';
 
