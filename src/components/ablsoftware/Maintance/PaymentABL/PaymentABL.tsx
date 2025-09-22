@@ -24,6 +24,7 @@ interface DropdownOption {
 
 interface BookingOrder {
   id: string;
+  orderNo: string;
   vehicleNo: string;
   orderDate: string;
   vendor: string;
@@ -37,6 +38,7 @@ interface Charge {
   dueDate: string;
   amount: number;
   balance: number;
+  payNo: string;
 }
 
 interface TableRow {
@@ -153,13 +155,15 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const [charges, setCharges] = useState<Charge[]>([]);
   const [showOrderPopup, setShowOrderPopup] = useState<number | null>(null);
   const [showChargePopup, setShowChargePopup] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [orderSearch, setOrderSearch] = useState('');
+  const [chargeSearch, setChargeSearch] = useState('');
 
   const paymentModes: DropdownOption[] = [
     { id: 'Cash', name: 'Cash' },
     { id: 'Cheque', name: 'Cheque' },
     { id: 'Bank Transfer', name: 'Bank Transfer' },
   ];
+
   const bankNames: DropdownOption[] = [
     { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
     { id: 'MCB', name: 'MCB Bank Limited' },
@@ -192,6 +196,29 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
   const tableData = watch('tableData');
 
+  // Filter booking orders based on search term
+  const filteredBookingOrders = bookingOrders.filter((order) =>
+    [
+      order.vehicleNo || '',
+      order.orderNo || '',
+      order.orderDate || '',
+      order.vendorName || '',
+    ].some((field) => field.toLowerCase().includes(orderSearch.toLowerCase()))
+  );
+
+  // Filter charges to show only saved charges (with payNo) and apply search
+  const filteredCharges = charges
+    .filter((charge) => charge.payNo)
+    .filter((charge) =>
+      [
+        charge.charge || '',
+        charge.orderDate || '',
+        charge.dueDate || '',
+        charge.amount?.toString() || '',
+        charge.balance?.toString() || '',
+      ].some((field) => field.toLowerCase().includes(chargeSearch.toLowerCase()))
+    );
+
   // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
@@ -204,6 +231,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         setBookingOrders(
           orderRes.data.map((item: any) => ({
             id: item.id || item.orderNo,
+            orderNo: item.orderNo || item.id,
             vehicleNo: item.vehicleNo || 'N/A',
             orderDate: item.orderDate || new Date().toISOString().split('T')[0],
             vendor: item.vendor || 'N/A',
@@ -216,8 +244,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             charge: item.charge || 'N/A',
             orderDate: item.orderDate || new Date().toISOString().split('T')[0],
             dueDate: item.dueDate || new Date().toISOString().split('T')[0],
-            amount: item.amount || 0,
-            balance: item.balance || item.amount || 0,
+            amount: Number(item.amount) || 0,
+            balance: Number(item.balance) || Number(item.amount) || 0,
+            payNo: item.payNo || '',
           }))
         );
       } catch (error) {
@@ -296,19 +325,21 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
   const selectOrder = (index: number, order: BookingOrder) => {
     setValue(`tableData.${index}.vehicleNo`, order.vehicleNo, { shouldValidate: true });
-    setValue(`tableData.${index}.orderNo`, order.id, { shouldValidate: true });
+    setValue(`tableData.${index}.orderNo`, order.orderNo, { shouldValidate: true });
     setValue(`tableData.${index}.orderDate`, order.orderDate, { shouldValidate: true });
     setValue('paidTo', order.vendorName, { shouldValidate: true });
     setShowOrderPopup(null);
+    setOrderSearch('');
   };
 
   const selectCharge = (index: number, charge: Charge) => {
     setValue(`tableData.${index}.charges`, charge.charge, { shouldValidate: true });
     setValue(`tableData.${index}.orderDate`, charge.orderDate, { shouldValidate: true });
     setValue(`tableData.${index}.dueDate`, charge.dueDate, { shouldValidate: true });
-    setValue(`tableData.${index}.expenseAmount`, charge.amount, { shouldValidate: true });
-    setValue(`tableData.${index}.balance`, charge.balance, { shouldValidate: true });
+    setValue(`tableData.${index}.expenseAmount`, Number(charge.amount) || 0, { shouldValidate: true });
+    setValue(`tableData.${index}.balance`, Number(charge.balance) || 0, { shouldValidate: true });
     setShowChargePopup(null);
+    setChargeSearch('');
   };
 
   const addTableRow = () => {
@@ -396,7 +427,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           </div>
         )}
 
-          <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -769,16 +800,28 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
                 <Button
-                  onClick={() => setShowOrderPopup(null)}
+                  onClick={() => {
+                    setShowOrderPopup(null);
+                    setOrderSearch('');
+                  }}
                   className="text-gray-400 hover:text-gray-600 p-1"
                   variant="ghost"
                 >
                   <FiX className="text-base" />
                 </Button>
               </div>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  placeholder="Search by Vehicle No, Order No, Date, or Vendor..."
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
+                />
+              </div>
               <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
-                {bookingOrders.length === 0 ? (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No booking orders available</p>
+                {filteredBookingOrders.length === 0 ? (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No booking orders found</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
@@ -798,7 +841,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800">
-                      {bookingOrders.map((order) => (
+                      {filteredBookingOrders.map((order) => (
                         <tr
                           key={order.id}
                           onClick={() => selectOrder(showOrderPopup, order)}
@@ -808,7 +851,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                             {order.vehicleNo}
                           </td>
                           <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {order.id}
+                            {order.orderNo}
                           </td>
                           <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
                             {order.orderDate}
@@ -824,7 +867,10 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               </div>
               <div className="flex justify-end mt-3">
                 <Button
-                  onClick={() => setShowOrderPopup(null)}
+                  onClick={() => {
+                    setShowOrderPopup(null);
+                    setOrderSearch('');
+                  }}
                   className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded-md"
                 >
                   Cancel
@@ -841,23 +887,28 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Select Charges</h3>
                 <Button
-                  onClick={() => setShowChargePopup(null)}
+                  onClick={() => {
+                    setShowChargePopup(null);
+                    setChargeSearch('');
+                  }}
                   className="text-gray-400 hover:text-gray-600 p-1"
                   variant="ghost"
                 >
                   <FiX className="text-base" />
                 </Button>
               </div>
-              <input
-                type="text"
-                placeholder="Search charges..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="mb-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
-              />
+              <div className="mb-3">
+                <input
+                  type="text"
+                  placeholder="Search by Charge, Dates, or Amount..."
+                  value={chargeSearch}
+                  onChange={(e) => setChargeSearch(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
+                />
+              </div>
               <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
-                {charges.length === 0 ? (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No charges available</p>
+                {filteredCharges.length === 0 ? (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No saved charges available</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
@@ -880,44 +931,39 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800">
-                      {charges
-                        .filter((charge) =>
-                          charge.charge.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          charge.orderDate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          charge.dueDate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          charge.amount.toString().includes(searchTerm) ||
-                          charge.balance.toString().includes(searchTerm)
-                        )
-                        .map((charge) => (
-                          <tr
-                            key={charge.id}
-                            onClick={() => selectCharge(showChargePopup, charge)}
-                            className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-                          >
-                            <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                              {charge.charge}
-                            </td>
-                            <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                              {charge.orderDate}
-                            </td>
-                            <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                              {charge.dueDate}
-                            </td>
-                            <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-right text-gray-800 dark:text-gray-200">
-                              {charge.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                            <td className="px-4 py-2 text-right text-gray-800 dark:text-gray-200">
-                              {charge.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </td>
-                          </tr>
-                        ))}
+                      {filteredCharges.map((charge) => (
+                        <tr
+                          key={charge.id}
+                          onClick={() => selectCharge(showChargePopup, charge)}
+                          className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                            {charge.charge}
+                          </td>
+                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                            {charge.orderDate}
+                          </td>
+                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                            {charge.dueDate}
+                          </td>
+                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-right text-gray-800 dark:text-gray-200">
+                            {Number(charge.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-4 py-2 text-right text-gray-800 dark:text-gray-200">
+                            {Number(charge.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 )}
               </div>
               <div className="flex justify-end mt-3">
                 <Button
-                  onClick={() => setShowChargePopup(null)}
+                  onClick={() => {
+                    setShowChargePopup(null);
+                    setChargeSearch('');
+                  }}
                   className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded-md"
                 >
                   Cancel
