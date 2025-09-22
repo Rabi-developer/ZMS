@@ -203,6 +203,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
           { id: 'Truck', name: 'Truck' },
           { id: 'Van', name: 'Van' },
           { id: 'Container', name: 'Container' },
+          { id: 'Mazdia', name: 'Mazdia' },
           { id: 'Trailer', name: 'Trailer' },
           { id: 'Pickup', name: 'Pickup' },
         ];
