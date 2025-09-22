@@ -396,7 +396,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
