@@ -106,4 +106,82 @@ const updateBookingOrderStatus = async (BookingOrderStatus: { id: string; status
     throw error;
   }
 };
-export { createBookingOrder , getAllBookingOrder , getAllBookingOrderPositions , getSingleBookingOrder , updateBookingOrder , deleteBookingOrder, updateBookingOrderStatus  };
+
+// BookingOrder -> Consignments: get consignments for a booking order
+const getConsignmentsForBookingOrder = async (bookingOrderId: string, pageIndex: any = 1, pageSize: any = 100, filters: any = {}) => {
+  try {
+    let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
+    // allow filtering by biltyNo, receiptNo or other consignment filters if provided
+    Object.keys(filters || {}).forEach((k) => {
+      if (filters[k] !== undefined && filters[k] !== null) {
+        queryParams += `&${encodeURIComponent(k)}=${encodeURIComponent(filters[k])}`;
+      }
+    });
+    const response = await apiFetch(`BookingOrder/${bookingOrderId}/consignments?${queryParams}`, {
+      method: 'GET',
+      headers: {},
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+// Add a consignment under a booking order
+const addConsignmentToBookingOrder = async (bookingOrderId: string, consignment: any) => {
+  try {
+    // Ensure bookingOrderId is present in payload as the API expects it in body too
+    const payload = { ...consignment, bookingOrderId };
+    const response = await apiFetch(`BookingOrder/${bookingOrderId}/consignments`, {
+      method: 'POST',
+      headers: {},
+      body: JSON.stringify(payload),
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+// Update a consignment under a booking order
+const updateConsignmentForBookingOrder = async (bookingOrderId: string, consignmentId: string, consignment: any) => {
+  try {
+    // Ensure id and bookingOrderId are present in payload
+    const payload = { ...consignment, id: consignmentId, bookingOrderId };
+    const response = await apiFetch(`BookingOrder/${bookingOrderId}/consignments/${consignmentId}`, {
+      method: 'PUT',
+      headers: {},
+      body: JSON.stringify(payload),
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+// Delete a consignment under a booking order
+const deleteConsignmentFromBookingOrder = async (bookingOrderId: string, consignmentId: string) => {
+  try {
+    const response = await apiFetch(`BookingOrder/${bookingOrderId}/consignments/${consignmentId}`, {
+      method: 'DELETE',
+      headers: {},
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+export {
+  createBookingOrder,
+  getAllBookingOrder,
+  getAllBookingOrderPositions,
+  getSingleBookingOrder,
+  updateBookingOrder,
+  deleteBookingOrder,
+  updateBookingOrderStatus,
+  // new booking-order consignment helpers
+  getConsignmentsForBookingOrder,
+  addConsignmentToBookingOrder,
+  updateConsignmentForBookingOrder,
+  deleteConsignmentFromBookingOrder,
+};

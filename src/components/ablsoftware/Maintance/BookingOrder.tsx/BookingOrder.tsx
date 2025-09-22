@@ -6,7 +6,14 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLNewCustomInput from '@/components/ui/ABLNewCustomInput';
 import AblNewCustomDrpdown from '@/components/ui/AblNewCustomDrpdown';
-import { createBookingOrder, updateBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
+import {
+  createBookingOrder,
+  updateBookingOrder,
+  getConsignmentsForBookingOrder,
+  addConsignmentToBookingOrder,
+  updateConsignmentForBookingOrder,
+  deleteConsignmentFromBookingOrder,
+} from '@/apis/bookingorder';
 import { getAllTransporter } from '@/apis/transporter';
 import { getAllVendor } from '@/apis/vendors';
 import { getAllMunshyana } from '@/apis/munshyana';
@@ -40,15 +47,16 @@ interface DropdownOption {
 }
 
 interface Consignment {
-  id?: string; // Add id field for consignments
+  id?: string;
+  bookingOrderId?: string;
   biltyNo: string;
   receiptNo: string;
   consignor: string;
   consignee: string;
   item: string;
-  qty: number | null | undefined; // Allow null/undefined
-  totalAmount: number | null | undefined; // Allow null/undefined
-  recvAmount: number | null | undefined; // Allow null/undefined
+  qty: number | null | undefined;
+  totalAmount: number | null | undefined;
+  recvAmount: number | null | undefined;
   delDate: string;
   status: string;
 }
@@ -60,7 +68,7 @@ const bookingOrderSchema = z.object({
   orderDate: z.string().optional().nullable(),
   transporter: z.string().min(1, 'Transporter is required').nullable(),
   vendor: z.string().optional().nullable(),
-  vehicleNo:z.string().min(1, 'Vehicle NO is required').nullable(),
+  vehicleNo: z.string().min(1, 'Vehicle No is required').nullable(),
   containerNo: z.string().optional().nullable(),
   vehicleType: z.string().optional().nullable(),
   driverName: z.string().optional().nullable(),
@@ -91,7 +99,7 @@ type BookingOrderFormData = z.infer<typeof bookingOrderSchema>;
 
 interface BookingOrderFormProps {
   isEdit?: boolean;
-  initialData?: any; // shape from backend
+  initialData?: any;
 }
 
 const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps) => {
@@ -141,15 +149,14 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Keep internal id separate from display OrderNo (which may be auto generated or different)
   const [bookingId, setBookingId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('basic');
   const [transporters, setTransporters] = useState<DropdownOption[]>([]);
   const [vendors, setVendors] = useState<DropdownOption[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<DropdownOption[]>([]);
   const [munshayanas, setMunshayanas] = useState<DropdownOption[]>([]);
-  const [consignments, setConsignments] = useState<Consignment[]>([]);
+  const [allConsignments, setAllConsignments] = useState<Consignment[]>([]);
+  const [bookingConsignments, setBookingConsignments] = useState<Consignment[]>([]);
   const [selectedConsignments, setSelectedConsignments] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [tempSelectedConsignments, setTempSelectedConsignments] = useState<string[]>([]);
@@ -182,22 +189,39 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
   const mapVehicleTypeIdToName = (v?: string) => (v && vehicleTypeMap[v] ? vehicleTypeMap[v] : v || '');
   const mapLocationIdToName = (v?: string) => (v && locationMap[v] ? locationMap[v] : v || '');
 
+  // Helper to resolve a party id/name to a readable name
+  const resolvePartyName = (val?: string): string => {
+    if (!val) return '';
+    const fromVendors = vendors.find((v) => v.id === val || v.name === val);
+    if (fromVendors) return fromVendors.name;
+    const fromTransporters = transporters.find((t) => t.id === val || t.name === val);
+    if (fromTransporters) return fromTransporters.name;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+      console.warn(`Unresolved party ID: ${val}`);
+      return `Unresolved ID: ${val.substring(0, 8)}...`;
+    }
+    return val;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [transRes, vendRes, munRes, consRes] = await Promise.all([
+        const [transRes, vendRes, munRes, allConsRes] = await Promise.all([
           getAllTransporter(),
           getAllVendor(),
           getAllMunshyana(),
-          getAllConsignment(1, 100, {}),
+          getAllConsignment(1, 1000, {}),
         ]);
 
-        const transportersData = transRes.data.map((t: any) => ({ id: t.id, name: t.name })) || [];
-        const vendorsData = vendRes.data.map((v: any) => ({ id: v.id, name: v.name })) || [];
-        const munshayanasData = munRes.data.map((m: any) => ({ id: m.id, name: m.chargesDesc })) || [];
-        const consignmentsData = consRes.data || [];
-        const uniqueGeneral = Array.from(new Map(consignmentsData.map((c: any) => [c.biltyNo, c])).values()) as Consignment[];
+        const transportersData = transRes.data?.map((t: any) => ({ id: t.id, name: t.name })) || [];
+        const vendorsData = vendRes.data?.map((v: any) => ({ id: v.id, name: v.name })) || [];
+        const munshayanasData = munRes.data?.map((m: any) => ({ id: m.id, name: m.chargesDesc })) || [];
+        const allConsignmentsData = allConsRes.data?.map((cons: any) => ({
+          ...cons,
+          consignor: resolvePartyName(cons.consignor),
+          consignee: resolvePartyName(cons.consignee),
+        })) || [];
 
         const vehicleTypesData = [
           { id: 'Truck', name: 'Truck' },
@@ -227,11 +251,9 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
         setVehicleTypes(vehicleTypesData);
         setMunshayanas(munshayanasData);
         setLocations(locationsData);
-        setConsignments(uniqueGeneral);
+        setAllConsignments(allConsignmentsData);
 
-        // If initialData provided (edit page), hydrate directly without re-searching all booking orders list
         if (isEdit && initialData) {
-          // Handle both direct data and wrapped data structure
           const booking = initialData.data ? initialData.data : initialData;
           setBookingId(booking.id || '');
           setValue('id', booking.id || '');
@@ -259,129 +281,22 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
           setValue('remarks', booking.remarks || '');
           setValue('contractOwner', booking.contractOwner || '');
           setValue('status', booking.status || '');
-          
-          // Handle consignments from the booking data
-          if (booking.consignments && Array.isArray(booking.consignments)) {
-            const bookingConsignments = booking.consignments as Consignment[];
-            const allConsignments = [...uniqueGeneral, ...bookingConsignments];
-            const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values()) as Consignment[];
-            setConsignments(uniqueConsignments);
-            const selectedBiltyNos = bookingConsignments.map((c: any) => c.biltyNo);
+
+          try {
+            const consRes = await getConsignmentsForBookingOrder(booking.id, 1, 100);
+            const bookingConsignmentsData = consRes.data?.map((cons: any) => ({
+              ...cons,
+              consignor: resolvePartyName(cons.consignor),
+              consignee: resolvePartyName(cons.consignee),
+            })) || [];
+            setBookingConsignments(bookingConsignmentsData);
+            const selectedBiltyNos = bookingConsignmentsData.map((c: any) => c.biltyNo);
             setSelectedConsignments(selectedBiltyNos);
             setValue('selectedConsignments', selectedBiltyNos);
             setTempSelectedConsignments(selectedBiltyNos);
-          } else {
-            // fetch consignments belonging to this order if not included in response
-            try {
-              const consForBooking = await getAllConsignment(1, 100, { orderNo: booking.orderNo || booking.id });
-              const bookingConsignments = consForBooking.data || [];
-              const allConsignments = [...uniqueGeneral, ...bookingConsignments];
-              const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values()) as Consignment[];
-              setConsignments(uniqueConsignments);
-              const selectedBiltyNos = bookingConsignments.map((c: any) => c.biltyNo);
-              setSelectedConsignments(selectedBiltyNos);
-              setValue('selectedConsignments', selectedBiltyNos);
-              setTempSelectedConsignments(selectedBiltyNos);
-            } catch (e) {
-              console.warn('Failed to fetch consignments for booking', e);
-            }
-          }
-        } else if (isEdit) {
-          const id = window.location.pathname.split('/').pop();
-          if (id) {
-            try {
-              const response = await getAllBookingOrder();
-              const booking = response.data.find((b: any) => b.id === id);
-              if (booking) {
-                setBookingId(booking.id || '');
-                setValue('id', booking.id || '');
-                setValue('OrderNo', booking.orderNo || booking.id || '');
-                setValue('orderDate', booking.orderDate || '');
-                setValue('transporter', booking.transporter || '');
-                setValue('vendor', booking.vendor || '');
-                setValue('vehicleNo', booking.vehicleNo || '');
-                setValue('containerNo', booking.containerNo || '');
-                setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType) || booking.vehicleType || '');
-                setValue('driverName', booking.driverName || '');
-                setValue('contactNo', booking.contactNo || '');
-                setValue('munshayana', booking.munshayana || '');
-                setValue('cargoWeight', booking.cargoWeight || '');
-                setValue('bookedDays', booking.bookedDays || '');
-                setValue('detentionDays', booking.detentionDays || '');
-                setValue('fromLocation', mapLocationIdToName(booking.fromLocation) || booking.fromLocation || '');
-                setValue('departureDate', booking.departureDate || '');
-                setValue('via1', mapLocationIdToName(booking.via1) || booking.via1 || '');
-                setValue('via2', mapLocationIdToName(booking.via2) || booking.via2 || '');
-                setValue('toLocation', mapLocationIdToName(booking.toLocation) || booking.toLocation || '');
-                setValue('expectedReachedDate', booking.expectedReachedDate || '');
-                setValue('reachedDate', booking.reachedDate || '');
-                setValue('vehicleMunshyana', booking.vehicleMunshyana || '');
-                setValue('remarks', booking.remarks || '');
-                setValue('contractOwner', booking.contractOwner || '');
-                setValue('status', booking.status || '');
-
-                const consRes = await getAllConsignment(1, 100, { orderNo: booking.orderNo || id });
-                const bookingConsignments = consRes.data || [];
-                const allConsignments = [...uniqueGeneral, ...bookingConsignments];
-                const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values()) as Consignment[];
-                setConsignments(uniqueConsignments);
-                const selectedBiltyNos = bookingConsignments.map((c: Consignment) => c.biltyNo);
-                setSelectedConsignments(selectedBiltyNos);
-                setValue('selectedConsignments', selectedBiltyNos);
-                setTempSelectedConsignments(selectedBiltyNos);
-              } else {
-                toast.error('Booking Order not found');
-                router.push('/bookingorder');
-              }
-            } catch (error) {
-              toast.error('Failed to load booking order data');
-              console.error('Error fetching booking order:', error);
-            }
-          }
-        } else if (orderNoParam) {
-          try {
-            const response = await getAllBookingOrder();
-            const booking = response.data.find((b: any) => (b.orderNo || b.id) === orderNoParam || b.id === orderNoParam);
-            if (booking) {
-              setBookingId(booking.id || '');
-              setValue('id', booking.id || '');
-              setValue('OrderNo', booking.orderNo || booking.id || '');
-              setValue('orderDate', booking.orderDate || '');
-              setValue('transporter', booking.transporter || '');
-              setValue('vendor', booking.vendor || '');
-              setValue('vehicleNo', booking.vehicleNo || '');
-              setValue('containerNo', booking.containerNo || '');
-              setValue('vehicleType', mapVehicleTypeIdToName(booking.vehicleType) || booking.vehicleType || '');
-              setValue('driverName', booking.driverName || '');
-              setValue('contactNo', booking.contactNo || '');
-              setValue('munshayana', booking.munshayana || '');
-              setValue('cargoWeight', booking.cargoWeight || '');
-              setValue('bookedDays', booking.bookedDays || '');
-              setValue('detentionDays', booking.detentionDays || '');
-              setValue('fromLocation', mapLocationIdToName(booking.fromLocation) || booking.fromLocation || '');
-              setValue('departureDate', booking.departureDate || '');
-              setValue('via1', mapLocationIdToName(booking.via1) || booking.via1 || '');
-              setValue('via2', mapLocationIdToName(booking.via2) || booking.via2 || '');
-              setValue('toLocation', mapLocationIdToName(booking.toLocation) || booking.toLocation || '');
-              setValue('expectedReachedDate', booking.expectedReachedDate || '');
-              setValue('reachedDate', booking.reachedDate || '');
-              setValue('vehicleMunshyana', booking.vehicleMunshyana || '');
-              setValue('remarks', booking.remarks || '');
-              setValue('contractOwner', booking.contractOwner || '');
-              setValue('status', booking.status || '');
-
-              const consRes2 = await getAllConsignment(1, 100, { orderNo: booking.orderNo || orderNoParam });
-              const bookingConsignments2 = consRes2.data || [];
-              const allConsignments = [...uniqueGeneral, ...bookingConsignments2];
-              const uniqueConsignments = Array.from(new Map(allConsignments.map((c: any) => [c.biltyNo, c])).values());
-              setConsignments(uniqueConsignments);
-              const selectedBiltyNos2 = bookingConsignments2.map((c: Consignment) => c.biltyNo);
-              setSelectedConsignments(selectedBiltyNos2);
-              setValue('selectedConsignments', selectedBiltyNos2);
-              setTempSelectedConsignments(selectedBiltyNos2);
-            }
-          } catch (error) {
-            console.error('Error preloading booking order by orderNo:', error);
+          } catch (e) {
+            console.warn('Failed to fetch consignments for booking', e);
+            toast.error('Failed to load consignment data');
           }
         }
       } catch (error) {
@@ -391,85 +306,76 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
         setIsLoading(false);
       }
     };
-
     fetchData();
-  }, [isEdit, setValue, router, initialData]);
+  }, [isEdit, setValue, initialData]);
 
   const handleConsignmentSelection = (biltyNo: string, checked: boolean) => {
     setTempSelectedConsignments((prev) => {
       if (checked) {
-        return [...new Set([...prev, biltyNo])]; // Ensure no duplicates in selection
+        return [...new Set([...prev, biltyNo])];
       } else {
         return prev.filter((id) => id !== biltyNo);
       }
     });
   };
 
-  const handleSaveConsignments = () => {
+  const handleSaveConsignments = async () => {
     setSelectedConsignments(tempSelectedConsignments);
     setValue('selectedConsignments', tempSelectedConsignments, { shouldValidate: true });
+
+    // Update bookingConsignments to reflect selected consignments
+    const updatedBookingConsignments = allConsignments.filter((cons) =>
+      tempSelectedConsignments.includes(cons.biltyNo)
+    );
+    setBookingConsignments(updatedBookingConsignments);
     setIsModalOpen(false);
   };
 
-  // Build payload and save booking order without redirect
   const saveBookingOnly = async (data: BookingOrderFormData) => {
-    // Map selectedConsignments (biltyNo array) to consignment objects with proper structure
-    const bookingOrderId = isEdit ? (bookingId || data.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6") : undefined;
-    const consignmentObjects = consignments
-      .filter(cons => selectedConsignments.includes(cons.biltyNo))
-      .map(cons => {
-        const base = {
-          biltyNo: cons.biltyNo || "string",
-          receiptNo: cons.receiptNo || "string",
-          consignor: cons.consignor || "string",
-          consignee: cons.consignee || "string",
-          item: cons.item || "string",
-          qty: cons.qty || 0,
-          totalAmount: cons.totalAmount || 0,
-          recvAmount: cons.recvAmount || 0,
-          delDate: cons.delDate || "string",
-          status: cons.status || "string"
-        };
-        // Only send IDs when updating
-        if (isEdit) {
-          return {
-            ...base,
-            id: cons.id || "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-            bookingOrderId: bookingOrderId,
-          };
-        }
-        return base;
-      });
+    const bookingOrderId = isEdit ? (bookingId || data.id) : undefined;
+    const consignmentObjects = allConsignments
+      .filter((cons) => selectedConsignments.includes(cons.biltyNo))
+      .map((cons) => ({
+        id: cons.id,
+        biltyNo: cons.biltyNo || 'string',
+        receiptNo: cons.receiptNo || 'string',
+        consignor: cons.consignor || 'string',
+        consignee: cons.consignee || 'string',
+        item: cons.item || 'string',
+        qty: cons.qty ?? 0,
+        totalAmount: cons.totalAmount ?? 0,
+        recvAmount: cons.recvAmount ?? 0,
+        delDate: cons.delDate || 'string',
+        status: cons.status || 'string',
+        bookingOrderId,
+      }));
 
-    // Create the payload matching the API schema
     const payload = {
-      // Only send booking order ID when updating
       ...(isEdit ? { id: bookingOrderId } : {}),
-      orderNo: data.OrderNo || "string",
-      orderDate: data.orderDate || "string",
-      transporter: data.transporter || "string",
-      vendor: data.vendor || "string",
-      vehicleNo: data.vehicleNo || "string",
-      containerNo: data.containerNo || "string",
-      vehicleType: data.vehicleType || "string",
-      driverName: data.driverName || "string",
-      contactNo: data.contactNo || "string",
-      munshayana: data.munshayana || "string",
-      cargoWeight: data.cargoWeight || "string",
-      bookedDays: data.bookedDays || "string",
-      detentionDays: data.detentionDays || "string",
-      fromLocation: data.fromLocation || "string",
-      departureDate: data.departureDate || "string",
-      via1: data.via1 || "string",
-      via2: data.via2 || "string",
-      toLocation: data.toLocation || "string",
-      expectedReachedDate: data.expectedReachedDate || "string",
-      reachedDate: data.reachedDate || "string",
-      vehicleMunshyana: data.vehicleMunshyana || "string",
-      remarks: data.remarks || "string",
-      contractOwner: data.contractOwner || "string",
-      status: data.status || "string",
-      consignments: consignmentObjects,
+      orderNo: data.OrderNo || 'string',
+      orderDate: data.orderDate || 'string',
+      transporter: data.transporter || 'string',
+      vendor: data.vendor || 'string',
+      vehicleNo: data.vehicleNo || 'string',
+      containerNo: data.containerNo || 'string',
+      vehicleType: data.vehicleType || 'string',
+      driverName: data.driverName || 'string',
+      contactNo: data.contactNo || 'string',
+      munshayana: data.munshayana || 'string',
+      cargoWeight: data.cargoWeight || 'string',
+      bookedDays: data.bookedDays || 'string',
+      detentionDays: data.detentionDays || 'string',
+      fromLocation: data.fromLocation || 'string',
+      departureDate: data.departureDate || 'string',
+      via1: data.via1 || 'string',
+      via2: data.via2 || 'string',
+      toLocation: data.toLocation || 'string',
+      expectedReachedDate: data.expectedReachedDate || 'string',
+      reachedDate: data.reachedDate || 'string',
+      vehicleMunshyana: data.vehicleMunshyana || 'string',
+      remarks: data.remarks || 'string',
+      contractOwner: data.contractOwner || 'string',
+      status: data.status || 'string',
     };
 
     if (isEdit) {
@@ -478,17 +384,120 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
         toast.error('Cannot update: missing booking id');
         throw new Error('Missing booking id');
       }
-      console.log('[BookingOrderForm] Submitting update', { idToUse, payload });
       await updateBookingOrder(idToUse, payload);
-      console.log('[BookingOrderForm] Update success');
+      try {
+        const existingRes = await getConsignmentsForBookingOrder(idToUse, 1, 1000);
+        const existingCons = existingRes?.data || [];
+        const existingBiltySet = new Set(existingCons.map((c: any) => c.biltyNo));
+        const addedBiltyNos = selectedConsignments.filter((b) => !existingBiltySet.has(b));
+        const removedConsignments = existingCons.filter((c: any) => !selectedConsignments.includes(c.biltyNo));
+
+        const buildConsPayload = (cons: any, bookingOrderId: string) => ({
+          biltyNo: cons.biltyNo,
+          bookingOrderId,
+          receiptNo: cons.receiptNo,
+          consignor: cons.consignor,
+          consignee: cons.consignee,
+          item: cons.item,
+          qty: cons.qty ?? 0,
+          totalAmount: cons.totalAmount ?? 0,
+          recvAmount: cons.recvAmount ?? 0,
+          delDate: cons.delDate || 'string',
+          status: cons.status || 'string',
+        });
+
+        await Promise.all(
+          selectedConsignments.map(async (biltyNo) => {
+            const cons = allConsignments.find((c) => c.biltyNo === biltyNo);
+            if (!cons) return;
+            const consPayload = buildConsPayload(cons, idToUse);
+            const isExisting = existingBiltySet.has(biltyNo);
+            if (isExisting && cons.id) {
+              try {
+                await updateConsignmentForBookingOrder(idToUse, cons.id, consPayload);
+              } catch (e) {
+                console.warn('Failed to update consignment', cons.id, e);
+              }
+            } else {
+              try {
+                await addConsignmentToBookingOrder(idToUse, consPayload);
+              } catch (e) {
+                console.warn('Failed to add consignment', biltyNo, e);
+              }
+            }
+          })
+        );
+
+        await Promise.all(
+          removedConsignments.map(async (c: any) => {
+            if (!c.id) return;
+            try {
+              await deleteConsignmentFromBookingOrder(idToUse, c.id);
+            } catch (e) {
+              console.warn('Failed to delete consignment', c.id, e);
+            }
+          })
+        );
+
+        // Refresh booking consignments after sync
+        const updatedConsRes = await getConsignmentsForBookingOrder(idToUse, 1, 1000);
+        const updatedBookingConsignments = updatedConsRes.data?.map((cons: any) => ({
+          ...cons,
+          consignor: resolvePartyName(cons.consignor),
+          consignee: resolvePartyName(cons.consignee),
+        })) || [];
+        setBookingConsignments(updatedBookingConsignments);
+      } catch (e) {
+        console.warn('Failed to sync consignments after booking update', e);
+      }
       toast.success('Booking Order updated successfully!');
       return { id: idToUse, orderNo: data.OrderNo };
     } else {
-      console.log('[BookingOrderForm] Submitting create', payload);
-      await createBookingOrder(payload);
-      console.log('[BookingOrderForm] Create success');
+      const res = await createBookingOrder(payload);
+      const createdId: string | undefined = res?.data;
+      if (createdId) setBookingId(createdId);
+      if (createdId) {
+        try {
+          const buildConsPayload = (cons: any, bookingOrderId: string) => ({
+            biltyNo: cons.biltyNo,
+            bookingOrderId,
+            receiptNo: cons.receiptNo,
+            consignor: cons.consignor,
+            consignee: cons.consignee,
+            item: cons.item,
+            qty: cons.qty ?? 0,
+            totalAmount: cons.totalAmount ?? 0,
+            recvAmount: cons.recvAmount ?? 0,
+            delDate: cons.delDate || 'string',
+            status: cons.status || 'string',
+          });
+          await Promise.all(
+            selectedConsignments.map(async (biltyNo) => {
+              const cons = allConsignments.find((c) => c.biltyNo === biltyNo);
+              if (!cons) return;
+              const consPayload = buildConsPayload(cons, createdId);
+              try {
+                await addConsignmentToBookingOrder(createdId, consPayload);
+              } catch (e) {
+                console.warn('Failed to add consignment', biltyNo, e);
+              }
+            })
+          );
+
+          // Refresh booking consignments after creation
+          const updatedConsRes = await getConsignmentsForBookingOrder(createdId, 1, 1000);
+          const updatedBookingConsignments = updatedConsRes.data?.map((cons: any) => ({
+            ...cons,
+            consignor: resolvePartyName(cons.consignor),
+            consignee: resolvePartyName(cons.consignee),
+          })) || [];
+          setBookingConsignments(updatedBookingConsignments);
+        } catch (e) {
+          console.warn('Failed to attach consignments after booking creation', e);
+        }
+      }
       toast.success('Booking Order created successfully!');
-      return { id: payload.id, orderNo: data.OrderNo };
+      return { id: createdId, orderNo: data.OrderNo };
     }
   };
 
@@ -496,7 +505,6 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
     setIsSubmitting(true);
     try {
       const saved = await saveBookingOnly(data);
-      // Always set the latest order number after save
       if (saved?.orderNo) {
         setValue('OrderNo', saved.orderNo);
       }
@@ -510,13 +518,12 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
   };
 
   const updateStatus = (biltyNo: string, newStatus: string) => {
-    setConsignments((prev) =>
+    setBookingConsignments((prev) =>
       prev.map((c) => (c.biltyNo === biltyNo ? { ...c, status: newStatus } : c))
     );
   };
 
-  // Filter consignments based on search term with null checks
-  const filteredConsignments = consignments.filter((cons) =>
+  const filteredConsignments = allConsignments.filter((cons) =>
     [
       cons.biltyNo || '',
       cons.receiptNo || '',
@@ -574,7 +581,6 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
             </div>
           </div>
 
-          {/* Tabs removed to show all sections on a single page */}
           <div className="border-b border-gray-200 dark:border-gray-700 px-8 bg-gray-50 dark:bg-gray-850 py-3">
             <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
               <FiUser className="text-[#3a614c]" />
@@ -583,12 +589,9 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-8">
-            {/* Show all sections on one page, compact layout */}
             <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="col-span-1 ">
-               
-                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                 {/* 1 */}
+              <div className="col-span-1">
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
                   <Controller
                     name="OrderNo"
                     control={control}
@@ -628,7 +631,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
-                  
+
                   <ABLNewCustomInput
                     label="Vehicle No"
                     type="text"
@@ -637,7 +640,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     error={errors.vehicleNo?.message}
                     id="vehicleNo"
                   />
-                   <ABLNewCustomInput
+                  <ABLNewCustomInput
                     label="Driver Name"
                     type="text"
                     placeholder="Enter driver name"
@@ -645,21 +648,12 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     error={errors.driverName?.message}
                     id="driverName"
                   />
-
-                    
-
                 </div>
               </div>
-                  
-            
-
 
               <div className="col-span-1 shadow-sm">
-               
-                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                  
-                 {/* 2 */}
-                 <ABLNewCustomInput
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  <ABLNewCustomInput
                     label="Order Date"
                     type="date"
                     placeholder="Enter order date"
@@ -681,7 +675,8 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
-                     <Controller
+
+                  <Controller
                     name="vehicleType"
                     control={control}
                     render={({ field }) => (
@@ -695,7 +690,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     )}
                   />
 
-                    <ABLNewCustomInput
+                  <ABLNewCustomInput
                     label="Container No"
                     type="text"
                     placeholder="Enter container no"
@@ -703,48 +698,43 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     error={errors.containerNo?.message}
                     id="containerNo"
                   />
-                   
                 </div>
               </div>
-              
             </div>
- 
-            <div className="col-span-1  dark:border-gray-700 ">
-                
-                <div className=" gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                   <ABLNewCustomInput
-                    label="Cargo Weight"
-                    type="text"
-                    placeholder="Enter cargo weight"
-                    register={register}
-                    error={errors.cargoWeight?.message}
-                    id="cargoWeight"
-                  />
-                  <ABLNewCustomInput
-                    label="Booked Days"
-                    type="text"
-                    placeholder="Enter booked days"
-                    register={register}
-                    error={errors.bookedDays?.message}
-                    id="bookedDays"
-                  />
-                  <ABLNewCustomInput
-                    label="Detention Days"
-                    type="text"
-                    placeholder="Enter detention days"
-                    register={register}
-                    error={errors.detentionDays?.message}
-                    id="detentionDays"
-                  />
-                 
-                </div>
+
+            <div className="col-span-1 dark:border-gray-700">
+              <div className="gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <ABLNewCustomInput
+                  label="Cargo Weight"
+                  type="text"
+                  placeholder="Enter cargo weight"
+                  register={register}
+                  error={errors.cargoWeight?.message}
+                  id="cargoWeight"
+                />
+                <ABLNewCustomInput
+                  label="Booked Days"
+                  type="text"
+                  placeholder="Enter booked days"
+                  register={register}
+                  error={errors.bookedDays?.message}
+                  id="bookedDays"
+                />
+                <ABLNewCustomInput
+                  label="Detention Days"
+                  type="text"
+                  placeholder="Enter detention days"
+                  register={register}
+                  error={errors.detentionDays?.message}
+                  id="detentionDays"
+                />
               </div>
-                          <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="col-span-1 ">
-                
-                <div className=" grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                 {/* 1 */}
-                 <Controller
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="col-span-1">
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  <Controller
                     name="fromLocation"
                     control={control}
                     render={({ field }) => (
@@ -757,13 +747,13 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
-                   
-                   <Controller
+
+                  <Controller
                     name="via1"
                     control={control}
                     render={({ field }) => (
                       <AblNewCustomDrpdown
-                        label=" Via  1"
+                        label="Via 1"
                         options={locations}
                         selectedOption={field.value || ''}
                         onChange={(value) => setValue('via1', value, { shouldValidate: true })}
@@ -781,7 +771,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     id="departureDate"
                   />
 
-                   <ABLNewCustomInput
+                  <ABLNewCustomInput
                     label="Reached Date"
                     type="date"
                     placeholder="Enter reached date"
@@ -790,7 +780,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     id="reachedDate"
                   />
 
-                   <ABLNewCustomInput
+                  <ABLNewCustomInput
                     label="Contact No"
                     type="tel"
                     placeholder="Enter contact no"
@@ -798,21 +788,12 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     error={errors.contactNo?.message}
                     id="contactNo"
                   />
-
-                    
-
                 </div>
               </div>
-                  
-            
 
-
-              <div className="col-span-1 ">
-                
-                <div className="  grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                  
-                 {/* 2 */}
-                 <Controller
+              <div className="col-span-1">
+                <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                  <Controller
                     name="toLocation"
                     control={control}
                     render={({ field }) => (
@@ -825,13 +806,13 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
-                  
+
                   <Controller
                     name="via2"
                     control={control}
                     render={({ field }) => (
                       <AblNewCustomDrpdown
-                        label="Via 2     "
+                        label="Via 2"
                         options={locations}
                         selectedOption={field.value || ''}
                         onChange={(value) => setValue('via2', value, { shouldValidate: true })}
@@ -839,8 +820,8 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                       />
                     )}
                   />
- 
-                <ABLNewCustomInput
+
+                  <ABLNewCustomInput
                     label="E.Reached Date"
                     type="date"
                     placeholder="Enter expected reached date"
@@ -849,7 +830,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     id="expectedReachedDate"
                   />
 
-                   <ABLNewCustomInput
+                  <ABLNewCustomInput
                     label="V.Munshyana"
                     type="text"
                     placeholder="Enter vehicle munshyana"
@@ -858,7 +839,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     id="vehicleMunshyana"
                   />
 
-                   <ABLNewCustomInput
+                  <ABLNewCustomInput
                     label="Contract Owner"
                     type="text"
                     placeholder="Enter contract owner"
@@ -866,32 +847,23 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                     error={errors.contractOwner?.message}
                     id="contractOwner"
                   />
-                   
                 </div>
               </div>
-              
             </div>
 
-               <div className="col-span-1  dark:border-gray-700 ">
-                
-                <div className=" gap-2 grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
-                   
-                   <ABLNewCustomInput
-                    label="Remarks"
-                    type="text"
-                    placeholder="Enter remarks"
-                    register={register}
-                    error={errors.remarks?.message}
-                    id="remarks"
-                  />
-                 
-                 
-                </div>
+            <div className="col-span-1 dark:border-gray-700">
+              <div className="gap-2 grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
+                <ABLNewCustomInput
+                  label="Remarks"
+                  type="text"
+                  placeholder="Enter remarks"
+                  register={register}
+                  error={errors.remarks?.message}
+                  id="remarks"
+                />
               </div>
+            </div>
 
-             
-
-            {/* Actions */}
             <div className="flex flex-wrap justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
               <Button
                 type="submit"
@@ -931,16 +903,16 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
               <Button
                 onClick={async () => {
                   const values = getValues();
-                  // Validate required fields
                   if (!values.transporter || !values.vehicleNo || !values.fromLocation) {
-                    toast.error('Please fill all transporter ,vehicleNo, fromLocation  before proceeding to consignment.');
+                    toast.error('Please fill all required fields before proceeding to consignment.');
                     return;
                   }
                   try {
                     setIsSubmitting(true);
                     const saved = await saveBookingOnly(values);
-                    const orderNo = saved?.orderNo || values.OrderNo || '';
-                    router.push(`/consignment/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                    const bookingIdForNav = saved?.id || bookingId || values.id || values.OrderNo || '';
+                    const q = bookingIdForNav ? `bookingOrderId=${encodeURIComponent(bookingIdForNav)}` : `orderNo=${encodeURIComponent(values.OrderNo || '')}`;
+                    router.push(`/consignment/create?fromBooking=true&${q}`);
                   } catch (e) {
                     toast.error('Failed to save booking before navigating');
                   } finally {
@@ -953,7 +925,6 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
               <Button
                 onClick={async () => {
                   const values = getValues();
-                  // Validate required fields
                   if (!values.transporter || !values.vehicleNo || !values.fromLocation) {
                     toast.error('Please fill all required fields before proceeding to charges.');
                     return;
@@ -961,8 +932,9 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                   try {
                     setIsSubmitting(true);
                     const saved = await saveBookingOnly(values);
-                    const orderNo = saved?.orderNo || values.OrderNo || '';
-                    router.push(`/charges/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
+                    const bookingIdForNav = saved?.id || bookingId || values.id || values.OrderNo || '';
+                    const q = bookingIdForNav ? `bookingOrderId=${encodeURIComponent(bookingIdForNav)}` : `orderNo=${encodeURIComponent(values.OrderNo || '')}`;
+                    router.push(`/charges/create?fromBooking=true&${q}`);
                   } catch (e) {
                     toast.error('Failed to save booking before navigating');
                   } finally {
@@ -990,7 +962,6 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
               </Button>
             </div>
           </div>
-          {/* Scrollable table wrapper for 4+ rows with sticky header */}
           <div className="relative rounded-lg border border-gray-200 dark:border-gray-700">
             <div className="max-h-[240px] overflow-y-auto">
               <table className="min-w-full text-sm text-left text-gray-600 dark:text-gray-300">
@@ -1009,39 +980,37 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedConsignments.length === 0 ? (
+                  {bookingConsignments.length === 0 ? (
                     <tr>
                       <td colSpan={10} className="px-6 py-4 text-center">
-                        No consignments selected
+                        No consignments selected for this booking
                       </td>
                     </tr>
                   ) : (
-                    consignments
-                      .filter((cons) => selectedConsignments.includes(cons.biltyNo))
-                      .map((cons) => (
-                        <tr key={cons.biltyNo} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-                          <td className="px-6 py-3">{cons.biltyNo}</td>
-                          <td className="px-6 py-3">{cons.receiptNo}</td>
-                          <td className="px-6 py-3">{cons.consignor}</td>
-                          <td className="px-6 py-3">{cons.consignee}</td>
-                          <td className="px-6 py-3">{cons.item}</td>
-                          <td className="px-6 py-3">{cons.qty ?? 'N/A'}</td>
-                          <td className="px-6 py-3">{cons.totalAmount ?? 'N/A'}</td>
-                          <td className="px-6 py-3">{cons.recvAmount ?? 'N/A'}</td>
-                          <td className="px-6 py-3">{cons.delDate}</td>
-                          <td className="px-6 py-3">
-                            <AblNewCustomDrpdown
-                              label="Status"
-                              options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map((s) => ({
-                                id: s,
-                                name: s,
-                              }))}
-                              selectedOption={cons.status}
-                              onChange={(value) => updateStatus(cons.biltyNo, value)}
-                            />
-                          </td>
-                        </tr>
-                      ))
+                    bookingConsignments.map((cons) => (
+                      <tr key={cons.biltyNo} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+                        <td className="px-6 py-3">{cons.biltyNo}</td>
+                        <td className="px-6 py-3">{cons.receiptNo}</td>
+                        <td className="px-6 py-3">{cons.consignor}</td>
+                        <td className="px-6 py-3">{cons.consignee}</td>
+                        <td className="px-6 py-3">{cons.item}</td>
+                        <td className="px-6 py-3">{cons.qty ?? 'N/A'}</td>
+                        <td className="px-6 py-3">{cons.totalAmount ?? 'N/A'}</td>
+                        <td className="px-6 py-3">{cons.recvAmount ?? 'N/A'}</td>
+                        <td className="px-6 py-3">{cons.delDate}</td>
+                        <td className="px-6 py-3">
+                          <AblNewCustomDrpdown
+                            label="Status"
+                            options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map((s) => ({
+                              id: s,
+                              name: s,
+                            }))}
+                            selectedOption={cons.status}
+                            onChange={(value) => updateStatus(cons.biltyNo, value)}
+                          />
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -1133,9 +1102,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleSaveConsignments}>
-                  Save
-                </Button>
+                <Button onClick={handleSaveConsignments}>Save</Button>
               </div>
             </div>
           </div>
