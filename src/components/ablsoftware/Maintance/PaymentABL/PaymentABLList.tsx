@@ -93,8 +93,8 @@ const PaymentABLList = () => {
   const handleViewOpen = async (paymentId: string) => {
     setSelectedRowId((prev) => (prev === paymentId ? null : paymentId));
     const payment = payments.find((item) => item.id === paymentId);
-    if (payment?.items && payment.items.length > 0) {
-      const orderNo = payment.items[0].orderNo; // Use the first item's orderNo
+    if (payment?.PaymentABLItem && payment.PaymentABLItem.length > 0) {
+      const orderNo = payment.PaymentABLItem[0].orderNo; // Use the first item's orderNo
       try {
         const consResponse = await getAllConsignment(1, 100, { orderNo });
         setConsignments(consResponse?.data || []);
@@ -175,9 +175,9 @@ const PaymentABLList = () => {
 
   return (
     <div className="container mx-auto mt-4  max-w-screen  p-6 ">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center">
+      <div className="mb-4 flex PaymentABLItem-center justify-between">
+        <div className="flex PaymentABLItem-center gap-4 flex-wrap">
+          <div className="flex PaymentABLItem-center">
             <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
             <select
               value={selectedStatusFilter}
@@ -200,7 +200,7 @@ const PaymentABLList = () => {
         </div>
         <button
           onClick={exportToExcel}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+          className="flex PaymentABLItem-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
         >
           <FaFileExcel size={18} />
           Download Excel
@@ -222,7 +222,7 @@ const PaymentABLList = () => {
       {selectedRowId && (
         <div className="mt-4">
           <OrderProgress
-            orderNo={payments.find((p) => p.id === selectedRowId)?.items?.[0]?.orderNo}
+            orderNo={payments.find((p) => p.id === selectedRowId)?.PaymentABLItem?.[0]?.orderNo}
             bookingStatus={bookingStatus}
             consignments={consignments}
           />
@@ -237,7 +237,7 @@ const PaymentABLList = () => {
                 key={option.id}
                 onClick={() => handleBulkStatusUpdate(option.name)}
                 disabled={updating}
-                className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
+                className={`relative w-40 h-16 flex PaymentABLItem-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
                   ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
                   ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
               >

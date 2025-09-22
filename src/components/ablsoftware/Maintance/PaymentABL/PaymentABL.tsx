@@ -33,23 +33,31 @@ interface BookingOrder {
 
 interface Charge {
   id: string;
-  charge: string;
-  orderDate: string;
-  dueDate: string;
+  chargeNo: string;
+  chargeDate: string;
+  orderNo: string;
+  charge: string; // chargeNo for internal reference
+  chargeName: string; // Human-readable charge name
+  biltyNo: string;
+  date: string; // From lines.date
+  vehicle: string;
+  paidTo: string;
   amount: number;
   balance: number;
-  payNo: string;
+  isActive: boolean;
 }
 
-interface TableRow {
+interface PaymentABLItem {
+  id?: string | null; // Guid? in backend
   vehicleNo: string;
   orderNo: string;
-  charges: string;
+  charges: string; // Stores chargeName for display
+  chargeNo: string; // Stores chargeNo for payload (Charges field)
   orderDate: string;
   dueDate: string;
-  expenseAmount: number;
-  balance: number;
-  paidAmount: number;
+  expenseAmount: number | null;
+  balance: number | null;
+  paidAmount: number | null;
 }
 
 interface PaymentFormProps {
@@ -62,6 +70,7 @@ interface PaymentFormProps {
     createdBy?: string;
     modifiedDateTime?: string;
     modifiedBy?: string;
+    status?: string;
   };
 }
 
@@ -75,22 +84,24 @@ const paymentSchema = z.object({
   chequeDate: z.string().optional(),
   remarks: z.string().optional(),
   paidTo: z.string().min(1, 'Paid To is required'),
-  paidAmount: z.number().min(0, 'Paid Amount must be non-negative').optional(),
-  advanced: z.number().min(0, 'Advanced Amount must be non-negative').optional(),
+  paidAmount: z.number().min(0, 'Paid Amount must be non-negative').nullable(),
+  advanced: z.number().min(0, 'Advanced Amount must be non-negative').nullable(),
   advancedDate: z.string().optional(),
-  pdc: z.number().min(0, 'PDC Amount must be non-negative').optional(),
+  pdc: z.number().min(0, 'PDC Amount must be non-negative').nullable(),
   pdcDate: z.string().optional(),
-  paymentAmount: z.number().min(0, 'Payment Amount must be non-negative').optional(),
-  tableData: z.array(
+  paymentAmount: z.number().min(0, 'Payment Amount must be non-negative').nullable(),
+  paymentABLItems: z.array(
     z.object({
+      id: z.string().optional().nullable(),
       vehicleNo: z.string().optional(),
       orderNo: z.string().min(1, 'Order No is required').optional(),
       charges: z.string().min(1, 'Charges are required').optional(),
+      chargeNo: z.string().optional(),
       orderDate: z.string().optional(),
       dueDate: z.string().optional(),
-      expenseAmount: z.number().min(0, 'Expense Amount must be non-negative').optional(),
-      balance: z.number().min(0, 'Balance must be non-negative').optional(),
-      paidAmount: z.number().min(0, 'Paid Amount must be non-negative').optional(),
+      expenseAmount: z.number().min(0, 'Expense Amount must be non-negative').nullable(),
+      balance: z.number().min(0, 'Balance must be non-negative').nullable(),
+      paidAmount: z.number().min(0, 'Paid Amount must be non-negative').nullable(),
     })
   ),
 });
@@ -119,15 +130,37 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           chequeDate: initialData.chequeDate || '',
           remarks: initialData.remarks || '',
           paidTo: initialData.paidTo || '',
-          paidAmount: initialData.paidAmount || 0,
-          advanced: initialData.advanced || 0,
+          paidAmount: initialData.paidAmount ?? null,
+          advanced: initialData.advanced ?? null,
           advancedDate: initialData.advancedDate || '',
-          pdc: initialData.pdc || 0,
+          pdc: initialData.pdc ?? null,
           pdcDate: initialData.pdcDate || '',
-          paymentAmount: initialData.paymentAmount || 0,
-          tableData: initialData.tableData?.length
-            ? initialData.tableData
-            : [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }],
+          paymentAmount: initialData.paymentAmount ?? null,
+          paymentABLItems: initialData.paymentABLItems?.length
+            ? initialData.paymentABLItems.map(row => ({
+                id: row.id ?? null,
+                vehicleNo: row.vehicleNo || '',
+                orderNo: row.orderNo || '',
+                charges: row.charges || '',
+                chargeNo: row.chargeNo || '',
+                orderDate: row.orderDate || '',
+                dueDate: row.dueDate || '',
+                expenseAmount: row.expenseAmount ?? null,
+                balance: row.balance ?? null,
+                paidAmount: row.paidAmount ?? null,
+              }))
+            : [{
+                id: null,
+                vehicleNo: '',
+                orderNo: '',
+                charges: '',
+                chargeNo: '',
+                orderDate: '',
+                dueDate: '',
+                expenseAmount: null,
+                balance: null,
+                paidAmount: null,
+              }],
         }
       : {
           paymentNo: '',
@@ -138,13 +171,24 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           chequeDate: '',
           remarks: '',
           paidTo: '',
-          paidAmount: 0,
-          advanced: 0,
+          paidAmount: null,
+          advanced: null,
           advancedDate: '',
-          pdc: 0,
+          pdc: null,
           pdcDate: '',
-          paymentAmount: 0,
-          tableData: [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }],
+          paymentAmount: null,
+          paymentABLItems: [{
+            id: null,
+            vehicleNo: '',
+            orderNo: '',
+            charges: '',
+            chargeNo: '',
+            orderDate: '',
+            dueDate: '',
+            expenseAmount: null,
+            balance: null,
+            paidAmount: null,
+          }],
         },
   });
 
@@ -194,7 +238,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     { id: 'Other', name: 'Other' },
   ];
 
-  const tableData = watch('tableData');
+  const paymentABLItems = watch('paymentABLItems');
 
   // Filter booking orders based on search term
   const filteredBookingOrders = bookingOrders.filter((order) =>
@@ -206,18 +250,29 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     ].some((field) => field.toLowerCase().includes(orderSearch.toLowerCase()))
   );
 
-  // Filter charges to show only saved charges (with payNo) and apply search
-  const filteredCharges = charges
-    .filter((charge) => charge.payNo)
-    .filter((charge) =>
-      [
-        charge.charge || '',
-        charge.orderDate || '',
-        charge.dueDate || '',
-        charge.amount?.toString() || '',
-        charge.balance?.toString() || '',
-      ].some((field) => field.toLowerCase().includes(chargeSearch.toLowerCase()))
-    );
+  // Filter and deduplicate charges
+  const getFilteredCharges = (index: number | null) => {
+    if (index === null) return [];
+    const selectedOrderNo = paymentABLItems[index]?.orderNo || '';
+    const seenChargeNos = new Set<string>();
+    return charges
+      .filter((charge) => {
+        if (!charge.chargeNo || !charge.isActive) return false;
+        if (seenChargeNos.has(charge.chargeNo)) return false;
+        seenChargeNos.add(charge.chargeNo);
+        return !selectedOrderNo || charge.orderNo === selectedOrderNo;
+      })
+      .filter((charge) =>
+        [
+          charge.chargeNo || '',
+          charge.chargeName || '',
+          charge.orderNo || '',
+          charge.chargeDate || '',
+          charge.amount?.toString() || '',
+          charge.balance?.toString() || '',
+        ].some((field) => field.toLowerCase().includes(chargeSearch.toLowerCase()))
+      );
+  };
 
   // Fetch dropdown data
   useEffect(() => {
@@ -239,15 +294,26 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           }))
         );
         setCharges(
-          chargeRes.data.map((item: any) => ({
-            id: item.id,
-            charge: item.charge || 'N/A',
-            orderDate: item.orderDate || new Date().toISOString().split('T')[0],
-            dueDate: item.dueDate || new Date().toISOString().split('T')[0],
-            amount: Number(item.amount) || 0,
-            balance: Number(item.balance) || Number(item.amount) || 0,
-            payNo: item.payNo || '',
-          }))
+          chargeRes.data
+            .filter((item: any) => item.lines && item.lines.length > 0)
+            .map((item: any) => {
+              const line = item.lines[0];
+              return {
+                id: item.id,
+                chargeNo: item.chargeNo || '',
+                chargeDate: item.chargeDate || new Date().toISOString().split('T')[0],
+                orderNo: item.orderNo || '',
+                charge: item.chargeNo || 'N/A',
+                chargeName: line.chargeName || 'Unknown Charge',
+                biltyNo: line.biltyNo || '',
+                date: line.date || item.chargeDate || new Date().toISOString().split('T')[0],
+                vehicle: line.vehicle || '',
+                paidTo: line.paidTo || '',
+                amount: Number(line.amount) || 0,
+                balance: Number(line.amount) || 0,
+                isActive: item.isActive || false,
+              };
+            })
         );
       } catch (error) {
         toast.error('Failed to load data');
@@ -284,75 +350,100 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         chequeDate: initialData.chequeDate || '',
         remarks: initialData.remarks || '',
         paidTo: initialData.paidTo || '',
-        paidAmount: initialData.paidAmount || 0,
-        advanced: initialData.advanced || 0,
+        paidAmount: initialData.paidAmount ?? null,
+        advanced: initialData.advanced ?? null,
         advancedDate: initialData.advancedDate || '',
-        pdc: initialData.pdc || 0,
+        pdc: initialData.pdc ?? null,
         pdcDate: initialData.pdcDate || '',
-        paymentAmount: initialData.paymentAmount || 0,
-        tableData: initialData.tableData?.length
-          ? initialData.tableData.map(row => ({
+        paymentAmount: initialData.paymentAmount ?? null,
+        paymentABLItems: initialData.paymentABLItems?.length
+          ? initialData.paymentABLItems.map(row => ({
+              id: row.id ?? null,
               vehicleNo: row.vehicleNo || '',
               orderNo: row.orderNo || '',
               charges: row.charges || '',
+              chargeNo: row.chargeNo || '',
               orderDate: row.orderDate || '',
               dueDate: row.dueDate || '',
-              expenseAmount: row.expenseAmount || 0,
-              balance: row.balance || 0,
-              paidAmount: row.paidAmount || 0,
+              expenseAmount: row.expenseAmount ?? null,
+              balance: row.balance ?? null,
+              paidAmount: row.paidAmount ?? null,
             }))
-          : [{ vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 }],
+          : [{
+              id: null,
+              vehicleNo: '',
+              orderNo: '',
+              charges: '',
+              chargeNo: '',
+              orderDate: '',
+              dueDate: '',
+              expenseAmount: null,
+              balance: null,
+              paidAmount: null,
+            }],
       });
     }
   }, [isEdit, initialData, reset]);
 
   // Update table calculations
   useEffect(() => {
-    const updatedTableData = tableData.map((row) => {
-      const balance = (row.expenseAmount || 0) - (row.paidAmount || 0);
-      return { ...row, balance };
+    const updatedPaymentABLItems = paymentABLItems.map((row) => {
+      const balance = (row.expenseAmount ?? 0) - (row.paidAmount ?? 0);
+      return { ...row, balance: balance >= 0 ? balance : null };
     });
-    setValue('tableData', updatedTableData);
+    setValue('paymentABLItems', updatedPaymentABLItems);
 
-    const totalPaidAmount = updatedTableData.reduce((sum, row) => sum + (row.paidAmount || 0), 0);
-    setValue('paidAmount', totalPaidAmount);
+    const totalPaidAmount = updatedPaymentABLItems.reduce((sum, row) => sum + (row.paidAmount ?? 0), 0);
+    setValue('paidAmount', totalPaidAmount || null);
 
     const advanced = parseFloat(watch('advanced')?.toString() || '0') || 0;
     const pdc = parseFloat(watch('pdc')?.toString() || '0') || 0;
     const paymentAmount = totalPaidAmount + advanced + pdc;
-    setValue('paymentAmount', paymentAmount);
-  }, [tableData, watch('advanced'), watch('pdc'), setValue, watch]);
+    setValue('paymentAmount', paymentAmount || null);
+  }, [paymentABLItems, watch, setValue]);
 
   const selectOrder = (index: number, order: BookingOrder) => {
-    setValue(`tableData.${index}.vehicleNo`, order.vehicleNo, { shouldValidate: true });
-    setValue(`tableData.${index}.orderNo`, order.orderNo, { shouldValidate: true });
-    setValue(`tableData.${index}.orderDate`, order.orderDate, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.vehicleNo`, order.vehicleNo, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.orderNo`, order.orderNo, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.orderDate`, order.orderDate, { shouldValidate: true });
     setValue('paidTo', order.vendorName, { shouldValidate: true });
     setShowOrderPopup(null);
     setOrderSearch('');
   };
 
   const selectCharge = (index: number, charge: Charge) => {
-    setValue(`tableData.${index}.charges`, charge.charge, { shouldValidate: true });
-    setValue(`tableData.${index}.orderDate`, charge.orderDate, { shouldValidate: true });
-    setValue(`tableData.${index}.dueDate`, charge.dueDate, { shouldValidate: true });
-    setValue(`tableData.${index}.expenseAmount`, Number(charge.amount) || 0, { shouldValidate: true });
-    setValue(`tableData.${index}.balance`, Number(charge.balance) || 0, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.charges`, charge.chargeName, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.chargeNo`, charge.chargeNo, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.expenseAmount`, Number(charge.amount) || null, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.balance`, Number(charge.balance) || null, { shouldValidate: true });
     setShowChargePopup(null);
     setChargeSearch('');
   };
 
   const addTableRow = () => {
-    setValue('tableData', [
-      ...tableData,
-      { vehicleNo: '', orderNo: '', charges: '', orderDate: '', dueDate: '', expenseAmount: 0, balance: 0, paidAmount: 0 },
-    ]);
+    setValue('paymentABLItems', [
+      ...paymentABLItems,
+      {
+        id: null,
+        vehicleNo: '',
+        orderNo: '',
+        charges: '',
+        chargeNo: '',
+        orderDate: '',
+        dueDate: '',
+        expenseAmount: null,
+        balance: null,
+        paidAmount: null,
+      },
+    ], { shouldValidate: true });
   };
 
   const removeTableRow = (index: number) => {
-    if (tableData.length > 1) {
-      const newTableData = tableData.filter((_, i) => i !== index);
-      setValue('tableData', newTableData);
+    if (paymentABLItems.length > 1) {
+      const newPaymentABLItems = paymentABLItems.filter((_, i) => i !== index);
+      setValue('paymentABLItems', newPaymentABLItems, { shouldValidate: true });
     }
   };
 
@@ -362,15 +453,17 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       const currentDateTime = new Date().toISOString();
       const userId = '3fa85f64-5717-4562-b3fc-2c963f66afa6'; // Replace with actual user ID logic
       const payload = {
-        id: isEdit
-          ? initialData?.id || window.location.pathname.split('/').pop() || ''
-          : `PAY${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        id: isEdit ? initialData?.id || window.location.pathname.split('/').pop() || null : null,
         isActive: true,
         isDeleted: false,
         createdDateTime: isEdit ? initialData?.createdDateTime || currentDateTime : currentDateTime,
         createdBy: isEdit ? initialData?.createdBy || userId : userId,
         modifiedDateTime: currentDateTime,
         modifiedBy: userId,
+        creationDate: isEdit ? initialData?.createdDateTime || currentDateTime : currentDateTime,
+        updatedBy: userId,
+        updationDate: currentDateTime,
+        status: initialData?.status || 'Active',
         paymentNo: data.paymentNo || `PAY${Date.now()}${Math.floor(Math.random() * 1000)}`,
         paymentDate: data.paymentDate,
         paymentMode: data.paymentMode,
@@ -379,21 +472,22 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         chequeDate: data.chequeDate || '',
         remarks: data.remarks || '',
         paidTo: data.paidTo,
-        paidAmount: data.paidAmount || 0,
-        advanced: data.advanced || 0,
+        paidAmount: data.paidAmount ?? null,
+        advanced: data.advanced ?? null,
         advancedDate: data.advancedDate || '',
-        pdc: data.pdc || 0,
+        pdc: data.pdc ?? null,
         pdcDate: data.pdcDate || '',
-        paymentAmount: data.paymentAmount || 0,
-        tableData: data.tableData.map(row => ({
+        paymentAmount: data.paymentAmount ?? null,
+        paymentABLItem: data.paymentABLItems.map(row => ({
+          id: row.id ?? null,
           vehicleNo: row.vehicleNo || '',
           orderNo: row.orderNo || '',
-          charges: row.charges || '',
+          charges: row.chargeNo || '', // Send chargeNo as Charges
           orderDate: row.orderDate || '',
           dueDate: row.dueDate || '',
-          expenseAmount: row.expenseAmount || 0,
-          balance: row.balance || 0,
-          paidAmount: row.paidAmount || 0,
+          expenseAmount: row.expenseAmount ?? null,
+          balance: row.balance ?? null,
+          paidAmount: row.paidAmount ?? null,
         })),
       };
 
@@ -630,7 +724,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800">
-                      {tableData.map((row, index) => (
+                      {paymentABLItems.map((row, index) => (
                         <tr key={index} className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <Button
@@ -640,13 +734,13 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                             >
                               {row.vehicleNo || 'Select Vehicle'}
                             </Button>
-                            {errors.tableData?.[index]?.orderNo && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].orderNo.message}</p>
+                            {errors.paymentABLItems?.[index]?.orderNo && (
+                              <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].orderNo.message}</p>
                             )}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.orderNo`)}
+                              {...register(`paymentABLItems.${index}.orderNo`)}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
                               placeholder="Order No"
@@ -660,13 +754,13 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                             >
                               {row.charges || 'Select Charges'}
                             </Button>
-                            {errors.tableData?.[index]?.charges && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].charges.message}</p>
+                            {errors.paymentABLItems?.[index]?.charges && (
+                              <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].charges.message}</p>
                             )}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.orderDate`)}
+                              {...register(`paymentABLItems.${index}.orderDate`)}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
                               placeholder="Date"
@@ -674,7 +768,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.dueDate`)}
+                              {...register(`paymentABLItems.${index}.dueDate`)}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
                               placeholder="Date"
@@ -682,7 +776,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.expenseAmount`, { valueAsNumber: true })}
+                              {...register(`paymentABLItems.${index}.expenseAmount`, { valueAsNumber: true })}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none"
                               placeholder="0.00"
@@ -690,7 +784,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.balance`, { valueAsNumber: true })}
+                              {...register(`paymentABLItems.${index}.balance`, { valueAsNumber: true })}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none font-medium"
                               placeholder="0.00"
@@ -698,15 +792,15 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           </td>
                           <td className="px-4 py-3">
                             <input
-                              {...register(`tableData.${index}.paidAmount`, { valueAsNumber: true })}
+                              {...register(`paymentABLItems.${index}.paidAmount`, { valueAsNumber: true })}
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
                               placeholder="0.00"
                               type="number"
                               min="0"
                               step="0.01"
                             />
-                            {errors.tableData?.[index]?.paidAmount && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].paidAmount.message}</p>
+                            {errors.paymentABLItems?.[index]?.paidAmount && (
+                              <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].paidAmount.message}</p>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -714,7 +808,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                               type="button"
                               onClick={() => removeTableRow(index)}
                               className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
-                              disabled={tableData.length <= 1}
+                              disabled={paymentABLItems.length <= 1}
                             >
                               <FiX />
                             </Button>
@@ -728,13 +822,13 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           TOTALS:
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {tableData.reduce((sum, row) => sum + (row.expenseAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {paymentABLItems.reduce((sum, row) => sum + (row.expenseAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {tableData.reduce((sum, row) => sum + (row.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {paymentABLItems.reduce((sum, row) => sum + (row.balance ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base">
-                          {tableData.reduce((sum, row) => sum + (row.paidAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {paymentABLItems.reduce((sum, row) => sum + (row.paidAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3"></td>
                       </tr>
@@ -751,7 +845,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                     + Add New Row
                   </Button>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Total Rows: {tableData.length}
+                    Total Rows: {paymentABLItems.length}
                   </div>
                 </div>
               </div>
@@ -796,9 +890,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         {/* Booking Order Selection Popup */}
         {showOrderPopup !== null && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl max-w-lg w-full mx-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl max-w-3xl w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
                 <Button
                   onClick={() => {
                     setShowOrderPopup(null);
@@ -807,10 +901,10 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                   className="text-gray-400 hover:text-gray-600 p-1"
                   variant="ghost"
                 >
-                  <FiX className="text-base" />
+                  <FiX className="text-lg" />
                 </Button>
               </div>
-              <div className="mb-3">
+              <div className="mb-4">
                 <input
                   type="text"
                   placeholder="Search by Vehicle No, Order No, Date, or Vendor..."
@@ -819,23 +913,23 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
                 />
               </div>
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
                 {filteredBookingOrders.length === 0 ? (
                   <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No booking orders found</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
-                        <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
                           Vehicle No
                         </th>
-                        <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
                           Order No
                         </th>
-                        <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
                           Order Date
                         </th>
-                        <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-200">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
                           Vendor Name
                         </th>
                       </tr>
@@ -847,16 +941,16 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           onClick={() => selectOrder(showOrderPopup, order)}
                           className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                         >
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
                             {order.vehicleNo}
                           </td>
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
                             {order.orderNo}
                           </td>
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
                             {order.orderDate}
                           </td>
-                          <td className="px-4 py-2 text-gray-800 dark:text-gray-200">
+                          <td className="px-4 py-3 text-gray-800 dark:text-gray-200">
                             {order.vendorName}
                           </td>
                         </tr>
@@ -865,13 +959,13 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                   </table>
                 )}
               </div>
-              <div className="flex justify-end mt-3">
+              <div className="flex justify-end mt-4">
                 <Button
                   onClick={() => {
                     setShowOrderPopup(null);
                     setOrderSearch('');
                   }}
-                  className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded-md"
+                  className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-md"
                 >
                   Cancel
                 </Button>
@@ -883,9 +977,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         {/* Charges Selection Popup */}
         {showChargePopup !== null && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl max-w-lg w-full mx-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Select Charges</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl max-w-3xl w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">Select Charges</h3>
                 <Button
                   onClick={() => {
                     setShowChargePopup(null);
@@ -894,62 +988,74 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                   className="text-gray-400 hover:text-gray-600 p-1"
                   variant="ghost"
                 >
-                  <FiX className="text-base" />
+                  <FiX className="text-lg" />
                 </Button>
               </div>
-              <div className="mb-3">
+              <div className="mb-4">
                 <input
                   type="text"
-                  placeholder="Search by Charge, Dates, or Amount..."
+                  placeholder="Search by Charge No, Charge Name, Order No, Dates, or Amount..."
                   value={chargeSearch}
                   onChange={(e) => setChargeSearch(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
                 />
               </div>
-              <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
-                {filteredCharges.length === 0 ? (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No saved charges available</p>
+              <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                {getFilteredCharges(showChargePopup).length === 0 ? (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No saved charges available for this order</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
-                        <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Charge
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
+                          Charge No
                         </th>
-                        <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
+                          Charge Name
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
+                          Order No
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
                           Order Date
                         </th>
-                        <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
                           Due Date
                         </th>
-                        <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
                           Amount
                         </th>
-                        <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-200">
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">
                           Balance
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800">
-                      {filteredCharges.map((charge) => (
+                      {getFilteredCharges(showChargePopup).map((charge) => (
                         <tr
                           key={charge.id}
                           onClick={() => selectCharge(showChargePopup, charge)}
                           className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                         >
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.charge}
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                            {charge.chargeNo}
                           </td>
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.orderDate}
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                            {charge.chargeName}
                           </td>
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.dueDate}
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                            {charge.orderNo}
                           </td>
-                          <td className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 text-right text-gray-800 dark:text-gray-200">
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                            {charge.chargeDate}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                            {charge.date}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-right text-gray-800 dark:text-gray-200">
                             {Number(charge.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
-                          <td className="px-4 py-2 text-right text-gray-800 dark:text-gray-200">
+                          <td className="px-4 py-3 text-right text-gray-800 dark:text-gray-200">
                             {Number(charge.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </tr>
@@ -958,13 +1064,13 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                   </table>
                 )}
               </div>
-              <div className="flex justify-end mt-3">
+              <div className="flex justify-end mt-4">
                 <Button
                   onClick={() => {
                     setShowChargePopup(null);
                     setChargeSearch('');
                   }}
-                  className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded-md"
+                  className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-md"
                 >
                   Cancel
                 </Button>

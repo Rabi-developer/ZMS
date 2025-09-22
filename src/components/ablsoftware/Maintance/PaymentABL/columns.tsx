@@ -25,7 +25,7 @@ export interface PaymentABL {
   chequeDate: string;
   paidAmount: string;
   status: string;
-  items?: Array<{
+  PaymentABLItem?: Array<{
     orderNo: string;
   }>;
 }
