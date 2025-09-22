@@ -49,6 +49,7 @@ interface BookingOrder {
 }
 
 interface Item {
+  id?: string;
   desc: string;
   qty: number;
   rate: number;
@@ -92,6 +93,7 @@ const consignmentSchema = z.object({
   freightFrom: z.string().optional(),
   items: z.array(
     z.object({
+      id: z.string().optional(),
       desc: z.string().optional(),
       qty: z.number().optional(),
       rate: z.number().optional(),
@@ -363,7 +365,12 @@ const ConsignmentForm = ({ isEdit = false }) => {
       const payload = {
         ...data,
         orderNo: data.orderNo || orderNoParam || '',
-        items: data.items,
+        items: isEdit
+          ? data.items.map((item, idx) => ({
+              ...item,
+              ...(item.id ? { id: item.id } : {}),
+            }))
+          : data.items,
       };
       let createdConsignment = null;
       if (isEdit) {
