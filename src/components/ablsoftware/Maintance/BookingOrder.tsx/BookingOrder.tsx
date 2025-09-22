@@ -25,6 +25,7 @@ import { FaRegBuilding, FaIdCard } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
 import { FiSave, FiX, FiUser } from 'react-icons/fi';
+import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 
 // Extend ABLNewCustomInputProps to include onFocus and onBlur
 interface ABLNewCustomInputProps {
@@ -982,7 +983,7 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                 </thead>
                 <tbody>
                   {bookingConsignments.length === 0 ? (
-                    <tr>
+                    <tr>  
                       <td colSpan={10} className="px-6 py-4 text-center">
                         No consignments selected for this booking
                       </td>
@@ -999,9 +1000,9 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
                         <td className="px-6 py-3">{cons.totalAmount ?? 'N/A'}</td>
                         <td className="px-6 py-3">{cons.recvAmount ?? 'N/A'}</td>
                         <td className="px-6 py-3">{cons.delDate}</td>
-                        <td className="px-6 py-3">
-                          <AblNewCustomDrpdown
-                            label="Status"
+                        <td className="px-6 py-3 ">
+                          <AblCustomDropdown
+                            label=""
                             options={['Prepared', 'Unload', 'Bilty Received', 'Bilty Submit', 'Payment Received'].map((s) => ({
                               id: s,
                               name: s,
