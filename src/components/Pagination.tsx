@@ -34,9 +34,9 @@ const Pagination: React.FC<PaginationProps> = ({
         onChange={(e) => onRowsPerPageChange(Number(e.target.value))}
         className="border border-gray-400 rounded px-2 py-1 text-sm"
       >
-        <option value={10}>10 rows</option>
-        <option value={20}>20 rows</option>
-        <option value={50}>50 rows</option>
+        <option value={100}>10 rows</option>
+        <option value={1000}>20 rows</option>
+        <option value={10000}>50 rows</option>
       </select>
       <a
         href="#"
