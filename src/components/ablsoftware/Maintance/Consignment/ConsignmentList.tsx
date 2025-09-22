@@ -103,9 +103,43 @@ const ConsignmentList = () => {
   };
 
   const handleRowClick = async (consignmentId: string) => {
-    // If the row is not selected, select it and show OrderProgress
-    if (!selectedConsignmentIds.includes(consignmentId)) {
-      setSelectedConsignmentIds((prev) => [...prev, consignmentId]);
+    // If the row is already selected, do nothing on single click
+    if (selectedConsignmentIds.includes(consignmentId)) {
+      return;
+    }
+
+    // Select the row and fetch booking status
+    setSelectedConsignmentIds([consignmentId]); // Only one row selected at a time
+    setSelectedRowId(consignmentId);
+    const consignment = consignments.find((item) => item.id === consignmentId);
+    if (consignment?.orderNo) {
+      try {
+        const response = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
+        const booking = response?.data.find((b: any) => b.orderNo === consignment.orderNo);
+        setBookingStatus(booking?.status || null);
+      } catch (error) {
+        toast('Failed to fetch booking status', { type: 'error' });
+      }
+    }
+
+    // Update selected bulk status
+    const selectedConsignment = consignments.find((c) => c.id === consignmentId);
+    setSelectedBulkStatus(selectedConsignment?.status || null);
+  };
+
+  const handleRowDoubleClick = (consignmentId: string) => {
+    // Deselect the row on double-click
+    if (selectedConsignmentIds.includes(consignmentId)) {
+      setSelectedConsignmentIds([]);
+      setSelectedRowId(null);
+      setBookingStatus(null);
+      setSelectedBulkStatus(null);
+    }
+  };
+
+  const handleCheckboxChange = async (consignmentId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedConsignmentIds([consignmentId]); // Only one row selected at a time
       setSelectedRowId(consignmentId);
       const consignment = consignments.find((item) => item.id === consignmentId);
       if (consignment?.orderNo) {
@@ -117,42 +151,15 @@ const ConsignmentList = () => {
           toast('Failed to fetch booking status', { type: 'error' });
         }
       }
-    }
-    // Update selected bulk status for UI consistency
-    setTimeout(() => {
-      const selected = consignments.filter((c) => selectedConsignmentIds.includes(c.id));
-      const statuses = selected.map((c) => c.status).filter((status, index, self) => self.indexOf(status) === index);
-      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
-    }, 100);
-  };
-
-  const handleCheckboxChange = async (consignmentId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedConsignmentIds((prev) => [...prev, consignmentId]);
-      setSelectedRowId(consignmentId); // Show OrderProgress for the last checked row
-      const consignment = consignments.find((item) => item.id === consignmentId);
-      if (consignment?.orderNo) {
-        try {
-          const response = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
-          const booking = response?.data.find((b: any) => b.orderNo === consignment.orderNo);
-          setBookingStatus(booking?.status || null);
-        } catch (error) {
-          toast('Failed to fetch booking status', { type: 'error' });
-        }
-      }
     } else {
-      setSelectedConsignmentIds((prev) => prev.filter((id) => id !== consignmentId));
-      if (selectedRowId === consignmentId) {
-        setSelectedRowId(null); // Hide OrderProgress if the deselected row was shown
-        setBookingStatus(null);
-      }
+      setSelectedConsignmentIds([]);
+      setSelectedRowId(null);
+      setBookingStatus(null);
     }
 
-    setTimeout(() => {
-      const selected = consignments.filter((c) => selectedConsignmentIds.includes(c.id));
-      const statuses = selected.map((c) => c.status).filter((status, index, self) => self.indexOf(status) === index);
-      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
-    }, 100);
+    // Update selected bulk status
+    const selectedConsignment = consignments.find((c) => c.id === consignmentId);
+    setSelectedBulkStatus(checked ? selectedConsignment?.status || null : null);
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
@@ -235,7 +242,7 @@ const ConsignmentList = () => {
   };
 
   return (
-    <div className="container mx-auto mt-4  max-w-screen  p-6 ">
+    <div className="container mx-auto mt-4 max-w-screen p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -279,11 +286,10 @@ const ConsignmentList = () => {
           setPageSize={setPageSize}
           totalRows={selectedStatusFilter === 'All' ? totalRows : filteredConsignments.length}
           onRowClick={handleRowClick}
+          onRowDoubleClick={handleRowDoubleClick} // Added double-click prop
         />
       </div>
-    
-     
-      <div className=" space-y-2 h-[10vh]">
+      <div className="space-y-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -303,18 +309,17 @@ const ConsignmentList = () => {
           })}
         </div>
       </div>
-
-        {selectedRowId && selectedConsignmentIds.length === 1 && (
-        <div className="">
+      {selectedRowId && (
+        <div className="mt-4">
           <OrderProgress
             orderNo={consignments.find((c) => c.id === selectedRowId)?.orderNo}
             bookingStatus={bookingStatus}
-            consignments={consignments.filter((c) => c.id === selectedRowId).map(consignment => ({
-              ...consignment,
-              items: Array.isArray(consignment.items)
-                ? consignment.items
-                : undefined
-            }))}
+            consignments={consignments
+              .filter((c) => c.id === selectedRowId)
+              .map((consignment) => ({
+                ...consignment,
+                items: Array.isArray(consignment.items) ? consignment.items : undefined,
+              }))}
           />
         </div>
       )}
