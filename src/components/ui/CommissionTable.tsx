@@ -131,7 +131,8 @@ interface DataTableProps<TData extends { id: string }, TValue> {
   setPageSize: React.Dispatch<React.SetStateAction<number>>;
   pageSize: number;
   totalRows?: number;
-  onRowClick?: (id: string) => void; // Added prop for row click
+  onRowClick?: (id: string) => void;
+  onRowDoubleClick?: (id: string) => void; // Added prop for double-click
 }
 
 function globalFilterFn(row: any, columnId: string, value: string) {
@@ -155,6 +156,7 @@ export function DataTable<TData extends { id: string }, TValue>({
   searchName = "name",
   hide = true,
   onRowClick,
+  onRowDoubleClick, // Added to props
 }: DataTableProps<TData, TValue>) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -433,7 +435,8 @@ export function DataTable<TData extends { id: string }, TValue>({
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ duration: 0.3, delay: index * 0.05 }}
                           className="border-b border-[#6e997f]/30 hover:bg-[#3a614c]/5 transition-all duration-200 group cursor-pointer"
-                          onClick={() => onRowClick?.(row.original.id)} // Added row click handler
+                          onClick={() => onRowClick?.(row.original.id)}
+                          onDoubleClick={() => onRowDoubleClick?.(row.original.id)} // Added double-click handler
                         >
                           {row.getVisibleCells().map((cell) => (
                             <TableCell
@@ -559,24 +562,24 @@ export function DataTable<TData extends { id: string }, TValue>({
                 const lastIndex = Math.max(Math.ceil((totalRows || data.length) / pageSize) - 1, 0);
                 return (
                   <>
-              <Button
-                variant="outline"
-                size="sm"
-                    onClick={() => setPageIndex((prev) => Math.min(prev + 1, lastIndex))}
-                    disabled={pageIndex >= lastIndex}
-                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next <FaAngleRight className="ml-1" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                    onClick={() => setPageIndex(() => lastIndex)}
-                    disabled={pageIndex >= lastIndex}
-                className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Last
-              </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPageIndex((prev) => Math.min(prev + 1, lastIndex))}
+                      disabled={pageIndex >= lastIndex}
+                      className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next <FaAngleRight className="ml-1" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPageIndex(() => lastIndex)}
+                      disabled={pageIndex >= lastIndex}
+                      className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Last
+                    </Button>
                   </>
                 );
               })()}

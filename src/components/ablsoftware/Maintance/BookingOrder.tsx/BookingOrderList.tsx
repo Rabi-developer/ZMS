@@ -49,7 +49,6 @@ interface DropdownOption {
 }
 
 const BookingOrderList = () => {
-  // Local ABL date formatter
   const formatABLDate = (dateStr?: string): string => {
     if (!dateStr) return '-';
     const d = new Date(dateStr);
@@ -93,7 +92,6 @@ const BookingOrderList = () => {
     { id: 5, name: 'Closed', color: '#6b7280' },
   ];
 
-  // Helper to resolve a party id/name to a readable name
   const resolvePartyName = (val?: string): string => {
     if (!val) return '-';
     const fromVendors = vendors.find((v) => v.id === val || v.name === val);
@@ -213,37 +211,45 @@ const BookingOrderList = () => {
   };
 
   const handleRowClick = async (orderId: string) => {
-    if (!selectedOrderIds.includes(orderId)) {
-      setSelectedOrderIds((prev) => [...prev, orderId]);
-      setSelectedRowId(orderId);
-      await fetchConsignments(orderId);
+    // If the row is already selected, do nothing on single click
+    if (selectedOrderIds.includes(orderId)) {
+      return;
     }
-    setTimeout(() => {
-      const selected = bookingOrders.filter((order) => selectedOrderIds.includes(order.id));
-      const statuses = selected.map((order) => order.status).filter((status, index, self) => self.indexOf(status) === index);
-      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
-    }, 100);
+
+    // Select the row and fetch consignments
+    setSelectedOrderIds([orderId]); // Only one row selected at a time
+    setSelectedRowId(orderId);
+    await fetchConsignments(orderId);
+
+    // Update bulk status for the single selected row
+    const selectedOrder = bookingOrders.find((order) => order.id === orderId);
+    setSelectedBulkStatus(selectedOrder?.status || null);
+  };
+
+  const handleRowDoubleClick = (orderId: string) => {
+    // Deselect the row on double-click
+    if (selectedOrderIds.includes(orderId)) {
+      setSelectedOrderIds([]);
+      setSelectedRowId(null);
+      setSelectedBulkStatus(null);
+    }
   };
 
   const handleCheckboxChange = async (orderId: string, checked: boolean) => {
     if (checked) {
-      setSelectedOrderIds((prev) => [...prev, orderId]);
+      setSelectedOrderIds([orderId]); // Only one row selected at a time
+      setSelectedRowId(orderId);
       if (!consignments[orderId]) {
         await fetchConsignments(orderId);
       }
-      setSelectedRowId(orderId);
     } else {
-      setSelectedOrderIds((prev) => prev.filter((id) => id !== orderId));
-      if (selectedRowId === orderId) {
-        setSelectedRowId(null);
-      }
+      setSelectedOrderIds([]);
+      setSelectedRowId(null);
     }
 
-    setTimeout(() => {
-      const selected = bookingOrders.filter((order) => selectedOrderIds.includes(order.id));
-      const statuses = selected.map((order) => order.status).filter((status, index, self) => self.indexOf(status) === index);
-      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
-    }, 100);
+    // Update bulk status
+    const selectedOrder = bookingOrders.find((order) => order.id === orderId);
+    setSelectedBulkStatus(checked ? selectedOrder?.status || null : null);
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
@@ -535,28 +541,18 @@ const BookingOrderList = () => {
             pageSize={pageSize}
             setPageSize={setPageSize}
             onRowClick={handleRowClick}
+            onRowDoubleClick={handleRowDoubleClick} // Add double-click handler
           />
         </div>
 
-        {selectedOrderIds.length > 1 && (
+        {selectedRowId && (
           <div className="mt-4">
-            <h3 className="text-lg font-semibold text-[#06b6d4]">Selected Orders and Consignments</h3>
-            {selectedOrderIds.map((orderId) => {
-              const order = bookingOrders.find((o) => o.id === orderId);
-              const cons = consignments[orderId] || [];
-
-              return (
-                <div key={orderId} className="mt-4">
-                  <h4 className="text-md font-medium">Order: {order?.orderNo || '-'}</h4>
-                  <OrderProgress
-                    orderNo={order?.orderNo}
-                    bookingStatus={order?.status}
-                    consignments={cons}
-                    hideBookingOrderInfo
-                  />
-                </div>
-              );
-            })}
+            <OrderProgress
+              orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
+              bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
+              consignments={consignments[selectedRowId] || []}
+              hideBookingOrderInfo
+            />
           </div>
         )}
 
@@ -580,16 +576,7 @@ const BookingOrderList = () => {
             })}
           </div>
         </div>
-        {selectedRowId && selectedOrderIds.length === 1 && (
-          <div className="">
-            <OrderProgress
-              orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
-              bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
-              consignments={consignments[selectedRowId] || []}
-              hideBookingOrderInfo
-            />
-          </div>
-        )}
+
         {openDelete && (
           <DeleteConfirmModel
             handleDeleteclose={handleDeleteClose}
@@ -598,7 +585,6 @@ const BookingOrderList = () => {
           />
         )}
 
-        {/* PDF Modal */}
         {openPdfModal && (
           <div
             id="pdfModal"
