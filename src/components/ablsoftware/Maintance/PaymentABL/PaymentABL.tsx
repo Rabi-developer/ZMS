@@ -71,6 +71,8 @@ interface PaymentFormProps {
     modifiedDateTime?: string;
     modifiedBy?: string;
     status?: string;
+    // Some APIs return the items as `paymentABLItem` (singular) instead of `paymentABLItems` (plural)
+    paymentABLItem?: any[];
   };
 }
 
@@ -136,31 +138,34 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           pdc: initialData.pdc ?? null,
           pdcDate: initialData.pdcDate || '',
           paymentAmount: initialData.paymentAmount ?? null,
-          paymentABLItems: initialData.paymentABLItems?.length
-            ? initialData.paymentABLItems.map(row => ({
-                id: row.id ?? null,
-                vehicleNo: row.vehicleNo || '',
-                orderNo: row.orderNo || '',
-                charges: row.charges || '',
-                chargeNo: row.chargeNo || '',
-                orderDate: row.orderDate || '',
-                dueDate: row.dueDate || '',
-                expenseAmount: row.expenseAmount ?? null,
-                balance: row.balance ?? null,
-                paidAmount: row.paidAmount ?? null,
-              }))
-            : [{
-                id: null,
-                vehicleNo: '',
-                orderNo: '',
-                charges: '',
-                chargeNo: '',
-                orderDate: '',
-                dueDate: '',
-                expenseAmount: null,
-                balance: null,
-                paidAmount: null,
-              }],
+          // Accept either `paymentABLItems` (array) or `paymentABLItem` (singular payload from some APIs)
+          paymentABLItems: (initialData.paymentABLItems && initialData.paymentABLItems.length > 0
+            ? initialData.paymentABLItems
+            : initialData.paymentABLItem && initialData.paymentABLItem.length > 0
+            ? initialData.paymentABLItem
+            : null)?.map?.((row: any) => ({
+              id: row.id ?? null,
+              vehicleNo: row.vehicleNo || '',
+              orderNo: row.orderNo || '',
+              charges: row.charges || '',
+              chargeNo: row.chargeNo || '',
+              orderDate: row.orderDate || '',
+              dueDate: row.dueDate || '',
+              expenseAmount: row.expenseAmount ?? null,
+              balance: row.balance ?? null,
+              paidAmount: row.paidAmount ?? null,
+            })) ?? [{
+              id: null,
+              vehicleNo: '',
+              orderNo: '',
+              charges: '',
+              chargeNo: '',
+              orderDate: '',
+              dueDate: '',
+              expenseAmount: null,
+              balance: null,
+              paidAmount: null,
+            }],
         }
       : {
           paymentNo: '',
@@ -235,6 +240,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     { id: 'BankOfKhyber', name: 'The Bank of Khyber' },
     { id: 'BankOfAzadKashmir', name: 'Bank of Azad Kashmir' },
     { id: 'IndustrialDevelopment', name: 'Industrial Development Bank of Pakistan' },
+    { id: 'PattyCash', name: 'Patty Cash ' },
     { id: 'Other', name: 'Other' },
   ];
 
@@ -280,8 +286,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       setIsLoading(true);
       try {
         const [orderRes, chargeRes] = await Promise.all([
-          getAllBookingOrder(),
-          getAllCharges(1, 100),
+          getAllBookingOrder(1, 1000),
+          getAllCharges(1, 1000),
         ]);
         setBookingOrders(
           orderRes.data.map((item: any) => ({
@@ -341,6 +347,13 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   // Populate form with initialData in edit mode
   useEffect(() => {
     if (isEdit && initialData) {
+      // normalize initialData to accept either paymentABLItems or paymentABLItem
+      const normalizedItems = (initialData.paymentABLItems && initialData.paymentABLItems.length > 0
+        ? initialData.paymentABLItems
+        : initialData.paymentABLItem && initialData.paymentABLItem.length > 0
+        ? initialData.paymentABLItem
+        : null) ?? null;
+
       reset({
         paymentNo: initialData.paymentNo || '',
         paymentDate: initialData.paymentDate || '',
@@ -356,31 +369,29 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         pdc: initialData.pdc ?? null,
         pdcDate: initialData.pdcDate || '',
         paymentAmount: initialData.paymentAmount ?? null,
-        paymentABLItems: initialData.paymentABLItems?.length
-          ? initialData.paymentABLItems.map(row => ({
-              id: row.id ?? null,
-              vehicleNo: row.vehicleNo || '',
-              orderNo: row.orderNo || '',
-              charges: row.charges || '',
-              chargeNo: row.chargeNo || '',
-              orderDate: row.orderDate || '',
-              dueDate: row.dueDate || '',
-              expenseAmount: row.expenseAmount ?? null,
-              balance: row.balance ?? null,
-              paidAmount: row.paidAmount ?? null,
-            }))
-          : [{
-              id: null,
-              vehicleNo: '',
-              orderNo: '',
-              charges: '',
-              chargeNo: '',
-              orderDate: '',
-              dueDate: '',
-              expenseAmount: null,
-              balance: null,
-              paidAmount: null,
-            }],
+        paymentABLItems: normalizedItems?.map((row: any) => ({
+          id: row.id ?? null,
+          vehicleNo: row.vehicleNo || '',
+          orderNo: row.orderNo || '',
+          charges: row.charges || '',
+          chargeNo: row.chargeNo || '',
+          orderDate: row.orderDate || '',
+          dueDate: row.dueDate || '',
+          expenseAmount: row.expenseAmount ?? null,
+          balance: row.balance ?? null,
+          paidAmount: row.paidAmount ?? null,
+        })) ?? [{
+          id: null,
+          vehicleNo: '',
+          orderNo: '',
+          charges: '',
+          chargeNo: '',
+          orderDate: '',
+          dueDate: '',
+          expenseAmount: null,
+          balance: null,
+          paidAmount: null,
+        }],
       });
     }
   }, [isEdit, initialData, reset]);
@@ -545,7 +556,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
               <div className="relative">
                 <ABLCustomInput
                   label="Payment #"

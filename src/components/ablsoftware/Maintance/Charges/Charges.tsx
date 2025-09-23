@@ -1,20 +1,20 @@
 'use client';
-import React, { useState, useEffect, Suspense } from 'react';
-import { useForm, Controller, useWatch } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
-import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createCharges, updateCharges, getAllCharges } from '@/apis/charges';
+import { createCharges, updateCharges } from '@/apis/charges';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllConsignment } from '@/apis/consignment';
 import { getAllBusinessAssociate } from '@/apis/businessassociate';
 import { getAllBookingOrder } from '@/apis/bookingorder';
+import { getAllPaymentABL } from '@/apis/paymentABL';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MdLocalShipping, MdInfo, MdPayment, MdAccountBalance } from 'react-icons/md';
-import { FaMoneyBillWave, FaCreditCard, FaReceipt } from 'react-icons/fa';
+import { MdLocalShipping, MdInfo, MdPayment } from 'react-icons/md';
+import { FaMoneyBillWave, FaReceipt } from 'react-icons/fa';
 import Link from 'next/link';
 import { FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
 
@@ -66,6 +66,24 @@ interface Payment {
   chqNo: string;
   chqDate: string;
   payNo: string;
+  orderNo: string;
+  vehicleNo: string;
+}
+
+interface PaymentABL {
+  id: string;
+  paymentNo: string;
+  paymentDate: string;
+  paymentMode: string;
+  bankName: string;
+  chequeNo: string;
+  chequeDate: string;
+  paidAmount: number | null;
+  paymentABLItem?: Array<{
+    charges: string;
+    orderNo: string;
+    vehicleNo: string;
+  }>;
 }
 
 // Schema for charges
@@ -94,8 +112,9 @@ const chargesSchema = z.object({
     chqNo: z.string().optional().nullable(),
     chqDate: z.string().optional().nullable(),
     payNo: z.string().optional().nullable(),
+    orderNo: z.string().optional().nullable(),
+    vehicleNo: z.string().optional().nullable(),
   })),
-  selectedConsignments: z.array(z.string()).optional().nullable(),
 });
 
 type ChargesFormData = z.infer<typeof chargesSchema>;
@@ -117,7 +136,6 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
     formState: { errors },
     setValue,
     watch,
-    getValues,
   } = useForm<ChargesFormData>({
     resolver: zodResolver(chargesSchema),
     defaultValues: initialData
@@ -130,9 +148,12 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           updatedBy: initialData.updatedBy || '',
           updationDate: initialData.updationDate || '',
           status: initialData.status || '',
-          lines: Array.isArray(initialData.lines) ? initialData.lines : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
-          payments: Array.isArray(initialData.payments) ? initialData.payments : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }],
-          selectedConsignments: Array.isArray(initialData.selectedConsignments) ? initialData.selectedConsignments : [],
+          lines: Array.isArray(initialData.lines)
+            ? initialData.lines
+            : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
+          payments: Array.isArray(initialData.payments)
+            ? initialData.payments
+            : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '', orderNo: '', vehicleNo: '' }],
         }
       : {
           chargeNo: '',
@@ -144,8 +165,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           updationDate: '',
           status: '',
           lines: [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
-          payments: [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }],
-          selectedConsignments: [],
+          payments: [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '', orderNo: '', vehicleNo: '' }],
         },
   });
 
@@ -157,18 +177,13 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const [showBiltyPopup, setShowBiltyPopup] = useState(false);
   const [showOrderPopup, setShowOrderPopup] = useState(false);
   const [selectedLineIndex, setSelectedLineIndex] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [tempSelectedConsignments, setTempSelectedConsignments] = useState<string[]>([]);
-  // Remove local selectedConsignments state, use react-hook-form only
-  const [searchTerm, setSearchTerm] = useState('');
-  const lines = watch('lines');
-  const payments = watch('payments');
-
-  // Local search states for popups
   const [orderSearch, setOrderSearch] = useState('');
   const [biltySearch, setBiltySearch] = useState('');
 
-  // Filtered lists based on search
+  const lines = watch('lines');
+  const payments = watch('payments');
+
+  // Filtered consignments and booking orders for popups
   const filteredConsignments = consignments.filter((c) => {
     const q = biltySearch.toLowerCase();
     return !q || `${c.biltyNo || ''} ${c.id || ''}`.toLowerCase().includes(q);
@@ -184,36 +199,24 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
     );
   });
 
-  const filteredConsignmentsForModal = consignments.filter((cons) =>
-    [
-      cons.biltyNo || '',
-      cons.receiptNo || '',
-      cons.consignor || '',
-      cons.consignee || '',
-      cons.item || '',
-      cons.qty != null ? cons.qty.toString() : '',
-      cons.totalAmount != null ? cons.totalAmount.toString() : '',
-      cons.recvAmount != null ? cons.recvAmount.toString() : '',
-      cons.delDate || '',
-      cons.status || '',
-    ].some((field) => field.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
-
   const bankCashOptions: DropdownOption[] = [
     { id: 'Bank', name: 'Bank' },
     { id: 'Cash', name: 'Cash' },
     { id: 'Cheque', name: 'Cheque' },
   ];
 
+  // Fetch data including PaymentABL and Consignments
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [munRes, consRes, baRes, bookRes] = await Promise.all([
-          getAllMunshyana(),
-          getAllConsignment(1, 100),
-          getAllBusinessAssociate(),
-          getAllBookingOrder(),
+        const [munRes, consRes, baRes, bookRes, paymentRes] = await Promise.all([
+          getAllMunshyana(1, 100),
+          getAllConsignment(1, 1000),
+          getAllBusinessAssociate(1, 100),
+          getAllBookingOrder(1, 100),
+          getAllPaymentABL(1, 1000),
         ]);
+
         setMunshyanas(munRes.data.map((m: any) => ({ id: m.id, name: m.chargesDesc })));
         setConsignments(consRes.data);
         setBusinessAssociates(baRes.data.map((ba: any) => ({ id: ba.id, name: ba.name, contact: ba.contact })));
@@ -229,16 +232,36 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           }))
         );
 
-        // If opened from Booking Order with orderNo, prefill it
+        // If in edit mode or chargeNo exists, filter PaymentABL records
+        if ((isEdit || fromBooking) && initialData?.chargeNo) {
+          const relatedPayments = paymentRes.data.filter((payment: PaymentABL) =>
+            payment.paymentABLItem?.some((item) => item.charges === initialData.chargeNo)
+          );
+
+          const mappedPayments = relatedPayments.map((payment: PaymentABL) => ({
+            paidAmount: payment.paidAmount || 0,
+            bankCash: payment.paymentMode || '',
+            chqNo: payment.chequeNo || '',
+            chqDate: payment.chequeDate || '',
+            payNo: payment.paymentNo || '',
+            orderNo: payment.paymentABLItem?.map((item) => item.orderNo).join(', ') || '',
+            vehicleNo: payment.paymentABLItem?.map((item) => item.vehicleNo).join(', ') || '',
+          }));
+
+          setValue(
+            'payments',
+            mappedPayments.length > 0
+              ? mappedPayments
+              : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '', orderNo: '', vehicleNo: '' }],
+            { shouldValidate: true }
+          );
+        }
+
         if (fromBooking && orderNoParam) {
           setValue('orderNo', orderNoParam);
           try {
             const consRes = await getAllConsignment(1, 10, { orderNo: orderNoParam });
-            const bookingConsignments = consRes.data || [];
-            setConsignments([...consRes.data, ...bookingConsignments]);
-            const selectedBiltyNos = bookingConsignments.map((c: Consignment) => c.biltyNo);
-            setValue('selectedConsignments', selectedBiltyNos);
-            setTempSelectedConsignments(selectedBiltyNos);
+            setConsignments([...consRes.data]);
           } catch (e) {
             console.warn('Failed to fetch consignments for booking', e);
           }
@@ -249,27 +272,20 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           setValue('chargeDate', initialData.chargeDate || '');
           setValue('orderNo', initialData.orderNo || '');
           setValue('lines', Array.isArray(initialData.lines) ? initialData.lines : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }]);
-          setValue('payments', Array.isArray(initialData.payments) ? initialData.payments : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' }]);
-          setValue('selectedConsignments', Array.isArray(initialData.selectedConsignments) ? initialData.selectedConsignments : []);
-          setTempSelectedConsignments(Array.isArray(initialData.selectedConsignments) ? initialData.selectedConsignments : []);
-          // Fetch consignments associated with this charge
           try {
             const consRes = await getAllConsignment(1, 10, { chargeNo: initialData.chargeNo });
-            const relatedConsignments = consRes.data || [];
-            setConsignments([...consRes.data, ...relatedConsignments]);
-            const selectedBiltyNos = relatedConsignments.map((c: Consignment) => c.biltyNo);
-            setValue('selectedConsignments', selectedBiltyNos);
-            setTempSelectedConsignments(selectedBiltyNos);
+            setConsignments([...consRes.data]);
           } catch (e) {
             console.warn('Failed to fetch related consignments', e);
           }
         }
       } catch (error) {
         toast.error('Failed to load data');
+        console.error('Error fetching data:', error);
       }
     };
     fetchData();
-  }, [isEdit, setValue, fromBooking, orderNoParam]);
+  }, [isEdit, setValue, fromBooking, orderNoParam, initialData]);
 
   const selectBilty = (cons: Consignment, index: number) => {
     setValue(`lines.${index}.biltyNo`, cons.biltyNo);
@@ -305,99 +321,6 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
     }
   };
 
-  const addPayment = () => {
-    setValue('payments', [
-      ...payments,
-      { paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '' },
-    ]);
-  };
-
-  const removePayment = (index: number) => {
-    if (payments.length > 1) {
-      const newPayments = payments.filter((_, i) => i !== index);
-      setValue('payments', newPayments);
-    }
-  };
-
-  const handleConsignmentSelection = (biltyNo: string, checked: boolean) => {
-    setTempSelectedConsignments((prev) => {
-      if (checked) {
-        return [...prev, biltyNo];
-      } else {
-        return prev.filter((id) => id !== biltyNo);
-      }
-    });
-  };
-
-  const handleSaveConsignments = () => {
-  setValue('selectedConsignments', tempSelectedConsignments, { shouldValidate: true });
-  setIsModalOpen(false);
-  };
-
-  const updateStatus = (index: number, newStatus: string) => {
-    const updatedConsignments = [...consignments];
-    updatedConsignments[index].status = newStatus;
-    setConsignments(updatedConsignments); 
-  };
-
-  const onSubmit = async (data: ChargesFormData) => {
-    setIsSubmitting(true);
-    try {
-      // Build payload to match API spec
-      const payload: any = {
-        chargeDate: data.chargeDate || '',
-        orderNo: data.orderNo || orderNoParam || '',
-     //   createdBy: data.createdBy || '',
-        creationDate: data.creationDate || '',
-       // updatedBy: data.updatedBy || '',
-        updationDate: data.updationDate || '',
-        status: data.status || '',
-        lines: (data.lines || []).map((line) => ({
-          charge: line.charge || '',
-          biltyNo: line.biltyNo || '',
-          date: line.date || '',
-          vehicle: line.vehicle || '',
-          paidTo: line.paidTo || '',
-          contact: line.contact || '',
-          remarks: line.remarks || '',
-          amount: line.amount || 0,
-        })),
-        payments: (data.payments || []).map((payment) => ({
-          paidAmount: payment.paidAmount || 0,
-          bankCash: payment.bankCash || '',
-          chqNo: payment.chqNo || '',
-          chqDate: payment.chqDate || '',
-          payNo: payment.payNo || '',
-        })),
-        selectedConsignments: data.selectedConsignments || [],
-      };
-      // Only include chargeNo if editing
-      if (isEdit && data.chargeNo) {
-        payload.chargeNo = data.chargeNo;
-      }
-      let id = data.chargeNo || '';
-      if (isEdit) {
-        await updateCharges(id, payload);
-        toast.success('Charges updated successfully!');
-      } else {
-        await createCharges(payload);
-        toast.success('Charges created successfully!');
-      }
-      if (fromBooking) {
-        setTimeout(() => {
-          router.push(`/bookingorder/create?orderNo=${encodeURIComponent(orderNoParam)}`);
-        }, 800);
-      } else {
-        router.push('/charges');
-      }
-    } catch (error) {
-      toast.error('An error occurred while saving the charges');
-      console.error('Error saving charges:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const isFieldDisabled = (field: string) => {
     if (!fromBooking) return false;
     return !['charge', 'amount'].includes(field);
@@ -409,7 +332,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const maxRows = Math.max(lines.length, payments.length);
 
   return (
-          <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="max-w-8xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="h-full w-full flex flex-col">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-full flex flex-col">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 flex-shrink-0">
@@ -438,7 +361,60 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="flex-1 p-4 overflow-hidden flex flex-col">
+          <form onSubmit={handleSubmit(async (data) => {
+            setIsSubmitting(true);
+            try {
+              const payload: any = {
+                chargeDate: data.chargeDate || '',
+                orderNo: data.orderNo || orderNoParam || '',
+                creationDate: data.creationDate || '',
+                updationDate: data.updationDate || '',
+                status: data.status || '',
+                lines: (data.lines || []).map((line) => ({
+                  charge: line.charge || '',
+                  biltyNo: line.biltyNo || '',
+                  date: line.date || '',
+                  vehicle: line.vehicle || '',
+                  paidTo: line.paidTo || '',
+                  contact: line.contact || '',
+                  remarks: line.remarks || '',
+                  amount: line.amount || 0,
+                })),
+                payments: (data.payments || []).map((payment) => ({
+                  paidAmount: payment.paidAmount || 0,
+                  bankCash: payment.bankCash || '',
+                  chqNo: payment.chqNo || '',
+                  chqDate: payment.chqDate || '',
+                  payNo: payment.payNo || '',
+                  orderNo: payment.orderNo || '',
+                  vehicleNo: payment.vehicleNo || '',
+                })),
+              };
+              if (isEdit && data.chargeNo) {
+                payload.chargeNo = data.chargeNo;
+              }
+              let id = data.chargeNo || '';
+              if (isEdit) {
+                await updateCharges(id, payload);
+                toast.success('Charges updated successfully!');
+              } else {
+                await createCharges(payload);
+                toast.success('Charges created successfully!');
+              }
+              if (fromBooking) {
+                setTimeout(() => {
+                  router.push(`/bookingorder/create?orderNo={encodeURIComponent(orderNoParam)}`);
+                }, 800);
+              } else {
+                router.push('/charges');
+              }
+            } catch (error) {
+              toast.error('An error occurred while saving the charges');
+              console.error('Error saving charges:', error);
+            } finally {
+              setIsSubmitting(false);
+            }
+          })} className="flex-1 p-4 overflow-hidden flex flex-col">
             {fromBooking && (
               <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
@@ -512,22 +488,13 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                       </span>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      onClick={addLine}
-                      className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 rounded-md"
-                    >
-                      <FiPlus className="mr-1" /> Add Line
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={addPayment}
-                      className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 rounded-md"
-                    >
-                      <FiPlus className="mr-1" /> Add Payment
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    onClick={addLine}
+                    className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 rounded-md"
+                  >
+                    <FiPlus className="mr-1" /> Add Line
+                  </Button>
                 </div>
 
                 <div className="flex-1 overflow-auto">
@@ -539,7 +506,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                         </th>
                         <th
                           className="px-3 py-2 text-left font-semibold border-l-2 border-gray-300 dark:border-gray-600"
-                          colSpan={5}
+                          colSpan={7}
                         >
                           Payment Information
                         </th>
@@ -565,7 +532,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                         <th className="px-3 py-2 text-left font-medium">Chq No</th>
                         <th className="px-3 py-2 text-left font-medium">Chq Date</th>
                         <th className="px-3 py-2 text-left font-medium">Pay. No</th>
-                        {/* Actions */}
+                        <th className="px-3 py-2 text-left font-medium">Order No</th>
+                        <th className="px-3 py-2 text-left font-medium">Vehicle No</th>
                         <th className="px-3 py-2 text-left font-medium">Action</th>
                       </tr>
                     </thead>
@@ -716,7 +684,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                 <input
                                   type="number"
                                   {...register(`payments.${index}.paidAmount`, { valueAsNumber: true })}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  disabled={true}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
                                 />
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>
@@ -730,7 +699,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                   render={({ field }) => (
                                     <select
                                       {...field}
-                                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c]"
+                                      disabled={true}
+                                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
                                     >
                                       <option value="">Select</option>
                                       {bankCashOptions.map((option) => (
@@ -749,7 +719,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                               {hasPayment ? (
                                 <input
                                   {...register(`payments.${index}.chqNo`)}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  disabled={true}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
                                 />
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>
@@ -760,7 +731,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                 <input
                                   type="date"
                                   {...register(`payments.${index}.chqDate`)}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  disabled={true}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
                                 />
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>
@@ -770,14 +742,35 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                               {hasPayment ? (
                                 <input
                                   {...register(`payments.${index}.payNo`)}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  disabled={true}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
                                 />
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>
                               )}
                             </td>
-
-                            {/* Actions */}
+                            <td className="px-3 py-2">
+                              {hasPayment ? (
+                                <input
+                                  {...register(`payments.${index}.orderNo`)}
+                                  disabled={true}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
+                                />
+                              ) : (
+                                <div className="text-gray-400 text-xs">—</div>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {hasPayment ? (
+                                <input
+                                  {...register(`payments.${index}.vehicleNo`)}
+                                  disabled={true}
+                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-800"
+                                />
+                              ) : (
+                                <div className="text-gray-400 text-xs">—</div>
+                              )}
+                            </td>
                             <td className="px-3 py-2">
                               <div className="flex items-center gap-2">
                                 {hasLine && (
@@ -786,16 +779,6 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                     onClick={() => removeLine(index)}
                                     className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
                                     disabled={lines.length <= 1}
-                                  >
-                                    <FiTrash2 />
-                                  </Button>
-                                )}
-                                {hasPayment && (
-                                  <Button
-                                    type="button"
-                                    onClick={() => removePayment(index)}
-                                    className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
-                                    disabled={payments.length <= 1}
                                   >
                                     <FiTrash2 />
                                   </Button>
@@ -815,16 +798,16 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                           Total Charges:
                         </td>
                         <td className="px-3 py-2 font-bold text-gray-900 dark:text-gray-100">
-                          ${totalCharges.toFixed(2)}
+                          {totalCharges.toFixed(2)}
                         </td>
                         <td
                           className="px-3 py-2 font-semibold text-gray-800 dark:text-gray-200 border-l-2 border-gray-300 dark:border-gray-600"
-                          colSpan={4}
+                          colSpan={6}
                         >
                           Total Payments:
                         </td>
                         <td className="px-3 py-2 font-bold text-gray-900 dark:text-gray-100">
-                          ${totalPayments.toFixed(2)}
+                          {totalPayments.toFixed(2)}
                         </td>
                         <td className="px-3 py-2"></td>
                       </tr>
@@ -836,18 +819,15 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                           Balance:
                         </td>
                         <td className="px-3 py-2 font-bold text-gray-900 dark:text-gray-100">
-                          ${balance.toFixed(2)}
+                          {balance.toFixed(2)}
                         </td>
-                        <td className="px-3 py-2" colSpan={6}></td>
+                        <td className="px-3 py-2" colSpan={8}></td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
               </div>
             </div>
-
-            {/* Consignments Table */}
-          
 
             <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
               <Button
@@ -1020,102 +1000,6 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                 >
                   Close
                 </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
-                Select Consignments
-              </h2>
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="Search consignments..."
-                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-[#3a614c]"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                  <tr>
-                    <th className="px-6 py-3">
-                      <input
-                        type="checkbox"
-                        checked={
-                          tempSelectedConsignments.length === filteredConsignmentsForModal.length &&
-                          filteredConsignmentsForModal.length > 0
-                        }
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setTempSelectedConsignments(filteredConsignmentsForModal.map((c) => c.biltyNo));
-                          } else {
-                            setTempSelectedConsignments([]);
-                          }
-                        }}
-                      />
-                    </th>
-                    <th className="px-6 py-3">Bilty No</th>
-                    <th className="px-6 py-3">Receipt No</th>
-                    <th className="px-6 py-3">Consignor</th>
-                    <th className="px-6 py-3">Consignee</th>
-                    <th className="px-6 py-3">Item</th>
-                    <th className="px-6 py-3">Qty</th>
-                    <th className="px-6 py-3">Total Amount</th>
-                    <th className="px-6 py-3">Recv. Amount</th>
-                    <th className="px-6 py-3">Del Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredConsignmentsForModal.length === 0 ? (
-                    <tr>
-                      <td colSpan={10} className="px-6 py-4 text-center">
-                        No consignments found
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredConsignmentsForModal.map((cons, index) => (
-                      <tr
-                        key={index}
-                        className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"
-                      >
-                        <td className="px-6 py-4">
-                          <input
-                            type="checkbox"
-                            checked={tempSelectedConsignments.includes(cons.biltyNo)}
-                            onChange={(e) => handleConsignmentSelection(cons.biltyNo, e.target.checked)}
-                          />
-                        </td>
-                        <td className="px-6 py-4">{cons.biltyNo}</td>
-                        <td className="px-6 py-4">{cons.receiptNo}</td>
-                        <td className="px-6 py-4">{cons.consignor}</td>
-                        <td className="px-6 py-4">{cons.consignee}</td>
-                        <td className="px-6 py-4">{cons.item}</td>
-                        <td className="px-6 py-4">{cons.qty ?? 'N/A'}</td>
-                        <td className="px-6 py-4">{cons.totalAmount ?? 'N/A'}</td>
-                        <td className="px-6 py-4">{cons.recvAmount ?? 'N/A'}</td>
-                        <td className="px-6 py-4">{cons.delDate}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-              <div className="flex justify-end gap-4 mt-4">
-                <Button
-                  variant="secondary"
-                    onClick={() => {
-                      setTempSelectedConsignments(watch('selectedConsignments') || []);
-                      setSearchTerm('');
-                      setIsModalOpen(false);
-                    }}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleSaveConsignments}>Save</Button>
               </div>
             </div>
           </div>

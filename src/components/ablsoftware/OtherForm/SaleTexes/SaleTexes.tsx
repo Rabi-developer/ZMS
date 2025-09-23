@@ -17,12 +17,12 @@ import Link from 'next/link';
 
 // Define the schema for sales tax form validation
 const salesTaxSchema = z.object({
-  SalesTexNumber: z.string().optional(),
+  SalesTexNumber: z.string().min(1, 'Sales Tax Number is required'), // Make required
   taxName: z.string().min(1, 'Tax Name is required'),
-  taxType: z.enum(['Sale Tax', 'WHT Tax', 'SBR Tax'], { 
-    required_error: 'Tax Type is required' 
+  taxType: z.enum(['Sale Tax', 'WHT Tax', 'SBR Tax'], {
+    required_error: 'Tax Type is required',
   }),
-  percentage: z.string().optional(),
+  percentage: z.string().default('0'), // Provide default
   receivable: z.object({
     accountId: z.string().min(1, 'Receivable Account ID is required'),
     description: z.string().min(1, 'Receivable Description is required'),
@@ -32,7 +32,6 @@ const salesTaxSchema = z.object({
     description: z.string().min(1, 'Payable Description is required'),
   }),
 });
-
 type SalesTaxFormData = z.infer<typeof salesTaxSchema>;
 
 type Account = {
@@ -221,45 +220,53 @@ const SalesTaxesForm = ({ isEdit = false, initialData }: SalesTaxesFormProps) =>
     fetchRevenueAccounts();
   }, []);
 
-  const onSubmit = async (data: SalesTaxFormData) => {
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        id: isEdit
-          ? initialData?.SalesTexNumber || window.location.pathname.split('/').pop() || ''
-          : `ST${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        isActive: true,
-        isDeleted: false,
-        salesTexNumber: data.SalesTexNumber || `ST${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        taxName: data.taxName || '',
-        taxType: data.taxType,
-        percentage: data.percentage || '',
-        receivable: {
-          accountId: data.receivable.accountId || '',
-          description: data.receivable.description || '',
-        },
-        payable: {
-          accountId: data.payable.accountId || '',
-          description: data.payable.description || '',
-        },
-      };
+ const onSubmit = async (data: SalesTaxFormData) => {
+  setIsSubmitting(true);
+  try {
+    const generatedSalesTexNumber = data.SalesTexNumber || `ST${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const basePayload = {
+      isActive: true,
+      isDeleted: false,
+      salesTexNumber: generatedSalesTexNumber,
+      taxName: data.taxName || 'Default Tax Name',
+      taxType: data.taxType || 'Sale Tax',
+      percentage: data.percentage || '0',
+      receivable: {
+        accountId: data.receivable.accountId || 'default-receivable-id',
+        description: data.receivable.description || 'Default Receivable Description',
+      },
+      payable: {
+        accountId: data.payable.accountId || 'default-payable-id',
+        description: data.payable.description || 'Default Payable Description',
+      },
+    };
 
-      if (isEdit) {
-        await updateSaleTexes(payload);
-        toast.success('Sales Tax updated successfully!');
-      } else {
-        await createSaleTexes(payload);
-        toast.success('Sales Tax created successfully!');
-      }
-      router.push('/salestexes');
-    } catch (error) {
-      console.error('Error saving sales tax:', error);
-      toast.error('An error occurred while saving the sales tax');
-    } finally {
-      setIsSubmitting(false);
+    const payload = isEdit
+      ? {
+          ...basePayload,
+          id: initialData?.SalesTexNumber || window.location.pathname.split('/').pop() || generatedSalesTexNumber,
+        }
+      : basePayload;
+
+    console.log('Payload being sent:', JSON.stringify(payload, null, 2));
+
+    let response;
+    if (isEdit) {
+      response = await updateSaleTexes(payload);
+      toast.success('Sales Tax updated successfully!');
+    } else {
+      response = await createSaleTexes(payload);
+      console.log('Create API response:', response); // Log the response
+      toast.success('Sales Tax created successfully!');
     }
-  };
-
+    router.push('/salestexes');
+  } catch (error) {
+    console.error('Error saving sales tax:', error);
+    toast.error('An error occurred while saving the sales tax');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
       <div className="max-w-4xl mx-auto">

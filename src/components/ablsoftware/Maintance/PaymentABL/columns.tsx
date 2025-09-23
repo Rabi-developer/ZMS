@@ -27,6 +27,7 @@ export interface PaymentABL {
   status: string;
   PaymentABLItem?: Array<{
     orderNo: string;
+    vehicleNo: string;
   }>;
 }
 
@@ -46,6 +47,18 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
   {
     header: 'Payment Mode',
     accessorKey: 'paymentMode',
+  },
+  {
+    header: 'Order No',
+    cell: ({ row }: { row: Row<PaymentABL> }) => (
+      <span>{row.original.PaymentABLItem?.map(item => item.orderNo).join(', ') || ''}</span>
+    ),
+  },
+  {
+    header: 'Vehicle No',
+    cell: ({ row }: { row: Row<PaymentABL> }) => (
+      <span>{row.original.PaymentABLItem?.map(item => item.vehicleNo).join(', ') || ''}</span>
+    ),
   },
   {
     header: 'Status',

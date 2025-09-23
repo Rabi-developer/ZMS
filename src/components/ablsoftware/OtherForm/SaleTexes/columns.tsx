@@ -18,7 +18,7 @@ export const columns = (
   handleViewOpen: (id: string) => void
 ): ColumnDef<SalesTaxType>[] => [
   {
-    accessorKey: 'salesTexNumber',
+    accessorKey: 'salesTaxNumber',
     header: ({ column }: any) => {
       return (
         <Button
