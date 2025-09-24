@@ -30,6 +30,7 @@ interface Consignment {
   biltyDate: string;
   biltyAmount: number;
   srbAmount: number;
+  totalAmount: number;
 }
 
 interface TableRow {
@@ -142,6 +143,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const [saleTaxes, setSaleTaxes] = useState<DropdownOption[]>([]);
   const [consignments, setConsignments] = useState<Consignment[]>([]);
   const [showConsignmentPopup, setShowConsignmentPopup] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const paymentModes: DropdownOption[] = [
     { id: 'Cash', name: 'Cash' },
@@ -187,15 +189,20 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const salesTaxRate = watch('salesTaxRate');
   const whtOnSbr = watch('whtOnSbr');
 
+  // Filter consignments based on search query
+  const filteredConsignments = consignments.filter((consignment) =>
+    `${consignment.biltyNo} ${consignment.id}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
         const [partyRes, saleTaxRes, consignmentRes] = await Promise.all([
-          getAllPartys(),
-          getAllSaleTexes(),
-          getAllConsignment(),
+          getAllPartys(1, 1000),
+          getAllSaleTexes(1, 1000),
+          getAllConsignment(1, 1000),
         ]);
         setParties(partyRes.data.map((p: any) => ({ id: p.id, name: p.name })));
         setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.taxName })));
@@ -203,11 +210,12 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           consignmentRes.data.map((item: any) => ({
             id: item.id,
             biltyNo: item.biltyNo || item.bilty || item.id,
-            vehicleNo: item.vehicleNo || 'N/A',
+            vehicleNo: item.vehicleNo || item.orderNo || 'Unknown',
             biltyDate: item.biltyDate || item.consignmentDate || new Date().toISOString().split('T')[0],
-            biltyAmount: item.biltyAmount || item.totalAmount || 0,
-            srbAmount: item.srbAmount || item.sprAmount || 0,
-          }))
+            biltyAmount: item.totalAmount || 0, // Map to totalAmount from ConsignmentForm
+            srbAmount: item.sprAmount || 0, // Map to sprAmount from ConsignmentForm
+            totalAmount: item.totalAmount || 0,
+          }))   
         );
       } catch (error) {
         toast.error('Failed to load data');
@@ -283,9 +291,10 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     setValue(`tableData.${index}.consignmentId`, consignment.id, { shouldValidate: true });
     setValue(`tableData.${index}.vehicleNo`, consignment.vehicleNo, { shouldValidate: true });
     setValue(`tableData.${index}.biltyDate`, consignment.biltyDate, { shouldValidate: true });
-    setValue(`tableData.${index}.biltyAmount`, consignment.biltyAmount, { shouldValidate: true });
-    setValue(`tableData.${index}.srbAmount`, consignment.srbAmount, { shouldValidate: true });
+    setValue(`tableData.${index}.biltyAmount`, consignment.totalAmount, { shouldValidate: true }); // Use totalAmount
+    setValue(`tableData.${index}.srbAmount`, consignment.srbAmount, { shouldValidate: true }); // Use sprAmount
     setShowConsignmentPopup(null);
+    setSearchQuery('');
   };
 
   const addTableRow = () => {
@@ -344,7 +353,6 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         await createReceipt(payload);
         toast.success('Receipt created successfully');
       }
-       router.push('/receipt');
 
       // Update consignment receivedAmount
       const updates = data.tableData
@@ -384,7 +392,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           </div>
         )}
 
-          <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -864,36 +872,93 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
 
         {showConsignmentPopup !== null && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl max-w-sm w-full mx-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl max-w-4xl w-full mx-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Select Consignment</h3>
                 <Button
-                  onClick={() => setShowConsignmentPopup(null)}
+                  onClick={() => {
+                    setShowConsignmentPopup(null);
+                    setSearchQuery('');
+                  }}
                   className="text-gray-400 hover:text-gray-600 p-1"
                   variant="ghost"
                 >
                   <FiX className="text-base" />
                 </Button>
               </div>
-              <div className="max-h-48 overflow-y-auto space-y-1">
-                {consignments.length === 0 ? (
-                  <p className="text-sm text-gray-600 dark:text-gray-400">No consignments available</p>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by Bilty No or ID..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-sm"
+                />
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                {filteredConsignments.length === 0 ? (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-4">No consignments found</p>
                 ) : (
-                  consignments.map((consignment) => (
-                    <div
-                      key={consignment.id}
-                      onClick={() => selectConsignment(showConsignmentPopup, consignment)}
-                      className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-md border border-gray-200 dark:border-gray-600 text-sm"
-                    >
-                      <div className="font-medium text-gray-800 dark:text-gray-200">Bilty: {consignment.biltyNo}</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Vehicle: {consignment.vehicleNo}</div>
-                    </div>
-                  ))
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px]">
+                          Bilty #
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px]">
+                          ID
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px]">
+                          Vehicle No
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[110px]">
+                          Bilty Date
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
+                          Bilty Amount
+                        </th>
+                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[120px]">
+                          SRB Amount
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800">
+                      {filteredConsignments.map((consignment) => (
+                        <tr
+                          key={consignment.id}
+                          onClick={() => selectConsignment(showConsignmentPopup, consignment)}
+                          className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                        >
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                            {consignment.biltyNo}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                            {consignment.id}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                            {consignment.vehicleNo}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                            {consignment.biltyDate}
+                          </td>
+                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-right text-gray-600 dark:text-gray-400">
+                            {consignment.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">
+                            {consignment.srbAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
               <div className="flex justify-end mt-3">
                 <Button
-                  onClick={() => setShowConsignmentPopup(null)}
+                  onClick={() => {
+                    setShowConsignmentPopup(null);
+                    setSearchQuery('');
+                  }}
                   className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded-md"
                 >
                   Cancel

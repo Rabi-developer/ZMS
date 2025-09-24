@@ -318,34 +318,40 @@ const ConsignmentForm = ({ isEdit = false }) => {
     }
   }, [isEdit, setValue, fromBooking, bookingOrderId]);
 
-  useEffect(() => {
-    const totalQty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
-    setValue('totalQty', totalQty, { shouldValidate: true });
+ useEffect(() => {
+  // Calculate total quantity
+  const totalQty = items.reduce((sum, item) => sum + (item.qty || 0), 0);
+  setValue('totalQty', totalQty, { shouldValidate: true });
 
-    let taxPercent = 0;
-    if (sbrTax) {
-      const match = sbrTax.match(/\d+(?:\.\d+)?/);
-      if (match) {
-        taxPercent = parseFloat(match[0]) / 100;
-      }
+  // Calculate SPR Amount
+  const freightNum = parseFloat(String(freight ?? '0'));
+  let sprAmount = 0;
+  if (sbrTax && !isNaN(freightNum)) {
+    // Assume sbrTax is a string like "2%" or an ID mapped to a tax rate
+    const selectedTax = sbrTaxes.find((tax) => tax.id === sbrTax || tax.name === sbrTax);
+    if (selectedTax) {
+      // Extract numeric tax rate (e.g., "2%" -> 2)
+      const taxRateMatch = selectedTax.name.match(/\d+(?:\.\d+)?/);
+      const taxRate = taxRateMatch ? parseFloat(taxRateMatch[0]) : 0;
+      // SPR Amount = (Freight ÷ 100) × SBR Tax Rate
+      sprAmount = (freightNum / 100) * taxRate;
     }
-    const freightNum = parseFloat(String(freight ?? '0'));
-    const spr = isNaN(freightNum) ? 0 : (sbrTax && taxPercent > 0 ? freightNum * taxPercent : freightNum);
-    setValue('sprAmount', spr, { shouldValidate: true });
+  }
+  setValue('sprAmount', isNaN(sprAmount) ? 0 : sprAmount, { shouldValidate: true });
 
-    const total = (
-      parseFloat(String(deliveryCharges ?? '0')) +
-      parseFloat(String(insuranceCharges ?? '0')) +
-      parseFloat(String(tollTax ?? '0')) +
-      parseFloat(String(otherCharges ?? '0'))
-    );
-    setValue('totalAmount', isNaN(total) ? 0 : total, { shouldValidate: true });
+  // Calculate total amount
+  const total =
+    (isNaN(freightNum) ? 0 : freightNum) +
+    parseFloat(String(deliveryCharges || '0')) +
+    parseFloat(String(insuranceCharges || '0')) +
+    parseFloat(String(tollTax || '0')) +
+    parseFloat(String(otherCharges || '0'));
+  setValue('totalAmount', isNaN(total) ? 0 : total, { shouldValidate: true });
 
-    setValue('receivedAmount', 0, { shouldValidate: true });
-    setValue('incomeTaxDed', 0, { shouldValidate: true });
-    setValue('incomeTaxAmount', 0, { shouldValidate: true });
-  }, [items, freight, sbrTax, deliveryCharges, insuranceCharges, tollTax, otherCharges, setValue]);
-
+  setValue('receivedAmount', 0, { shouldValidate: true });
+  setValue('incomeTaxDed', 0, { shouldValidate: true });
+  setValue('incomeTaxAmount', 0, { shouldValidate: true });
+}, [items, freight, sbrTax, deliveryCharges, insuranceCharges, tollTax, otherCharges, sbrTaxes, setValue]);
   const selectOrder = (order: BookingOrder) => {
     setValue('orderNo', order.orderNo, { shouldValidate: true });
     setShowOrderPopup(false);
@@ -928,15 +934,17 @@ const ConsignmentForm = ({ isEdit = false }) => {
                   />
                 )}
               />
-              <ABLNewCustomInput
-                label="SPR Amount"
-                type="text"
-                placeholder="Auto-calculated"
-                register={register}
-                error={errors.sprAmount?.message}
-                id="sprAmount"
-                disabled
-              />
+              {sbrTax ? (
+                <ABLNewCustomInput
+                  label="SBR Amount"
+                  type="text"
+                  placeholder="Auto-calculated"
+                  register={register}
+                  error={errors.sprAmount?.message}
+                  id="sprAmount"
+                  disabled
+                />
+              ) : null}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
