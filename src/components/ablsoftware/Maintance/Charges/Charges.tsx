@@ -210,10 +210,10 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
     const fetchData = async () => {
       try {
         const [munRes, consRes, baRes, bookRes, paymentRes] = await Promise.all([
-          getAllMunshyana(1, 100),
+          getAllMunshyana(1, 1000),
           getAllConsignment(1, 1000),
-          getAllBusinessAssociate(1, 100),
-          getAllBookingOrder(1, 100),
+          getAllBusinessAssociate(1, 1000),
+          getAllBookingOrder(1, 1000),
           getAllPaymentABL(1, 1000),
         ]);
 
@@ -390,9 +390,12 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                   vehicleNo: payment.vehicleNo || '',
                 })),
               };
+              const newId = window.location.pathname.split('/').pop();
               if (isEdit && data.chargeNo) {
                 payload.chargeNo = data.chargeNo;
+                payload.id =  newId;
               }
+              
               let id = data.chargeNo || '';
               if (isEdit) {
                 await updateCharges(id, payload);

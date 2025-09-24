@@ -317,7 +317,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       const payload = {
         id: isEdit
           ? initialData?.id || window.location.pathname.split('/').pop() || ''
-          : `REC${Date.now()}${Math.floor(Math.random() * 1000)}`,
+          : null,
         isActive: true,
         isDeleted: false,
         receiptNo: data.receiptNo || `REC${Date.now()}${Math.floor(Math.random() * 1000)}`,
