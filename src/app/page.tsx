@@ -1,29 +1,30 @@
-'use client';
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // Import useRouter for navigation
-import MainLayout from '@/components/MainLayout/MainLayout';
-import Dashboardlayout from '@/components/Dashboard/Dashboardlayout';
-import ABLDashboardlayout from '@/components/Dashboard/ABLDashboardlayout';
-import { motion } from 'framer-motion';
-import Link from 'next/link';
-import { FiPackage, FiTruck } from 'react-icons/fi';
+// app/page.tsx or pages/index.tsx
+"use client";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import MainLayout from "@/components/MainLayout/MainLayout";
+import Dashboardlayout from "@/components/Dashboard/Dashboardlayout";
+import ABLDashboardlayout from "@/components/Dashboard/ABLDashboardlayout";
+import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function Home() {
-  const [activeInterface, setActiveInterface] = useState<'ZMS' | 'ABL' | null>(null);
+  const [activeInterface, setActiveInterface] = useState<"ZMS" | "ABL" | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
-  const router = useRouter(); // Initialize router
+  const router = useRouter();
 
-  // Check authentication status on component mount
   useEffect(() => {
-    const storedUserName = localStorage.getItem('userName');
+    const storedUserName = localStorage.getItem("userName");
     if (!storedUserName) {
-      // If no userName is found, redirect to sign-in page
-      router.push('/signin');
+      router.replace("/signin");
     } else {
-      // If userName exists, set it in state
       setUserName(storedUserName);
     }
   }, [router]);
+
+  if (!userName) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   const cardVariants = {
     initial: { opacity: 0, y: 30 },
@@ -31,16 +32,10 @@ export default function Home() {
     hover: { scale: 1.03, transition: { duration: 0.3 } },
   };
 
-  // If userName is null, render nothing or a loading state while redirecting
-  if (!userName) {
-    return null; // Optionally, you can return a loading spinner here
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-900 dark:to-[#030630] overflow-y-auto">
       {activeInterface === null ? (
         <div className="relative">
-          {/* Header Section */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -52,26 +47,18 @@ export default function Home() {
             </h1>
             <Link
               href="/signin"
-              className={`text-white font-medium rounded-full px-4 py-2 text-sm ${
-                userName
-                  ? activeInterface === 'ABL'
-                    ? 'bg-[#1a5f3a] hover:bg-[#2a7f4a]'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+              className="text-white font-medium rounded-full px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700"
               onClick={() => {
-                if (userName) {
-                  localStorage.removeItem('userName');
-                  setUserName(null);
-                  router.push('/signin'); // Redirect to sign-in after logout
-                }
+                localStorage.removeItem("userName");
+                localStorage.removeItem("token");
+                setUserName(null);
+                router.push("/signin");
               }}
             >
-              {userName ? 'Logout' : 'Login'}
+              Logout
             </Link>
           </motion.div>
 
-          {/* Main Content */}
           <div className="pt-24 pb-12 px-4 md:px-8 lg:px-12 max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0 }}
@@ -83,13 +70,11 @@ export default function Home() {
                 Optimize Your Business
               </h2>
               <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                Discover the power of ZMS for commission management or ABL for transport logistics. Select a platform to streamline your operations with cutting-edge tools.
+                Discover the power of ZMS for commission management or ABL for transport logistics.
               </p>
             </motion.div>
 
-            {/* Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* ZMS Card */}
               <motion.div
                 variants={cardVariants}
                 initial="initial"
@@ -100,13 +85,17 @@ export default function Home() {
                 <div className="absolute inset-0 bg-[url('/warehouse-bg.jpg')] bg-cover bg-center opacity-10"></div>
                 <div className="relative z-10">
                   <div className="flex items-center gap-4 mb-4">
-                    <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1755069630/ZMS-logo_nrn49l.png" alt="ZMS Logo" className="h-40 w-40" />
+                    <img
+                      src="https://res.cloudinary.com/dxqvklctk/image/upload/v1755069630/ZMS-logo_nrn49l.png"
+                      alt="ZMS Logo"
+                      className="h-40 w-40"
+                    />
                     <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                       ZMS - Commission Based
                     </h3>
                   </div>
                   <p className="text-gray-600 dark:text-gray-300 mb-6">
-                    ZMS provides a comprehensive solution for managing inventory, tracking stock, and analyzing sales with real-time insights.
+                    ZMS provides a comprehensive solution for managing inventory, tracking stock, and analyzing sales.
                   </p>
                   <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 mb-6 space-y-2">
                     <li>Real-time stock tracking</li>
@@ -115,7 +104,7 @@ export default function Home() {
                     <li>Customizable reports</li>
                   </ul>
                   <motion.button
-                    onClick={() => setActiveInterface('ZMS')}
+                    onClick={() => setActiveInterface("ZMS")}
                     className="w-full px-6 py-3 bg-gradient-to-r from-[#06b6d4] to-[#0899b2] text-white rounded-full text-lg font-semibold hover:from-[#0899b2] hover:to-[#067a8f] transition-all duration-300 shadow-lg hover:shadow-xl"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -125,7 +114,6 @@ export default function Home() {
                 </div>
               </motion.div>
 
-              {/* ABL Card */}
               <motion.div
                 variants={cardVariants}
                 initial="initial"
@@ -136,13 +124,17 @@ export default function Home() {
                 <div className="absolute inset-0 bg-[url('/transport-bg.jpg')] bg-cover bg-center opacity-10"></div>
                 <div className="relative z-8">
                   <div className="flex items-center gap-4 mb-4">
-                    <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1757168762/ABL_Logo_1_yiiqgs.png" alt="ABL Logo" className="h-40 w-40" />
+                    <img
+                      src="https://res.cloudinary.com/dxqvklctk/image/upload/v1757168762/ABL_Logo_1_yiiqgs.png"
+                      alt="ABL Logo"
+                      className="h-40 w-40"
+                    />
                     <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                       ABL - Transport Logistics
                     </h3>
                   </div>
                   <p className="text-gray-600 dark:text-gray-300 mb-6">
-                    ABL streamlines transport operations with tools for vehicle management, route optimization, and cost tracking.
+                    ABL streamlines transport operations with tools for vehicle management and route optimization.
                   </p>
                   <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 mb-6 space-y-2">
                     <li>Vehicle and fleet management</li>
@@ -151,7 +143,7 @@ export default function Home() {
                     <li>Real-time delivery updates</li>
                   </ul>
                   <motion.button
-                    onClick={() => setActiveInterface('ABL')}
+                    onClick={() => setActiveInterface("ABL")}
                     className="w-full px-6 py-3 bg-gradient-to-r from-[#1a5f3a] to-[#2a7f4a] text-white rounded-full text-lg font-semibold hover:from-[#2a7f4a] hover:to-[#3a9f5a] transition-all duration-300 shadow-lg hover:shadow-xl"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -165,7 +157,7 @@ export default function Home() {
         </div>
       ) : (
         <MainLayout activeInterface={activeInterface}>
-          {activeInterface === 'ZMS' ? <Dashboardlayout /> : <ABLDashboardlayout />}
+          {activeInterface === "ZMS" ? <Dashboardlayout /> : <ABLDashboardlayout />}
         </MainLayout>
       )}
     </div>
