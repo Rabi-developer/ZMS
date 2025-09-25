@@ -6,8 +6,11 @@ import { FaFileExcel, FaCheck } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllBiltyPaymentInvoice, deleteBiltyPaymentInvoice, updateBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
-import { columns, getStatusStyles, BillPaymentInvoice } from './columns';
+import { getAllBiltyPaymentInvoice, deleteBiltyPaymentInvoice, updateBiltyPaymentInvoiceStatus } from '@/apis/biltypaymentnnvoice';
+import { getAllConsignment } from '@/apis/consignment';
+import { getAllBookingOrder } from '@/apis/bookingorder';
+import { columns, BillPaymentInvoice } from './columns';
+import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
 // Interface for the API response
 interface ApiBiltyPaymentInvoice {
@@ -68,17 +71,24 @@ const BillPaymentInvoicesList = () => {
   const [selectedBillPaymentIds, setSelectedBillPaymentIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [consignments, setConsignments] = useState<any[]>([]);
+  const [bookingStatus, setBookingStatus] = useState<string | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
-  const statusOptions = ['All', 'Unpaid', 'Paid'];
+  const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'UnApproved', 'Closed'];
   const statusOptionsConfig = [
-    { id: 1, name: 'Unpaid', color: '#ef4444' },
-    { id: 2, name: 'Paid', color: '#22c55e' },
+    { id: 1, name: 'Prepared', color: '#3b82f6' },
+    { id: 2, name: 'Approved', color: '#10b981' },
+    { id: 3, name: 'Canceled', color: '#ef4444' },
+    { id: 4, name: 'UnApproved', color: '#f59e0b' },
+    { id: 5, name: 'Closed', color: '#6b7280' },
   ];
 
   const fetchBillPaymentInvoices = async () => {
     try {
       setLoading(true);
       const response = await getAllBiltyPaymentInvoice(pageIndex + 1, pageSize);
+      console.log('Bill Payment Invoices Response:', response?.data); // Debug API response
       const transformedData = transformBiltyPaymentInvoice(response?.data || []);
       setBillPaymentInvoices(transformedData);
     } catch (error) {
@@ -130,18 +140,78 @@ const BillPaymentInvoicesList = () => {
     setDeleteId('');
   };
 
-  const handleCheckboxChange = (billPaymentId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedBillPaymentIds((prev) => [...prev, billPaymentId]);
-    } else {
-      setSelectedBillPaymentIds((prev) => prev.filter((id) => id !== billPaymentId));
+  const handleRowClick = async (billPaymentId: string) => {
+    // If the row is already selected, do nothing on single click
+    if (selectedBillPaymentIds.includes(billPaymentId)) {
+      return;
     }
 
-    setTimeout(() => {
-      const selected = billPaymentInvoices.filter((b) => selectedBillPaymentIds.includes(b.id));
-      const statuses = selected.map((b) => b.status).filter((status, index, self) => self.indexOf(status) === index);
-      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
-    }, 100);
+    // Select the row and fetch related data
+    setSelectedBillPaymentIds([billPaymentId]); // Only one row selected at a time
+    setSelectedRowId(billPaymentId);
+    const billPayment = billPaymentInvoices.find((item) => item.id === billPaymentId);
+    console.log('Selected Bill Payment Invoice:', billPayment); // Debug selected bill payment
+    if (billPayment?.orderNo) {
+      try {
+        const consResponse = await getAllConsignment(1, 100, { orderNo: billPayment.orderNo });
+        setConsignments(consResponse?.data || []);
+        const bookingResponse = await getAllBookingOrder(1, 100, { orderNo: billPayment.orderNo });
+        const booking = bookingResponse?.data.find((b: any) => b.orderNo === billPayment.orderNo);
+        setBookingStatus(booking?.status || null);
+      } catch (error) {
+        toast('Failed to fetch related data', { type: 'error' });
+      }
+    } else {
+      setConsignments([]);
+      setBookingStatus(null);
+    }
+
+    // Update selected bulk status
+    const selectedBillPayment = billPaymentInvoices.find((b) => b.id === billPaymentId);
+    setSelectedBulkStatus(selectedBillPayment?.status || null);
+  };
+
+  const handleRowDoubleClick = (billPaymentId: string) => {
+    // Deselect the row on double-click
+    if (selectedBillPaymentIds.includes(billPaymentId)) {
+      setSelectedBillPaymentIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setBookingStatus(null);
+      setSelectedBulkStatus(null);
+    }
+  };
+
+  const handleCheckboxChange = async (billPaymentId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedBillPaymentIds([billPaymentId]); // Only one row selected at a time
+      setSelectedRowId(billPaymentId);
+      const billPayment = billPaymentInvoices.find((item) => item.id === billPaymentId);
+      console.log('Checked Bill Payment Invoice:', billPayment); // Debug checked bill payment
+      if (billPayment?.orderNo) {
+        try {
+          const consResponse = await getAllConsignment(1, 100, { orderNo: billPayment.orderNo });
+          setConsignments(consResponse?.data || []);
+          const bookingResponse = await getAllBookingOrder(1, 100, { orderNo: billPayment.orderNo });
+          const booking = bookingResponse?.data.find((b: any) => b.orderNo === billPayment.orderNo);
+          setBookingStatus(booking?.status || null);
+        } catch (error) {
+          toast('Failed to fetch related data', { type: 'error' });
+        }
+      } else {
+        setConsignments([]);
+        setBookingStatus(null);
+      }
+    } else {
+      setSelectedBillPaymentIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setBookingStatus(null);
+    }
+
+    // Update selected bulk status
+    const selectedBillPayment = billPaymentInvoices.find((b) => b.id === billPaymentId);
+    setSelectedBulkStatus(checked ? selectedBillPayment?.status || null : null);
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
@@ -152,11 +222,14 @@ const BillPaymentInvoicesList = () => {
     try {
       setUpdating(true);
       const updatePromises = selectedBillPaymentIds.map((id) =>
-        updateBiltyPaymentInvoice({ id, status: newStatus })
+        updateBiltyPaymentInvoiceStatus({ id, status: newStatus })
       );
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
       setSelectedBillPaymentIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setBookingStatus(null);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
       toast('Bill Payment Invoice Status Updated Successfully', { type: 'success' });
@@ -196,7 +269,7 @@ const BillPaymentInvoicesList = () => {
   };
 
   return (
-    <div className="container mx-auto mt-4  max-w-screen  p-6 ">
+    <div className="container mx-auto mt-4 max-w-screen p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -230,7 +303,7 @@ const BillPaymentInvoicesList = () => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen)}
+          columns={columns(handleDeleteOpen, handleCheckboxChange, selectedBillPaymentIds)}
           data={filteredBillPaymentInvoices}
           loading={loading}
           link="/billpaymentinvoices/create"
@@ -238,9 +311,11 @@ const BillPaymentInvoicesList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
+          onRowClick={handleRowClick}
+          onRowDoubleClick={handleRowDoubleClick}
         />
       </div>
-      <div className="mt-4 space-y-2 h-[18vh]">
+      <div className="mt-4 space-y-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -260,6 +335,16 @@ const BillPaymentInvoicesList = () => {
           })}
         </div>
       </div>
+      {selectedRowId && (
+        <div>
+          <OrderProgress
+            orderNo={billPaymentInvoices.find((b) => b.id === selectedRowId)?.orderNo}
+            bookingStatus={bookingStatus}
+            consignments={consignments}
+            // billPaymentInvoice={billPaymentInvoices.find((b) => b.id === selectedRowId)}
+          />
+        </div>
+      )}
       {openDelete && (
         <DeleteConfirmModel
           handleDeleteclose={handleDeleteClose}

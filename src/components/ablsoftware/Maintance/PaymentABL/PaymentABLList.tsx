@@ -40,6 +40,7 @@ const PaymentABLList = () => {
     try {
       setLoading(true);
       const response = await getAllPaymentABL(pageIndex + 1, pageSize);
+      console.log('Payments Response:', response?.data); // Debug API response
       setPayments(response?.data || []);
     } catch (error) {
       toast('Failed to fetch payments', { type: 'error' });
@@ -90,11 +91,20 @@ const PaymentABLList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = async (paymentId: string) => {
-    setSelectedRowId((prev) => (prev === paymentId ? null : paymentId));
+  const handleRowClick = async (paymentId: string) => {
+    // If the row is already selected, do nothing on single click
+    if (selectedPaymentIds.includes(paymentId)) {
+      return;
+    }
+
+    // Select the row and fetch related data
+    setSelectedPaymentIds([paymentId]); // Only one row selected at a time
+    setSelectedRowId(paymentId);
     const payment = payments.find((item) => item.id === paymentId);
-    if (payment?.PaymentABLItem && payment.PaymentABLItem.length > 0) {
-      const orderNo = payment.PaymentABLItem[0].orderNo; // Use the first item's orderNo
+    console.log('Selected Payment:', payment); // Debug selected payment
+    const items = payment?.PaymentABLItem ?? (payment as any)?.paymentABLItem;
+    if (Array.isArray(items) && items.length > 0) {
+      const orderNo = items[0]?.orderNo;
       try {
         const consResponse = await getAllConsignment(1, 100, { orderNo });
         setConsignments(consResponse?.data || []);
@@ -104,21 +114,59 @@ const PaymentABLList = () => {
       } catch (error) {
         toast('Failed to fetch related data', { type: 'error' });
       }
+    } else {
+      setConsignments([]);
+      setBookingStatus(null);
+    }
+
+    // Update selected bulk status
+    const selectedPayment = payments.find((p) => p.id === paymentId);
+    setSelectedBulkStatus(selectedPayment?.status || null);
+  };
+
+  const handleRowDoubleClick = (paymentId: string) => {
+    // Deselect the row on double-click
+    if (selectedPaymentIds.includes(paymentId)) {
+      setSelectedPaymentIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setBookingStatus(null);
+      setSelectedBulkStatus(null);
     }
   };
 
-  const handleCheckboxChange = (paymentId: string, checked: boolean) => {
+  const handleCheckboxChange = async (paymentId: string, checked: boolean) => {
     if (checked) {
-      setSelectedPaymentIds((prev) => [...prev, paymentId]);
+      setSelectedPaymentIds([paymentId]); // Only one row selected at a time
+      setSelectedRowId(paymentId);
+      const payment = payments.find((item) => item.id === paymentId);
+      console.log('Checked Payment:', payment); // Debug checked payment
+      const items = payment?.PaymentABLItem ?? (payment as any)?.paymentABLItem;
+      if (Array.isArray(items) && items.length > 0) {
+        const orderNo = items[0]?.orderNo;
+        try {
+          const consResponse = await getAllConsignment(1, 100, { orderNo });
+          setConsignments(consResponse?.data || []);
+          const bookingResponse = await getAllBookingOrder(1, 100, { orderNo });
+          const booking = bookingResponse?.data.find((b: any) => b.orderNo === orderNo);
+          setBookingStatus(booking?.status || null);
+        } catch (error) {
+          toast('Failed to fetch related data', { type: 'error' });
+        }
+      } else {
+        setConsignments([]);
+        setBookingStatus(null);
+      }
     } else {
-      setSelectedPaymentIds((prev) => prev.filter((id) => id !== paymentId));
+      setSelectedPaymentIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setBookingStatus(null);
     }
 
-    setTimeout(() => {
-      const selected = payments.filter((p) => selectedPaymentIds.includes(p.id));
-      const statuses = selected.map((p) => p.status).filter((status, index, self) => self.indexOf(status) === index);
-      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
-    }, 100);
+    // Update selected bulk status
+    const selectedPayment = payments.find((p) => p.id === paymentId);
+    setSelectedBulkStatus(checked ? selectedPayment?.status || null : null);
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
@@ -134,6 +182,9 @@ const PaymentABLList = () => {
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
       setSelectedPaymentIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setBookingStatus(null);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
       toast('Payment Status Updated Successfully', { type: 'success' });
@@ -174,10 +225,10 @@ const PaymentABLList = () => {
   };
 
   return (
-    <div className="container mx-auto mt-4  max-w-screen  p-6 ">
-      <div className="mb-4 flex PaymentABLItem-center justify-between">
-        <div className="flex PaymentABLItem-center gap-4 flex-wrap">
-          <div className="flex PaymentABLItem-center">
+    <div className="container mx-auto mt-4 max-w-screen p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center">
             <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
             <select
               value={selectedStatusFilter}
@@ -200,7 +251,7 @@ const PaymentABLList = () => {
         </div>
         <button
           onClick={exportToExcel}
-          className="flex PaymentABLItem-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
         >
           <FaFileExcel size={18} />
           Download Excel
@@ -208,7 +259,7 @@ const PaymentABLList = () => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen)}
+          columns={columns(handleDeleteOpen, handleCheckboxChange, selectedPaymentIds)}
           data={filteredPayments}
           loading={loading}
           link="/paymentABL/create"
@@ -216,19 +267,11 @@ const PaymentABLList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
-          onRowClick={handleViewOpen}
+          onRowClick={handleRowClick}
+          onRowDoubleClick={handleRowDoubleClick}
         />
       </div>
-      {selectedRowId && (
-        <div className="mt-4">
-          <OrderProgress
-            orderNo={payments.find((p) => p.id === selectedRowId)?.PaymentABLItem?.[0]?.orderNo}
-            bookingStatus={bookingStatus}
-            consignments={consignments}
-          />
-        </div>
-      )}
-      <div className="mt-4 space-y-2 h-[18vh]">
+      <div className="mt-4 space-y-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -237,7 +280,7 @@ const PaymentABLList = () => {
                 key={option.id}
                 onClick={() => handleBulkStatusUpdate(option.name)}
                 disabled={updating}
-                className={`relative w-40 h-16 flex PaymentABLItem-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
+                className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
                   ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
                   ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
@@ -248,6 +291,19 @@ const PaymentABLList = () => {
           })}
         </div>
       </div>
+      {selectedRowId && (
+        <div className="">
+          <OrderProgress
+            orderNo={(() => {
+              const p = payments.find((p) => p.id === selectedRowId) as any;
+              const items = p?.PaymentABLItem ?? p?.paymentABLItem;
+              return Array.isArray(items) ? items[0]?.orderNo : undefined;
+            })()}
+            bookingStatus={bookingStatus}
+            consignments={consignments}
+          />
+        </div>
+      )}
       {openDelete && (
         <DeleteConfirmModel
           handleDeleteclose={handleDeleteClose}

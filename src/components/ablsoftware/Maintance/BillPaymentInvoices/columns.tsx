@@ -1,34 +1,8 @@
 import { Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { ColumnDef } from '@tanstack/react-table';
 import { Row } from '@tanstack/react-table';
-
-// Interface for the API response (based on provided data)
-interface ApiBiltyPaymentInvoice {
-  id: string;
-  invoiceNo: string;
-  paymentDate: string;
-  createdBy: string | null;
-  creationDate: string | null;
-  updatedBy: string | null;
-  updationDate: string | null;
-  status: string | null;
-  lines: Array<{
-    id: string;
-    vehicleNo: string;
-    orderNo: string;
-    amount: number;
-    munshayana: string;
-    broker: string;
-    dueDate: string;
-    remarks: string;
-  }>;
-  isActive: boolean;
-  isDeleted: boolean;
-  createdDateTime: string;
-  modifiedDateTime: string | null;
-  modifiedBy: string | null;
-}
 
 export interface BillPaymentInvoice {
   id: string;
@@ -42,24 +16,6 @@ export interface BillPaymentInvoice {
   broker: string;
 }
 
-export const transformBiltyPaymentInvoice = (apiData: ApiBiltyPaymentInvoice[]): BillPaymentInvoice[] => {
-  return apiData.map((item) => {
-    const firstLine = item.lines[0] || {};
-    return {
-      id: item.id,
-      invoiceNo: item.invoiceNo,
-      paymentDate: item.paymentDate,
-      totalAmount: firstLine.amount?.toString() || '0', 
-      status: item.status || 'Unpaid',
-      vehicleNo: firstLine.vehicleNo || '',
-      orderNo: firstLine.orderNo || '',
-      amount: firstLine.amount?.toString() || '0',
-      broker: firstLine.broker || '',
-    };
-  });
-};
-
-// Status styles
 export const getStatusStyles = (status: string) => {
   switch (status) {
     case 'Unpaid':
@@ -71,7 +27,33 @@ export const getStatusStyles = (status: string) => {
   }
 };
 
-export const columns = (handleDeleteOpen: (id: string) => void) => [
+export const columns = (
+  handleDeleteOpen: (id: string) => void,
+  handleCheckboxChange: (billPaymentId: string, checked: boolean) => void,
+  selectedBillPaymentIds: string[]
+): ColumnDef<BillPaymentInvoice>[] => [
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        checked={table.getIsAllRowsSelected()}
+        onChange={table.getToggleAllRowsSelectedHandler()}
+        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+      />
+    ),
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        checked={selectedBillPaymentIds.includes(row.original.id)}
+        onChange={(e) => {
+          e.stopPropagation();
+          handleCheckboxChange(row.original.id, e.target.checked);
+        }}
+        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+      />
+    ),
+  },
   {
     header: 'Invoice No',
     accessorKey: 'invoiceNo',
@@ -99,14 +81,6 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
   {
     header: 'Total Amount',
     accessorKey: 'totalAmount',
-  },
-  {
-    header: 'Munshayana',
-    accessorKey: 'munshayana',
-  },
-  {
-    header: '',
-    accessorKey: 'name',
   },
   {
     header: 'Status',

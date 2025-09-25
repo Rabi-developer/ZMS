@@ -1,18 +1,8 @@
 import { Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { ColumnDef } from '@tanstack/react-table';
 import { Row } from '@tanstack/react-table';
-
-export const getStatusStyles = (status: string) => {
-  switch (status) {
-    case 'Pending':
-      return 'bg-red-100 text-red-800';
-    case 'Completed':
-      return 'bg-green-100 text-green-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
 
 export interface PaymentABL {
   id: string;
@@ -25,13 +15,55 @@ export interface PaymentABL {
   chequeDate: string;
   paidAmount: string;
   status: string;
+  // Some APIs send 'PaymentABLItem', others send 'paymentABLItem'. Support both.
   PaymentABLItem?: Array<{
     orderNo: string;
     vehicleNo: string;
   }>;
+  paymentABLItem?: Array<{
+    orderNo: string;
+    vehicleNo: string;
+}>;
 }
 
-export const columns = (handleDeleteOpen: (id: string) => void) => [
+export const getStatusStyles = (status: string) => {
+  switch (status) {
+    case 'Pending':
+      return 'bg-red-100 text-red-800';
+    case 'Completed':
+      return 'bg-green-100 text-green-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+export const columns = (
+  handleDeleteOpen: (id: string) => void,
+  handleCheckboxChange: (paymentId: string, checked: boolean) => void,
+  selectedPaymentIds: string[]
+): ColumnDef<PaymentABL>[] => [
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        checked={table.getIsAllRowsSelected()}
+        onChange={table.getToggleAllRowsSelectedHandler()}
+        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+      />
+    ),
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        checked={selectedPaymentIds.includes(row.original.id)}
+        onChange={(e) => {
+          e.stopPropagation();
+          handleCheckboxChange(row.original.id, e.target.checked);
+        }}
+        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+      />
+    ),
+  },
   {
     header: 'Payment No',
     accessorKey: 'paymentNo',
@@ -50,15 +82,19 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
   },
   {
     header: 'Order No',
-    cell: ({ row }: { row: Row<PaymentABL> }) => (
-      <span>{row.original.PaymentABLItem?.map(item => item.orderNo).join(', ') || ''}</span>
-    ),
+    cell: ({ row }: { row: Row<PaymentABL> }) => {
+      const items = row.original.PaymentABLItem ?? row.original.paymentABLItem ?? [];
+      const orderNos = Array.isArray(items) ? items.map((item: any) => item.orderNo).filter(Boolean) : [];
+      return <span>{orderNos.join(', ')}</span>;
+    },
   },
   {
     header: 'Vehicle No',
-    cell: ({ row }: { row: Row<PaymentABL> }) => (
-      <span>{row.original.PaymentABLItem?.map(item => item.vehicleNo).join(', ') || ''}</span>
-    ),
+    cell: ({ row }: { row: Row<PaymentABL> }) => {
+      const items = row.original.PaymentABLItem ?? row.original.paymentABLItem ?? [];
+      const vehicleNos = Array.isArray(items) ? items.map((item: any) => item.vehicleNo).filter(Boolean) : [];
+      return <span>{vehicleNos.join(', ')}</span>;
+    },
   },
   {
     header: 'Status',
