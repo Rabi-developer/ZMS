@@ -240,7 +240,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     { id: 'BankOfKhyber', name: 'The Bank of Khyber' },
     { id: 'BankOfAzadKashmir', name: 'Bank of Azad Kashmir' },
     { id: 'IndustrialDevelopment', name: 'Industrial Development Bank of Pakistan' },
-    { id: 'PattyCash', name: 'Patty Cash ' },
+    { id: 'PettyCash', name: 'Petty Cash ' },
     { id: 'Other', name: 'Other' },
   ];
 
@@ -310,7 +310,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 chargeDate: item.chargeDate || new Date().toISOString().split('T')[0],
                 orderNo: item.orderNo || '',
                 charge: item.chargeNo || 'N/A',
-                chargeName: line.chargeName || 'Unknown Charge',
+                // Prefer line.charge (present in Charges.tsx schema); fallback to any chargeName field
+                chargeName: line.charge || line.chargeName || 'Unknown Charge',
                 biltyNo: line.biltyNo || '',
                 date: line.date || item.chargeDate || new Date().toISOString().split('T')[0],
                 vehicle: line.vehicle || '',

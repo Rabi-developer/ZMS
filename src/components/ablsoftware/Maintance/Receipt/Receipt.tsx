@@ -56,7 +56,7 @@ const receiptSchema = z.object({
   party: z.string().min(1, 'Party is required'),
   receiptAmount: z.number().min(0, 'Receipt Amount must be non-negative').optional(),
   remarks: z.string().optional(),
-  tableData: z.array(
+  items: z.array(
     z.object({
       biltyNo: z.string().min(1, 'Bilty No is required'),
       consignmentId: z.string().optional(),
@@ -112,8 +112,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           party: initialData.party || '',
           receiptAmount: initialData.receiptAmount || 0,
           remarks: initialData.remarks || '',
-          tableData: initialData.tableData?.length
-            ? initialData.tableData
+          items: initialData.items?.length
+            ? initialData.items
             : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
           salesTaxOption: initialData.salesTaxOption || 'without',
           salesTaxRate: initialData.salesTaxRate || '',
@@ -129,7 +129,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           party: '',
           receiptAmount: 0,
           remarks: '',
-          tableData: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
+          items: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
           salesTaxOption: 'without',
           salesTaxRate: '',
           whtOnSbr: '',
@@ -184,7 +184,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     { id: 'without', name: 'Without Sales Tax' },
   ];
 
-  const tableData = watch('tableData');
+  const items = watch('items');
   const salesTaxOption = watch('salesTaxOption');
   const salesTaxRate = watch('salesTaxRate');
   const whtOnSbr = watch('whtOnSbr');
@@ -253,8 +253,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         party: initialData.party || '',
         receiptAmount: initialData.receiptAmount || 0,
         remarks: initialData.remarks || '',
-        tableData: initialData.tableData?.length
-          ? initialData.tableData.map(row => ({
+        items: initialData.items?.length
+          ? initialData.items.map(row => ({
               biltyNo: row.biltyNo || '',
               consignmentId: row.consignmentId || '',
               vehicleNo: row.vehicleNo || '',
@@ -275,39 +275,39 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
 
   // Update table calculations
   useEffect(() => {
-    const updatedTableData = tableData.map((row) => {
+    const updateditems = items.map((row) => {
       const totalAmount = (row.biltyAmount || 0) + (row.srbAmount || 0);
       const balance = totalAmount - (row.receiptAmount || 0);
       return { ...row, totalAmount, balance };
     });
-    setValue('tableData', updatedTableData);
+    setValue('items', updateditems);
 
-    const totalReceiptAmount = updatedTableData.reduce((sum, row) => sum + (row.receiptAmount || 0), 0);
+    const totalReceiptAmount = updateditems.reduce((sum, row) => sum + (row.receiptAmount || 0), 0);
     setValue('receiptAmount', totalReceiptAmount);
-  }, [tableData, setValue]);
+  }, [items, setValue]);
 
   const selectConsignment = (index: number, consignment: Consignment) => {
-    setValue(`tableData.${index}.biltyNo`, consignment.biltyNo, { shouldValidate: true });
-    setValue(`tableData.${index}.consignmentId`, consignment.id, { shouldValidate: true });
-    setValue(`tableData.${index}.vehicleNo`, consignment.vehicleNo, { shouldValidate: true });
-    setValue(`tableData.${index}.biltyDate`, consignment.biltyDate, { shouldValidate: true });
-    setValue(`tableData.${index}.biltyAmount`, consignment.totalAmount, { shouldValidate: true }); // Use totalAmount
-    setValue(`tableData.${index}.srbAmount`, consignment.srbAmount, { shouldValidate: true }); // Use sprAmount
+    setValue(`items.${index}.biltyNo`, consignment.biltyNo, { shouldValidate: true });
+    setValue(`items.${index}.consignmentId`, consignment.id, { shouldValidate: true });
+    setValue(`items.${index}.vehicleNo`, consignment.vehicleNo, { shouldValidate: true });
+    setValue(`items.${index}.biltyDate`, consignment.biltyDate, { shouldValidate: true });
+    setValue(`items.${index}.biltyAmount`, consignment.totalAmount, { shouldValidate: true }); // Use totalAmount
+    setValue(`items.${index}.srbAmount`, consignment.srbAmount, { shouldValidate: true }); // Use sprAmount
     setShowConsignmentPopup(null);
     setSearchQuery('');
   };
 
   const addTableRow = () => {
-    setValue('tableData', [
-      ...tableData,
+    setValue('items', [
+      ...items,
       { biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 },
     ]);
   };
 
   const removeTableRow = (index: number) => {
-    if (tableData.length > 1) {
-      const newTableData = tableData.filter((_, i) => i !== index);
-      setValue('tableData', newTableData);
+    if (items.length > 1) {
+      const newitems = items.filter((_, i) => i !== index);
+      setValue('items', newitems);
     }
   };
 
@@ -329,7 +329,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         party: data.party,
         receiptAmount: data.receiptAmount || 0,
         remarks: data.remarks || '',
-        tableData: data.tableData.map(row => ({
+        items: data.items.map(row => ({
           biltyNo: row.biltyNo || '',
           consignmentId: row.consignmentId || '',
           vehicleNo: row.vehicleNo || '',
@@ -355,7 +355,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       }
 
       // Update consignment receivedAmount
-      const updates = data.tableData
+      const updates = data.items
         .filter(row => row.consignmentId && (row.receiptAmount ?? 0) > 0)
         .map(async row => {
           try {
@@ -558,7 +558,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800">
-                      {tableData.map((row, index) => (
+                      {items.map((row, index) => (
                         <tr key={index} className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <Button
@@ -568,13 +568,13 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                             >
                               {row.biltyNo || 'Select Bilty'}
                             </Button>
-                            {errors.tableData?.[index]?.biltyNo && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].biltyNo.message}</p>
+                            {errors.items?.[index]?.biltyNo && (
+                              <p className="text-red-500 text-xs mt-1">{errors.items[index].biltyNo.message}</p>
                             )}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.vehicleNo`)}
+                              {...register(`items.${index}.vehicleNo`)}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
                               placeholder="Vehicle No"
@@ -582,7 +582,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.biltyDate`)}
+                              {...register(`items.${index}.biltyDate`)}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
                               placeholder="Date"
@@ -590,7 +590,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.biltyAmount`, { valueAsNumber: true })}
+                              {...register(`items.${index}.biltyAmount`, { valueAsNumber: true })}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none"
                               placeholder="0.00"
@@ -598,7 +598,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.srbAmount`, { valueAsNumber: true })}
+                              {...register(`items.${index}.srbAmount`, { valueAsNumber: true })}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none"
                               placeholder="0.00"
@@ -606,7 +606,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.totalAmount`, { valueAsNumber: true })}
+                              {...register(`items.${index}.totalAmount`, { valueAsNumber: true })}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none font-medium"
                               placeholder="0.00"
@@ -614,7 +614,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`tableData.${index}.balance`, { valueAsNumber: true })}
+                              {...register(`items.${index}.balance`, { valueAsNumber: true })}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none font-medium"
                               placeholder="0.00"
@@ -622,7 +622,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           </td>
                           <td className="px-4 py-3">
                             <input
-                              {...register(`tableData.${index}.receiptAmount`, { valueAsNumber: true })}
+                              {...register(`items.${index}.receiptAmount`, { valueAsNumber: true })}
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
                               placeholder="0.00"
                               type="number"
@@ -630,8 +630,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               step="0.01"
                               value={row.receiptAmount ?? 0}
                             />
-                            {errors.tableData?.[index]?.receiptAmount && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].receiptAmount.message}</p>
+                            {errors.items?.[index]?.receiptAmount && (
+                              <p className="text-red-500 text-xs mt-1">{errors.items[index].receiptAmount.message}</p>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -639,7 +639,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               type="button"
                               onClick={() => removeTableRow(index)}
                               className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
-                              disabled={tableData.length <= 1}
+                              disabled={items.length <= 1}
                             >
                               <FiX />
                             </Button>
@@ -653,19 +653,19 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           TOTALS:
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {tableData.reduce((sum, row) => sum + (row.biltyAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {items.reduce((sum, row) => sum + (row.biltyAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {tableData.reduce((sum, row) => sum + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {items.reduce((sum, row) => sum + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {tableData.reduce((sum, row) => sum + (row.totalAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {items.reduce((sum, row) => sum + (row.totalAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {tableData.reduce((sum, row) => sum + (row.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {items.reduce((sum, row) => sum + (row.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base">
-                          {tableData.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {items.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3"></td>
                       </tr>
@@ -682,7 +682,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                     + Add New Row
                   </Button>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Total Rows: {tableData.length}
+                    Total Rows: {items.length}
                   </div>
                 </div>
               </div>
@@ -763,21 +763,21 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                       <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
                         <span className="font-medium text-sm text-blue-700 dark:text-blue-300">Receipt Amount Total</span>
                         <span className="text-sm font-bold text-blue-800 dark:text-blue-200">
-                          {tableData.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {items.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-lg border border-purple-200 dark:border-purple-700">
                         <span className="font-medium text-sm text-purple-700 dark:text-purple-300">Total SBR Amount</span>
                         <span className="text-sm font-bold text-purple-800 dark:text-purple-200">
-                          {tableData.reduce((sum, row) => sum + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {items.reduce((sum, row) => sum + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
 
                       <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-lg border border-green-200 dark:border-green-700">
                         <span className="font-medium text-sm text-green-700 dark:text-green-300">Subtotal Amount</span>
                         <span className="text-sm font-bold text-green-800 dark:text-green-200">
-                          {tableData.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
 
@@ -785,7 +785,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                         <span className="font-semibold text-sm">Total After Sales Tax</span>
                         <span className="text-lg font-bold">
                           {(() => {
-                            const totalAmount = tableData.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
+                            const totalAmount = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
                             if (salesTaxOption === 'with' && salesTaxRate) {
                               const taxPercent = parseFloat(salesTaxRate.match(/\d+/)?.[0] || '0') / 100;
                               return (totalAmount * (1 + taxPercent)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -799,7 +799,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                         <span className="font-medium text-sm text-orange-700 dark:text-orange-300">WHT Deduction Amount</span>
                         <span className="text-sm font-bold text-orange-800 dark:text-orange-200">
                           {(() => {
-                            const totalSbrAmount = tableData.reduce((sum, row) => sum + (row.srbAmount || 0), 0);
+                            const totalSbrAmount = items.reduce((sum, row) => sum + (row.srbAmount || 0), 0);
                             if (whtOnSbr) {
                               const whtPercent = parseFloat(whtOnSbr.match(/\d+/)?.[0] || '0') / 100;
                               return (totalSbrAmount * whtPercent).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -813,14 +813,14 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                         <span className="font-bold text-base text-gray-800 dark:text-gray-200">Final Cheque Amount</span>
                         <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
                           {(() => {
-                            const totalAmount = tableData.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
+                            const totalAmount = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
                             let finalAmount = totalAmount;
                             if (salesTaxOption === 'with' && salesTaxRate) {
                               const taxPercent = parseFloat(salesTaxRate.match(/\d+/)?.[0] || '0') / 100;
                               finalAmount = totalAmount * (1 + taxPercent);
                             }
                             if (whtOnSbr) {
-                              const totalSbrAmount = tableData.reduce((sum, row) => sum + (row.srbAmount || 0), 0);
+                              const totalSbrAmount = items.reduce((sum, row) => sum + (row.srbAmount || 0), 0);
                               const whtPercent = parseFloat(whtOnSbr.match(/\d+/)?.[0] || '0') / 100;
                               finalAmount -= totalSbrAmount * whtPercent;
                             }
