@@ -1,5 +1,6 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter for navigation
 import MainLayout from '@/components/MainLayout/MainLayout';
 import Dashboardlayout from '@/components/Dashboard/Dashboardlayout';
 import ABLDashboardlayout from '@/components/Dashboard/ABLDashboardlayout';
@@ -10,17 +11,30 @@ import { FiPackage, FiTruck } from 'react-icons/fi';
 export default function Home() {
   const [activeInterface, setActiveInterface] = useState<'ZMS' | 'ABL' | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const router = useRouter(); // Initialize router
 
-  React.useEffect(() => {
+  // Check authentication status on component mount
+  useEffect(() => {
     const storedUserName = localStorage.getItem('userName');
-    setUserName(storedUserName);
-  }, []);
+    if (!storedUserName) {
+      // If no userName is found, redirect to sign-in page
+      router.push('/signin');
+    } else {
+      // If userName exists, set it in state
+      setUserName(storedUserName);
+    }
+  }, [router]);
 
   const cardVariants = {
     initial: { opacity: 0, y: 30 },
     animate: { opacity: 1, y: 0, transition: { duration: 0.5 } },
     hover: { scale: 1.03, transition: { duration: 0.3 } },
   };
+
+  // If userName is null, render nothing or a loading state while redirecting
+  if (!userName) {
+    return null; // Optionally, you can return a loading spinner here
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-900 dark:to-[#030630] overflow-y-auto">
@@ -33,7 +47,7 @@ export default function Home() {
             transition={{ duration: 0.5 }}
             className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4 md:px-8 lg:px-12 max-w-7xl mx-auto bg-gray-100 rounded-2xl shadow-md"
           >
-            <h1 className="text-3xl font-bold  text-gray-800 dark:text-white">
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white">
               ZMS & ABL Transport
             </h1>
             <Link
@@ -43,14 +57,13 @@ export default function Home() {
                   ? activeInterface === 'ABL'
                     ? 'bg-[#1a5f3a] hover:bg-[#2a7f4a]'
                     : 'bg-blue-600 hover:bg-blue-700'
-                  : activeInterface === 'ABL'
-                    ? 'bg-[#1a5f3a] hover:bg-[#2a7f4a]'
-                    : 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
               }`}
               onClick={() => {
                 if (userName) {
                   localStorage.removeItem('userName');
                   setUserName(null);
+                  router.push('/signin'); // Redirect to sign-in after logout
                 }
               }}
             >
@@ -70,7 +83,7 @@ export default function Home() {
                 Optimize Your Business
               </h2>
               <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-                Discover the power of ZMS for commision management or ABL for transport logistics. Select a platform to streamline your operations with cutting-edge tools.
+                Discover the power of ZMS for commission management or ABL for transport logistics. Select a platform to streamline your operations with cutting-edge tools.
               </p>
             </motion.div>
 
@@ -87,9 +100,9 @@ export default function Home() {
                 <div className="absolute inset-0 bg-[url('/warehouse-bg.jpg')] bg-cover bg-center opacity-10"></div>
                 <div className="relative z-10">
                   <div className="flex items-center gap-4 mb-4">
-                  <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1755069630/ZMS-logo_nrn49l.png" alt="ZMS Logo" className="h-40 w-40" />
+                    <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1755069630/ZMS-logo_nrn49l.png" alt="ZMS Logo" className="h-40 w-40" />
                     <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
-                      ZMS - Commision Based
+                      ZMS - Commission Based
                     </h3>
                   </div>
                   <p className="text-gray-600 dark:text-gray-300 mb-6">
@@ -123,7 +136,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-[url('/transport-bg.jpg')] bg-cover bg-center opacity-10"></div>
                 <div className="relative z-8">
                   <div className="flex items-center gap-4 mb-4">
-                   <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1757168762/ABL_Logo_1_yiiqgs.png" alt="ABL Logo" className="h-40 w-40" />
+                    <img src="https://res.cloudinary.com/dxqvklctk/image/upload/v1757168762/ABL_Logo_1_yiiqgs.png" alt="ABL Logo" className="h-40 w-40" />
                     <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
                       ABL - Transport Logistics
                     </h3>
