@@ -1,24 +1,14 @@
 import { Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { ColumnDef } from '@tanstack/react-table';
 import { Row } from '@tanstack/react-table';
-
-export const getStatusStyles = (status: string) => {
-  switch (status) {
-    case 'Unpaid':
-      return 'bg-red-100 text-red-800';
-    case 'Paid':
-      return 'bg-green-100 text-green-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
 
 export interface Charge {
   id: string;
   chargeNo: string;
   chargeDate: string;
-orderNo: string | null;
+  orderNo: string | null;
   unpaidCharges: string;
   payment: string;
   charges: string;
@@ -38,7 +28,44 @@ orderNo: string | null;
   status: string;
 }
 
-export const columns = (handleDeleteOpen: (id: string) => void) => [
+export const getStatusStyles = (status: string) => {
+  switch (status) {
+    case 'Unpaid':
+      return 'bg-red-100 text-red-800';
+    case 'Paid':
+      return 'bg-green-100 text-green-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+export const columns = (
+  handleDeleteOpen: (id: string) => void,
+  handleCheckboxChange: (chargeId: string, checked: boolean) => void,
+  selectedChargeIds: string[]
+): ColumnDef<Charge>[] => [
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        checked={table.getIsAllRowsSelected()}
+        onChange={table.getToggleAllRowsSelectedHandler()}
+        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+      />
+    ),
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        checked={selectedChargeIds.includes(row.original.id)}
+        onChange={(e) => {
+          e.stopPropagation();
+          handleCheckboxChange(row.original.id, e.target.checked);
+        }}
+        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+      />
+    ),
+  },
   {
     header: 'Charge No',
     accessorKey: 'chargeNo',
@@ -53,9 +80,9 @@ export const columns = (handleDeleteOpen: (id: string) => void) => [
   },
   {
     header: 'Amount',
-    accessorKey: 'amount', // Now correctly mapped from lines
+    accessorKey: 'amount',
   },
-  { 
+  {
     header: 'Unpaid Charges',
     accessorKey: 'unpaidCharges',
   },

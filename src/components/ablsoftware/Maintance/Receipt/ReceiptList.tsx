@@ -30,10 +30,13 @@ const ReceiptList = () => {
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
-  const statusOptions = ['All', 'Pending', 'Completed'];
+   const statusOptions = ['All', 'Prepared', 'Canceled', 'Closed', 'UnApproved', 'Pending'];
   const statusOptionsConfig = [
-    { id: 1, name: 'Pending', color: '#ef4444' },
-    { id: 2, name: 'Completed', color: '#22c55e' },
+    { id: 1, name: 'Prepared', color: '#f59e0b' },
+    { id: 2, name: 'Canceled', color: '#ef4444' },
+    { id: 3, name: 'Closed', color: '#6b7280' },
+    { id: 4, name: 'UnApproved', color: '#10b981' },
+    { id: 5, name: 'Pending', color: '#3b82f6' },
   ];
 
   const fetchReceipts = async () => {

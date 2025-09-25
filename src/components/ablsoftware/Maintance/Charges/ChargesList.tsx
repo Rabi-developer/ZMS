@@ -7,8 +7,7 @@ import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllCharges, deleteCharges, updateChargesStatus } from '@/apis/charges';
-import { Edit, Trash } from 'lucide-react';
-import { columns, getStatusStyles, Charge } from './columns';
+import { columns, Charge } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 import { getAllConsignment } from '@/apis/consignment';
 
@@ -29,20 +28,24 @@ const ChargesList = () => {
   const [consignments, setConsignments] = useState<any[]>([]);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
-  const statusOptions = ['All', 'Unpaid', 'Paid'];
+  const statusOptions = ['All', 'Prepared', 'Canceled', 'Closed', 'UnApproved', 'Pending'];
   const statusOptionsConfig = [
-    { id: 1, name: 'Unpaid', color: '#ef4444' },
-    { id: 2, name: 'Paid', color: '#22c55e' },
+    { id: 1, name: 'Prepared', color: '#f59e0b' },
+    { id: 2, name: 'Canceled', color: '#ef4444' },
+    { id: 3, name: 'Closed', color: '#6b7280' },
+    { id: 4, name: 'UnApproved', color: '#10b981' },
+    { id: 5, name: 'Pending', color: '#3b82f6' },
   ];
 
   const fetchCharges = async () => {
     try {
       setLoading(true);
       const response = await getAllCharges(pageIndex + 1, pageSize);
+      console.log('Charges Response:', response?.data); // Debug API response
       const transformedCharges = response?.data.map((charge: any) => ({
         ...charge,
-        orderNo: charge.orderNo || '-', // Fallback for null or empty orderNo
-        amount: charge.lines?.reduce((sum: number, line: any) => sum + (line.amount || 0), 0).toString() || '0', // Sum amounts from lines
+        orderNo: charge.orderNo || '-',
+        amount: charge.lines?.reduce((sum: number, line: any) => sum + (line.amount || 0), 0).toString() || '0',
         biltyNo: charge.lines?.[0]?.biltyNo || '-',
         date: charge.lines?.[0]?.date || '-',
         vehicleNo: charge.lines?.[0]?.vehicle || '-',
@@ -101,9 +104,17 @@ const ChargesList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = async (chargeId: string) => {
-    setSelectedRowId((prev) => (prev === chargeId ? null : chargeId));
+  const handleRowClick = async (chargeId: string) => {
+    // If the row is already selected, do nothing on single click
+    if (selectedChargeIds.includes(chargeId)) {
+      return;
+    }
+
+    // Select the row and fetch consignments
+    setSelectedChargeIds([chargeId]); // Only one row selected at a time
+    setSelectedRowId(chargeId);
     const charge = charges.find((item) => item.id === chargeId);
+    console.log('Selected Charge:', charge); // Debug selected charge
     if (charge?.orderNo && charge.orderNo !== '-') {
       try {
         const response = await getAllConsignment(1, 100, { orderNo: charge.orderNo });
@@ -111,21 +122,50 @@ const ChargesList = () => {
       } catch (error) {
         toast('Failed to fetch consignments', { type: 'error' });
       }
+    } else {
+      setConsignments([]); // Clear consignments if no valid orderNo
+    }
+
+    // Update selected bulk status
+    const selectedCharge = charges.find((c) => c.id === chargeId);
+    setSelectedBulkStatus(selectedCharge?.status || null);
+  };
+
+  const handleRowDoubleClick = (chargeId: string) => {
+    // Deselect the row on double-click
+    if (selectedChargeIds.includes(chargeId)) {
+      setSelectedChargeIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setSelectedBulkStatus(null);
     }
   };
 
-  const handleCheckboxChange = (chargeId: string, checked: boolean) => {
+  const handleCheckboxChange = async (chargeId: string, checked: boolean) => {
     if (checked) {
-      setSelectedChargeIds((prev) => [...prev, chargeId]);
+      setSelectedChargeIds([chargeId]); // Only one row selected at a time
+      setSelectedRowId(chargeId);
+      const charge = charges.find((item) => item.id === chargeId);
+      console.log('Checked Charge:', charge); // Debug checked charge
+      if (charge?.orderNo && charge.orderNo !== '-') {
+        try {
+          const response = await getAllConsignment(1, 100, { orderNo: charge.orderNo });
+          setConsignments(response?.data || []);
+        } catch (error) {
+          toast('Failed to fetch consignments', { type: 'error' });
+        }
+      } else {
+        setConsignments([]);
+      }
     } else {
-      setSelectedChargeIds((prev) => prev.filter((id) => id !== chargeId));
+      setSelectedChargeIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
     }
 
-    setTimeout(() => {
-      const selected = charges.filter((c) => selectedChargeIds.includes(c.id));
-      const statuses = selected.map((c) => c.status).filter((status, index, self) => self.indexOf(status) === index);
-      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
-    }, 100);
+    // Update selected bulk status
+    const selectedCharge = charges.find((c) => c.id === chargeId);
+    setSelectedBulkStatus(checked ? selectedCharge?.status || null : null);
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
@@ -141,6 +181,8 @@ const ChargesList = () => {
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
       setSelectedChargeIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
       toast('Charge Status Updated Successfully', { type: 'success' });
@@ -192,7 +234,7 @@ const ChargesList = () => {
   };
 
   return (
-    <div className="container mx-auto mt-4  max-w-screen  p-6 ">
+    <div className="container mx-auto mt-4 max-w-screen p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -226,7 +268,7 @@ const ChargesList = () => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen)}
+          columns={columns(handleDeleteOpen, handleCheckboxChange, selectedChargeIds)}
           data={filteredCharges}
           loading={loading}
           link="/charges/create"
@@ -234,10 +276,11 @@ const ChargesList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
-          onRowClick={handleViewOpen}
+          onRowClick={handleRowClick}
+          onRowDoubleClick={handleRowDoubleClick}
         />
       </div>
-         <div className="space-y-2 h-[10vh]">
+      <div className="space-y-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -259,15 +302,15 @@ const ChargesList = () => {
       </div>
       {selectedRowId && (
         <div className="mt-4">
-          <h3 className="text-lg font-semibold text-[#3a614c]"></h3>
+          <h3 className="text-lg font-semibold text-[#3a614c]">Charge Details</h3>
           <OrderProgress
             orderNo={charges.find((c) => c.id === selectedRowId)?.orderNo}
             bookingStatus={null}
             consignments={consignments}
+
           />
         </div>
       )}
-   
       {openDelete && (
         <DeleteConfirmModel
           handleDeleteclose={handleDeleteClose}
