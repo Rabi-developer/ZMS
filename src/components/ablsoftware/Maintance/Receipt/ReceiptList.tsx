@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck } from 'react-icons/fa';
-// XLSX is dynamically imported in exportToExcel to avoid SSR issues
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllReceipt, deleteReceipt, updateReceiptStatus } from '@/apis/receipt';
@@ -30,19 +29,17 @@ const ReceiptList = () => {
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
-   const statusOptions = ['All', 'Prepared', 'Canceled', 'Closed', 'UnApproved', 'Pending'];
+  const statusOptions = ['All', 'Pending', 'Completed'];
   const statusOptionsConfig = [
-    { id: 1, name: 'Prepared', color: '#f59e0b' },
-    { id: 2, name: 'Canceled', color: '#ef4444' },
-    { id: 3, name: 'Closed', color: '#6b7280' },
-    { id: 4, name: 'UnApproved', color: '#10b981' },
-    { id: 5, name: 'Pending', color: '#3b82f6' },
+    { id: 1, name: 'Pending', color: '#f59e0b' },
+    { id: 2, name: 'Completed', color: '#10b981' },
   ];
 
   const fetchReceipts = async () => {
     try {
       setLoading(true);
       const response = await getAllReceipt(pageIndex + 1, pageSize);
+      console.log('Receipts Response:', response?.data); // Debug API response
       setReceipts(response?.data || []);
     } catch (error) {
       toast('Failed to fetch receipts', { type: 'error' });
@@ -93,9 +90,17 @@ const ReceiptList = () => {
     setDeleteId('');
   };
 
-  const handleViewOpen = async (receiptId: string) => {
-    setSelectedRowId((prev) => (prev === receiptId ? null : receiptId));
+  const handleRowClick = async (receiptId: string) => {
+    // If the row is already selected, do nothing on single click
+    if (selectedReceiptIds.includes(receiptId)) {
+      return;
+    }
+
+    // Select the row and fetch related data
+    setSelectedReceiptIds([receiptId]); // Only one row selected at a time
+    setSelectedRowId(receiptId);
     const receipt = receipts.find((item) => item.id === receiptId);
+    console.log('Selected Receipt:', receipt); // Debug selected receipt
     if (receipt?.orderNo) {
       try {
         const consResponse = await getAllConsignment(1, 100, { orderNo: receipt.orderNo });
@@ -106,21 +111,57 @@ const ReceiptList = () => {
       } catch (error) {
         toast('Failed to fetch related data', { type: 'error' });
       }
+    } else {
+      setConsignments([]);
+      setBookingStatus(null);
+    }
+
+    // Update selected bulk status
+    const selectedReceipt = receipts.find((r) => r.id === receiptId);
+    setSelectedBulkStatus(selectedReceipt?.status || null);
+  };
+
+  const handleRowDoubleClick = (receiptId: string) => {
+    // Deselect the row on double-click
+    if (selectedReceiptIds.includes(receiptId)) {
+      setSelectedReceiptIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setBookingStatus(null);
+      setSelectedBulkStatus(null);
     }
   };
 
-  const handleCheckboxChange = (receiptId: string, checked: boolean) => {
+  const handleCheckboxChange = async (receiptId: string, checked: boolean) => {
     if (checked) {
-      setSelectedReceiptIds((prev) => [...prev, receiptId]);
+      setSelectedReceiptIds([receiptId]); // Only one row selected at a time
+      setSelectedRowId(receiptId);
+      const receipt = receipts.find((item) => item.id === receiptId);
+      console.log('Checked Receipt:', receipt); // Debug checked receipt
+      if (receipt?.orderNo) {
+        try {
+          const consResponse = await getAllConsignment(1, 100, { orderNo: receipt.orderNo });
+          setConsignments(consResponse?.data || []);
+          const bookingResponse = await getAllBookingOrder(1, 100, { orderNo: receipt.orderNo });
+          const booking = bookingResponse?.data.find((b: any) => b.orderNo === receipt.orderNo);
+          setBookingStatus(booking?.status || null);
+        } catch (error) {
+          toast('Failed to fetch related data', { type: 'error' });
+        }
+      } else {
+        setConsignments([]);
+        setBookingStatus(null);
+      }
     } else {
-      setSelectedReceiptIds((prev) => prev.filter((id) => id !== receiptId));
+      setSelectedReceiptIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setBookingStatus(null);
     }
 
-    setTimeout(() => {
-      const selected = receipts.filter((r) => selectedReceiptIds.includes(r.id));
-      const statuses = selected.map((r) => r.status).filter((status, index, self) => self.indexOf(status) === index);
-      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
-    }, 100);
+    // Update selected bulk status
+    const selectedReceipt = receipts.find((r) => r.id === receiptId);
+    setSelectedBulkStatus(checked ? selectedReceipt?.status || null : null);
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
@@ -136,6 +177,9 @@ const ReceiptList = () => {
       await Promise.all(updatePromises);
       setSelectedBulkStatus(newStatus);
       setSelectedReceiptIds([]);
+      setSelectedRowId(null);
+      setConsignments([]);
+      setBookingStatus(null);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
       toast('Receipt Status Updated Successfully', { type: 'success' });
@@ -179,7 +223,7 @@ const ReceiptList = () => {
   };
 
   return (
-    <div className="container mx-auto mt-4  max-w-screen  p-6 ">
+    <div className="container mx-auto mt-4 max-w-screen p-6">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -213,7 +257,7 @@ const ReceiptList = () => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen)}
+          columns={columns(handleDeleteOpen, handleCheckboxChange, selectedReceiptIds)}
           data={filteredReceipts}
           loading={loading}
           link="/receipt/create"
@@ -221,19 +265,11 @@ const ReceiptList = () => {
           pageIndex={pageIndex}
           pageSize={pageSize}
           setPageSize={setPageSize}
-          onRowClick={handleViewOpen}
+          onRowClick={handleRowClick}
+          onRowDoubleClick={handleRowDoubleClick}
         />
       </div>
-      {selectedRowId && (
-        <div className="mt-4">
-          <OrderProgress
-            orderNo={receipts.find((r) => r.id === selectedRowId)?.orderNo}
-            bookingStatus={bookingStatus}
-            consignments={consignments}
-          />
-        </div>
-      )}
-      <div className="mt-4 space-y-2 h-[18vh]">
+      <div className="mt-4 space-y-2 h-[10vh]">
         <div className="flex flex-wrap p-3 gap-3">
           {statusOptionsConfig.map((option) => {
             const isSelected = selectedBulkStatus === option.name;
@@ -253,6 +289,15 @@ const ReceiptList = () => {
           })}
         </div>
       </div>
+      {selectedRowId && (
+        <div className="">         
+          <OrderProgress
+            orderNo={receipts.find((r) => r.id === selectedRowId)?.orderNo}
+            bookingStatus={bookingStatus}
+            consignments={consignments}
+          />
+        </div>
+      )}
       {openDelete && (
         <DeleteConfirmModel
           handleDeleteclose={handleDeleteClose}
