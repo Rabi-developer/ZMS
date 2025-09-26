@@ -543,7 +543,7 @@ const BookingOrderReportExport: React.FC = () => {
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {/* Date Filter */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+              {/* <div className="bg-white rounded-xl shadow-lg border border-gray-100">
                 <div className="p-6 border-b border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900">Date Filter</h3>
                   <p className="text-sm text-gray-500">Select a date range for filtering data.</p>
@@ -580,7 +580,7 @@ const BookingOrderReportExport: React.FC = () => {
                     Month
                   </button>
                 </div>
-              </div>
+              </div> */}
 
               {/* Consignment Filter */}
               <div className="bg-white rounded-xl shadow-lg border border-gray-100">
@@ -601,7 +601,7 @@ const BookingOrderReportExport: React.FC = () => {
                 </div>
               </div>
 
-              {/* Conditional Date Inputs */}
+              {/* Conditional Date Inputs
               {filterType === "range" && (
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100">
                   <div className="p-6 border-b border-gray-100">
@@ -623,8 +623,8 @@ const BookingOrderReportExport: React.FC = () => {
                     />
                   </div>
                 </div>
-              )}
-              {filterType === "month" && (
+              )} */}
+              {/* {filterType === "month" && (
                 <div className="bg-white rounded-xl shadow-lg border border-gray-100">
                   <div className="p-6 border-b border-gray-100">
                     <h3 className="text-lg font-bold text-gray-900">Month / Year</h3>
@@ -652,10 +652,10 @@ const BookingOrderReportExport: React.FC = () => {
                     />
                   </div>
                 </div>
-              )}
+              )} */}
 
               {/* Value Filter */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+              {/* <div className="bg-white rounded-xl shadow-lg border border-gray-100">
                 <div className="p-6 border-b border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900">Value Filter</h3>
                   <p className="text-sm text-gray-500">Filter rows by a specific column value.</p>
@@ -706,10 +706,10 @@ const BookingOrderReportExport: React.FC = () => {
                     Clear Filter
                   </button>
                 </div>
-              </div>
+              </div> */}
 
               {/* Sorting */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+              {/* <div className="bg-white rounded-xl shadow-lg border border-gray-100">
                 <div className="p-6 border-b border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900">Sorting</h3>
                   <p className="text-sm text-gray-500">Choose how to sort the rows.</p>
@@ -741,10 +741,10 @@ const BookingOrderReportExport: React.FC = () => {
                     ))}
                   </select>
                 </div>
-              </div>
+              </div> */}
 
               {/* Columns - Moved to end for better layout */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100 relative">
+              {/* <div className="bg-white rounded-xl shadow-lg border border-gray-100 relative">
                 <div className="p-6 border-b border-gray-100">
                   <h3 className="text-lg font-bold text-gray-900">Columns</h3>
                   <p className="text-sm text-gray-500">Select columns to include in the report.</p>
@@ -780,7 +780,7 @@ const BookingOrderReportExport: React.FC = () => {
                     </div>
                   )}
                 </div>
-              </div>
+              </div> */}
             </div>
 
             {/* Actions */}

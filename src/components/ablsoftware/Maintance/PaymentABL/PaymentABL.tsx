@@ -263,10 +263,10 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     const allCharges = charges.flatMap((charge) =>
       Array.isArray(charge.lines) && charge.lines.length > 0
         ? charge.lines
-            .filter((line) => charge.status === 'Approved' && charge.isActive && !selectedChargeNos.includes(line.charge))
+            .filter((line) => charge.status === 'Approved' && charge.isActive)
             .map((line) => ({
               id: line.id,
-              chargeNo: line.charge,
+              chargeNo: charge.chargeNo,
               chargeName: line.vehicle || `Charge ${line.id}`,
               orderNo: charge.orderNo,
               chargeDate: charge.chargeDate || new Date().toISOString().split('T')[0],
@@ -277,7 +277,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               paidTo: line.paidTo || '',
             }))
         : []
-    );
+    ).filter((charge) => !selectedChargeNos.includes(charge.chargeNo));
     return allCharges
       .filter((charge) => {
         if (!charge.id || seenChargeIds.has(charge.id)) return false;
