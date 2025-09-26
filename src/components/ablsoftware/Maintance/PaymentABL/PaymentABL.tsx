@@ -1037,7 +1037,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               <div className="mb-4">
                 <input
                   type="text"
-                  placeholder="Search by Charge No, Vehicle, Order No, Dates, or Amount..."
+                  placeholder="Search by Charge Name, Vehicle, Order No, Dates, or Amount..."
                   value={chargeSearch}
                   onChange={(e) => setChargeSearch(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
@@ -1051,7 +1051,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                     <thead>
                       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
                         <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Charge No
+                          Charges Name
                         </th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
                           Vehicle
