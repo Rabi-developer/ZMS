@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { FaFileExcel, FaCheck } from 'react-icons/fa';
+import { FaFileExcel, FaCheck, FaFilePdf } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
@@ -11,6 +11,7 @@ import { getAllConsignment } from '@/apis/consignment';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { columns, BillPaymentInvoice } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
+import { exportBiltyPaymentInvoicePdf } from '@/components/ablsoftware/Maintance/common/BiltyPaymentInvoicePdf';
 
 // Interface for the API response
 interface ApiBiltyPaymentInvoice {
@@ -268,6 +269,75 @@ const BillPaymentInvoicesList = () => {
     XLSX.writeFile(workbook, 'BillPaymentInvoices.xlsx');
   };
 
+ const preparePdfPayload = async (invoiceId: string) => {
+  try {
+    const response = await getAllBiltyPaymentInvoice(1, 100); // Fetch more records to ensure the invoice is included
+    const detailedInvoice = response?.data?.find((item: ApiBiltyPaymentInvoice) => item.id === invoiceId);
+
+    if (!detailedInvoice) {
+      toast('Failed to fetch invoice details', { type: 'error' });
+      return null;
+    }
+
+    const firstLine = detailedInvoice.lines?.find((line) => !!line);
+    const brokerDetails = {
+      name: firstLine?.broker || undefined,
+      mobile: firstLine?.invoice.broker?.mobile, // Placeholder; replace with actual source if available
+    };
+
+    return {
+      invoiceNo: detailedInvoice.invoiceNo,
+      paymentDate: detailedInvoice.paymentDate,
+      bookingDate: detailedInvoice.creationDate || detailedInvoice.createdDateTime,
+      checkDate: detailedInvoice.updationDate || detailedInvoice.modifiedDateTime || detailedInvoice.paymentDate,
+      lines: detailedInvoice.lines?.map((line: {
+        id: string;
+        vehicleNo: string;
+        orderNo: string;
+        amount: number;
+        munshayana: string;
+        broker: string;
+        dueDate: string;
+        remarks: string;
+        isAdditionalLine: boolean; // Added to match API response
+        nameCharges?: string; // Added to match API response
+        amountCharges?: number; // Added to match API response
+      }) => ({
+        isAdditionalLine: line.isAdditionalLine || false,
+        biltyNo: line.orderNo,
+        vehicleNo: line.vehicleNo,
+        orderNo: line.orderNo,
+        amount: Number(line.amount) || 0,
+        munshayana: Number(line.munshayana) || 0,
+        nameCharges: line.nameCharges || undefined,
+        amountCharges: Number(line.amountCharges) || undefined,
+      })) || [],
+      broker: brokerDetails,
+    };
+  } catch (error) {
+    console.error('Failed to prepare PDF payload:', error);
+    toast('Unable to prepare invoice PDF', { type: 'error' });
+    return null;
+  }
+};
+
+  const handleDownloadPdf = async () => {
+    if (selectedBillPaymentIds.length === 0) {
+      toast('Please select a bill payment invoice first', { type: 'warning' });
+      return;
+    }
+
+    const invoiceId = selectedBillPaymentIds[0];
+
+    const payload = await preparePdfPayload(invoiceId);
+    if (!payload) {
+      return;
+    }
+
+    await exportBiltyPaymentInvoicePdf(payload, `${payload.invoiceNo || invoiceId}.pdf`);
+    toast('Invoice PDF downloaded successfully', { type: 'success' });
+  };
+
   return (
     <div className="container mx-auto mt-4 max-w-screen p-6">
       <div className="mb-4 flex items-center justify-between">
@@ -293,13 +363,24 @@ const BillPaymentInvoicesList = () => {
             Refresh Data
           </button>
         </div>
-        <button
-          onClick={exportToExcel}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-        >
-          <FaFileExcel size={18} />
-          Download Excel
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={exportToExcel}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+          >
+            <FaFileExcel size={18} />
+            Download Excel
+          </button>
+          {selectedBillPaymentIds.length > 0 && (
+            <button
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+            >
+              <FaFilePdf size={18} />
+              Download PDF
+            </button>
+          )}
+        </div>
       </div>
       <div>
         <DataTable
@@ -341,7 +422,6 @@ const BillPaymentInvoicesList = () => {
             orderNo={billPaymentInvoices.find((b) => b.id === selectedRowId)?.orderNo}
             bookingStatus={bookingStatus}
             consignments={consignments}
-            // billPaymentInvoice={billPaymentInvoices.find((b) => b.id === selectedRowId)}
           />
         </div>
       )}

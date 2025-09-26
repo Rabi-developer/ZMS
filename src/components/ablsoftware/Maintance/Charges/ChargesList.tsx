@@ -28,13 +28,13 @@ const ChargesList = () => {
   const [consignments, setConsignments] = useState<any[]>([]);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
 
-  const statusOptions = ['All', 'Prepared', 'Canceled', 'Closed', 'UnApproved', 'Pending'];
+  const statusOptions = ['All', 'Prepared', 'Canceled', 'Closed', 'UnApproved', 'Approved'];
   const statusOptionsConfig = [
     { id: 1, name: 'Prepared', color: '#f59e0b' },
-    { id: 2, name: 'Canceled', color: '#ef4444' },
-    { id: 3, name: 'Closed', color: '#6b7280' },
-    { id: 4, name: 'UnApproved', color: '#10b981' },
-    { id: 5, name: 'Pending', color: '#3b82f6' },
+    { id: 2, name: 'Approved', color: '#3b82f6' },
+    { id: 3, name: 'Canceled', color: '#ef4444' },
+    { id: 4, name: 'Closed', color: '#6b7280' },
+    { id: 5, name: 'UnApproved', color: '#10b981' },
   ];
 
   const fetchCharges = async () => {

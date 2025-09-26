@@ -15,6 +15,7 @@ import { MdInfo } from 'react-icons/md';
 import { FaFileInvoice, FaMoneyBillWave } from 'react-icons/fa';
 import { FiSave, FiX } from 'react-icons/fi';
 import Link from 'next/link';
+import { isEqual } from 'lodash'; // Optional, remove if using custom areItemsEqual
 
 // Interfaces
 interface DropdownOption {
@@ -31,28 +32,34 @@ interface BookingOrder {
   vendorName: string;
 }
 
+interface ChargeLine {
+  id: string;
+  charge: string; // Used as chargeNo
+  biltyNo: string;
+  date: string;
+  vehicle: string;
+  paidTo: string;
+  contact: string;
+  remarks: string;
+  amount: number;
+}
+
 interface Charge {
   id: string;
   chargeNo: string;
   chargeDate: string;
   orderNo: string;
-  charge: string; // chargeNo for internal reference
-  chargeName: string; // Human-readable charge name
-  biltyNo: string;
-  date: string; // From lines.date
-  vehicle: string;
-  paidTo: string;
-  amount: number;
-  balance: number;
+  status: string;
+  lines: ChargeLine[];
   isActive: boolean;
 }
 
 interface PaymentABLItem {
-  id?: string | null; // Guid? in backend
+  id?: string | null;
   vehicleNo: string;
   orderNo: string;
-  charges: string; // Stores chargeName for display
-  chargeNo: string; // Stores chargeNo for payload (Charges field)
+  charges: string; // Displays chargeName (e.g., vehicle or derived name)
+  chargeNo: string; // Stores charge ID for payload
   orderDate: string;
   dueDate: string;
   expenseAmount: number | null;
@@ -71,12 +78,11 @@ interface PaymentFormProps {
     modifiedDateTime?: string;
     modifiedBy?: string;
     status?: string;
-    // Some APIs return the items as `paymentABLItem` (singular) instead of `paymentABLItems` (plural)
     paymentABLItem?: any[];
   };
 }
 
-// Define the schema for payment form validation
+// Schema for payment form validation
 const paymentSchema = z.object({
   paymentNo: z.string().optional(),
   paymentDate: z.string().min(1, 'Payment Date is required'),
@@ -138,34 +144,29 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           pdc: initialData.pdc ?? null,
           pdcDate: initialData.pdcDate || '',
           paymentAmount: initialData.paymentAmount ?? null,
-          // Accept either `paymentABLItems` (array) or `paymentABLItem` (singular payload from some APIs)
-          paymentABLItems: (initialData.paymentABLItems && initialData.paymentABLItems.length > 0
-            ? initialData.paymentABLItems
-            : initialData.paymentABLItem && initialData.paymentABLItem.length > 0
-            ? initialData.paymentABLItem
-            : null)?.map?.((row: any) => ({
-              id: row.id ?? null,
-              vehicleNo: row.vehicleNo || '',
-              orderNo: row.orderNo || '',
-              charges: row.charges || '',
-              chargeNo: row.chargeNo || '',
-              orderDate: row.orderDate || '',
-              dueDate: row.dueDate || '',
-              expenseAmount: row.expenseAmount ?? null,
-              balance: row.balance ?? null,
-              paidAmount: row.paidAmount ?? null,
-            })) ?? [{
-              id: null,
-              vehicleNo: '',
-              orderNo: '',
-              charges: '',
-              chargeNo: '',
-              orderDate: '',
-              dueDate: '',
-              expenseAmount: null,
-              balance: null,
-              paidAmount: null,
-            }],
+          paymentABLItems: (initialData.paymentABLItems || initialData.paymentABLItem)?.map?.((row: any) => ({
+            id: row.id ?? null,
+            vehicleNo: row.vehicleNo || '',
+            orderNo: row.orderNo || '',
+            charges: row.charges || '',
+            chargeNo: row.chargeNo || '',
+            orderDate: row.orderDate || '',
+            dueDate: row.dueDate || '',
+            expenseAmount: row.expenseAmount ?? null,
+            balance: row.balance ?? null,
+            paidAmount: row.paidAmount ?? null,
+          })) ?? [{
+            id: null,
+            vehicleNo: '',
+            orderNo: '',
+            charges: '',
+            chargeNo: '',
+            orderDate: '',
+            dueDate: '',
+            expenseAmount: null,
+            balance: null,
+            paidAmount: null,
+          }],
         }
       : {
           paymentNo: '',
@@ -215,36 +216,30 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
   const bankNames: DropdownOption[] = [
     { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
-    { id: 'MCB', name: 'MCB Bank Limited' },
-    { id: 'UBL', name: 'United Bank Limited (UBL)' },
-    { id: 'ABL', name: 'Allied Bank Limited (ABL)' },
-    { id: 'NBP', name: 'National Bank of Pakistan (NBP)' },
-    { id: 'Meezan', name: 'Meezan Bank' },
-    { id: 'BankAlfalah', name: 'Bank Alfalah' },
-    { id: 'Askari', name: 'Askari Bank' },
-    { id: 'Faysal', name: 'Faysal Bank' },
-    { id: 'BankAlHabib', name: 'Bank Al Habib' },
-    { id: 'Soneri', name: 'Soneri Bank' },
-    { id: 'Samba', name: 'Samba Bank' },
-    { id: 'JS', name: 'JS Bank' },
-    { id: 'Silk', name: 'Silk Bank' },
-    { id: 'Summit', name: 'Summit Bank' },
-    { id: 'StandardChartered', name: 'Standard Chartered Bank' },
-    { id: 'BankIslami', name: 'BankIslami Pakistan' },
-    { id: 'DubaiIslamic', name: 'Dubai Islamic Bank Pakistan' },
-    { id: 'AlBaraka', name: 'Al Baraka Bank' },
-    { id: 'ZaraiTaraqiati', name: 'Zarai Taraqiati Bank Limited (ZTBL)' },
-    { id: 'SindhBank', name: 'Sindh Bank' },
-    { id: 'BankOfPunjab', name: 'The Bank of Punjab' },
-    { id: 'FirstWomenBank', name: 'First Women Bank' },
-    { id: 'BankOfKhyber', name: 'The Bank of Khyber' },
-    { id: 'BankOfAzadKashmir', name: 'Bank of Azad Kashmir' },
-    { id: 'IndustrialDevelopment', name: 'Industrial Development Bank of Pakistan' },
-    { id: 'PettyCash', name: 'Petty Cash ' },
     { id: 'Other', name: 'Other' },
   ];
 
   const paymentABLItems = watch('paymentABLItems');
+
+  // Custom deep comparison function (use instead of lodash.isEqual if preferred)
+  const areItemsEqual = (items1: PaymentABLItem[], items2: PaymentABLItem[]) => {
+    if (items1.length !== items2.length) return false;
+    return items1.every((item1, index) => {
+      const item2 = items2[index];
+      return (
+        item1.id === item2.id &&
+        item1.vehicleNo === item2.vehicleNo &&
+        item1.orderNo === item2.orderNo &&
+        item1.charges === item2.charges &&
+        item1.chargeNo === item2.chargeNo &&
+        item1.orderDate === item2.orderDate &&
+        item1.dueDate === item2.dueDate &&
+        item1.expenseAmount === item2.expenseAmount &&
+        item1.balance === item2.balance &&
+        item1.paidAmount === item2.paidAmount
+      );
+    });
+  };
 
   // Filter booking orders based on search term
   const filteredBookingOrders = bookingOrders.filter((order) =>
@@ -256,16 +251,37 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     ].some((field) => field.toLowerCase().includes(orderSearch.toLowerCase()))
   );
 
-  // Filter and deduplicate charges
+  // Filter charges based on orderNo, status, and search term
   const getFilteredCharges = (index: number | null) => {
     if (index === null) return [];
     const selectedOrderNo = paymentABLItems[index]?.orderNo || '';
-    const seenChargeNos = new Set<string>();
-    return charges
+    const selectedChargeNos = paymentABLItems
+      .filter((_, i) => i !== index)
+      .map(row => row.chargeNo)
+      .filter(Boolean);
+    const seenChargeIds = new Set<string>();
+    const allCharges = charges.flatMap((charge) =>
+      Array.isArray(charge.lines) && charge.lines.length > 0
+        ? charge.lines
+            .filter((line) => charge.status === 'Approved' && charge.isActive && !selectedChargeNos.includes(line.charge))
+            .map((line) => ({
+              id: line.id,
+              chargeNo: line.charge,
+              chargeName: line.vehicle || `Charge ${line.id}`,
+              orderNo: charge.orderNo,
+              chargeDate: charge.chargeDate || new Date().toISOString().split('T')[0],
+              date: line.date || charge.chargeDate || '',
+              vehicle: line.vehicle || '',
+              amount: Number(line.amount) || 0,
+              balance: Number(line.amount) || 0,
+              paidTo: line.paidTo || '',
+            }))
+        : []
+    );
+    return allCharges
       .filter((charge) => {
-        if (!charge.chargeNo || !charge.isActive) return false;
-        if (seenChargeNos.has(charge.chargeNo)) return false;
-        seenChargeNos.add(charge.chargeNo);
+        if (!charge.id || seenChargeIds.has(charge.id)) return false;
+        seenChargeIds.add(charge.id);
         return !selectedOrderNo || charge.orderNo === selectedOrderNo;
       })
       .filter((charge) =>
@@ -274,6 +290,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           charge.chargeName || '',
           charge.orderNo || '',
           charge.chargeDate || '',
+          charge.date || '',
+          charge.vehicle || '',
           charge.amount?.toString() || '',
           charge.balance?.toString() || '',
         ].some((field) => field.toLowerCase().includes(chargeSearch.toLowerCase()))
@@ -299,29 +317,35 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             vendorName: item.vendorName || item.vendor || 'Unknown',
           }))
         );
-        setCharges(
-          chargeRes.data
-            .filter((item: any) => item.lines && item.lines.length > 0)
-            .map((item: any) => {
-              const line = item.lines[0];
-              return {
-                id: item.id,
-                chargeNo: item.chargeNo || '',
-                chargeDate: item.chargeDate || new Date().toISOString().split('T')[0],
-                orderNo: item.orderNo || '',
-                charge: item.chargeNo || 'N/A',
-                // Prefer line.charge (present in Charges.tsx schema); fallback to any chargeName field
-                chargeName: line.charge || line.chargeName || 'Unknown Charge',
-                biltyNo: line.biltyNo || '',
-                date: line.date || item.chargeDate || new Date().toISOString().split('T')[0],
-                vehicle: line.vehicle || '',
-                paidTo: line.paidTo || '',
-                amount: Number(line.amount) || 0,
-                balance: Number(line.amount) || 0,
-                isActive: item.isActive || false,
-              };
-            })
-        );
+        const validCharges = chargeRes.data
+          .filter((item: any) => {
+            if (!item.lines || !Array.isArray(item.lines) || item.lines.length === 0 || item.status !== 'Approved') {
+              console.warn('Invalid charge entry skipped:', item);
+              return false;
+            }
+            return true;
+          })
+          .map((item: any) => ({
+            id: item.id || '',
+            chargeNo: item.chargeNo || '',
+            chargeDate: item.chargeDate || new Date().toISOString().split('T')[0],
+            orderNo: item.orderNo || '',
+            status: item.status || '',
+            lines: item.lines.map((line: any) => ({
+              id: line.id || '',
+              charge: line.charge || '',
+              biltyNo: line.biltyNo || '',
+              date: line.date || item.chargeDate || '',
+              vehicle: line.vehicle || '',
+              paidTo: line.paidTo || '',
+              contact: line.contact || '',
+              remarks: line.remarks || '',
+              amount: Number(line.amount) || 0,
+            })),
+            isActive: item.isActive || false,
+          }));
+        setCharges(validCharges);
+        console.log('Processed charges:', validCharges);
       } catch (error) {
         toast.error('Failed to load data');
         console.error('Error fetching data:', error);
@@ -348,12 +372,29 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   // Populate form with initialData in edit mode
   useEffect(() => {
     if (isEdit && initialData) {
-      // normalize initialData to accept either paymentABLItems or paymentABLItem
-      const normalizedItems = (initialData.paymentABLItems && initialData.paymentABLItems.length > 0
-        ? initialData.paymentABLItems
-        : initialData.paymentABLItem && initialData.paymentABLItem.length > 0
-        ? initialData.paymentABLItem
-        : null) ?? null;
+      const normalizedItems = (initialData.paymentABLItems || initialData.paymentABLItem)?.map((row: any) => ({
+        id: row.id ?? null,
+        vehicleNo: row.vehicleNo || '',
+        orderNo: row.orderNo || '',
+        charges: row.charges || '',
+        chargeNo: row.chargeNo || '',
+        orderDate: row.orderDate || '',
+        dueDate: row.dueDate || '',
+        expenseAmount: row.expenseAmount ?? null,
+        balance: row.balance ?? null,
+        paidAmount: row.paidAmount ?? null,
+      })) ?? [{
+        id: null,
+        vehicleNo: '',
+        orderNo: '',
+        charges: '',
+        chargeNo: '',
+        orderDate: '',
+        dueDate: '',
+        expenseAmount: null,
+        balance: null,
+        paidAmount: null,
+      }];
 
       reset({
         paymentNo: initialData.paymentNo || '',
@@ -370,29 +411,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         pdc: initialData.pdc ?? null,
         pdcDate: initialData.pdcDate || '',
         paymentAmount: initialData.paymentAmount ?? null,
-        paymentABLItems: normalizedItems?.map((row: any) => ({
-          id: row.id ?? null,
-          vehicleNo: row.vehicleNo || '',
-          orderNo: row.orderNo || '',
-          charges: row.charges || '',
-          chargeNo: row.chargeNo || '',
-          orderDate: row.orderDate || '',
-          dueDate: row.dueDate || '',
-          expenseAmount: row.expenseAmount ?? null,
-          balance: row.balance ?? null,
-          paidAmount: row.paidAmount ?? null,
-        })) ?? [{
-          id: null,
-          vehicleNo: '',
-          orderNo: '',
-          charges: '',
-          chargeNo: '',
-          orderDate: '',
-          dueDate: '',
-          expenseAmount: null,
-          balance: null,
-          paidAmount: null,
-        }],
+        paymentABLItems: normalizedItems,
       });
     }
   }, [isEdit, initialData, reset]);
@@ -403,15 +422,25 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       const balance = (row.expenseAmount ?? 0) - (row.paidAmount ?? 0);
       return { ...row, balance: balance >= 0 ? balance : null };
     });
-    setValue('paymentABLItems', updatedPaymentABLItems);
+
+    // Use isEqual from lodash or areItemsEqual
+    if (!isEqual(paymentABLItems, updatedPaymentABLItems)) { // Replace with !areItemsEqual(paymentABLItems, updatedPaymentABLItems) if not using lodash
+      setValue('paymentABLItems', updatedPaymentABLItems, { shouldValidate: true });
+    }
 
     const totalPaidAmount = updatedPaymentABLItems.reduce((sum, row) => sum + (row.paidAmount ?? 0), 0);
-    setValue('paidAmount', totalPaidAmount || null);
+    const currentPaidAmount = watch('paidAmount') ?? 0;
+    if (totalPaidAmount !== currentPaidAmount) {
+      setValue('paidAmount', totalPaidAmount || null, { shouldValidate: true });
+    }
 
     const advanced = parseFloat(watch('advanced')?.toString() || '0') || 0;
     const pdc = parseFloat(watch('pdc')?.toString() || '0') || 0;
     const paymentAmount = totalPaidAmount + advanced + pdc;
-    setValue('paymentAmount', paymentAmount || null);
+    const currentPaymentAmount = watch('paymentAmount') ?? 0;
+    if (paymentAmount !== currentPaymentAmount) {
+      setValue('paymentAmount', paymentAmount || null, { shouldValidate: true });
+    }
   }, [paymentABLItems, watch, setValue]);
 
   const selectOrder = (index: number, order: BookingOrder) => {
@@ -423,13 +452,15 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     setOrderSearch('');
   };
 
-  const selectCharge = (index: number, charge: Charge) => {
+  const selectCharge = (index: number, charge: any) => {
     setValue(`paymentABLItems.${index}.charges`, charge.chargeName, { shouldValidate: true });
     setValue(`paymentABLItems.${index}.chargeNo`, charge.chargeNo, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.vehicleNo`, charge.vehicle, { shouldValidate: true });
     setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: true });
     setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.expenseAmount`, Number(charge.amount) || null, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.balance`, Number(charge.balance) || null, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.expenseAmount`, charge.amount || null, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.balance`, charge.balance || null, { shouldValidate: true });
+    setValue('paidTo', charge.paidTo || watch('paidTo'), { shouldValidate: true });
     setShowChargePopup(null);
     setChargeSearch('');
   };
@@ -463,7 +494,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     setIsSubmitting(true);
     try {
       const currentDateTime = new Date().toISOString();
-      const userId = '3fa85f64-5717-4562-b3fc-2c963f66afa6'; // Replace with actual user ID logic
+      const userId = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
       const payload = {
         id: isEdit ? initialData?.id || window.location.pathname.split('/').pop() || null : null,
         isActive: true,
@@ -487,14 +518,14 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         paidAmount: data.paidAmount ?? null,
         advanced: data.advanced ?? null,
         advancedDate: data.advancedDate || '',
-        pdc: data.pdc ?? null,
+        pdc: data.paidAmount ?? null,
         pdcDate: data.pdcDate || '',
         paymentAmount: data.paymentAmount ?? null,
         paymentABLItem: data.paymentABLItems.map(row => ({
           id: row.id ?? null,
           vehicleNo: row.vehicleNo || '',
           orderNo: row.orderNo || '',
-          charges: row.chargeNo || '', // Send chargeNo as Charges
+          charges: row.chargeNo || '',
           orderDate: row.orderDate || '',
           dueDate: row.dueDate || '',
           expenseAmount: row.expenseAmount ?? null,
@@ -1006,7 +1037,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               <div className="mb-4">
                 <input
                   type="text"
-                  placeholder="Search by Charge No, Charge Name, Order No, Dates, or Amount..."
+                  placeholder="Search by Charge No, Vehicle, Order No, Dates, or Amount..."
                   value={chargeSearch}
                   onChange={(e) => setChargeSearch(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
@@ -1014,7 +1045,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               </div>
               <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
                 {getFilteredCharges(showChargePopup).length === 0 ? (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No saved charges available for this order</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No approved charges available for this order</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
@@ -1023,7 +1054,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           Charge No
                         </th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Charge Name
+                          Vehicle
                         </th>
                         <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
                           Order No
@@ -1053,7 +1084,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                             {charge.chargeNo}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.chargeName}
+                            {charge.vehicle}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
                             {charge.orderNo}

@@ -35,9 +35,14 @@ interface BookingOrder {
   munshayana: string;
 }
 
+interface ChargeLine {
+  vehicle: string;
+  amount: number;
+}
+
 interface Charge {
   orderNo: string;
-  lines: { amount: number }[];
+  lines: ChargeLine[];
 }
 
 // Schema for bill payment invoices
@@ -153,20 +158,20 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
   const [chargesMap, setChargesMap] = useState<Record<string, number>>({});
   const [showPopup, setShowPopup] = useState(false);
-  const [selectedLineIndex, setSelectedLineIndex] = useState(0);
+  const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const lines = watch('lines');
   const [selectedBrokerDetails, setSelectedBrokerDetails] = useState<DropdownOption | null>(null);
 
-  // Fetch dropdown data
+  // Fetch dropdown data and build chargesMap by vehicleNo
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [munRes, baRes, bookRes, chargesRes] = await Promise.all([
-          getAllMunshyana(),
-          getAllBrooker(),
-          getAllBookingOrder(),
-          getAllCharges(),
+          getAllMunshyana(1, 10000),
+          getAllBrooker(1, 10000),
+          getAllBookingOrder(1, 10000),
+          getAllCharges(1, 10000),
         ]);
         setMunshyanas(munRes.data.map((m: any) => ({ id: m.id, name: m.name })));
         setBusinessAssociates(
@@ -187,14 +192,16 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
           }))
         );
 
-        // Compute charges sum per orderNo
+        // Build chargesMap with vehicleNo as key
         const chargesSum: Record<string, number> = {};
         chargesRes.data.forEach((charge: Charge) => {
-          if (charge.orderNo) {
-            const sum = charge.lines.reduce((acc, line) => acc + (line.amount || 0), 0);
-            chargesSum[charge.orderNo] = (chargesSum[charge.orderNo] || 0) + sum;
-          }
+          charge.lines.forEach((line: ChargeLine) => {
+            if (line.vehicle) {
+              chargesSum[line.vehicle] = line.amount || 0; // Use individual amount per vehicle
+            }
+          });
         });
+        console.log('chargesMap:', chargesSum); // Debug log
         setChargesMap(chargesSum);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -204,7 +211,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     fetchData();
   }, []);
 
-  // Update selected broker details when any broker changes in any regular line
+  // Update selected broker details
   useEffect(() => {
     const selectedBrokerId = lines.find(line => !line.isAdditionalLine && line.broker)?.broker;
     const broker = businessAssociates.find(ba => ba.id === selectedBrokerId);
@@ -263,11 +270,13 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   const selectVehicle = (order: BookingOrder, index: number) => {
     setValue(`lines.${index}.vehicleNo`, order.vehicleNo, { shouldValidate: true });
     setValue(`lines.${index}.orderNo`, order.orderNo, { shouldValidate: true });
-    setValue(`lines.${index}.amount`, chargesMap[order.orderNo] || 0, { shouldValidate: true });
+    setValue(`lines.${index}.amount`, chargesMap[order.vehicleNo] || 0, { shouldValidate: true });
     setValue(`lines.${index}.munshayana`, 0, { shouldValidate: true });
     setValue(`lines.${index}.isAdditionalLine`, false, { shouldValidate: true });
+    setSelectedLineIndex(index);
     setShowPopup(false);
     setSearchQuery('');
+    console.log('Updated lines:', watch('lines')); // Debug log
   };
 
   const addLine = () => {
@@ -285,6 +294,11 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     if (lines.length > 1) {
       const newLines = lines.filter((_, i) => i !== index);
       setValue('lines', newLines);
+      if (selectedLineIndex === index) {
+        setSelectedLineIndex(null);
+      } else if (selectedLineIndex !== null && index < selectedLineIndex) {
+        setSelectedLineIndex(selectedLineIndex - 1);
+      }
     }
   };
 
@@ -292,9 +306,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     setIsSubmitting(true);
     try {
       const payload = {
-        id: isEdit
-          ? window.location.pathname.split('/').pop() || ''
-          : `INV${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        id: isEdit ? window.location.pathname.split('/').pop() || '' : null,
         isActive: true,
         isDeleted: false,
         invoiceNo: data.invoiceNo || `INV${Date.now()}${Math.floor(Math.random() * 1000)}`,
@@ -337,7 +349,6 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
 
   const getMunshayanaName = (id: string) => munshyanas.find(m => m.id === id)?.name || id;
 
-  // Filter booking orders based on search query
   const filteredBookingOrders = bookingOrders.filter(
     order =>
       order.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -345,7 +356,9 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
       getMunshayanaName(order.munshayana).toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalAmount = lines.reduce((sum, line) => sum + (line.isAdditionalLine ? 0 : line.amount || 0), 0);
+  // Total Amount is the amount of the first non-additional line
+  const firstNonAdditionalLine = lines.find(line => !line.isAdditionalLine);
+  const totalAmount = firstNonAdditionalLine ? firstNonAdditionalLine.amount || 0 : 0;
   const totalAmountCharges = lines.reduce((sum, line) => sum + (line.isAdditionalLine ? line.amountCharges || 0 : 0), 0);
   const combinedTotal = totalAmount + totalAmountCharges;
   const munshayanaDeduction = lines.reduce((sum, line) => sum + (line.isAdditionalLine ? 0 : line.munshayana || 0), 0);
@@ -571,7 +584,6 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                                       setValue(`lines.${index}.broker`, value, { shouldValidate: true });
                                       const broker = businessAssociates.find(ba => ba.id === value);
                                       setSelectedBrokerDetails(broker || null);
-                                      setSelectedLineIndex(index);
                                     }}
                                     error={!line.isAdditionalLine && errors.lines?.[index] && 'broker' in errors.lines[index] ? (errors.lines[index] as any).broker?.message : undefined}
                                   />
@@ -767,7 +779,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                       filteredBookingOrders.map((order) => (
                         <div
                           key={order.id}
-                          onClick={() => selectVehicle(order, selectedLineIndex)}
+                          onClick={() => selectVehicle(order, selectedLineIndex || 0)}
                           className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
                         >
                           <div className="grid grid-cols-2 gap-2">
@@ -784,7 +796,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                             <div className="flex items-center gap-2">
                               <FaMoneyBillWave className="text-[#3a614c] text-base" />
                               <span className="text-xs text-gray-600 dark:text-gray-400">
-                                Amount: {chargesMap[order.orderNo] || 0}
+                                Amount: {chargesMap[order.vehicleNo] || 0}
                               </span>
                             </div>
                             <div className="flex items-center gap-2">
