@@ -47,7 +47,8 @@ export const exportBookingOrderToPDF = async (
   colOrder: ColumnKey[],
   headRows: any[][],
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  isGeneral: boolean = false
 ) => {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "A4" });
 
@@ -106,8 +107,12 @@ export const exportBookingOrderToPDF = async (
   doc.setFont("times", "bold");
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0); // Black text
-  doc.text(" DETAIL REPORT", pageWidth / 2, 98, { align: "center" });
+   if (isGeneral) {
+    doc.text(" GENERAL REPORT", pageWidth / 2, 98, { align: "center" });   } else {
+  
+    doc.text(" DETAIL REPORT", pageWidth / 2, 98, { align: "center" });
 
+   }
   // Date line: "Start From: <date>" (left), "To Date: <date>" (center), "Report: <date> <time>" (right)
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
@@ -135,10 +140,10 @@ export const exportBookingOrderToPDF = async (
     body: tableBody,
     styles: {
       font: "times",
-      fontSize: 8,
-      cellPadding: 8,
+      fontSize: 5,
+      cellPadding: 2,
       lineColor: [150, 150, 150],
-      lineWidth: 0.5,
+      lineWidth: 0.2,
       textColor: [30, 30, 30],
       overflow: "linebreak",
       cellWidth: "auto",
@@ -147,7 +152,7 @@ export const exportBookingOrderToPDF = async (
       fillColor: [220, 220, 220], // Light gray to match header
       textColor: [50, 50, 50], // Dark gray text
       fontStyle: "bold",
-      fontSize: 9,
+      fontSize: 7,
       halign: "center",
     },
     alternateRowStyles: {

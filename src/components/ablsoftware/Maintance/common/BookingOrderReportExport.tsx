@@ -1,27 +1,92 @@
-// src/components/reports/BookingOrderReportExport.tsx
 "use client";
-import React, { useCallback, useMemo, useState, useEffect } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { toast } from "react-toastify";
-import { getAllBookingOrder } from "@/apis/bookingorder";
-import { getAllConsignment } from "@/apis/consignment";
-import { getAllCharges } from "@/apis/charges";
-import { getAllPartys } from "@/apis/party";
-import { getAllUnitOfMeasures } from "@/apis/unitofmeasure";
-import { exportBookingOrderToPDF } from "./BookingOrderPdf";
-import { exportBookingOrderToExcel } from "./BookingOrderExcel";
-import { ALL_COLUMNS, ColumnKey, RowData, labelFor } from "./BookingOrderTypes";
-import { exportBiltiesReceivableToPDF } from "./BiltiesReceivablePdf";
+import { format } from "date-fns";
+import { Tooltip } from "react-tooltip";
+import "react-tooltip/dist/react-tooltip.css";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AiOutlineDownload } from "react-icons/ai";
+import { LuRefreshCcw } from "react-icons/lu";
+import { WiRefreshAlt } from "react-icons/wi";
+import { MdOutlineDoNotDisturbAlt } from "react-icons/md";
 
-// Company constants
+import { getAllBookingOrder } from '@/apis/bookingorder';
+import { getAllConsignment } from '@/apis/consignment';
+import { getAllCharges } from '@/apis/charges';
+import { getAllPartys } from '@/apis/party';
+import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
+import { exportBookingOrderToPDF } from './BookingOrderPdf';
+import { exportBookingOrderToExcel } from './BookingOrderExcel';
+import { exportBiltiesReceivableToPDF } from "@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf";
+
+// Company constant
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
 
-const GENERATE_COLUMNS: ColumnKey[] = [
+// Types
+type ColumnKey = "serial" | "orderNo" | "orderDate" | "vehicleNo" | "bookingAmount" | "biltyNo" | "biltyAmount" | "consignor" | "consignee" | "article" | "qty" | "departure" | "destination" | "vendor" | "carrier";
+
+interface RowData {
+  serial: number | string;
+  orderNo: string;
+  orderDate: string;
+  vehicleNo: string;
+  bookingAmount: number;
+  biltyNo: string;
+  biltyAmount: number;
+  consignor: string;
+  consignee: string;
+  article: string;
+  qty: string;
+  departure: string;
+  destination: string;
+  vendor: string;
+  carrier: string;
+  isOrderRow: boolean;
+  ablDate: string;
+}
+
+const ALL_COLUMNS: { key: ColumnKey; label: string; tooltip: string }[] = [
+  { key: "serial", label: "S.NO", tooltip: "Unique row number" },
+  { key: "orderNo", label: "Order No", tooltip: "Booking order number" },
+  { key: "orderDate", label: "Order Date", tooltip: "Date of the order" },
+  { key: "vehicleNo", label: "Vehicle No", tooltip: "Vehicle registration number" },
+  { key: "bookingAmount", label: "Freight", tooltip: "Total booking amount from consignment" },
+  { key: "biltyNo", label: "Bilty No", tooltip: "Consignment bilty number" },
+  { key: "biltyAmount", label: "Bilty Amount", tooltip: "Total charges for consignment" },
+  { key: "consignor", label: "Consignor", tooltip: "Party sending the goods" },
+  { key: "consignee", label: "Consignee", tooltip: "Party receiving the goods" },
+  { key: "article", label: "Article", tooltip: "Description of items" },
+  { key: "qty", label: "Quantity", tooltip: "Quantity of items" },
+  { key: "departure", label: "Departure", tooltip: "Starting location" },
+  { key: "destination", label: "Destination", tooltip: "Ending location" },
+  { key: "vendor", label: "Vendor", tooltip: "Vendor name" },
+  { key: "carrier", label: "Carrier", tooltip: "Transporter name" },
+];
+
+const GENERAL_COLUMNS: ColumnKey[] = [
   "serial",
   "orderNo",
-  "ablDate",
+  "orderDate",
   "vehicleNo",
+  "bookingAmount",
+  "biltyNo",
+  "article",
+  "departure",
+  "destination",
+  "vendor",
+];
+
+const DETAIL_COLUMNS: ColumnKey[] = [
+  "serial",
+  "orderNo",
+  "orderDate",
+  "vehicleNo",
+  "bookingAmount",
   "biltyNo",
   "biltyAmount",
+  "consignor",
+  "consignee",
   "article",
   "qty",
   "departure",
@@ -30,11 +95,11 @@ const GENERATE_COLUMNS: ColumnKey[] = [
   "carrier",
 ];
 
-type FilterType = "none" | "range" | "month";
-type ConsignmentFilterType = "all" | "single" | "multiple";
+const labelFor = (key: ColumnKey): string => ALL_COLUMNS.find(c => c.key === key)?.label || key;
+const tooltipFor = (key: ColumnKey): string => ALL_COLUMNS.find(c => c.key === key)?.tooltip || "";
 
 const formatDate = (dateStr?: string): string => {
-  if (!dateStr) return "-";
+  if (!dateStr || dateStr === "string" || dateStr === "") return "-";
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return "-";
   const day = d.getDate().toString().padStart(2, '0');
@@ -43,26 +108,20 @@ const formatDate = (dateStr?: string): string => {
   return `${day}-${month}-${year}`;
 };
 
-const formatABLDate = (dateStr?: string): string => {
-  if (!dateStr) return "-";
+const formatOrderNo = (orderNo: string, dateStr?: string): string => {
+  if (!dateStr || dateStr === "string" || dateStr === "") return `ABL/${orderNo}/-/--`;
   const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "-";
-  const day = d.getDate().toString().padStart(2, '0');
+  if (isNaN(d.getTime())) return `ABL/${orderNo}/-/--`;
   const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const year = d.getFullYear() % 100;
-  return `ABL/${day}/${month}-${year}`;
+  const year = (d.getFullYear() % 100).toString().padStart(2, '0');
+  return `ABL/${orderNo}/${month}/${year}`;
 };
 
 const withinRange = (dateStr: string, from?: string, to?: string) => {
-  if (!from || !to) return true;
+  if (!from || !to || from === "" || to === "") return true;
+  if (!dateStr || dateStr === "string" || dateStr === "") return true;
   const d = new Date(dateStr).getTime();
   return d >= new Date(from).getTime() && d <= new Date(to).getTime();
-};
-
-const isSameMonth = (dateStr: string, month?: number, year?: number) => {
-  if (!month || !year) return true;
-  const d = new Date(dateStr);
-  return d.getMonth() + 1 === month && d.getFullYear() === year;
 };
 
 const numberOr0 = (v: any) => {
@@ -70,139 +129,25 @@ const numberOr0 = (v: any) => {
   return isNaN(n) || !isFinite(n) ? 0 : n;
 };
 
-// Format numbers to remove .0 if the decimal part is zero
 const formatNumber = (v: any): string => {
   const num = numberOr0(v);
-  if (Number.isInteger(num)) {
-    return num.toLocaleString();
-  }
   return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-const isNumericString = (s: any) => typeof s === "string" && /^-?\d+(\.\d+)?$/.test(s.trim());
-const compareValues = (a: any, b: any, key?: ColumnKey | "") => {
-  if (!key) return 0;
-  let av: any = (a as RowData)[key];
-  let bv: any = (b as RowData)[key];
-
-  if (key === "orderDate") {
-    const ad = new Date(av as string).getTime();
-    const bd = new Date(bv as string).getTime();
-    if (isFinite(ad) && isFinite(bd)) return ad - bd;
-  }
-
-  const an = typeof av === "number" ? av : (isNumericString(av) ? parseFloat(av) : NaN);
-  const bn = typeof bv === "number" ? bv : (isNumericString(bv) ? parseFloat(bv) : NaN);
-  if (!isNaN(an) && !isNaN(bn)) return an - bn;
-
-  const as = (av ?? "").toString().toLowerCase();
-  const bs = (bv ?? "").toString().toLowerCase();
-  return as.localeCompare(bs);
-};
-const compareByKey = (a: RowData, b: RowData, key?: ColumnKey | "") => compareValues(a, b, key);
-
 const BookingOrderReportExport: React.FC = () => {
   const today = useMemo(() => new Date(), []);
-
-  // Filters
-  const [filterType, setFilterType] = useState<FilterType>("none");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [data, setData] = useState<RowData[]>([]);
+  const [totalBookingAmount, setTotalBookingAmount] = useState<string | null>(null);
+  const [totalBiltyAmount, setTotalBiltyAmount] = useState<string | null>(null);
+  const [isGeneralView, setIsGeneralView] = useState(true);
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
-  const [month, setMonth] = useState<number | undefined>(undefined);
-  const [year, setYear] = useState<number | undefined>(undefined);
-  const [consignmentFilter, setConsignmentFilter] = useState<ConsignmentFilterType>("all");
-
-  // Arrangement (sorting)
-  const [primarySortKey, setPrimarySortKey] = useState<ColumnKey | "">("");
-  const [secondarySortKey, setSecondarySortKey] = useState<ColumnKey | "">("");
-
-  // Column value filter
-  const [filterColumn, setFilterColumn] = useState<ColumnKey | "">("");
-  const [filterValue, setFilterValue] = useState<string>("");
-  const [allRows, setAllRows] = useState<RowData[]>([]);
-  const filterOptions = useMemo(() => {
-    if (!filterColumn) return [] as string[];
-    const set = new Set<string>();
-    allRows.forEach((r) => {
-      const v: any = (r as any)[filterColumn];
-      if (v === undefined || v === null || v === "") return;
-      set.add(String(v));
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [allRows, filterColumn]);
-
-  // Columns
-  const [selectedColumns, setSelectedColumns] = useState<ColumnKey[]>(ALL_COLUMNS.map(c => c.key));
-  const [showColsMenu, setShowColsMenu] = useState(false);
-  const [useGenerateColumns, setUseGenerateColumns] = useState<boolean>(false);
-
-  // State
-  const [loading, setLoading] = useState<boolean>(false);
-  const [data, setData] = useState<RowData[]>([]);
   const [activeTab, setActiveTab] = useState<'booking' | 'bilty'>('booking');
 
-  const toggleColumn = (key: ColumnKey) => {
-    setSelectedColumns((prev) => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
-  };
-
-  const selectAllColumns = () => setSelectedColumns(ALL_COLUMNS.map(c => c.key));
-  const clearAllColumns = () => setSelectedColumns([]);
-
-  const sortRows = useCallback((rows: RowData[]): RowData[] => {
-    if (!primarySortKey && !secondarySortKey) return rows.map((r, i) => ({ ...r, serial: i + 1 }));
-    const copy = [...rows];
-    copy.sort((a, b) => {
-      let cmp = compareByKey(a, b, primarySortKey);
-      if (cmp !== 0) return cmp;
-      return compareByKey(a, b, secondarySortKey);
-    });
-    return copy.map((r, i) => ({ ...r, serial: i + 1 }));
-  }, [primarySortKey, secondarySortKey]);
-
-  useEffect(() => {
-    if (data.length === 0) return;
-    setData(prev => sortRows(prev));
-  }, [primarySortKey, secondarySortKey, sortRows]);
-
-  const filterRows = useCallback((rows: RowData[]): RowData[] => {
-    if (!filterColumn || !filterValue) return rows;
-    return rows.filter((r) => String((r as any)[filterColumn] ?? "") === filterValue);
-  }, [filterColumn, filterValue]);
-
-  const composeView = useCallback((rows: RowData[]): RowData[] => {
-    const sorted = sortRows(rows);
-    const filtered = filterRows(sorted);
-    return filtered.map((r, i) => ({ ...r, serial: i + 1 }));
-  }, [sortRows, filterRows]);
-
-  useEffect(() => {
-    if (allRows.length === 0) return;
-    setData(composeView(allRows));
-  }, [primarySortKey, secondarySortKey, allRows, composeView]);
-
-  useEffect(() => {
-    if (allRows.length === 0) return;
-    setData(composeView(allRows));
-  }, [filterColumn, filterValue, allRows, composeView]);
-
-  const resetFilters = () => {
-    setFilterType("none");
-    setFromDate("");
-    setToDate("");
-    setMonth(undefined);
-    setYear(undefined);
-    setConsignmentFilter("all");
-    setPrimarySortKey("");
-    setSecondarySortKey("");
-    setFilterColumn("");
-    setFilterValue("");
-    setAllRows([]);
-    setData([]);
-    setUseGenerateColumns(false);
-  };
-
-  const generateData = useCallback(async (): Promise<RowData[]> => {
-    setLoading(true);
+  const generateData = useCallback(async (isGeneral: boolean): Promise<RowData[]> => {
+    setIsLoading(true);
     try {
       const [boRes, consRes, chargesRes, partyRes, unitRes] = await Promise.all([
         getAllBookingOrder(1, 2000),
@@ -219,251 +164,265 @@ const BookingOrderReportExport: React.FC = () => {
       const units: any[] = unitRes?.data || [];
 
       const partyMap = new Map<string, string>(
-        parties
-          .map((p: any) => [String(p?.id ?? p?.Id ?? ""), p?.name || p?.Name || ""]) as [string, string][]
+        parties.map((p: any) => [String(p?.id ?? p?.Id ?? ""), p?.name || p?.Name || ""]) as [string, string][]
       );
       const unitMap = new Map<string, string>(
-        units
-          .map((u: any) => [String(u?.id ?? u?.Id ?? ""), u?.name || u?.unitName || u?.description || ""]) as [
-            string,
-            string
-          ][]
+        units.map((u: any) => [String(u?.id ?? u?.Id ?? ""), u?.name || u?.unitName || u?.description || ""]) as [string, string][]
       );
 
       const consByOrder = consignments.reduce((acc: Record<string, any[]>, c: any) => {
-        const ono = c.orderNo || c.OrderNo || "";
-        if (!ono) return acc;
-        (acc[ono] = acc[ono] || []).push(c);
+        const ono = String(c.orderNo || c.OrderNo || "");
+        if (ono) acc[ono] = (acc[ono] || []).concat(c);
         return acc;
-      }, {} as Record<string, any[]>);
+      }, {});
 
-      const chargesByOrder = charges.reduce((acc: Record<string, any[]>, ch: any) => {
-        const ono = ch.orderNo || ch.OrderNo || "";
-        if (!ono) return acc;
-        (acc[ono] = acc[ono] || []).push(ch);
+      const chargesByBilty = charges.reduce((acc: Record<string, any[]>, ch: any) => {
+        const biltyNo = String(ch.biltyNo || ch.BiltyNo || ch.consignmentNo || ch.ConsignmentNo || "");
+        if (biltyNo) acc[biltyNo] = (acc[biltyNo] || []).concat(ch);
         return acc;
-      }, {} as Record<string, any[]>);
+      }, {});
 
-      const filteredOrders = orders.filter((o) => {
-        const od = o.orderDate || o.date || o.createdAt || null;
-        if (!od) return false;
-        if (filterType === "range") return withinRange(od, fromDate, toDate);
-        if (filterType === "month") return isSameMonth(od, month, year);
-        return true;
-      });
+      const filteredOrders = orders
+        .filter((o) => withinRange(o.orderDate || o.date || o.createdAt, fromDate, toDate))
+        .sort((a, b) => {
+          const aOrderNo = String(a.orderNo || a.id || "");
+          const bOrderNo = String(b.orderNo || b.id || "");
+          const aNum = parseInt(aOrderNo, 10);
+          const bNum = parseInt(bOrderNo, 10);
+          if (!isNaN(aNum) && !isNaN(bNum)) {
+            return aNum - bNum;
+          }
+          return aOrderNo.localeCompare(bOrderNo);
+        });
 
-      const rows: RowData[] = [];
-      filteredOrders.forEach((o) => {
-        const ono = o.orderNo || o.id || "";
-        const odate = o.orderDate || o.date || "";
-        const chs = chargesByOrder[ono] || [];
+      let serialCounter = 1;
+      const rows: RowData[] = filteredOrders.flatMap((o) => {
+        const ono = String(o.orderNo || o.id || "");
+        const odate = o.orderDate || o.date || o.createdAt || "";
         const cons = consByOrder[ono] || [];
-        const consCount = cons.length;
-
-        // Apply consignment filter
-        if (consignmentFilter === "single" && consCount !== 1) return;
-        if (consignmentFilter === "multiple" && consCount <= 1) return;
-
-        const bookingAmount = chs.reduce((sum: number, ch: any) => {
-          const chAmt = Array.isArray(ch.lines) ? ch.lines.reduce((lsum: number, line: any) => lsum + numberOr0(line.amount), 0) : numberOr0(ch.amount);
-          return sum + chAmt;
-        }, 0);
-
-        const vehicleNo = o.vehicleNo || o.vehicle || "";
+        const bookingAmount = cons.reduce((sum: number, c: any) => sum + numberOr0(c.totalAmount || c.amount), 0);
+        const vehicleNo = o.vehicleNo || o.vehicle || "-";
         const departure = o.fromLocation || o.from || "-";
         const destination = o.toLocation || o.to || "-";
         const vendor = o.vendor || o.vendorName || "-";
         const carrier = o.transporter || o.carrier || "-";
+        const consignorVal = o.consignor ?? o.Consignor ?? o.consignorId ?? o.ConsignorId ?? "";
+        const consignor = partyMap.get(String(consignorVal)) || String(consignorVal) || "-";
+        const consigneeVal = o.consignee ?? o.Consignee ?? o.consigneeId ?? o.ConsigneeId ?? "";
+        const consignee = partyMap.get(String(consigneeVal)) || String(consigneeVal) || "-";
 
-        if (cons.length === 0) {
-          // Use partyMap for consignor/consignee in general report
-          const consignorVal = o.consignor ?? o.Consignor ?? o.consignorId ?? o.ConsignorId ?? "";
-          const consignor = (consignorVal && partyMap.get(String(consignorVal))) || String(consignorVal) || "";
-          const consigneeVal = o.consignee ?? o.Consignee ?? o.consigneeId ?? o.ConsigneeId ?? "";
-          const consignee = (consigneeVal && partyMap.get(String(consigneeVal))) || String(consigneeVal) || "";
-          rows.push({
-            serial: 0,
-            orderNo: ono,
-            ablDate: formatABLDate(odate),
-            orderDate: odate || "",
-            consignor,
-            consignee,
-            vehicleNo: vehicleNo || "",
-            bookingAmount,
-            biltyNo: "-",
-            biltyAmount: 0,
-            article: "-",
-            qty: "-",
-            departure,
-            destination,
-            vendor,
-            carrier,
-          });
+        const orderRow: RowData = {
+          serial: serialCounter++,
+          orderNo: formatOrderNo(ono, odate),
+          orderDate: formatDate(odate),
+          vehicleNo,
+          bookingAmount,
+          biltyNo: "-",
+          biltyAmount: 0,
+          consignor,
+          consignee,
+          article: "-",
+          qty: "-",
+          departure,
+          destination,
+          vendor,
+          carrier,
+          isOrderRow: true,
+          ablDate: formatDate(odate),
+        };
+
+        if (isGeneral) {
+          const biltyNo = cons.length > 0 ? cons.map((c: any) => c.biltyNo || c.BiltyNo || c.consignmentNo || c.ConsignmentNo || "-").join(", ") : "-";
+          const article = cons.length > 0 ? cons.map((c: any) => c.items?.map((it: any) => it.desc || it.description || it.itemDesc || it.Description || "").filter(Boolean).join(", ") || "-").join("; ") : "-";
+          return [{
+            ...orderRow,
+            biltyNo,
+            article,
+            qty: cons.length.toString(),
+            isOrderRow: true,
+            ablDate: formatDate(odate),
+          }];
         } else {
-          cons.forEach((c: any) => {
+          const consignmentRows: RowData[] = cons.length > 0 ? cons.map((c: any) => {
             const consignorVal = c.consignor ?? c.Consignor ?? c.consignorId ?? c.ConsignorId ?? "";
-            const consignor = (consignorVal && partyMap.get(String(consignorVal))) || String(consignorVal) || "";
-
+            const consignor = partyMap.get(String(consignorVal)) || String(consignorVal) || "-";
             const consigneeVal = c.consignee ?? c.Consignee ?? c.consigneeId ?? c.ConsigneeId ?? "";
-            const consignee = (consigneeVal && partyMap.get(String(consigneeVal))) || String(consigneeVal) || "";
-
-            const biltyNo = c.biltyNo ?? c.BiltyNo ?? c.consignmentNo ?? c.ConsignmentNo ?? "-";
-
+            const consignee = partyMap.get(String(consigneeVal)) || String(consigneeVal) || "-";
+            const biltyNo = c.biltyNo || c.BiltyNo || c.consignmentNo || c.ConsignmentNo || "-";
+            const chargesForBilty = chargesByBilty[biltyNo] || [];
+            const biltyAmount = chargesForBilty.reduce((sum: number, ch: any) => sum + numberOr0(ch.amount || ch.totalAmount || 0), 0);
             let article = "-";
             let qty = "-";
             if (Array.isArray(c.items) && c.items.length > 0) {
               article = c.items
-                .map((it: any) => it.desc ?? it.description ?? it.itemDesc ?? it.Description ?? "")
+                .map((it: any) => it.desc || it.description || it.itemDesc || it.Description || "")
                 .filter(Boolean)
-                .join(", ");
+                .join(", ") || "-";
               qty = c.items
                 .map((it: any) => {
-                  const unitKey = it.qtyUnit ?? it.qtyUnitId ?? it.QtyUnit ?? it.QtyUnitId ?? "";
-                  const unitName = unitMap.get(String(unitKey)) ?? String(unitKey);
-                  return `${it.qty ?? it.Qty ?? ""} ${unitName}`.trim();
+                  const unitKey = it.qtyUnit || it.qtyUnitId || it.QtyUnit || it.QtyUnitId || "";
+                  const unitName = unitMap.get(String(unitKey)) || String(unitKey) || "";
+                  return `${it.qty || it.Qty || ""} ${unitName}`.trim();
                 })
                 .filter(Boolean)
-                .join(", ");
+                .join(", ") || "-";
             } else {
               article = c.itemDesc || c.description || c.Description || (typeof c.items === "string" ? c.items : "") || "-";
-              qty = String(c.qty ?? c.Qty ?? "") || "-";
+              qty = String(c.qty || c.Qty || "") || "-";
             }
-
-            const biltyAmount = numberOr0(c.totalAmount ?? c.TotalAmount ?? c.biltyAmount ?? c.BiltyAmount ?? 0);
-
-            rows.push({
-              serial: 0,
-              orderNo: ono,
-              ablDate: formatABLDate(odate),
-              orderDate: odate || "",
-              consignor,
-              consignee,
-              vehicleNo: vehicleNo || "",
-              bookingAmount,
+            return {
+              serial: "",
+              orderNo: "",
+              orderDate: "",
+              vehicleNo: "",
+              bookingAmount: numberOr0(c.totalAmount || c.amount),
               biltyNo,
               biltyAmount,
+              consignor,
+              consignee,
               article,
               qty,
-              departure,
-              destination,
-              vendor,
-              carrier,
-            });
-          });
+              departure: "",
+              destination: "",
+              vendor: "",
+              carrier: "",
+              isOrderRow: false,
+              ablDate: formatDate(odate),
+            };
+          }) : [{
+            serial: "",
+            orderNo: "",
+            orderDate: "",
+            vehicleNo: "",
+            bookingAmount: 0,
+            biltyNo: "-",
+            biltyAmount: 0,
+            consignor: "",
+            consignee: "",
+            article: "-",
+            qty: "-",
+            departure: "",
+            destination: "",
+            vendor: "",
+            carrier: "",
+            isOrderRow: false,
+            ablDate: formatDate(odate),
+          }];
+
+          return [orderRow, ...consignmentRows];
         }
       });
 
       return rows;
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to generate data", err);
       toast.error("Failed to fetch data for report");
       return [];
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, [filterType, fromDate, toDate, month, year, consignmentFilter]);
+  }, [fromDate, toDate]);
 
-  const buildStructure = (selected: ColumnKey[]) => {
+  const buildStructure = (selected: ColumnKey[], isGeneral: boolean) => {
     const selectedSet = new Set<ColumnKey>(selected);
     const fixedKeys = ['serial'] as const;
-    const contractKeys = ['orderNo', 'ablDate'] as const;
-    const tailKeys1 = ['consignor', 'consignee'] as const;
+    const contractKeys = ['orderNo', 'orderDate'] as const;
     const vehicleKeys = ['vehicleNo', 'bookingAmount'] as const;
     const biltyKeys = ['biltyNo', 'biltyAmount'] as const;
-    const tailKeys2 = ['article', 'qty', 'departure', 'destination', 'vendor', 'carrier'] as const;
+    const partyKeys = ['consignor', 'consignee'] as const;
+    const tailKeys = ['article', 'qty', 'departure', 'destination', 'vendor', 'carrier'] as const;
 
-    const fixed = fixedKeys.filter((k) => selectedSet.has(k)) as ColumnKey[];
-    const contractSubs = contractKeys.filter((k) => selectedSet.has(k)) as ColumnKey[];
-    const tail1 = tailKeys1.filter((k) => selectedSet.has(k)) as ColumnKey[];
-    const vehicleSubs = vehicleKeys.filter((k) => selectedSet.has(k)) as ColumnKey[];
-    const biltySubs = biltyKeys.filter((k) => selectedSet.has(k)) as ColumnKey[];
-    const tail2 = tailKeys2.filter((k) => selectedSet.has(k)) as ColumnKey[];
+    const fixed = fixedKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
+    const contractSubs = contractKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
+    const vehicleSubs = vehicleKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
+    const biltySubs = biltyKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
+    const partySubs = partyKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
+    const tail = tailKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
 
-    const colOrder: ColumnKey[] = [...fixed, ...contractSubs, ...tail1, ...vehicleSubs, ...biltySubs, ...tail2];
+    const colOrder: ColumnKey[] = isGeneral 
+      ? [...fixed, ...contractSubs, ...vehicleSubs, ...biltySubs, ...partySubs, ...tail]
+      : [...fixed, ...contractSubs, ...vehicleSubs, ...biltySubs, ...partySubs, ...tail];
 
     const topRow: any[] = [];
-    fixed.forEach((k) => topRow.push({ content: labelFor(k), rowSpan: 2 }));
-    if (contractSubs.length > 0) topRow.push({ content: "Contract", colSpan: contractSubs.length });
-    tail1.forEach((k) => topRow.push({ content: labelFor(k), rowSpan: 2 }));
-    if (vehicleSubs.length > 0) topRow.push({ content: "Vehicle", colSpan: vehicleSubs.length });
-    if (biltySubs.length > 0) topRow.push({ content: "Bilty", colSpan: biltySubs.length });
-    tail2.forEach((k) => topRow.push({ content: labelFor(k), rowSpan: 2 }));
-
-    const subRow: any[] = [];
-    if (contractSubs.length > 0) contractSubs.forEach((k) => subRow.push(labelFor(k)));
-    if (vehicleSubs.length > 0) vehicleSubs.forEach((k) => subRow.push(labelFor(k)));
-    if (biltySubs.length > 0) biltySubs.forEach((k) => subRow.push(labelFor(k)));
-
-    const headRows = subRow.length > 0 ? [topRow, subRow] : [topRow];
-    return { colOrder, headRows };
+    if (isGeneral) {
+      topRow.push({ content: "General Contract", colSpan: colOrder.length });
+      const subRow: any[] = colOrder.map(k => labelFor(k));
+      return { colOrder, headRows: [topRow, subRow], drawSeparators: false };
+    } else {
+      topRow.push({ content: "DETAIL REPORT", colSpan: colOrder.length });
+      const secondRow: any[] = [];
+      fixed.forEach(k => secondRow.push({ content: labelFor(k), rowSpan: 2 }));
+      if (contractSubs.length > 0) secondRow.push({ content: "Contract", colSpan: contractSubs.length });
+      if (vehicleSubs.length > 0) secondRow.push({ content: "Vehicle", colSpan: vehicleSubs.length });
+      if (biltySubs.length > 0) secondRow.push({ content: "Bilty", colSpan: biltySubs.length });
+      partySubs.forEach(k => secondRow.push({ content: labelFor(k), rowSpan: 2 }));
+      tail.forEach(k => secondRow.push({ content: labelFor(k), rowSpan: 2 }));
+      const subRow: any[] = [];
+      if (contractSubs.length > 0) contractSubs.forEach(k => subRow.push(labelFor(k)));
+      if (vehicleSubs.length > 0) vehicleSubs.forEach(k => subRow.push(labelFor(k)));
+      if (biltySubs.length > 0) biltySubs.forEach(k => subRow.push(labelFor(k)));
+      const headRows = subRow.length > 0 ? [topRow, secondRow, subRow] : [topRow, secondRow];
+      return { colOrder, headRows, drawSeparators: true };
+    }
   };
 
   const computeFilterLine = () => {
-    let base = "";
-    if (filterType === "range") {
-      base = fromDate && toDate ? `Date Range: ${formatDate(fromDate)} to ${formatDate(toDate)}` : "";
-    } else if (filterType === "month") {
-      base = month && year ? `Month: ${month.toString().padStart(2, "0")}-${year}` : "";
-    }
-    const consFilterText = consignmentFilter !== "all" ? ` | Consignments: ${consignmentFilter.toUpperCase()}` : "";
-    const filterText = filterColumn && filterValue ? ` | Filter: ${labelFor(filterColumn)} = ${filterValue}` : "";
-    const arr =
-      primarySortKey
-        ? ` | Arranged by: ${labelFor(primarySortKey)}${secondarySortKey ? `, then ${labelFor(secondarySortKey)}` : ""}`
-        : "";
-    return base + consFilterText + filterText + arr;
+    if (!fromDate && !toDate) return "All Orders";
+    return `Date Range: ${formatDate(fromDate)} to ${formatDate(toDate)}`;
   };
 
-  const loadDataForPreview = async (useReducedColumns: boolean = false) => {
-    const rows = await generateData();
-    setAllRows(rows);
-    const view = composeView(rows);
-    setData(view);
-    setUseGenerateColumns(useReducedColumns);
-    if (view.length === 0) {
-      toast.info("No data found for the selected filters");
-    } else {
-      toast.success("Data loaded for preview");
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const rows = await generateData(isGeneralView);
+      setData(rows);
+      setTotalBookingAmount(rows.reduce((acc, row) => acc + (row.isOrderRow ? row.bookingAmount : 0), 0).toLocaleString());
+      setTotalBiltyAmount(rows.reduce((acc, row) => acc + (row.isOrderRow ? 0 : row.biltyAmount), 0).toLocaleString());
+      toast.success("Report generated successfully.");
+    } catch (error) {
+      console.error("Error generating report:", error);
+      toast.error("Failed to generate report.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
-  const exportPDF = useCallback(async (useReducedColumns: boolean = false) => {
-    let rows = data;
-    if (rows.length === 0) {
-      rows = await generateData();
-    }
-    if (rows.length === 0) {
-      toast.info("No data to export");
+  const exportPDF = useCallback(async (isGeneral: boolean) => {
+    if (!data.length) {
+      toast.error("No data to export.");
       return;
     }
-    const rowsToUse = composeView(rows);
-    const columnsToUse = useReducedColumns ? GENERATE_COLUMNS : selectedColumns;
-    const { colOrder, headRows } = buildStructure(columnsToUse);
-    const baseFilterLine = computeFilterLine();
-    const reportTypeLabel = useReducedColumns ? "GENERAL REPORT" : "DETAIL REPORT";
-    const filterLine = `${reportTypeLabel}${baseFilterLine ? " | " + baseFilterLine : ""}`;
-    const startDate = (filterType === "range" && fromDate) ? fromDate : undefined;
-    const endDate = (filterType === "range" && toDate) ? toDate : undefined;
-    exportBookingOrderToPDF(rowsToUse, columnsToUse, filterLine, colOrder, headRows, startDate, endDate);
+    const columnsToUse = isGeneral ? GENERAL_COLUMNS : DETAIL_COLUMNS;
+    const { colOrder, headRows, drawSeparators } = buildStructure(columnsToUse, isGeneral);
+    const filterLine = computeFilterLine();
+    const reportTypeLabel = isGeneral ? "GENERAL REPORT" : "DETAIL REPORT";
+    exportBookingOrderToPDF(data, columnsToUse, `${reportTypeLabel} | ${filterLine}`, colOrder, headRows, fromDate, toDate, isGeneral);
     toast.success("PDF generated");
-  }, [data, generateData, selectedColumns, composeView, filterType, fromDate, toDate, consignmentFilter]);
+  }, [data, fromDate, toDate]);
+
+  const exportExcel = useCallback(async (isGeneral: boolean) => {
+    if (!data.length) {
+      toast.error("No data to export.");
+      return;
+    }
+    const columnsToUse = isGeneral ? GENERAL_COLUMNS : DETAIL_COLUMNS;
+    const { colOrder, headRows, drawSeparators } = buildStructure(columnsToUse, isGeneral);
+    exportBookingOrderToExcel(data, columnsToUse, computeFilterLine(), colOrder, headRows);
+    toast.success("Excel generated");
+  }, [data]);
 
   const exportBiltiesReceivable = useCallback(async () => {
-    let rows = data;
-    if (rows.length === 0) {
-      rows = await generateData();
-    }
-    if (rows.length === 0) {
-      toast.info("No data to export");
+    if (!data.length) {
+      toast.error("No data to export.");
       return;
     }
-    const rowsToUse = composeView(rows);
-    const receivableRows = rowsToUse.filter((r) => !r.biltyNo || r.biltyNo.trim() === "-");
-    if (receivableRows.length === 0) {
-      toast.info("No receivable entries (all have Bilty No)");
+    const receivableRows = data.filter(r => !r.isOrderRow && (!r.biltyNo || r.biltyNo === "-"));
+    if (!receivableRows.length) {
+      toast.info("No receivable entries.");
       return;
     }
-    const pdfRows = receivableRows.map((r) => ({
+    const pdfRows = receivableRows.map(r => ({
+      serial: typeof r.serial === "number" ? r.serial : 0,
       orderNo: r.orderNo,
       orderDate: r.orderDate,
       vehicleNo: r.vehicleNo,
@@ -474,62 +433,46 @@ const BookingOrderReportExport: React.FC = () => {
       departure: r.departure,
       destination: r.destination,
       vehicleType: "",
+      ablDate: r.ablDate || formatDate(r.orderDate) || "-",
     }));
-    const start = (filterType === "range" && fromDate) ? fromDate : undefined;
-    const end = (filterType === "range" && toDate) ? toDate : undefined;
-    exportBiltiesReceivableToPDF({ rows: pdfRows, startDate: start, endDate: end });
+    exportBiltiesReceivableToPDF({ rows: pdfRows, startDate: fromDate, endDate: toDate });
     toast.success("Bilties Receivable PDF generated");
-  }, [data, generateData, composeView, filterType, fromDate, toDate, consignmentFilter]);
+  }, [data, fromDate, toDate]);
 
-  const exportExcel = useCallback(async (useReducedColumns: boolean = false) => {
-    let rows = data;
-    if (rows.length === 0) {
-      rows = await generateData();
-    }
-    if (rows.length === 0) {
-      toast.info("No data to export");
-      return;
-    }
-    const rowsToUse = composeView(rows);
-    const columnsToUse = useReducedColumns ? GENERATE_COLUMNS : selectedColumns;
-    const { colOrder, headRows } = buildStructure(columnsToUse);
-    const filterLine = computeFilterLine();
-    exportBookingOrderToExcel(rowsToUse, columnsToUse, filterLine, colOrder, headRows);
-    toast.success("Excel generated");
-  }, [data, generateData, selectedColumns, composeView, consignmentFilter]);
-
-  const columnsToDisplay = useGenerateColumns ? GENERATE_COLUMNS : selectedColumns;
-  const { colOrder, headRows } = buildStructure(columnsToDisplay);
+  const columnsToDisplay = isGeneralView ? GENERAL_COLUMNS : DETAIL_COLUMNS;
+  const { colOrder, headRows, drawSeparators } = buildStructure(columnsToDisplay, isGeneralView);
 
   return (
     <div className="min-h-screen bg-gray-100">
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <h1 className="text-4xl font-bold text-gray-900">Booking Order Reports</h1>
             <div className="text-sm font-medium text-gray-600">
-              {new Date().toLocaleDateString("en-GB", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })}
+              {today.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
             </div>
           </div>
           <p className="mt-2 text-lg font-semibold text-gray-700">{COMPANY_NAME}</p>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-6 bg-white/80 backdrop-blur border border-gray-200 rounded-2xl shadow">
-          <div className="flex">
+        <div className="mb-6 rounded-2xl shadow">
+          <div className="flex gap-4 border-b border-gray-200">
             <button
-              className={`flex-1 py-3 px-4 text-sm font-semibold rounded-2xl transition-all ${activeTab === 'booking' ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow' : 'text-gray-700 hover:bg-gray-50'}`}
+              className={`flex-1 py-3 px-4 text-sm font-semibold rounded transition-all 
+                ${activeTab === 'booking' 
+                  ? 'text-[#9630ed] border-b-2 border-[#9630ed] rounded-2xl shadow' 
+                  : 'text-gray-700 hover:text-black hover:border-b-2 hover:border-gray-300'
+                }`}
               onClick={() => setActiveTab('booking')}
             >
               Booking Orders
             </button>
             <button
-              className={`flex-1 py-3 px-4 text-sm font-semibold rounded-2xl transition-all ${activeTab === 'bilty' ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow' : 'text-gray-700 hover:bg-gray-50'}`}
+              className={`flex-1 py-3 px-4 text-sm font-semibold rounded-t-2xl transition-all 
+                ${activeTab === 'bilty' 
+                  ? 'text-green-500 border-b-2 border-green-500 rounded-2xl shadow' 
+                  : 'text-gray-700 hover:text-black hover:border-b-2 hover:border-gray-300'
+                }`}
               onClick={() => setActiveTab('bilty')}
             >
               Bilties Receivable
@@ -537,350 +480,118 @@ const BookingOrderReportExport: React.FC = () => {
           </div>
         </div>
 
-        {/* Booking Orders Tab */}
         {activeTab === "booking" && (
           <>
-            {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {/* Date Filter */}
-              {/* <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900">Date Filter</h3>
-                  <p className="text-sm text-gray-500">Select a date range for filtering data.</p>
+            <div className="space-y-6 bg-white p-6 rounded-2xl border mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                <div>
+                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Start Date</label>
+                  <input
+                    type="date"
+                    id="startDate"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    className="mt-1 block w-full h-12 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  />
                 </div>
-                <div className="p-6 grid grid-cols-3 gap-4">
-                  <button
-                    onClick={() => setFilterType("none")}
-                    className={`py-3 px-4 rounded-lg text-sm font-semibold transition-colors ${
-                      filterType === "none"
-                        ? "bg-indigo-600 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
+                <div>
+                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">End Date</label>
+                  <input
+                    type="date"
+                    id="endDate"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    className="mt-1 block w-full h-12 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    className={`w-full h-12 flex items-center hover:bg-[#c282fe] justify-center gap-2 font-medium rounded-lg transition-all ${isGeneralView ? 'bg-[#c282fe] text-white' : 'bg-gray-200 text-gray-700'}`}
+                    onClick={() => setIsGeneralView(true)}
                   >
-                    All
-                  </button>
-                  <button
-                    onClick={() => setFilterType("range")}
-                    className={`py-3 px-4 rounded-lg text-sm font-semibold transition-colors ${
-                      filterType === "range"
-                        ? "bg-indigo-600 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
+                    General
+                  </Button>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    className={`w-full h-12 flex items-center hover:bg-[#c282fe] justify-center gap-2 font-medium rounded-lg transition-all ${!isGeneralView ? 'bg-[#c282fe] text-white' : 'bg-gray-200 text-gray-700'}`}
+                    onClick={() => setIsGeneralView(false)}
                   >
-                    Range
-                  </button>
-                  <button
-                    onClick={() => setFilterType("month")}
-                    className={`py-3 px-4 rounded-lg text-sm font-semibold transition-colors ${
-                      filterType === "month"
-                        ? "bg-indigo-600 text-white"
-                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
+                    Detail
+                  </Button>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={handleGenerate}
+                    className="w-full h-12 flex items-center justify-center gap-2 text-white bg-[#181a26] hover:bg-[#181a26]/90 font-medium rounded-lg transition-all"
+                    disabled={isGenerating}
                   >
-                    Month
-                  </button>
-                </div>
-              </div> */}
-
-              {/* Consignment Filter */}
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900">Consignment Filter</h3>
-                  <p className="text-sm text-gray-500">Filter by number of consignments per order.</p>
-                </div>
-                <div className="p-6">
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-                    value={consignmentFilter}
-                    onChange={(e) => setConsignmentFilter(e.target.value as ConsignmentFilterType)}
-                  >
-                    <option value="all">All Orders</option>
-                    <option value="single">Single Consignment</option>
-                    <option value="multiple">Multiple Consignments</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Conditional Date Inputs
-              {filterType === "range" && (
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                  <div className="p-6 border-b border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900">Date Range</h3>
-                    <p className="text-sm text-gray-500">Select start and end dates.</p>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-                      value={fromDate}
-                      onChange={(e) => setFromDate(e.target.value)}
-                    />
-                    <input
-                      type="date"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-                      value={toDate}
-                      onChange={(e) => setToDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )} */}
-              {/* {filterType === "month" && (
-                <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                  <div className="p-6 border-b border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900">Month / Year</h3>
-                    <p className="text-sm text-gray-500">Select a specific month and year.</p>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    <select
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-                      value={month ?? ""}
-                      onChange={(e) => setMonth(e.target.value ? parseInt(e.target.value) : undefined)}
-                    >
-                      <option value="">Select Month</option>
-                      {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-                        <option key={m} value={m}>
-                          {m.toString().padStart(2, "0")}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-                      value={year ?? ""}
-                      onChange={(e) => setYear(e.target.value ? parseInt(e.target.value) : undefined)}
-                      placeholder="Enter Year"
-                    />
-                  </div>
-                </div>
-              )} */}
-
-              {/* Value Filter */}
-              {/* <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900">Value Filter</h3>
-                  <p className="text-sm text-gray-500">Filter rows by a specific column value.</p>
-                </div>
-                <div className="p-6 space-y-4">
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-                    value={filterColumn}
-                    onChange={(e) => {
-                      setFilterColumn(e.target.value as ColumnKey | "");
-                      setFilterValue("");
-                    }}
-                  >
-                    <option value="">Select Column</option>
-                    {ALL_COLUMNS.map((c) => (
-                      <option key={c.key} value={c.key}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                    value={filterValue}
-                    onChange={(e) => setFilterValue(e.target.value)}
-                    disabled={!filterColumn || filterOptions.length === 0}
-                  >
-                    <option value="">
-                      {filterColumn
-                        ? filterOptions.length
-                          ? "Select Value"
-                          : "No Values Available"
-                        : "Select Column First"}
-                    </option>
-                    {filterOptions.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => {
-                      setFilterColumn("");
-                      setFilterValue("");
-                      allRows.length > 0 && setData(composeView(allRows));
-                    }}
-                    className="w-full py-2 px-4 bg-gray-100 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-colors"
-                  >
-                    Clear Filter
-                  </button>
-                </div>
-              </div> */}
-
-              {/* Sorting */}
-              {/* <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900">Sorting</h3>
-                  <p className="text-sm text-gray-500">Choose how to sort the rows.</p>
-                </div>
-                <div className="p-6 space-y-4">
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
-                    value={primarySortKey}
-                    onChange={(e) => setPrimarySortKey(e.target.value as ColumnKey | "")}
-                  >
-                    <option value="">Primary Sort (None)</option>
-                    {ALL_COLUMNS.map((c) => (
-                      <option key={c.key} value={c.key}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                    value={secondarySortKey}
-                    onChange={(e) => setSecondarySortKey(e.target.value as ColumnKey | "")}
-                    disabled={!primarySortKey}
-                  >
-                    <option value="">Secondary Sort (None)</option>
-                    {ALL_COLUMNS.map((c) => (
-                      <option key={c.key} value={c.key}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div> */}
-
-              {/* Columns - Moved to end for better layout */}
-              {/* <div className="bg-white rounded-xl shadow-lg border border-gray-100 relative">
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900">Columns</h3>
-                  <p className="text-sm text-gray-500">Select columns to include in the report.</p>
-                </div>
-                <div className="p-6">
-                  <button
-                    onClick={() => setShowColsMenu(!showColsMenu)}
-                    className="w-full px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-colors"
-                  >
-                    {selectedColumns.length} Columns Selected
-                  </button>
-                  {showColsMenu && (
-                    <div className="absolute left-0 right-0 bottom-full z-20 mb-2 bg-white border border-gray-200 rounded-lg shadow-xl p-4 max-h-80 overflow-y-auto">
-                      <div className="flex justify-between mb-4 text-sm font-semibold text-gray-600">
-                        <button onClick={selectAllColumns} className="hover:text-indigo-600">
-                          Select All
-                        </button>
-                        <button onClick={clearAllColumns} className="hover:text-rose-600">
-                          Clear All
-                        </button>
-                      </div>
-                      {ALL_COLUMNS.map((c) => (
-                        <label key={c.key} className="flex items-center mb-3 text-sm text-gray-700">
-                          <input
-                            type="checkbox"
-                            className="mr-3 w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                            checked={selectedColumns.includes(c.key)}
-                            onChange={() => toggleColumn(c.key)}
-                          />
-                          {c.label}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div> */}
-            </div>
-
-            {/* Actions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900">Booking Order Report</h3>
-                  <p className="text-sm text-gray-500">Preview and export the report.</p>
-                </div>
-                <div className="p-6 space-y-6">
-                  <div>
-                    <div className="text-sm font-semibold text-gray-600 mb-3">Preview</div>
-                    <div className="flex flex-wrap gap-4">
-                      <button
-                        onClick={() => loadDataForPreview(false)}
-                        disabled={loading}
-                        className="px-6 py-3 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                      >
-                        {loading ? "Loading..." : "Preview Order Report (All)"}
-                      </button>
-                      <button
-                        onClick={() => loadDataForPreview(true)}
-                        disabled={loading}
-                        className="px-6 py-3 bg-indigo-500 text-white text-sm font-bold rounded-lg hover:bg-indigo-600 transition-colors disabled:opacity-50"
-                      >
-                        {loading ? "Loading..." : "Preview Order Report (General)"}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-gray-600 mb-3">Export PDF</div>
-                    <div className="flex flex-wrap gap-4">
-                      <button
-                        onClick={() => exportPDF(false)}
-                        disabled={loading}
-                        className="px-6 py-3 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
-                      >
-                        Export Detail Report PDF
-                      </button>
-                      <button
-                        onClick={() => exportPDF(true)}
-                        disabled={loading}
-                        className="px-6 py-3 bg-pink-600 text-white text-sm font-bold rounded-lg hover:bg-pink-700 transition-colors disabled:opacity-50"
-                      >
-                        Export General Report PDF
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-gray-600 mb-3">Export Excel</div>
-                    <div className="flex flex-wrap gap-4">
-                      <button
-                        onClick={() => exportExcel(false)}
-                        disabled={loading}
-                        className="px-6 py-3 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                      >
-                        ORDER REPORT (DETAIL)
-                      </button>
-                      <button
-                        onClick={() => exportExcel(true)}
-                        disabled={loading}
-                        className="px-6 py-3 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                      >
-                        ORDER REPORT (GENERAL)
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900">Quick Actions</h3>
-                  <p className="text-sm text-gray-500">Manage report settings.</p>
-                </div>
-                <div className="p-6 space-y-4">
-                  <button
-                    onClick={() => allRows.length > 0 && setData(composeView(allRows))}
-                    className="w-full py-3 px-6 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors"
-                  >
-                    Apply Changes
-                  </button>
-                  <button
-                    onClick={resetFilters}
-                    className="w-full py-3 px-6 bg-gray-200 text-gray-700 text-sm font-bold rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Reset All
-                  </button>
+                    {isGenerating ? (
+                      <>
+                        <WiRefreshAlt className="h-5 w-5 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <LuRefreshCcw className="h-5 w-5" />
+                        Generate Report
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </div>
 
-            {/* Preview Table */}
+            <div className="mt-6 p-6 rounded-xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900">Total Booking Amount</h3>
+                <p className="text-2xl font-semibold text-gray-700 mt-2">{totalBookingAmount ?? '-'}</p>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900">Total Bilty Amount</h3>
+                <p className="text-2xl font-semibold text-gray-700 mt-2">{totalBiltyAmount ?? '-'}</p>
+              </div>
+            </div>
+
             {data.length > 0 && (
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900">Data Preview</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+              <div className="flex justify-end mt-4 mr-2 space-x-4 mb-8">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 text-blue-600 border-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-all"
+                    >
+                      <AiOutlineDownload className="h-5 w-5" />
+                      Booking Order General
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => exportPDF(true)}>PDF</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportExcel(true)}>Excel</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex items-center gap-2 text-blue-600 border-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg transition-all"
+                    >
+                      <AiOutlineDownload className="h-5 w-5" />
+                      Report All Details
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => exportPDF(false)}>PDF</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportExcel(false)}>Excel</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+
+            {data.length > 0 ? (
+              <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div className="overflow-x-auto max-h-[400px]">
+                  <table className="min-w-[1400px] w-full divide-y divide-gray-200">
                     <thead className="bg-gray-100 sticky top-0 z-10">
                       {headRows.map((row, rowIdx) => (
                         <tr key={rowIdx}>
@@ -894,8 +605,11 @@ const BookingOrderReportExport: React.FC = () => {
                                 colSpan={colSpan}
                                 rowSpan={rowSpan}
                                 className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                                data-tooltip-id={`header-${cellIdx}`}
+                                data-tooltip-content={content}
                               >
                                 {content}
+                                <Tooltip id={`header-${cellIdx}`} />
                               </th>
                             );
                           })}
@@ -906,20 +620,20 @@ const BookingOrderReportExport: React.FC = () => {
                       {data.map((row, rowIdx) => (
                         <tr
                           key={rowIdx}
-                          className={`hover:bg-gray-50 ${
-                            rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                          }`}
+                          className={`hover:bg-gray-50 ${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${row.isOrderRow ? "font-semibold" : "pl-4"}`}
                         >
                           {colOrder.map((k, colIdx) => {
                             const v: any = row[k];
-                            const displayValue =
-                              typeof v === "number" ? formatNumber(v) : v ?? "-";
+                            const displayValue = typeof v === "number" ? formatNumber(v) : v ?? "-";
                             return (
                               <td
                                 key={colIdx}
-                                className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                                className={`px-6 py-2 text-xs text-gray-900 whitespace-nowrap ${row.isOrderRow ? "" : "pl-8"}`}
+                                data-tooltip-id={`cell-${rowIdx}-${colIdx}`}
+                                data-tooltip-content={tooltipFor(k)}
                               >
                                 {displayValue}
+                                <Tooltip id={`cell-${rowIdx}-${colIdx}`} />
                               </td>
                             );
                           })}
@@ -929,11 +643,20 @@ const BookingOrderReportExport: React.FC = () => {
                   </table>
                 </div>
               </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex flex-col items-center justify-center space-y-3">
+                  <MdOutlineDoNotDisturbAlt className="h-10 w-10 text-gray-400" />
+                  <p className="text-gray-700 font-semibold">No booking order data available.</p>
+                  <p className="text-gray-500 text-sm max-w-md">
+                    Try changing your filter criteria or selecting a different date range.
+                  </p>
+                </div>
+              </div>
             )}
           </>
         )}
 
-        {/* Bilties Receivable Tab */}
         {activeTab === "bilty" && (
           <div className="mb-8">
             <div className="bg-white rounded-xl shadow-lg border border-gray-100">
@@ -942,13 +665,13 @@ const BookingOrderReportExport: React.FC = () => {
                 <p className="text-sm text-gray-500">Export the Bilties Receivable report as PDF.</p>
               </div>
               <div className="p-6">
-                <button
+                <Button
                   onClick={exportBiltiesReceivable}
-                  disabled={loading}
+                  disabled={isLoading}
                   className="w-full px-6 py-3 bg-rose-600 text-white text-sm font-bold rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50"
                 >
                   Export PDF
-                </button>
+                </Button>
               </div>
             </div>
           </div>

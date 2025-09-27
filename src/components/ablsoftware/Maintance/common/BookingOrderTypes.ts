@@ -24,8 +24,8 @@ export type ColumnKey = typeof ALL_COLUMNS[number]["key"];
 export interface RowData {
   serial: number;
   orderNo: string;
-  ablDate: string; // formatted like ABL/DD/MM/YY (e.g., ABL/11/08/25)
-  orderDate: string; // formatted like DD-MM-YYYY (e.g., 11-08-2025)
+  ablDate: string; 
+  orderDate: string;
   consignor: string;
   consignee: string;
   vehicleNo: string;
@@ -38,6 +38,7 @@ export interface RowData {
   destination: string;
   vendor: string;
   carrier: string;
+  
 }
 
 export const labelFor = (key: ColumnKey) => ALL_COLUMNS.find((c) => c.key === key)?.label || key;

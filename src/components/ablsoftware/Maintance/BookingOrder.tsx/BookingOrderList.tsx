@@ -514,7 +514,7 @@ const BookingOrderList = () => {
               <FaFileExcel size={18} />
               Download Excel
             </button>
-            <button
+            {/* <button
               onClick={openPdfDialog}
               className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white"
             >
@@ -527,7 +527,18 @@ const BookingOrderList = () => {
             >
               <FaFilePdf size={18} />
               Export General Report PDF
+            </button> */}
+            <button
+              onClick={() => router.push('/ablorderreport')}
+              className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+              title="General Report PDF"
+            >
+              <FaFilePdf size={18} />
+              ABL Order Report
             </button>
+
+
+            
           </div>
         </div>
         <div>
