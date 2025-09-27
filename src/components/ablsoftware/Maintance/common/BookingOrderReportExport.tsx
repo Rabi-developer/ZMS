@@ -16,9 +16,10 @@ import { getAllConsignment } from '@/apis/consignment';
 import { getAllCharges } from '@/apis/charges';
 import { getAllPartys } from '@/apis/party';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
-import { exportBookingOrderToPDF } from './BookingOrderPdf';
 import { exportBookingOrderToExcel } from './BookingOrderExcel';
 import { exportBiltiesReceivableToPDF } from "@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf";
+import { exportGeneralBookingOrderToPDF } from '/BookingOrderGeneralPdf';
+import { exportDetailBookingOrderToPDF } from './BookingOrderDetailPdf';
 
 // Company constant
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
@@ -51,7 +52,7 @@ const ALL_COLUMNS: { key: ColumnKey; label: string; tooltip: string }[] = [
   { key: "orderNo", label: "Order No", tooltip: "Booking order number" },
   { key: "orderDate", label: "Order Date", tooltip: "Date of the order" },
   { key: "vehicleNo", label: "Vehicle No", tooltip: "Vehicle registration number" },
-  { key: "bookingAmount", label: "Freight", tooltip: "Total booking amount from consignment" },
+  { key: "bookingAmount", label: "Freight", tooltip: "Total charges amount for the order" },
   { key: "biltyNo", label: "Bilty No", tooltip: "Consignment bilty number" },
   { key: "biltyAmount", label: "Bilty Amount", tooltip: "Total charges for consignment" },
   { key: "consignor", label: "Consignor", tooltip: "Party sending the goods" },
@@ -176,9 +177,9 @@ const BookingOrderReportExport: React.FC = () => {
         return acc;
       }, {});
 
-      const chargesByBilty = charges.reduce((acc: Record<string, any[]>, ch: any) => {
-        const biltyNo = String(ch.biltyNo || ch.BiltyNo || ch.consignmentNo || ch.ConsignmentNo || "");
-        if (biltyNo) acc[biltyNo] = (acc[biltyNo] || []).concat(ch);
+      const chargesByOrder = charges.reduce((acc: Record<string, any[]>, ch: any) => {
+        const ono = String(ch.orderNo || ch.OrderNo || "");
+        if (ono) acc[ono] = (acc[ono] || []).concat(ch);
         return acc;
       }, {});
 
@@ -200,7 +201,11 @@ const BookingOrderReportExport: React.FC = () => {
         const ono = String(o.orderNo || o.id || "");
         const odate = o.orderDate || o.date || o.createdAt || "";
         const cons = consByOrder[ono] || [];
-        const bookingAmount = cons.reduce((sum: number, c: any) => sum + numberOr0(c.totalAmount || c.amount), 0);
+        const chargesForOrder = chargesByOrder[ono] || [];
+        const bookingAmount = chargesForOrder.reduce((sum: number, ch: any) => {
+          const lines = Array.isArray(ch.lines) ? ch.lines : [];
+          return sum + lines.reduce((lineSum: number, line: any) => lineSum + numberOr0(line.amount), 0);
+        }, 0);
         const vehicleNo = o.vehicleNo || o.vehicle || "-";
         const departure = o.fromLocation || o.from || "-";
         const destination = o.toLocation || o.to || "-";
@@ -249,8 +254,13 @@ const BookingOrderReportExport: React.FC = () => {
             const consigneeVal = c.consignee ?? c.Consignee ?? c.consigneeId ?? c.ConsigneeId ?? "";
             const consignee = partyMap.get(String(consigneeVal)) || String(consigneeVal) || "-";
             const biltyNo = c.biltyNo || c.BiltyNo || c.consignmentNo || c.ConsignmentNo || "-";
-            const chargesForBilty = chargesByBilty[biltyNo] || [];
-            const biltyAmount = chargesForBilty.reduce((sum: number, ch: any) => sum + numberOr0(ch.amount || ch.totalAmount || 0), 0);
+            const chargesForBilty = chargesByOrder[ono]?.filter((ch: any) => 
+              (ch.biltyNo || ch.BiltyNo || ch.consignmentNo || ch.ConsignmentNo || "") === biltyNo
+            ) || [];
+            const biltyAmount = chargesForBilty.reduce((sum: number, ch: any) => {
+              const lines = Array.isArray(ch.lines) ? ch.lines : [];
+              return sum + lines.reduce((lineSum: number, line: any) => lineSum + numberOr0(line.amount), 0);
+            }, 0);
             let article = "-";
             let qty = "-";
             if (Array.isArray(c.items) && c.items.length > 0) {
@@ -275,7 +285,7 @@ const BookingOrderReportExport: React.FC = () => {
               orderNo: "",
               orderDate: "",
               vehicleNo: "",
-              bookingAmount: numberOr0(c.totalAmount || c.amount),
+              bookingAmount: 0, // Set to 0 for consignment rows
               biltyNo,
               biltyAmount,
               consignor,
@@ -387,16 +397,29 @@ const BookingOrderReportExport: React.FC = () => {
     }
   };
 
-  const exportPDF = useCallback(async (isGeneral: boolean) => {
+  const exportGeneralPDF = useCallback(async () => {
     if (!data.length) {
       toast.error("No data to export.");
       return;
     }
-    const columnsToUse = isGeneral ? GENERAL_COLUMNS : DETAIL_COLUMNS;
-    const { colOrder, headRows, drawSeparators } = buildStructure(columnsToUse, isGeneral);
+    const columnsToUse = GENERAL_COLUMNS;
+    const { colOrder, headRows } = buildStructure(columnsToUse, true);
     const filterLine = computeFilterLine();
-    const reportTypeLabel = isGeneral ? "GENERAL REPORT" : "DETAIL REPORT";
-    exportBookingOrderToPDF(data, columnsToUse, `${reportTypeLabel} | ${filterLine}`, colOrder, headRows, fromDate, toDate, isGeneral);
+    const reportTypeLabel = "GENERAL REPORT";
+    exportGeneralBookingOrderToPDF(data, columnsToUse, `${reportTypeLabel} | ${filterLine}`, colOrder, headRows, fromDate, toDate);
+    toast.success("PDF generated");
+  }, [data, fromDate, toDate]);
+
+  const exportDetailPDF = useCallback(async () => {
+    if (!data.length) {
+      toast.error("No data to export.");
+      return;
+    }
+    const columnsToUse = DETAIL_COLUMNS;
+    const { colOrder, headRows } = buildStructure(columnsToUse, false);
+    const filterLine = computeFilterLine();
+    const reportTypeLabel = "DETAIL REPORT";
+    exportDetailBookingOrderToPDF(data, columnsToUse, `${reportTypeLabel} | ${filterLine}`, colOrder, headRows, fromDate, toDate);
     toast.success("PDF generated");
   }, [data, fromDate, toDate]);
 
@@ -566,7 +589,7 @@ const BookingOrderReportExport: React.FC = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => exportPDF(true)}>PDF</DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportGeneralPDF}>PDF</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => exportExcel(true)}>Excel</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -581,7 +604,7 @@ const BookingOrderReportExport: React.FC = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => exportPDF(false)}>PDF</DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportDetailPDF}>PDF</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => exportExcel(false)}>Excel</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -624,7 +647,7 @@ const BookingOrderReportExport: React.FC = () => {
                         >
                           {colOrder.map((k, colIdx) => {
                             const v: any = row[k];
-                            const displayValue = typeof v === "number" ? formatNumber(v) : v ?? "-";
+                            const displayValue = k === "bookingAmount" && !row.isOrderRow ? "-" : (typeof v === "number" ? formatNumber(v) : v ?? "-");
                             return (
                               <td
                                 key={colIdx}
