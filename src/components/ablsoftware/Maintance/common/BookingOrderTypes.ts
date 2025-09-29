@@ -22,9 +22,9 @@ export const ALL_COLUMNS = [
 export type ColumnKey = typeof ALL_COLUMNS[number]["key"];
 
 export interface RowData {
-  serial: number;
+  serial: number | string;
   orderNo: string;
-  ablDate: string; 
+  ablDate: string;
   orderDate: string;
   consignor: string;
   consignee: string;
@@ -32,13 +32,15 @@ export interface RowData {
   bookingAmount: number;
   biltyNo: string;
   biltyAmount: number;
+  consignmentFreight: number;
   article: string;
   qty: string;
   departure: string;
   destination: string;
   vendor: string;
   carrier: string;
-  
+  isOrderRow: boolean;
+
 }
 
 export const labelFor = (key: ColumnKey) => ALL_COLUMNS.find((c) => c.key === key)?.label || key;

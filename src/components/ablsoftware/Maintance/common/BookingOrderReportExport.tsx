@@ -18,7 +18,7 @@ import { getAllPartys } from '@/apis/party';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { exportBookingOrderToExcel } from './BookingOrderExcel';
 import { exportBiltiesReceivableToPDF } from "@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf";
-import { exportGeneralBookingOrderToPDF } from '/BookingOrderGeneralPdf';
+import { exportGeneralBookingOrderToPDF } from './BookingOrderGeneralPdf';
 import { exportDetailBookingOrderToPDF } from './BookingOrderDetailPdf';
 
 // Company constant
@@ -35,6 +35,7 @@ interface RowData {
   bookingAmount: number;
   biltyNo: string;
   biltyAmount: number;
+  consignmentFreight: number;
   consignor: string;
   consignee: string;
   article: string;
@@ -48,13 +49,13 @@ interface RowData {
 }
 
 const ALL_COLUMNS: { key: ColumnKey; label: string; tooltip: string }[] = [
-  { key: "serial", label: "S.NO", tooltip: "Unique row number" },
+  { key: "serial", label: "SNo", tooltip: "Unique row number" },
   { key: "orderNo", label: "Order No", tooltip: "Booking order number" },
   { key: "orderDate", label: "Order Date", tooltip: "Date of the order" },
   { key: "vehicleNo", label: "Vehicle No", tooltip: "Vehicle registration number" },
   { key: "bookingAmount", label: "Freight", tooltip: "Total charges amount for the order" },
-  { key: "biltyNo", label: "Bilty No", tooltip: "Consignment bilty number" },
-  { key: "biltyAmount", label: "Bilty Amount", tooltip: "Total charges for consignment" },
+  { key: "biltyNo", label: "Bilty No", tooltip: "Consignment order number" },
+  { key: "biltyAmount", label: "Bilty Amount", tooltip: "Freight amount for consignment" },
   { key: "consignor", label: "Consignor", tooltip: "Party sending the goods" },
   { key: "consignee", label: "Consignee", tooltip: "Party receiving the goods" },
   { key: "article", label: "Article", tooltip: "Description of items" },
@@ -71,8 +72,6 @@ const GENERAL_COLUMNS: ColumnKey[] = [
   "orderDate",
   "vehicleNo",
   "bookingAmount",
-  "biltyNo",
-  "article",
   "departure",
   "destination",
   "vendor",
@@ -93,7 +92,6 @@ const DETAIL_COLUMNS: ColumnKey[] = [
   "departure",
   "destination",
   "vendor",
-  "carrier",
 ];
 
 const labelFor = (key: ColumnKey): string => ALL_COLUMNS.find(c => c.key === key)?.label || key;
@@ -105,7 +103,7 @@ const formatDate = (dateStr?: string): string => {
   if (isNaN(d.getTime())) return "-";
   const day = d.getDate().toString().padStart(2, '0');
   const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const year = d.getFullYear();
+  const year = d.getFullYear() % 100;
   return `${day}-${month}-${year}`;
 };
 
@@ -222,8 +220,9 @@ const BookingOrderReportExport: React.FC = () => {
           orderDate: formatDate(odate),
           vehicleNo,
           bookingAmount,
-          biltyNo: "-",
+          biltyNo: cons.length > 0 ? cons[0].biltyNo || cons[0].BiltyNo || cons[0].consignmentNo || cons[0].ConsignmentNo || "-" : "-",
           biltyAmount: 0,
+          consignmentFreight: 0,
           consignor,
           consignee,
           article: "-",
@@ -237,12 +236,10 @@ const BookingOrderReportExport: React.FC = () => {
         };
 
         if (isGeneral) {
-          const biltyNo = cons.length > 0 ? cons.map((c: any) => c.biltyNo || c.BiltyNo || c.consignmentNo || c.ConsignmentNo || "-").join(", ") : "-";
-          const article = cons.length > 0 ? cons.map((c: any) => c.items?.map((it: any) => it.desc || it.description || it.itemDesc || it.Description || "").filter(Boolean).join(", ") || "-").join("; ") : "-";
           return [{
             ...orderRow,
-            biltyNo,
-            article,
+            biltyNo: "-",
+            article: "-",
             qty: cons.length.toString(),
             isOrderRow: true,
             ablDate: formatDate(odate),
@@ -254,13 +251,7 @@ const BookingOrderReportExport: React.FC = () => {
             const consigneeVal = c.consignee ?? c.Consignee ?? c.consigneeId ?? c.ConsigneeId ?? "";
             const consignee = partyMap.get(String(consigneeVal)) || String(consigneeVal) || "-";
             const biltyNo = c.biltyNo || c.BiltyNo || c.consignmentNo || c.ConsignmentNo || "-";
-            const chargesForBilty = chargesByOrder[ono]?.filter((ch: any) => 
-              (ch.biltyNo || ch.BiltyNo || ch.consignmentNo || ch.ConsignmentNo || "") === biltyNo
-            ) || [];
-            const biltyAmount = chargesForBilty.reduce((sum: number, ch: any) => {
-              const lines = Array.isArray(ch.lines) ? ch.lines : [];
-              return sum + lines.reduce((lineSum: number, line: any) => lineSum + numberOr0(line.amount), 0);
-            }, 0);
+            const consignmentFreight = numberOr0(c.freight);
             let article = "-";
             let qty = "-";
             if (Array.isArray(c.items) && c.items.length > 0) {
@@ -285,9 +276,10 @@ const BookingOrderReportExport: React.FC = () => {
               orderNo: "",
               orderDate: "",
               vehicleNo: "",
-              bookingAmount: 0, // Set to 0 for consignment rows
+              bookingAmount: 0,
               biltyNo,
-              biltyAmount,
+              biltyAmount: consignmentFreight,
+              consignmentFreight,
               consignor,
               consignee,
               article,
@@ -307,6 +299,7 @@ const BookingOrderReportExport: React.FC = () => {
             bookingAmount: 0,
             biltyNo: "-",
             biltyAmount: 0,
+            consignmentFreight: 0,
             consignor: "",
             consignee: "",
             article: "-",
@@ -340,7 +333,7 @@ const BookingOrderReportExport: React.FC = () => {
     const vehicleKeys = ['vehicleNo', 'bookingAmount'] as const;
     const biltyKeys = ['biltyNo', 'biltyAmount'] as const;
     const partyKeys = ['consignor', 'consignee'] as const;
-    const tailKeys = ['article', 'qty', 'departure', 'destination', 'vendor', 'carrier'] as const;
+    const tailKeys = ['article', 'qty', 'departure', 'destination', 'vendor'] as const;
 
     const fixed = fixedKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
     const contractSubs = contractKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
@@ -350,29 +343,25 @@ const BookingOrderReportExport: React.FC = () => {
     const tail = tailKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
 
     const colOrder: ColumnKey[] = isGeneral 
-      ? [...fixed, ...contractSubs, ...vehicleSubs, ...biltySubs, ...partySubs, ...tail]
-      : [...fixed, ...contractSubs, ...vehicleSubs, ...biltySubs, ...partySubs, ...tail];
+      ? [...fixed, ...contractSubs, ...vehicleSubs, 'departure', 'destination', 'vendor']
+      : [...fixed, ...contractSubs, ...vehicleSubs, ...biltySubs, ...partySubs, ...tail.filter(k => k !== 'departure' && k !== 'destination' && k !== 'vendor')];
 
-    const topRow: any[] = [];
     if (isGeneral) {
-      topRow.push({ content: "General Contract", colSpan: colOrder.length });
-      const subRow: any[] = colOrder.map(k => labelFor(k));
-      return { colOrder, headRows: [topRow, subRow], drawSeparators: false };
-    } else {
-      topRow.push({ content: "DETAIL REPORT", colSpan: colOrder.length });
+      const topRow: any[] = [{ content: "General Contract", colSpan: colOrder.length }];
       const secondRow: any[] = [];
       fixed.forEach(k => secondRow.push({ content: labelFor(k), rowSpan: 2 }));
-      if (contractSubs.length > 0) secondRow.push({ content: "Contract", colSpan: contractSubs.length });
+      if (contractSubs.length > 0) secondRow.push({ content: "Order", colSpan: contractSubs.length });
       if (vehicleSubs.length > 0) secondRow.push({ content: "Vehicle", colSpan: vehicleSubs.length });
-      if (biltySubs.length > 0) secondRow.push({ content: "Bilty", colSpan: biltySubs.length });
-      partySubs.forEach(k => secondRow.push({ content: labelFor(k), rowSpan: 2 }));
-      tail.forEach(k => secondRow.push({ content: labelFor(k), rowSpan: 2 }));
+      secondRow.push({ content: labelFor('departure'), rowSpan: 2 });
+      secondRow.push({ content: labelFor('destination'), rowSpan: 2 });
+      secondRow.push({ content: labelFor('vendor'), rowSpan: 2 });
       const subRow: any[] = [];
       if (contractSubs.length > 0) contractSubs.forEach(k => subRow.push(labelFor(k)));
       if (vehicleSubs.length > 0) vehicleSubs.forEach(k => subRow.push(labelFor(k)));
-      if (biltySubs.length > 0) biltySubs.forEach(k => subRow.push(labelFor(k)));
       const headRows = subRow.length > 0 ? [topRow, secondRow, subRow] : [topRow, secondRow];
-      return { colOrder, headRows, drawSeparators: true };
+      return { colOrder, headRows, drawSeparators: false };
+    } else {
+      return { colOrder, headRows: [], drawSeparators: true };
     }
   };
 
@@ -387,7 +376,7 @@ const BookingOrderReportExport: React.FC = () => {
       const rows = await generateData(isGeneralView);
       setData(rows);
       setTotalBookingAmount(rows.reduce((acc, row) => acc + (row.isOrderRow ? row.bookingAmount : 0), 0).toLocaleString());
-      setTotalBiltyAmount(rows.reduce((acc, row) => acc + (row.isOrderRow ? 0 : row.biltyAmount), 0).toLocaleString());
+      setTotalBiltyAmount(rows.reduce((acc, row) => acc + (row.isOrderRow ? 0 : row.consignmentFreight), 0).toLocaleString());
       toast.success("Report generated successfully.");
     } catch (error) {
       console.error("Error generating report:", error);
@@ -415,11 +404,15 @@ const BookingOrderReportExport: React.FC = () => {
       toast.error("No data to export.");
       return;
     }
-    const columnsToUse = DETAIL_COLUMNS;
+    const columnsToUse = [...DETAIL_COLUMNS, 'carrier'];
     const { colOrder, headRows } = buildStructure(columnsToUse, false);
+    const pdfData = data.map(row => ({
+      ...row,
+      biltyAmount: row.isOrderRow ? row.biltyAmount : row.consignmentFreight,
+    }));
     const filterLine = computeFilterLine();
     const reportTypeLabel = "DETAIL REPORT";
-    exportDetailBookingOrderToPDF(data, columnsToUse, `${reportTypeLabel} | ${filterLine}`, colOrder, headRows, fromDate, toDate);
+    exportDetailBookingOrderToPDF(pdfData, columnsToUse, `${reportTypeLabel} | ${filterLine}`, colOrder, headRows, fromDate, toDate);
     toast.success("PDF generated");
   }, [data, fromDate, toDate]);
 
@@ -428,7 +421,7 @@ const BookingOrderReportExport: React.FC = () => {
       toast.error("No data to export.");
       return;
     }
-    const columnsToUse = isGeneral ? GENERAL_COLUMNS : DETAIL_COLUMNS;
+    const columnsToUse = isGeneral ? GENERAL_COLUMNS : [...DETAIL_COLUMNS, 'carrier'];
     const { colOrder, headRows, drawSeparators } = buildStructure(columnsToUse, isGeneral);
     exportBookingOrderToExcel(data, columnsToUse, computeFilterLine(), colOrder, headRows);
     toast.success("Excel generated");
@@ -464,6 +457,37 @@ const BookingOrderReportExport: React.FC = () => {
 
   const columnsToDisplay = isGeneralView ? GENERAL_COLUMNS : DETAIL_COLUMNS;
   const { colOrder, headRows, drawSeparators } = buildStructure(columnsToDisplay, isGeneralView);
+
+  // Group data for Detail Report
+  const groupedData = useMemo(() => {
+    if (isGeneralView || !data.length) return [];
+    const groups: { order: RowData; consignments: RowData[] }[] = [];
+    let currentGroup: { order: RowData; consignments: RowData[] } | null = null;
+    data.forEach(row => {
+      if (row.isOrderRow) {
+        if (currentGroup) groups.push(currentGroup);
+        currentGroup = { order: row, consignments: [] };
+      } else if (currentGroup) {
+        currentGroup.consignments.push(row);
+      }
+    });
+    if (currentGroup) groups.push(currentGroup);
+    return groups;
+  }, [data, isGeneralView]);
+
+  const detailHeaderColumns = [
+    { label: "SNo", width: "w-16" },
+    { label: "Order No", width: "w-32" },
+    { label: "Order Date", width: "w-24" },
+    { label: "Vehicle No", width: "w-24" },
+    { label: "Freight", width: "w-24" },
+    { label: "Bilty No", width: "w-24" },
+    { label: "Bilty Amount", width: "w-24" },
+    { label: "Consignor", width: "w-40" }, // Increased width for more gap
+    { label: "Consignee", width: "w-40" },
+    { label: "Article", width: "w-40" },
+    { label: "Qty", width: "w-20" },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -612,59 +636,117 @@ const BookingOrderReportExport: React.FC = () => {
             )}
 
             {data.length > 0 ? (
-              <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <div className="overflow-x-auto max-h-[400px]">
-                  <table className="min-w-[1400px] w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-100 sticky top-0 z-10">
-                      {headRows.map((row, rowIdx) => (
-                        <tr key={rowIdx}>
-                          {row.map((cell: any, cellIdx: number) => {
-                            const content = typeof cell === "string" ? cell : cell.content;
-                            const colSpan = typeof cell === "object" ? (cell.colSpan || 1) : 1;
-                            const rowSpan = typeof cell === "object" ? (cell.rowSpan || 1) : 1;
-                            return (
-                              <th
-                                key={cellIdx}
-                                colSpan={colSpan}
-                                rowSpan={rowSpan}
-                                className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
-                                data-tooltip-id={`header-${cellIdx}`}
-                                data-tooltip-content={content}
-                              >
-                                {content}
-                                <Tooltip id={`header-${cellIdx}`} />
-                              </th>
-                            );
-                          })}
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                {isGeneralView ? (
+                  <div className="overflow-x-auto max-h-[400px]">
+                    <table className="min-w-[1400px] w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-100 sticky top-0 z-10">
+                        {headRows.map((row, rowIdx) => (
+                          <tr key={rowIdx}>
+                            {row.map((cell: any, cellIdx: number) => {
+                              const content = typeof cell === "string" ? cell : cell.content;
+                              const colSpan = typeof cell === "object" ? (cell.colSpan || 1) : 1;
+                              const rowSpan = typeof cell === "object" ? (cell.rowSpan || 1) : 1;
+                              return (
+                                <th
+                                  key={cellIdx}
+                                  colSpan={colSpan}
+                                  rowSpan={rowSpan}
+                                  className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider"
+                                  data-tooltip-id={`header-${cellIdx}`}
+                                  data-tooltip-content={content}
+                                >
+                                  {content}
+                                  <Tooltip id={`header-${cellIdx}`} />
+                                </th>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {data.map((row, rowIdx) => (
+                          <tr
+                            key={rowIdx}
+                            className={`hover:bg-gray-50 ${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${row.isOrderRow ? "font-semibold" : "pl-4"}`}
+                          >
+                            {colOrder.map((k, colIdx) => {
+                              const v: any = row[k];
+                              const displayValue = k === "bookingAmount" && !row.isOrderRow ? "-" : (typeof v === "number" ? formatNumber(v) : v ?? "-");
+                              return (
+                                <td
+                                  key={colIdx}
+                                  className={`px-6 py-2 text-xs text-gray-900 whitespace-nowrap ${row.isOrderRow ? "" : "pl-8"}`}
+                                  data-tooltip-id={`cell-${rowIdx}-${colIdx}`}
+                                  data-tooltip-content={tooltipFor(k)}
+                                >
+                                  {displayValue}
+                                  <Tooltip id={`cell-${rowIdx}-${colIdx}`} />
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto max-h-[400px]">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                          {detailHeaderColumns.map((col, idx) => (
+                            <th
+                              key={idx}
+                              className={`px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider ${col.width}`}
+                            >
+                              {col.label}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {data.map((row, rowIdx) => (
-                        <tr
-                          key={rowIdx}
-                          className={`hover:bg-gray-50 ${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"} ${row.isOrderRow ? "font-semibold" : "pl-4"}`}
-                        >
-                          {colOrder.map((k, colIdx) => {
-                            const v: any = row[k];
-                            const displayValue = k === "bookingAmount" && !row.isOrderRow ? "-" : (typeof v === "number" ? formatNumber(v) : v ?? "-");
-                            return (
-                              <td
-                                key={colIdx}
-                                className={`px-6 py-2 text-xs text-gray-900 whitespace-nowrap ${row.isOrderRow ? "" : "pl-8"}`}
-                                data-tooltip-id={`cell-${rowIdx}-${colIdx}`}
-                                data-tooltip-content={tooltipFor(k)}
-                              >
-                                {displayValue}
-                                <Tooltip id={`cell-${rowIdx}-${colIdx}`} />
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {groupedData.map((group, groupIdx) => (
+                          <React.Fragment key={groupIdx}>
+                            <tr className="bg-gray-50">
+                              <td colSpan={11} className="px-4 py-2 font-semibold text-gray-900">
+                                {`${group.order.departure} to ${group.order.destination} - ${group.order.vendor}`}
                               </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                            </tr>
+                            <tr className="font-bold hover:bg-gray-50">
+                              <td className="px-4 py-2 text-xs text-gray-900 w-16">{group.order.serial}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-32">{group.order.orderNo}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-24">{group.order.orderDate}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-24">{group.order.vehicleNo}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-24">{formatNumber(group.order.bookingAmount)}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-24">{group.order.biltyNo}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-24"></td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-40">{group.order.consignor}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-40">{group.order.consignee}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-40">{group.order.article}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 w-20">{group.order.qty}</td>
+                            </tr>
+                            {group.consignments.map((row, rowIdx) => (
+                              <tr key={rowIdx} className="hover:bg-gray-50">
+                                <td className="px-4 py-2 text-xs text-gray-900 w-16"></td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-32"></td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-24"></td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-24"></td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-24"></td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-24">{row.biltyNo}</td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-24">{formatNumber(row.consignmentFreight)}</td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-40">{row.consignor}</td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-40">{row.consignee}</td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-40">{row.article}</td>
+                                <td className="px-4 py-2 text-xs text-gray-900 w-20">{row.qty}</td>
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
