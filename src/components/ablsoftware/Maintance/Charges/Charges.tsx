@@ -513,9 +513,9 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                         >
                           Payment Information
                         </th>
-                        <th className="px-3 py-2 text-left font-semibold" colSpan={1}>
+                        {/* <th className="px-3 py-2 text-left font-semibold" colSpan={1}>
                           Actions
-                        </th>
+                        </th> */}
                       </tr>
                       <tr className="bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 sticky top-0">
                         {/* Charges Columns */}
@@ -528,16 +528,16 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                         <th className="px-3 py-2 text-left font-medium">Remarks</th>
                         <th className="px-3 py-2 text-left font-medium">Amount</th>
                         {/* Payment Columns */}
-                        <th className="px-3 py-2 text-left font-medium border-l-2 border-gray-300 dark:border-gray-600">
+                        {/* <th className="px-3 py-2 text-left font-medium border-l-2 border-gray-300 dark:border-gray-600">
                           Paid Amount
                         </th>
                         <th className="px-3 py-2 text-left font-medium">Bank/Cash</th>
                         <th className="px-3 py-2 text-left font-medium">Chq No</th>
-                        <th className="px-3 py-2 text-left font-medium">Chq Date</th>
+                        <th className="px-3 py-2 text-left font-medium">Chq Date</th> */}
                         <th className="px-3 py-2 text-left font-medium">Pay. No</th>
                         <th className="px-3 py-2 text-left font-medium">Order No</th>
-                        <th className="px-3 py-2 text-left font-medium">Vehicle No</th>
-                        <th className="px-3 py-2 text-left font-medium">Action</th>
+                        {/* <th className="px-3 py-2 text-left font-medium">Vehicle No</th>
+                        <th className="px-3 py-2 text-left font-medium">Action</th> */}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -682,7 +682,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                             </td>
 
                             {/* Payment Cells */}
-                            <td className="px-3 py-2 border-l-2 border-gray-300 dark:border-gray-600">
+                            {/* <td className="px-3 py-2 border-l-2 border-gray-300 dark:border-gray-600">
                               {hasPayment ? (
                                 <input
                                   type="number"
@@ -693,8 +693,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>
                               )}
-                            </td>
-                            <td className="px-3 py-2">
+                            </td> */}
+                            {/* <td className="px-3 py-2">
                               {hasPayment ? (
                                 <Controller
                                   name={`payments.${index}.bankCash`}
@@ -717,8 +717,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>
                               )}
-                            </td>
-                            <td className="px-3 py-2">
+                            </td> */}
+                            {/* <td className="px-3 py-2">
                               {hasPayment ? (
                                 <input
                                   {...register(`payments.${index}.chqNo`)}
@@ -728,8 +728,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>
                               )}
-                            </td>
-                            <td className="px-3 py-2">
+                            </td> */}
+                            {/* <td className="px-3 py-2">
                               {hasPayment ? (
                                 <input
                                   type="date"
@@ -740,7 +740,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>
                               )}
-                            </td>
+                            </td> */}
                             <td className="px-3 py-2">
                               {hasPayment ? (
                                 <input
@@ -763,7 +763,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                 <div className="text-gray-400 text-xs">—</div>
                               )}
                             </td>
-                            <td className="px-3 py-2">
+                            {/* <td className="px-3 py-2">
                               {hasPayment ? (
                                 <input
                                   {...register(`payments.${index}.vehicleNo`)}
@@ -773,8 +773,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>
                               )}
-                            </td>
-                            <td className="px-3 py-2">
+                            </td> */}
+                            {/* <td className="px-3 py-2">
                               <div className="flex items-center gap-2">
                                 {hasLine && (
                                   <Button
@@ -787,7 +787,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                   </Button>
                                 )}
                               </div>
-                            </td>
+                            </td> */}
                           </tr>
                         );
                       })}
