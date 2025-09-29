@@ -513,9 +513,9 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                         >
                           Payment Information
                         </th>
-                        {/* <th className="px-3 py-2 text-left font-semibold" colSpan={1}>
+                        <th className="px-3 py-2 text-left font-semibold" colSpan={1}>
                           Actions
-                        </th> */}
+                        </th>
                       </tr>
                       <tr className="bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 sticky top-0">
                         {/* Charges Columns */}
@@ -774,7 +774,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                 <div className="text-gray-400 text-xs">—</div>
                               )}
                             </td> */}
-                            {/* <td className="px-3 py-2">
+                            <td className="px-3 py-2">
                               <div className="flex items-center gap-2">
                                 {hasLine && (
                                   <Button
@@ -787,7 +787,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                   </Button>
                                 )}
                               </div>
-                            </td> */}
+                            </td>
                           </tr>
                         );
                       })}
