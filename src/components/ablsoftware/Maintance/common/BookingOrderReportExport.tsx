@@ -20,6 +20,8 @@ import { exportBookingOrderToExcel } from './BookingOrderExcel';
 import { exportBiltiesReceivableToPDF } from "@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf";
 import { exportGeneralBookingOrderToPDF } from './BookingOrderGeneralPdf';
 import { exportDetailBookingOrderToPDF } from './BookingOrderDetailPdf';
+import type { ColumnKey as ExportColumnKey } from '@/components/ablsoftware/Maintance/common/BookingOrderTypes';
+
 
 // Company constant
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
@@ -404,7 +406,7 @@ const BookingOrderReportExport: React.FC = () => {
       toast.error("No data to export.");
       return;
     }
-    const columnsToUse = [...DETAIL_COLUMNS, 'carrier'];
+    const columnsToUse = [...DETAIL_COLUMNS, 'carrier'] as ColumnKey[];
     const { colOrder, headRows } = buildStructure(columnsToUse, false);
     const pdfData = data.map(row => ({
       ...row,

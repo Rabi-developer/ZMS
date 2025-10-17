@@ -459,12 +459,37 @@ const AblExpenseForm = () => {
     }
   };
 
-  const filteredAccounts = accounts.filter((account) => {
-    return (
-      (account.listid && account.listid.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (account.description && account.description.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  });
+  const filterAccountsByQuery = (accountsToFilter: Account[], query: string): Account[] => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return accountsToFilter;
+    }
+
+    const filterRecursive = (account: Account): Account | null => {
+      const matchesSelf =
+        account.listid.toLowerCase().includes(normalizedQuery) ||
+        account.description.toLowerCase().includes(normalizedQuery);
+
+      const filteredChildren = account.children
+        .map((child) => filterRecursive(child))
+        .filter((child): child is Account => child !== null);
+
+      if (matchesSelf || filteredChildren.length > 0) {
+        return {
+          ...account,
+          children: filteredChildren,
+        };
+      }
+
+      return null;
+    };
+
+    return accountsToFilter
+      .map((account) => filterRecursive(account))
+      .filter((account): account is Account => account !== null);
+  };
+
+  const filteredAccounts = filterAccountsByQuery(accounts, searchQuery);
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);

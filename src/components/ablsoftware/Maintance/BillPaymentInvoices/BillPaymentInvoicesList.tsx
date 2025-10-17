@@ -32,6 +32,10 @@ interface ApiBiltyPaymentInvoice {
     broker: string;
     dueDate: string;
     remarks: string;
+    isAdditionalLine?: boolean; // Made optional to handle potential missing fields
+    nameCharges?: string;
+    amountCharges?: number;
+    invoice?: any; // Added to potentially handle nested invoice if present (though not used)
   }>;
   isActive: boolean;
   isDeleted: boolean;
@@ -271,7 +275,8 @@ const BillPaymentInvoicesList = () => {
 
  const preparePdfPayload = async (invoiceId: string) => {
   try {
-    const response = await getAllBiltyPaymentInvoice(1, 100); // Fetch more records to ensure the invoice is included
+    // Increased page size to 1000 to ensure we fetch the invoice even if there are many records
+    const response = await getAllBiltyPaymentInvoice(1, 1000);
     const detailedInvoice = response?.data?.find((item: ApiBiltyPaymentInvoice) => item.id === invoiceId);
 
     if (!detailedInvoice) {
@@ -279,10 +284,11 @@ const BillPaymentInvoicesList = () => {
       return null;
     }
 
-    const firstLine = detailedInvoice.lines?.find((line) => !!line);
+    // Find the first non-additional line for broker details
+    const firstLine = detailedInvoice.lines?.find((line: ApiBiltyPaymentInvoice['lines'][0]) => !line.isAdditionalLine);
     const brokerDetails = {
       name: firstLine?.broker || undefined,
-      mobile: firstLine?.invoice.broker?.mobile, // Placeholder; replace with actual source if available
+      mobile: undefined, 
     };
 
     return {
@@ -290,20 +296,7 @@ const BillPaymentInvoicesList = () => {
       paymentDate: detailedInvoice.paymentDate,
       bookingDate: detailedInvoice.creationDate || detailedInvoice.createdDateTime,
       checkDate: detailedInvoice.updationDate || detailedInvoice.modifiedDateTime || detailedInvoice.paymentDate,
-      lines: detailedInvoice.lines?.map((line: {
-        id: string;
-        vehicleNo: string;
-        orderNo: string;
-        amount: number;
-        munshayana: string;
-        broker: string;
-        dueDate: string;
-        remarks: string;
-        isAdditionalLine: boolean; // Added to match API response
-        nameCharges?: string; // Added to match API response
-        amountCharges?: number; // Added to match API response
-      }) => ({
-        isAdditionalLine: line.isAdditionalLine || false,
+      lines: detailedInvoice.lines?.map((line: ApiBiltyPaymentInvoice['lines'][0]) => ({        isAdditionalLine: line.isAdditionalLine || false,
         biltyNo: line.orderNo,
         vehicleNo: line.vehicleNo,
         orderNo: line.orderNo,

@@ -213,8 +213,10 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
 
   // Update selected broker details
   useEffect(() => {
-    const selectedBrokerId = lines.find(line => !line.isAdditionalLine && line.broker)?.broker;
-    const broker = businessAssociates.find(ba => ba.id === selectedBrokerId);
+const selectedBrokerId = lines.find(
+  (line): line is Exclude<typeof line, { isAdditionalLine: true }> =>
+    !line.isAdditionalLine && !!line.broker
+)?.broker;    const broker = businessAssociates.find(ba => ba.id === selectedBrokerId);
     setSelectedBrokerDetails(broker || null);
   }, [lines, businessAssociates]);
 
