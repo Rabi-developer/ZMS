@@ -1,8 +1,8 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { FaFileExcel, FaCheck, FaFilePdf } from 'react-icons/fa';
+import { FaFileExcel, FaCheck, FaFilePdf, FaFileUpload, FaEye, FaTrash } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -13,6 +13,7 @@ import {
   deleteBookingOrder,
   updateBookingOrderStatus,
   getConsignmentsForBookingOrder,
+  updateBookingOrder, // Used to update the `files` field
 } from '@/apis/bookingorder';
 import { getAllVendor } from '@/apis/vendors';
 import { getAllTransporter } from '@/apis/transporter';
@@ -48,6 +49,13 @@ interface DropdownOption {
   name: string;
 }
 
+interface UploadedFile {
+  id: string;
+  name: string;
+  url: string; // Cloudinary secure URL
+  type: string;
+}
+
 const BookingOrderList = () => {
   const formatABLDate = (dateStr?: string): string => {
     if (!dateStr) return '-';
@@ -77,6 +85,11 @@ const BookingOrderList = () => {
   const [updating, setUpdating] = useState(false);
   const [fetchingConsignments, setFetchingConsignments] = useState<{ [orderId: string]: boolean }>({});
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  // File upload states
+  const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
+  const [selectedOrderForFiles, setSelectedOrderForFiles] = useState<string | null>(null);
+  const [orderFiles, setOrderFiles] = useState<{ [orderId: string]: UploadedFile[] }>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // PDF modal state
   const [openPdfModal, setOpenPdfModal] = useState(false);
@@ -211,45 +224,133 @@ const BookingOrderList = () => {
   };
 
   const handleRowClick = async (orderId: string) => {
-    // If the row is already selected, do nothing on single click
     if (selectedOrderIds.includes(orderId)) {
       return;
     }
-
-    // Select the row and fetch consignments
-    setSelectedOrderIds([orderId]); // Only one row selected at a time
+    setSelectedOrderIds([orderId]);
     setSelectedRowId(orderId);
+    setSelectedOrderForFiles(orderId);
     await fetchConsignments(orderId);
-
-    // Update bulk status for the single selected row
     const selectedOrder = bookingOrders.find((order) => order.id === orderId);
     setSelectedBulkStatus(selectedOrder?.status || null);
   };
 
   const handleRowDoubleClick = (orderId: string) => {
-    // Deselect the row on double-click
     if (selectedOrderIds.includes(orderId)) {
       setSelectedOrderIds([]);
       setSelectedRowId(null);
       setSelectedBulkStatus(null);
+      setSelectedOrderForFiles(null);
     }
   };
 
   const handleCheckboxChange = async (orderId: string, checked: boolean) => {
     if (checked) {
-      setSelectedOrderIds([orderId]); // Only one row selected at a time
+      setSelectedOrderIds([orderId]);
       setSelectedRowId(orderId);
+      setSelectedOrderForFiles(orderId);
       if (!consignments[orderId]) {
         await fetchConsignments(orderId);
       }
     } else {
       setSelectedOrderIds([]);
       setSelectedRowId(null);
+      setSelectedOrderForFiles(null);
     }
-
-    // Update bulk status
     const selectedOrder = bookingOrders.find((order) => order.id === orderId);
     setSelectedBulkStatus(checked ? selectedOrder?.status || null : null);
+  };
+
+  const handleFileUploadClick = () => {
+    if (!selectedOrderForFiles) {
+      toast('Please select an order first', { type: 'warning' });
+      return;
+    }
+    setOpenFileUploadModal(true);
+  };
+
+  // Upload files to Cloudinary using /api/upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || !selectedOrderForFiles || files.length === 0) {
+      toast('No files selected', { type: 'warning' });
+      return;
+    }
+
+    setLoading(true);
+    toast(`Uploading ${files.length} file(s)...`, { type: 'info' });
+
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Send file to /api/upload, which uploads to Cloudinary
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) throw new Error(`Upload failed for ${file.name}`);
+
+        const { url } = await response.json();
+
+        return {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: file.name,
+          url, // Cloudinary secure URL
+          type: file.type,
+        };
+      });
+
+      const newFiles = await Promise.all(uploadPromises);
+
+      setOrderFiles((prev) => ({
+        ...prev,
+        [selectedOrderForFiles]: [...(prev[selectedOrderForFiles] || []), ...newFiles],
+      }));
+
+      toast(`${files.length} file(s) uploaded to Cloudinary!`, { type: 'success' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (error) {
+      toast('Upload failed', { type: 'error' });
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Save Cloudinary URLs to backend using updateBookingOrder
+  const handleSaveFilesToBackend = async () => {
+    if (!selectedOrderForFiles || orderFiles[selectedOrderForFiles]?.length === 0) {
+      toast('No files to save', { type: 'warning' });
+      return;
+    }
+
+    try {
+      // Join Cloudinary URLs into a comma-separated string
+      const urls = orderFiles[selectedOrderForFiles].map((f) => f.url).join(',');
+      // Update the `files` field using updateBookingOrder
+      await updateBookingOrder(selectedOrderForFiles, { files: urls });
+
+      toast('Files saved to backend successfully!', { type: 'success' });
+      setOpenFileUploadModal(false);
+      setSelectedOrderForFiles(null);
+    } catch (error) {
+      toast('Failed to save files', { type: 'error' });
+      console.error(error);
+    }
+  };
+
+  const handleViewFile = (url: string) => {
+    window.open(url, '_blank');
+  };
+
+  const handleRemoveFile = (orderId: string, fileId: string) => {
+    setOrderFiles((prev) => ({
+      ...prev,
+      [orderId]: prev[orderId].filter((file) => file.id !== fileId),
+    }));
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
@@ -266,6 +367,7 @@ const BookingOrderList = () => {
       setSelectedBulkStatus(newStatus);
       setSelectedOrderIds([]);
       setSelectedRowId(null);
+      setSelectedOrderForFiles(null);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
       toast(`Booking Order Status Updated to ${newStatus}`, { type: 'success' });
@@ -308,6 +410,7 @@ const BookingOrderList = () => {
           'Recv. Amount': '-',
           'Del. Date': '-',
           'Consignment Status': '-',
+          'Files': (orderFiles[order.id] || []).map((f) => f.name).join(', ') || '-',
         }];
       }
 
@@ -328,6 +431,7 @@ const BookingOrderList = () => {
         'Recv. Amount': c.receivedAmount || '-',
         'Del. Date': c.deliveryDate || '-',
         'Consignment Status': c.status || '-',
+        'Files': index === 0 ? (orderFiles[order.id] || []).map((f) => f.name).join(', ') || '-' : '',
       }));
     });
 
@@ -403,36 +507,40 @@ const BookingOrderList = () => {
       doc.setLineWidth(1);
       doc.line(40, 108, pageWidth - 40, 108);
 
-      const head = [[
-        'Serial',
-        'Order No',
-        'ABL Date',
-        'Vehicle No',
-        'Bilty No',
-        'Bilty Amount',
-        'Article',
-        'Qty',
-        'Departure',
-        'Destination',
-        'Vendor',
-        'Carrier',
-        'Consignor',
-        'Consignee',
-      ]];
+      const head = [
+        [
+          'Serial',
+          'Order No',
+          'ABL Date',
+          'Vehicle No',
+          'Bilty No',
+          'Bilty Amount',
+          'Article',
+          'Qty',
+          'Departure',
+          'Destination',
+          'Vendor',
+          'Carrier',
+          'Consignor',
+          'Consignee',
+          'Files',
+        ],
+      ];
       const body = pageData.map((o, idx) => {
         const cons = consignments[o.id]?.[0] || undefined;
         const ablDate = o.orderDate ? formatABLDate(o.orderDate) : '-';
         const vehicleNo = o.vehicleNo || '-';
-        const biltyNo = cons ? (cons.biltyNo || '-') : '-';
-        const biltyAmount = cons ? (cons.totalAmount || '-') : '-';
-        const article = cons ? (cons.item || '-') : '-';
-        const qty = cons ? (cons.qty || '-') : '-';
+        const biltyNo = cons ? cons.biltyNo || '-' : '-';
+        const biltyAmount = cons ? cons.totalAmount || '-' : '-';
+        const article = cons ? cons.item || '-' : '-';
+        const qty = cons ? cons.qty || '-' : '-';
         const departure = o.fromLocation || '-';
         const destination = o.toLocation || '-';
         const vendor = o.vendor || '-';
         const carrier = o.transporter || '-';
-        const consignor = cons ? (cons.consignor || '-') : '-';
-        const consignee = cons ? (cons.consignee || '-') : '-';
+        const consignor = cons ? cons.consignor || '-' : '-';
+        const consignee = cons ? cons.consignee || '-' : '-';
+        const files = (orderFiles[o.id] || []).map((f) => f.name).join(', ') || '-';
         return [
           idx + 1,
           o.orderNo || '-',
@@ -448,6 +556,7 @@ const BookingOrderList = () => {
           carrier,
           consignor,
           consignee,
+          files,
         ];
       });
 
@@ -514,20 +623,12 @@ const BookingOrderList = () => {
               <FaFileExcel size={18} />
               Download Excel
             </button>
-            {/* <button
+            <button
               onClick={openPdfDialog}
               className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white"
             >
               Bilties Receivable
             </button>
-            <button
-              onClick={handleGenerateGeneralPdf}
-              className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-              title="General Report PDF"
-            >
-              <FaFilePdf size={18} />
-              Export General Report PDF
-            </button> */}
             <button
               onClick={() => router.push('/ablorderreport')}
               className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md transition-all duration-200"
@@ -536,9 +637,6 @@ const BookingOrderList = () => {
               <FaFilePdf size={18} />
               ABL Order Report
             </button>
-
-
-            
           </div>
         </div>
         <div>
@@ -552,7 +650,7 @@ const BookingOrderList = () => {
             pageSize={pageSize}
             setPageSize={setPageSize}
             onRowClick={handleRowClick}
-            onRowDoubleClick={handleRowDoubleClick} // Add double-click handler
+            onRowDoubleClick={handleRowDoubleClick}
           />
         </div>
 
@@ -575,16 +673,25 @@ const BookingOrderList = () => {
                 <button
                   key={option.id}
                   onClick={() => handleBulkStatusUpdate(option.name)}
-                  disabled={updating}
+                  disabled={updating || !selectedOrderIds.length}
                   className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
                     ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
-                    ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    ${updating || !selectedOrderIds.length ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <span className="text-sm font-semibold text-center">{option.name}</span>
                   {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
                 </button>
               );
             })}
+            <button
+              onClick={handleFileUploadClick}
+              disabled={!selectedOrderIds.length}
+              className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
+                ${selectedOrderIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-500' : 'border-gray-300 bg-white text-gray-700 opacity-50 cursor-not-allowed'}`}
+            >
+              <span className="text-sm font-semibold text-center">Upload Files</span>
+              {selectedOrderIds.length && <FaFileUpload className="text-blue-500 animate-bounce" size={18} />}
+            </button>
           </div>
         </div>
 
@@ -627,6 +734,107 @@ const BookingOrderList = () => {
                   <button onClick={closePdfDialog} className="px-4 py-2 rounded border">Cancel</button>
                   <button onClick={handleGenerateGeneralPdf} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white">General PDF</button>
                   <button onClick={handleGenerateReceivablePdf} className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Bilties Receivable</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {openFileUploadModal && selectedOrderForFiles && (
+          <div
+            id="fileUploadModal"
+            className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
+            onClick={(e) => {
+              const target = e.target as HTMLElement;
+              if (target.id === 'fileUploadModal') {
+                setOpenFileUploadModal(false);
+                setSelectedOrderForFiles(null);
+              }
+            }}
+          >
+            <div className="bg-white rounded shadow p-5 w-full max-w-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold">
+                  Files for Order {bookingOrders.find((o) => o.id === selectedOrderForFiles)?.orderNo || ''}
+                </h3>
+                <button
+                  onClick={() => {
+                    setOpenFileUploadModal(false);
+                    setSelectedOrderForFiles(null);
+                  }}
+                  className="text-gray-500 hover:text-black"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-3">
+                <input
+                  type="file"
+                  multiple
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="image/*,application/pdf"
+                  max={10}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {orderFiles[selectedOrderForFiles]?.length > 0 ? (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-700">Uploaded Files:</h4>
+                    <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                      {orderFiles[selectedOrderForFiles].map((file) => (
+                        <li key={file.id} className="flex items-center justify-between p-2 border rounded">
+                          <div className="flex items-center gap-2">
+                            {file.type.startsWith('image/') && (
+                              <img src={file.url} alt={file.name} className="w-12 h-12 object-cover rounded" />
+                            )}
+                            <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleViewFile(file.url)}
+                              className="text-blue-600 hover:text-blue-800"
+                              title="View"
+                            >
+                              <FaEye size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleRemoveFile(selectedOrderForFiles, file.id)}
+                              className="text-red-600 hover:text-red-800"
+                              title="Remove"
+                            >
+                              <FaTrash size={18} />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No files uploaded yet.</p>
+                )}
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    onClick={() => {
+                      setOpenFileUploadModal(false);
+                      setSelectedOrderForFiles(null);
+                    }}
+                    className="px-4 py-2 rounded border"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Add More
+                  </button>
+                  <button
+                    onClick={handleSaveFilesToBackend}
+                    disabled={orderFiles[selectedOrderForFiles]?.length === 0}
+                    className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                  >
+                    Save Files to Order
+                  </button>
                 </div>
               </div>
             </div>

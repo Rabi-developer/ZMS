@@ -1,15 +1,22 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { FaFileExcel, FaCheck } from 'react-icons/fa';
+import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllCharges, deleteCharges, updateChargesStatus } from '@/apis/charges';
+import { getAllConsignment } from '@/apis/consignment';
 import { columns, Charge } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
-import { getAllConsignment } from '@/apis/consignment';
+
+interface UploadedFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+}
 
 const ChargesList = () => {
   const router = useRouter();
@@ -27,6 +34,11 @@ const ChargesList = () => {
   const [updating, setUpdating] = useState(false);
   const [consignments, setConsignments] = useState<any[]>([]);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  // File upload states
+  const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
+  const [selectedChargeForFiles, setSelectedChargeForFiles] = useState<string | null>(null);
+  const [chargeFiles, setChargeFiles] = useState<{ [chargeId: string]: UploadedFile[] }>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const statusOptions = ['All', 'Prepared', 'Canceled', 'Closed', 'UnApproved', 'Approved'];
   const statusOptionsConfig = [
@@ -105,14 +117,12 @@ const ChargesList = () => {
   };
 
   const handleRowClick = async (chargeId: string) => {
-    // If the row is already selected, do nothing on single click
     if (selectedChargeIds.includes(chargeId)) {
       return;
     }
-
-    // Select the row and fetch consignments
-    setSelectedChargeIds([chargeId]); // Only one row selected at a time
+    setSelectedChargeIds([chargeId]);
     setSelectedRowId(chargeId);
+    setSelectedChargeForFiles(chargeId);
     const charge = charges.find((item) => item.id === chargeId);
     console.log('Selected Charge:', charge); // Debug selected charge
     if (charge?.orderNo && charge.orderNo !== '-') {
@@ -123,28 +133,27 @@ const ChargesList = () => {
         toast('Failed to fetch consignments', { type: 'error' });
       }
     } else {
-      setConsignments([]); // Clear consignments if no valid orderNo
+      setConsignments([]);
     }
-
-    // Update selected bulk status
     const selectedCharge = charges.find((c) => c.id === chargeId);
     setSelectedBulkStatus(selectedCharge?.status || null);
   };
 
   const handleRowDoubleClick = (chargeId: string) => {
-    // Deselect the row on double-click
     if (selectedChargeIds.includes(chargeId)) {
       setSelectedChargeIds([]);
       setSelectedRowId(null);
       setConsignments([]);
       setSelectedBulkStatus(null);
+      setSelectedChargeForFiles(null);
     }
   };
 
   const handleCheckboxChange = async (chargeId: string, checked: boolean) => {
     if (checked) {
-      setSelectedChargeIds([chargeId]); // Only one row selected at a time
+      setSelectedChargeIds([chargeId]);
       setSelectedRowId(chargeId);
+      setSelectedChargeForFiles(chargeId);
       const charge = charges.find((item) => item.id === chargeId);
       console.log('Checked Charge:', charge); // Debug checked charge
       if (charge?.orderNo && charge.orderNo !== '-') {
@@ -161,11 +170,50 @@ const ChargesList = () => {
       setSelectedChargeIds([]);
       setSelectedRowId(null);
       setConsignments([]);
+      setSelectedChargeForFiles(null);
     }
-
-    // Update selected bulk status
     const selectedCharge = charges.find((c) => c.id === chargeId);
     setSelectedBulkStatus(checked ? selectedCharge?.status || null : null);
+  };
+
+  const handleFileUploadClick = () => {
+    if (!selectedChargeForFiles) {
+      toast('Please select a charge first', { type: 'warning' });
+      return;
+    }
+    setOpenFileUploadModal(true);
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && selectedChargeForFiles) {
+      const newFiles = Array.from(files).map((file) => ({
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        url: URL.createObjectURL(file),
+        type: file.type,
+      }));
+      setChargeFiles((prev) => ({
+        ...prev,
+        [selectedChargeForFiles]: [...(prev[selectedChargeForFiles] || []), ...newFiles],
+      }));
+      toast(`${files.length} file(s) uploaded for charge ${selectedChargeForFiles}`, { type: 'success' });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleViewFile = (url: string) => {
+    window.open(url, '_blank');
+  };
+
+  const handleRemoveFile = (chargeId: string, fileId: string) => {
+    setChargeFiles((prev) => ({
+      ...prev,
+      [chargeId]: prev[chargeId].filter((file) => file.id !== fileId),
+    }));
+    toast('File removed successfully', { type: 'success' });
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
@@ -183,6 +231,7 @@ const ChargesList = () => {
       setSelectedChargeIds([]);
       setSelectedRowId(null);
       setConsignments([]);
+      setSelectedChargeForFiles(null);
       setSelectedStatusFilter(newStatus);
       setPageIndex(0);
       toast('Charge Status Updated Successfully', { type: 'success' });
@@ -225,6 +274,7 @@ const ChargesList = () => {
       'Pay No': c.payNo || '-',
       'Total': c.total || '-',
       'Status': c.status || 'Unpaid',
+      'Files': (chargeFiles[c.id] || []).map((f) => f.name).join(', ') || '-',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
@@ -288,16 +338,25 @@ const ChargesList = () => {
               <button
                 key={option.id}
                 onClick={() => handleBulkStatusUpdate(option.name)}
-                disabled={updating}
+                disabled={updating || !selectedChargeIds.length}
                 className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
                   ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
-                  ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  ${updating || !selectedChargeIds.length ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span className="text-sm font-semibold text-center">{option.name}</span>
                 {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
               </button>
             );
           })}
+          <button
+            onClick={handleFileUploadClick}
+            disabled={!selectedChargeIds.length}
+            className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
+              ${selectedChargeIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-500' : 'border-gray-300 bg-white text-gray-700 opacity-50 cursor-not-allowed'}`}
+          >
+            <span className="text-sm font-semibold text-center">Upload Files</span>
+            {selectedChargeIds.length && <FaFileUpload className="text-blue-500 animate-bounce" size={18} />}
+          </button>
         </div>
       </div>
       {selectedRowId && (
@@ -307,7 +366,6 @@ const ChargesList = () => {
             orderNo={charges.find((c) => c.id === selectedRowId)?.orderNo}
             bookingStatus={null}
             consignments={consignments}
-
           />
         </div>
       )}
@@ -318,8 +376,107 @@ const ChargesList = () => {
           isOpen={openDelete}
         />
       )}
+      {openFileUploadModal && selectedChargeForFiles && (
+        <div
+          id="fileUploadModal"
+          className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
+          onClick={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.id === 'fileUploadModal') {
+              setOpenFileUploadModal(false);
+              setSelectedChargeForFiles(null);
+            }
+          }}
+        >
+          <div className="bg-white rounded shadow p-5 w-full max-w-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold">Files for Charge {charges.find((c) => c.id === selectedChargeForFiles)?.chargeNo || ''}</h3>
+              <button
+                onClick={() => {
+                  setOpenFileUploadModal(false);
+                  setSelectedChargeForFiles(null);
+                }}
+                className="text-gray-500 hover:text-black"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-3">
+              <input
+                type="file"
+                multiple
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*,application/pdf"
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"
+              />
+              {chargeFiles[selectedChargeForFiles]?.length > 0 ? (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-gray-700">Uploaded Files:</h4>
+                  <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                    {chargeFiles[selectedChargeForFiles].map((file) => (
+                      <li key={file.id} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          {file.type.startsWith('image/') && (
+                            <img
+                              src={file.url}
+                              alt={file.name}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                          )}
+                          <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleViewFile(file.url)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="View File"
+                          >
+                            <FaEye size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleRemoveFile(selectedChargeForFiles, file.id)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Remove File"
+                          >
+                            <FaTrash size={18} />
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No files uploaded for this charge.</p>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setOpenFileUploadModal(false);
+                    setSelectedChargeForFiles(null);
+                  }}
+                  className="px-4 py-2 rounded border"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Add More Files
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ChargesList;
+export default ChargesList; 

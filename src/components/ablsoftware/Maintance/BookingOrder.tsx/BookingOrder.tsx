@@ -101,9 +101,10 @@ type BookingOrderFormData = z.infer<typeof bookingOrderSchema>;
 interface BookingOrderFormProps {
   isEdit?: boolean;
   initialData?: any;
+  onSaved?: (result?: { id?: string | undefined; orderNo?: string | undefined } | null) => void;
 }
 
-const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps) => {
+const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrderFormProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderNoParam = searchParams.get('orderNo') || '';
@@ -452,8 +453,13 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
       } catch (e) {
         console.warn('Failed to sync consignments after booking update', e);
       }
-      toast.success('Booking Order updated successfully!');
-      return { id: idToUse, orderNo: data.OrderNo };
+        toast.success('Booking Order updated successfully!');
+        try {
+          if (typeof onSaved === 'function') onSaved({ id: idToUse, orderNo: data.OrderNo });
+        } catch (e) {
+          console.warn('onSaved callback failed', e);
+        }
+        return { id: idToUse, orderNo: data.OrderNo };
     } else {
       const res = await createBookingOrder(payload);
       const createdId: string | undefined = res?.data;
@@ -499,6 +505,11 @@ const BookingOrderForm = ({ isEdit = false, initialData }: BookingOrderFormProps
         }
       }
       toast.success('Booking Order created successfully!');
+      try {
+        if (typeof onSaved === 'function') onSaved({ id: createdId, orderNo: data.OrderNo });
+      } catch (e) {
+        console.warn('onSaved callback failed', e);
+      }
       return { id: createdId, orderNo: data.OrderNo };
     }
   };

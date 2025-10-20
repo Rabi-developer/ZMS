@@ -25,6 +25,7 @@
     "antd": "^5.23.2",
     "chart.js": "^4.4.9",
     "class-variance-authority": "^0.7.1",
+    "cloudinary": "^2.7.0",
     "cmdk": "^1.0.4",
     "date-fns": "^4.1.0",
     "flatpickr": "^4.6.13",

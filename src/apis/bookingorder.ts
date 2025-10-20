@@ -171,6 +171,29 @@ const deleteConsignmentFromBookingOrder = async (bookingOrderId: string, consign
     throw error;
   }
 };
+const updateBookingOrderFiles = async ({ id, files }: { id: string; files: string }) => {
+  try {
+    if (!id) throw new Error('updateBookingOrderFiles: id is required');
+    if (typeof files !== 'string') throw new Error('updateBookingOrderFiles: files must be a comma-separated string');
+
+    const payload = {
+      id,
+      files, // Comma-separated string of Cloudinary URLs
+    };
+
+    const response = await apiFetch(`BookingOrder`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, true);
+
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
 export {
   createBookingOrder,
   getAllBookingOrder,
@@ -184,4 +207,5 @@ export {
   addConsignmentToBookingOrder,
   updateConsignmentForBookingOrder,
   deleteConsignmentFromBookingOrder,
+  updateBookingOrderFiles
 };
