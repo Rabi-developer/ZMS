@@ -438,7 +438,8 @@ const ConsignmentForm = ({ isEdit = false }) => {
 
   const isFieldDisabled = (field: string) => {
     if (!fromBooking) return false;
-    return fromBooking && !['consignor', 'consignee'].includes(field);
+    // Allow editing of receiptNo and consignmentNo even when from booking
+    return fromBooking && !['consignor', 'consignee', 'receiptNo', 'consignmentNo'].includes(field);
   };
 
   return (
@@ -505,7 +506,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                         {...field}
                         label="Receipt No"
                         type="text"
-                        placeholder="Auto Generated"
+                        placeholder="Enter Receipt No"
                         register={register}
                         error={errors.receiptNo?.message}
                         id="receiptNo"
@@ -654,11 +655,11 @@ const ConsignmentForm = ({ isEdit = false }) => {
                   <ABLNewCustomInput
                     label="Con.No"
                     type="text"
-                    placeholder="Enter consignment number"
+                    placeholder="Enter consignment number manually"
                     register={register}
                     error={errors.consignmentNo?.message}
                     id="consignmentNo"
-                    disabled={isFieldDisabled('consignmentNo')}
+                    disabled
                   />
                   <ABLNewCustomInput
                     label="Cons.Date"
