@@ -250,7 +250,7 @@ const ABLDashboardlayout = () => {
   }
 
   return (
-    <div className="pb-4 grid rounded bg-white mt-20 h-[100vh] overflow-y-auto scrollbar-thin scrollbar-rounded gap-5 dark:bg-[#1a2a22]">
+    <div className="pb-4 grid rounded bg-white mt-20 h-[100vh] overflow-y-auto gap-5 dark:bg-[#1a2a22]">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {/* Accounts Due card */}
         <div className="p-4 bg-[#1a5f3a] rounded-md border-2 border-[#d4a017] shadow-md dark:bg-[#2a7f4a]">

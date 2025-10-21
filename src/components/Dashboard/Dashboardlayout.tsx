@@ -10,7 +10,7 @@ import { ItemsGraph } from '../Design/Graph/ItemsGraph';
 
 const dashboardlayout = () => {
   return (
-    <div className='pb-4 grid rounded bg-white mt-20 h-[100vh] overflow-y-auto scrollbar-thin scrollbar-rounded gap-5
+     <div className='pb-4 grid rounded bg-white mt-20 h-[100vh] overflow-y-auto scrollbar-thin gap-5
         dark:bg-[#030630]
         '>
       {/* First Row - Cards */}
