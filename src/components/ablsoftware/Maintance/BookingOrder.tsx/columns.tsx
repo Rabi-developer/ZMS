@@ -34,6 +34,7 @@ export interface BookingOrder {
   transporter: string;
   fromLocation: string;
   toLocation: string;
+  files?: string; // Comma-separated Cloudinary URLs
 }
 
 // Add onRowSelect to handle checkbox changes

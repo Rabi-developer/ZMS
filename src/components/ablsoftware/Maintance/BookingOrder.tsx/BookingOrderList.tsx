@@ -14,6 +14,7 @@ import {
   updateBookingOrderStatus,
   getConsignmentsForBookingOrder,
   updateBookingOrder, // Used to update the `files` field
+  updateBookingOrderFiles, // New dedicated function for updating files
 } from '@/apis/bookingorder';
 import { getAllVendor } from '@/apis/vendors';
 import { getAllTransporter } from '@/apis/transporter';
@@ -266,6 +267,26 @@ const BookingOrderList = () => {
       toast('Please select an order first', { type: 'warning' });
       return;
     }
+    
+    // Load existing files from the selected order if available
+    const selectedOrder = bookingOrders.find((o) => o.id === selectedOrderForFiles);
+    if (selectedOrder?.files && !orderFiles[selectedOrderForFiles]) {
+      // Parse the comma-separated URLs and create file objects
+      const existingFiles = selectedOrder.files.split(',').map((url: string, index: number) => {
+        const fileName = url.split('/').pop() || `file-${index + 1}`;
+        return {
+          id: `existing-${index}`,
+          name: fileName,
+          url: url.trim(),
+          type: url.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/*',
+        };
+      });
+      setOrderFiles((prev) => ({
+        ...prev,
+        [selectedOrderForFiles]: existingFiles,
+      }));
+    }
+    
     setOpenFileUploadModal(true);
   };
 
@@ -285,15 +306,22 @@ const BookingOrderList = () => {
         const formData = new FormData();
         formData.append('file', file);
 
+        console.log('Uploading file:', file.name, 'Size:', file.size);
+
         // Send file to /api/upload, which uploads to Cloudinary
         const response = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
         });
 
-        if (!response.ok) throw new Error(`Upload failed for ${file.name}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Upload failed:', errorText);
+          throw new Error(`Upload failed for ${file.name}: ${errorText}`);
+        }
 
         const { url } = await response.json();
+        console.log('Upload successful:', url);
 
         return {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -314,13 +342,13 @@ const BookingOrderList = () => {
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (error) {
       toast('Upload failed', { type: 'error' });
-      console.error(error);
+      console.error('Upload error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Save Cloudinary URLs to backend using updateBookingOrder
+  // Save Cloudinary URLs to backend using updateBookingOrderFiles
   const handleSaveFilesToBackend = async () => {
     if (!selectedOrderForFiles || orderFiles[selectedOrderForFiles]?.length === 0) {
       toast('No files to save', { type: 'warning' });
@@ -328,17 +356,26 @@ const BookingOrderList = () => {
     }
 
     try {
+      setLoading(true);
       // Join Cloudinary URLs into a comma-separated string
       const urls = orderFiles[selectedOrderForFiles].map((f) => f.url).join(',');
-      // Update the `files` field using updateBookingOrder
-      await updateBookingOrder(selectedOrderForFiles, { files: urls });
+      
+      console.log('Saving files to backend:', { id: selectedOrderForFiles, files: urls });
+
+      // Update the `files` field using updateBookingOrderFiles
+      await updateBookingOrderFiles({ id: selectedOrderForFiles, files: urls });
 
       toast('Files saved to backend successfully!', { type: 'success' });
       setOpenFileUploadModal(false);
       setSelectedOrderForFiles(null);
+      
+      // Refresh the data to reflect the changes
+      await fetchBookingOrdersAndConsignments();
     } catch (error) {
       toast('Failed to save files', { type: 'error' });
-      console.error(error);
+      console.error('Save files error:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
