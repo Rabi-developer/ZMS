@@ -69,7 +69,7 @@ const TransporterList = () => {
   };
 
   return (
-    <div className="container bg-white rounded-md">
+    <div className="container mx-auto mt-4 max-w-screen p-6">
       <DataTable
         columns={columns(handleDeleteOpen, handleViewOpen)}
         data={transporters}
