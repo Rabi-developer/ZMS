@@ -17,6 +17,7 @@ const createAblAssests = async (AblAssests: any) => {
   }
 };
 
+
 // Get All AblAssestss
 const getAllAblAssests = async (pageIndex: any = 1, pageSize: any = 10) => {
   try {
