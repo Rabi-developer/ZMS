@@ -20,6 +20,8 @@ import { MdOutlinePayments } from "react-icons/md";
 import { PiInvoiceLight } from "react-icons/pi";
 import { IoReceiptOutline } from "react-icons/io5";
 import { FaPagelines } from "react-icons/fa6";
+import { SiHotelsdotcom, SiOpenaccess } from "react-icons/si";
+
 
 
 export const ablSideBarItems = [
@@ -238,6 +240,18 @@ export const ablSideBarItems = [
         color: '#1a5f3a',
       },
       
+    ],
+  },
+  { text: "ACCOUNTS & USERS", type: "heading" },
+  {
+    text: "Accounts",
+    icon: FaUsers,
+    color: "#33a4d8",
+    sub_menu: [
+      { text: "Add User", href: "/users/create", icon: FaUsers, color: "#33a4d8" },
+      { text: "Users", href: "/users", icon: FaUsers, color: "#33a4d8" },
+      { text: "Add Role", href: "/roles/create", icon: SiOpenaccess, color: "#33a4d8" },
+      { text: "Roles", href: "/roles", icon: SiOpenaccess, color: "#33a4d8" },
     ],
   },
 ];
