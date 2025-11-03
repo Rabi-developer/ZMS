@@ -41,7 +41,7 @@ interface DropdownOption {
 
 interface BookingOrder {
   id: string;
-  orderNo: string;
+  orderNo: string | number;
   vehicleNo: string;
   cargoWeight: string;
   orderDate: string;
@@ -211,9 +211,9 @@ const ConsignmentForm = ({ isEdit = false }) => {
         ]);
         setParties(partRes.data.map((p: Party) => ({ id: p.id, name: p.name })));
         setBookingOrders(
-          bookRes.data.map((b: BookingOrder) => ({
+          bookRes.data.map((b: any) => ({
             id: b.id,
-            orderNo: b.orderNo,
+            orderNo: b.orderNo || b.OrderNo || '', // Handle both orderNo and OrderNo
             vehicleNo: b.vehicleNo || '',
             cargoWeight: b.cargoWeight || '',
             orderDate: b.orderDate || '',
@@ -240,12 +240,13 @@ const ConsignmentForm = ({ isEdit = false }) => {
         if (bookingOrderId) {
           // make lookup robust to type/whitespace differences
           const booking = bookRes.data.find((b: BookingOrder) => String(b.id).trim() === String(bookingOrderId).trim());
-          if (booking && booking.orderNo) {
-            setValue('orderNo', booking.orderNo);
-            setBookingOrderNo(booking.orderNo);
+          if (booking) {
+            // Convert orderNo to string for display
+            const orderNoStr = String(booking.orderNo || '');
+            setValue('orderNo', orderNoStr);
+            setBookingOrderNo(orderNoStr);
           } else {
             // helpful debug when testing locally
-            // eslint-disable-next-line no-console
             console.debug('BookingOrder not found for id', bookingOrderId, 'available ids:', bookRes.data.map((x: any) => x.id));
           }
         }
@@ -353,7 +354,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
   setValue('incomeTaxAmount', 0, { shouldValidate: true });
 }, [items, freight, sbrTax, deliveryCharges, insuranceCharges, tollTax, otherCharges, sbrTaxes, setValue]);
   const selectOrder = (order: BookingOrder) => {
-    setValue('orderNo', order.orderNo, { shouldValidate: true });
+    setValue('orderNo', String(order.orderNo), { shouldValidate: true });
     setShowOrderPopup(false);
   };
 
@@ -1177,7 +1178,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                   <tbody>
                     {bookingOrders
                       .filter((order) =>
-                        order.orderNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        String(order.orderNo).toLowerCase().includes(searchTerm.toLowerCase()) ||
                         order.vehicleNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         order.vendor.toLowerCase().includes(searchTerm.toLowerCase())
                       )

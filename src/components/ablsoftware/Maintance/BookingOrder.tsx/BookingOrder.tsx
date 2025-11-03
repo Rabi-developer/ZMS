@@ -933,9 +933,13 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   try {
                     setIsSubmitting(true);
                     const saved = await saveBookingOnly(values);
-                    const bookingIdForNav = saved?.id || bookingId || values.id || values.OrderNo || '';
-                    const q = bookingIdForNav ? `bookingOrderId=${encodeURIComponent(bookingIdForNav)}` : `orderNo=${encodeURIComponent(values.OrderNo || '')}`;
-                    router.push(`/consignment/create?fromBooking=true&${q}`);
+                    // Use the actual UUID id for the bookingOrderId parameter
+                    const actualBookingId = saved?.id || bookingId || values.id || '';
+                    if (!actualBookingId) {
+                      toast.error('Failed to get booking order ID');
+                      return;
+                    }
+                    router.push(`/consignment/create?fromBooking=true&bookingOrderId=${encodeURIComponent(actualBookingId)}`);
                   } catch (e) {
                     toast.error('Failed to save booking before navigating');
                   } finally {
@@ -955,9 +959,13 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   try {
                     setIsSubmitting(true);
                     const saved = await saveBookingOnly(values);
-                    const bookingIdForNav = saved?.id || bookingId || values.id || values.OrderNo || '';
-                    const q = bookingIdForNav ? `bookingOrderId=${encodeURIComponent(bookingIdForNav)}` : `orderNo=${encodeURIComponent(values.OrderNo || '')}`;
-                    router.push(`/charges/create?fromBooking=true&${q}`);
+                    // Use the actual UUID id for the bookingOrderId parameter
+                    const actualBookingId = saved?.id || bookingId || values.id || '';
+                    if (!actualBookingId) {
+                      toast.error('Failed to get booking order ID');
+                      return;
+                    }
+                    router.push(`/charges/create?fromBooking=true&bookingOrderId=${encodeURIComponent(actualBookingId)}`);
                   } catch (e) {
                     toast.error('Failed to save booking before navigating');
                   } finally {
