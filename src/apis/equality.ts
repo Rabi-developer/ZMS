@@ -18,9 +18,16 @@ const createEquality = async (Equality: any) => {
 };
 
 // Get All Equalitys
-const getAllEquality = async (pageIndex: any = 1, pageSize: any = 10) => {
+const getAllEquality = async (pageIndex: any = 1, pageSize: any = 10, filters: any = {}) => {
   try {
-    const response = await apiFetch(`Equality?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
+    
+    // Add search query if provided
+    if (filters.searchQuery) {
+      queryParams += `&SearchQuery=${encodeURIComponent(filters.searchQuery)}`;
+    }
+    
+    const response = await apiFetch(`Equality?${queryParams}`, {
       method: 'GET',
       headers: {},
     }, true);

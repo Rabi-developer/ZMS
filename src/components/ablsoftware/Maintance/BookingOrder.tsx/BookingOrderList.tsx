@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck, FaFilePdf, FaFileUpload, FaEye, FaTrash } from 'react-icons/fa';
@@ -25,6 +25,8 @@ import CustomSingleDatePicker from '@/components/ui/CustomDateRangePicker';
 import { exportBiltiesReceivableToPDF } from '@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { usePermissions, WithPermission } from '@/contexts/PermissionContext';
+import { PermissionCreateButton, WithTablePermission } from '@/components/permissions/PermissionTableActions';
 
 interface Consignment {
   id: string;
@@ -58,6 +60,12 @@ interface UploadedFile {
 }
 
 const BookingOrderList = () => {
+  // Permission hooks
+  const { canRead, canCreate, canUpdate, canDelete, isSuperAdmin } = usePermissions();
+
+  // Check if user can access booking orders
+  const canAccessBookingOrders = isSuperAdmin || canRead('BookingOrder');
+
   const formatABLDate = (dateStr?: string): string => {
     if (!dateStr) return '-';
     const d = new Date(dateStr);
@@ -80,6 +88,7 @@ const BookingOrderList = () => {
   const [deleteId, setDeleteId] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [totalRows, setTotalRows] = useState(0);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
@@ -119,11 +128,29 @@ const BookingOrderList = () => {
     return val;
   };
 
-  const fetchBookingOrdersAndConsignments = async () => {
+  // Create stable handlers for pagination
+  const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
+    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    console.log('BookingOrder page index changing from', pageIndex, 'to', resolvedPageIndex);
+    setPageIndex(resolvedPageIndex);
+  }, [pageIndex]);
+
+  const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
+    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    console.log('BookingOrder page size changing from', pageSize, 'to', resolvedPageSize);
+    setPageSize(resolvedPageSize);
+    setPageIndex(0); // Reset to first page when page size changes
+  }, [pageSize]);
+
+  const fetchBookingOrdersAndConsignments = useCallback(async () => {
     try {
       setLoading(true);
+      // Convert 0-based pageIndex to 1-based for API
+      const apiPageIndex = pageIndex + 1;
+      console.log('Fetching booking orders with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
+      
       const [ordersRes, vendorsRes, transportersRes] = await Promise.all([
-        getAllBookingOrder(pageIndex + 1, pageSize),
+        getAllBookingOrder(apiPageIndex, pageSize),
         getAllVendor(),
         getAllTransporter(),
       ]);
@@ -132,9 +159,38 @@ const BookingOrderList = () => {
       const vendorsData = vendorsRes.data?.map((v: any) => ({ id: v.id, name: v.name })) || [];
       const transportersData = transportersRes.data?.map((t: any) => ({ id: t.id, name: t.name })) || [];
 
+      console.log('BookingOrder API Response:', ordersRes);
       setVendors(vendorsData);
       setTransporters(transportersData);
-      setBookingOrders(orders);
+      
+      // Helper function to resolve party names using local data
+      const resolvePartyNameLocal = (val?: string): string => {
+        if (!val) return '-';
+        const fromVendors = vendorsData.find((v: DropdownOption) => v.id === val || v.name === val);
+        if (fromVendors) return fromVendors.name;
+        const fromTransporters = transportersData.find((t: DropdownOption) => t.id === val || t.name === val);
+        if (fromTransporters) return fromTransporters.name;
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+          console.warn(`Unresolved party ID: ${val}`);
+          return `Unresolved ID: ${val.substring(0, 8)}...`;
+        }
+        return val;
+      };
+      
+      // Resolve vendor and transporter names in booking orders
+      const ordersWithResolvedNames = orders.map((order: any) => ({
+        ...order,
+        vendor: resolvePartyNameLocal(order.vendor),
+        transporter: resolvePartyNameLocal(order.transporter),
+      }));
+      
+      setBookingOrders(ordersWithResolvedNames);
+
+      // Set total rows from the API response
+      if (ordersRes.misc) {
+        setTotalRows(ordersRes.misc.total || 0);
+        console.log('BookingOrder total rows set to:', ordersRes.misc.total);
+      }
 
       const consignmentsMap: { [orderId: string]: Consignment[] } = {};
       for (const order of orders) {
@@ -153,7 +209,7 @@ const BookingOrderList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageIndex, pageSize]);
 
   const fetchConsignments = async (orderId: string) => {
     try {
@@ -183,8 +239,9 @@ const BookingOrderList = () => {
   };
 
   useEffect(() => {
+    console.log('BookingOrder useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize);
     fetchBookingOrdersAndConsignments();
-  }, [pageIndex, pageSize]);
+  }, [fetchBookingOrdersAndConsignments]);
 
   useEffect(() => {
     let filtered = bookingOrders;
@@ -626,8 +683,21 @@ const BookingOrderList = () => {
     }
   };
 
+  // If user doesn't have permission to read booking orders
+  if (!canAccessBookingOrders) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Access Denied</h2>
+          <p className="text-gray-600 dark:text-gray-400">You don't have permission to view booking orders.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto mt-4 max-w-screen p-6">
+    <WithTablePermission resource="BookingOrder">
+      <div className="container mx-auto mt-4 max-w-screen p-6">
       <div className="h-full w-full flex flex-col">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-4 flex-wrap">
@@ -682,10 +752,11 @@ const BookingOrderList = () => {
             data={filteredBookingOrders}
             loading={loading}
             link="/bookingorder/create"
-            setPageIndex={setPageIndex}
+            setPageIndex={handlePageIndexChange}
             pageIndex={pageIndex}
             pageSize={pageSize}
-            setPageSize={setPageSize}
+            setPageSize={handlePageSizeChange}
+            totalRows={totalRows}
             onRowClick={handleRowClick}
             onRowDoubleClick={handleRowDoubleClick}
           />
@@ -878,7 +949,8 @@ const BookingOrderList = () => {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </WithTablePermission>
   );
 };
 

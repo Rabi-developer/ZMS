@@ -48,19 +48,19 @@ export const columns = (
     },
   },
   {
-    accessorKey: 'receivable.accountId',
+    accessorKey: 'receivableAccountId',
     header: 'Receivable Account ID',
   },
   {
-    accessorKey: 'receivable.description',
+    accessorKey: 'receivableDescription',
     header: 'Receivable Description',
   },
   {
-    accessorKey: 'payable.accountId',
+    accessorKey: 'payableAccountId',
     header: 'Payable Account ID',
   },
   {
-    accessorKey: 'payable.description',
+    accessorKey: 'payableDescription',
     header: 'Payable Description',
   },
   {

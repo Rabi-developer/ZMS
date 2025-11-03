@@ -5,25 +5,39 @@ import { useRouter } from "next/navigation";
 import MainLayout from "@/components/MainLayout/MainLayout";
 import Dashboardlayout from "@/components/Dashboard/Dashboardlayout";
 import ABLDashboardlayout from "@/components/Dashboard/ABLDashboardlayout";
+import { usePermissions } from "@/contexts/PermissionContext";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
 export default function Home() {
   const [activeInterface, setActiveInterface] = useState<"ZMS" | "ABL" | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
   const router = useRouter();
+  
+  // Use permission context instead of direct localStorage access
+  const { userData, isAuthenticated, isLoading, logout } = usePermissions();
 
   useEffect(() => {
-    const storedUserName = localStorage.getItem("userName");
-    if (!storedUserName) {
+    // Only redirect if context has loaded and user is not authenticated
+    if (!isLoading && !isAuthenticated) {
       router.replace("/signin");
-    } else {
-      setUserName(storedUserName);
     }
-  }, [router]);
+  }, [router, isAuthenticated, isLoading]);
 
-  if (!userName) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-900 dark:to-[#030630]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300 text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show nothing if not authenticated (will redirect)
+  if (!isAuthenticated || !userData) {
+    return null;
   }
 
   const cardVariants = {
@@ -49,9 +63,7 @@ export default function Home() {
               href="/signin"
               className="text-white font-medium rounded-full px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700"
               onClick={() => {
-                localStorage.removeItem("userName");
-                localStorage.removeItem("token");
-                setUserName(null);
+                logout();
                 router.push("/signin");
               }}
             >

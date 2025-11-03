@@ -6,19 +6,17 @@ import { useRouter } from "next/navigation";
 import { LuLogOut } from "react-icons/lu";
 import { FaRegUser } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { usePermissions } from '@/contexts/PermissionContext';
 
 const DropdownUser = ({ activeInterface }: { activeInterface: 'ZMS' | 'ABL' }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [userName, setUserName] = useState<string | null>(null);
+  const { userData, logout } = usePermissions();
   const router = useRouter();
 
-  useEffect(() => {
-    const storedUserName = localStorage.getItem("userName");
-    setUserName(storedUserName);
-  }, []);
+  const userName = userData?.userName;
 
   const logOut = () => {
-    localStorage.clear(); 
+    logout();
     router.push("/signin");
     toast("Logged out Successfully", { type: "success" });
   };

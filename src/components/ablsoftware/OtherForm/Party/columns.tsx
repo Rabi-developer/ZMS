@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 export type PartyType = {
   id: string;
+  partyNumber: number;
   name: string;
   currency: string;
   address: string;

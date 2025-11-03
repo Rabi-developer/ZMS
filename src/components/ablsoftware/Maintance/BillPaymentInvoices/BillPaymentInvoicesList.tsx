@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck, FaFilePdf, FaFileUpload, FaEye, FaTrash } from 'react-icons/fa';
@@ -77,6 +77,7 @@ const BillPaymentInvoicesList = () => {
   const [deleteId, setDeleteId] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [totalRows, setTotalRows] = useState(0);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedBillPaymentIds, setSelectedBillPaymentIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
@@ -99,23 +100,50 @@ const BillPaymentInvoicesList = () => {
     { id: 5, name: 'Closed', color: '#6b7280' },
   ];
 
-  const fetchBillPaymentInvoices = async () => {
+  // Create stable handlers for pagination
+  const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
+    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    console.log('BillPayment page index changing from', pageIndex, 'to', resolvedPageIndex);
+    setPageIndex(resolvedPageIndex);
+  }, [pageIndex]);
+
+  const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
+    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    console.log('BillPayment page size changing from', pageSize, 'to', resolvedPageSize);
+    setPageSize(resolvedPageSize);
+    setPageIndex(0); // Reset to first page when page size changes
+  }, [pageSize]);
+
+  const fetchBillPaymentInvoices = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllBiltyPaymentInvoice(pageIndex + 1, pageSize);
-      console.log('Bill Payment Invoices Response:', response?.data);
+      // Convert 0-based pageIndex to 1-based for API
+      const apiPageIndex = pageIndex + 1;
+      console.log('Fetching bill payment invoices with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
+      
+      const response = await getAllBiltyPaymentInvoice(apiPageIndex, pageSize);
+      console.log('Bill Payment Invoices Response:', response);
+      
       const transformedData = transformBiltyPaymentInvoice(response?.data || []);
       setBillPaymentInvoices(transformedData);
+      
+      // Set total rows from the API response
+      if (response.misc) {
+        setTotalRows(response.misc.total || 0);
+        console.log('BillPayment total rows set to:', response.misc.total);
+      }
     } catch (error) {
+      console.error('Failed to fetch bill payment invoices:', error);
       toast('Failed to fetch bill payment invoices', { type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageIndex, pageSize]);
 
   useEffect(() => {
+    console.log('BillPayment useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize);
     fetchBillPaymentInvoices();
-  }, [pageIndex, pageSize]);
+  }, [fetchBillPaymentInvoices]);
 
   useEffect(() => {
     let filtered = billPaymentInvoices;
@@ -427,10 +455,11 @@ const BillPaymentInvoicesList = () => {
           data={filteredBillPaymentInvoices}
           loading={loading}
           link="/billpaymentinvoices/create"
-          setPageIndex={setPageIndex}
+          setPageIndex={handlePageIndexChange}
           pageIndex={pageIndex}
           pageSize={pageSize}
-          setPageSize={setPageSize}
+          setPageSize={handlePageSizeChange}
+          totalRows={totalRows}
           onRowClick={handleRowClick}
           onRowDoubleClick={handleRowDoubleClick}
         />

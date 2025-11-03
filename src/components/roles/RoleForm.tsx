@@ -9,7 +9,7 @@ import { createRole, updateRole } from '@/apis/roles';
 import { sideBarItems } from '@/components/lib/StaticData/sideBarItems';
 import { ablSideBarItems } from '@/components/lib/StaticData/ablSideBarItems';
 
-const CLAIM_VALUES = ['Read', 'Create', 'Update', 'Delete', 'Execute'] as const;
+const CLAIM_VALUES = ['Read', 'Create', 'Update', 'Delete'] as const;
 
 interface SelectedPermission {
   system: 'ZMS' | 'ABL';
@@ -41,7 +41,6 @@ interface FormItem {
 
 const formSchema = z.object({
   name: z.string().min(1, 'Role name is required'),
-  resourcesKeywords: z.string().optional(),
   claims: z.array(
     z.object({
       claimType: z.string().min(1),
@@ -61,7 +60,7 @@ interface RoleFormProps {
 const getMenuItems = (items: any[], system: 'ZMS' | 'ABL'): MenuItem[] => {
   const menuStructure: MenuItem[] = [];
   items.forEach(item => {
-    if (item.type !== 'heading' && item.text && !['HOME', 'ABL', 'TRANSACTIONS', 'REPORTS', 'Voucher', 'Voucher Report', 'ACCOUNTS & USERS'].includes(item.text)) {
+    if (item.type !== 'heading' && item.text && !['HOME', 'ABL', 'TRANSACTIONS', 'REPORTS', 'Voucher', 'ACCOUNTS & USERS'].includes(item.text)) {
       if (item.sub_menu?.length) {
         menuStructure.push({
           system,
@@ -91,7 +90,7 @@ const getMenuItems = (items: any[], system: 'ZMS' | 'ABL'): MenuItem[] => {
 const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<RoleFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || { name: '', resourcesKeywords: '', claims: [] },
+    defaultValues: initialData || { name: '', claims: [] },
   });
 
   const [permissionBuilder, setPermissionBuilder] = useState<PermissionBuilder>({
@@ -142,11 +141,32 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
         });
       });
     });
-    setValue('claims', finalPermissions.map(perm => ({
-      claimType: perm.subForm ? `${perm.system}-${perm.category}-${perm.form}-${perm.subForm}` : `${perm.system}-${perm.category}-${perm.form}`,
-      claimValue: perm.permissions.join(', '),
-    })));
+    
+    // Helper function to convert text to PascalCase (capitalize words and remove spaces)
+    const toPascalCase = (text: string) => {
+      return text
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join('');
+    };
+
+    // Create claims using resource names as claimType and comma-separated permissions as claimValue
+    const claims = finalPermissions.map(perm => ({
+      claimType: toPascalCase(perm.subForm ? perm.subForm : perm.form), // Convert to PascalCase (e.g., "Branch Setting" -> "BranchSetting")
+      claimValue: perm.permissions.join(', '), // Comma-separated permissions
+    }));
+    
+    setValue('claims', claims);
     return finalPermissions;
+  };
+
+  // Generate a new UUID for new roles
+  const generateUUID = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   };
 
   const onSubmit = async (data: RoleFormValues) => {
@@ -154,27 +174,34 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
       const roleId = id || initialData?.id;
       buildFinalPermissions(); // Build permissions before submission
       
+      // Get the updated claims after building permissions
+      const updatedClaims = watch('claims') || [];
+      
+      // Generate new UUID for new roles, use existing ID for updates
+      const newRoleId = roleId || generateUUID();
+      
       // Format claims according to the required API structure
-      const formattedClaims = claims.map(claim => ({
+      const formattedClaims = updatedClaims.map(claim => ({
         id: 0, // Always 0 for new claims as specified
-        roleId: roleId || "3fa85f64-5717-4562-b3fc-2c963f66afa6", // Use existing roleId or generate one for new roles
-        claimType: claim.claimType,
-        claimValue: claim.claimValue
+        roleId: newRoleId, // Use existing roleId or generate a new unique one
+        claimType: claim.claimType, // Resource name (e.g., ProjectTarget, Organization, Branch)
+        claimValue: claim.claimValue // Comma-separated permissions (e.g., "Read, Update, Create, Delete")
       }));
       
-      const formattedData = {
-        ...(roleId ? { id: roleId } : { id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }), // Include id field for both create and update
+      const payload = {
+        id: newRoleId, // Always include the ID
         name: data.name,
-        resourcesKeywords: data.resourcesKeywords || '', // Add resources keywords field
         claims: formattedClaims
       };
       
-      await (roleId ? updateRole(roleId, formattedData) : createRole(formattedData));
-      toast.success(roleId ? 'Role updated' : 'Role created');
+      console.log('Submitting role payload:', JSON.stringify(payload, null, 2));
+      
+      await (roleId ? updateRole(roleId, payload) : createRole(payload));
+      toast.success(roleId ? 'Role updated successfully' : 'Role created successfully');
       onClose?.(true);
     } catch (error) {
       toast.error('Error submitting form');
-      console.error(error);
+      console.error('Submission error:', error);
     }
   };
 
@@ -411,18 +438,13 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
           {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Resources Keywords</label>
-          <input
-            {...register('resourcesKeywords')}
-            className={`w-full px-3 py-1.5 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white transition-all duration-200 ${errors.resourcesKeywords ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-            placeholder="Enter resources keywords (comma-separated)"
-          />
-          {errors.resourcesKeywords && <p className="text-red-500 text-xs mt-1">{errors.resourcesKeywords.message}</p>}
-        </div>
+
 
         <div>
           <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200 mb-2">Permission Builder</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+            Select systems, categories, and forms to assign permissions. Each resource will be used as a claim type with comma-separated permissions as values.
+          </p>
           <div className="flex flex-wrap gap-2 mb-3">
             {(['ZMS', 'ABL'] as const).map(system => (
               <button
@@ -449,20 +471,64 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
           )}
         </div>
 
-        <div className="flex justify-end gap-2">
+        {claims.length > 0 && (
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Generated Claims Preview</h4>
+            <div className="space-y-2 max-h-40 overflow-auto">
+              {claims.map((claim, index) => (
+                <div key={index} className="bg-white dark:bg-gray-700 p-2 rounded border">
+                  <div className="text-xs">
+                    <span className="font-medium text-blue-600 dark:text-blue-400">Resource:</span> {claim.claimType}
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-medium text-green-600 dark:text-green-400">Permissions:</span> {claim.claimValue}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-between items-center">
           <button
             type="button"
-            onClick={() => onClose?.()}
-            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 text-sm font-medium"
+            onClick={() => {
+              buildFinalPermissions();
+              const updatedClaims = watch('claims') || [];
+              const roleId = id || initialData?.id;
+              const previewRoleId = roleId || generateUUID();
+              const payload = {
+                id: previewRoleId,
+                name: watch('name'),
+                claims: updatedClaims.map(claim => ({
+                  id: 0,
+                  roleId: previewRoleId,
+                  claimType: claim.claimType, // Already formatted in PascalCase
+                  claimValue: claim.claimValue
+                }))
+              };
+              console.log('Preview Payload:', JSON.stringify(payload, null, 2));
+              toast.info('Payload logged to console');
+            }}
+            className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 text-sm font-medium"
           >
-            Cancel
+            Preview Payload
           </button>
-          <button
-            type="submit"
-            className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-md hover:from-blue-700 hover:to-blue-600 transition-all duration-200 text-sm font-medium shadow-sm"
-          >
-            {id ? 'Update Role' : 'Create Role'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onClose?.()}
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 text-sm font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-3 py-1.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-md hover:from-blue-700 hover:to-blue-600 transition-all duration-200 text-sm font-medium shadow-sm"
+            >
+              {id ? 'Update Role' : 'Create Role'}
+            </button>
+          </div>
         </div>
       </form>
     </div>

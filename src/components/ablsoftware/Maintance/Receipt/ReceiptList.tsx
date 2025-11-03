@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash } from 'react-icons/fa';
@@ -28,6 +28,7 @@ const ReceiptList = () => {
   const [deleteId, setDeleteId] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [totalRows, setTotalRows] = useState(0);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedReceiptIds, setSelectedReceiptIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
@@ -47,22 +48,49 @@ const ReceiptList = () => {
     { id: 2, name: 'Completed', color: '#10b981' },
   ];
 
-  const fetchReceipts = async () => {
+  // Create stable handlers for pagination
+  const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
+    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    console.log('Receipt page index changing from', pageIndex, 'to', resolvedPageIndex);
+    setPageIndex(resolvedPageIndex);
+  }, [pageIndex]);
+
+  const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
+    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    console.log('Receipt page size changing from', pageSize, 'to', resolvedPageSize);
+    setPageSize(resolvedPageSize);
+    setPageIndex(0); // Reset to first page when page size changes
+  }, [pageSize]);
+
+  const fetchReceipts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllReceipt(pageIndex + 1, pageSize);
-      console.log('Receipts Response:', response?.data);
+      // Convert 0-based pageIndex to 1-based for API
+      const apiPageIndex = pageIndex + 1;
+      console.log('Fetching receipts with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
+      
+      const response = await getAllReceipt(apiPageIndex, pageSize);
+      console.log('Receipts Response:', response);
+      
       setReceipts(response?.data || []);
+      
+      // Set total rows from the API response
+      if (response.misc) {
+        setTotalRows(response.misc.total || 0);
+        console.log('Receipt total rows set to:', response.misc.total);
+      }
     } catch (error) {
+      console.error('Failed to fetch receipts:', error);
       toast('Failed to fetch receipts', { type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageIndex, pageSize]);
 
   useEffect(() => {
+    console.log('Receipt useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize);
     fetchReceipts();
-  }, [pageIndex, pageSize]);
+  }, [fetchReceipts]);
 
   useEffect(() => {
     let filtered = receipts;
@@ -310,10 +338,11 @@ const ReceiptList = () => {
           data={filteredReceipts}
           loading={loading}
           link="/receipt/create"
-          setPageIndex={setPageIndex}
+          setPageIndex={handlePageIndexChange}
           pageIndex={pageIndex}
           pageSize={pageSize}
-          setPageSize={setPageSize}
+          setPageSize={handlePageSizeChange}
+          totalRows={totalRows}
           onRowClick={handleRowClick}
           onRowDoubleClick={handleRowDoubleClick}
         />

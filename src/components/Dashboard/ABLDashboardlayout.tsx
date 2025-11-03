@@ -15,6 +15,7 @@ import { getAllBookingOrder, getConsignmentsForBookingOrder } from '@/apis/booki
 import { getAllCharges } from '@/apis/charges';
 import { getAllPaymentABL } from '@/apis/paymentABL';
 import { getAllReceipt } from '@/apis/receipt';
+import { usePermissions, WithPermission } from '@/contexts/PermissionContext';
 
 // Minimal Account shape used here
 type Account = {
@@ -32,6 +33,36 @@ const ABLDashboardlayout = () => {
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [inProgressBookings, setInProgressBookings] = useState<any[]>([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+
+  // Get permissions
+  const { canRead, isSuperAdmin, isLoading: permissionsLoading } = usePermissions();
+
+  // Check if user can access ABL dashboard
+  const canAccessAblDashboard = isSuperAdmin || canRead('AblDashboard') || canRead('AblAssets') || canRead('BookingOrder');
+
+  // If user doesn't have permission, show access denied
+  if (!permissionsLoading && !canAccessAblDashboard) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Access Denied</h2>
+          <p className="text-gray-600 dark:text-gray-400">You don't have permission to access the ABL Dashboard.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading while permissions are being checked
+  if (permissionsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Determine if current route is bookingorder create/start
   const isBookingOrderStart = (() => {

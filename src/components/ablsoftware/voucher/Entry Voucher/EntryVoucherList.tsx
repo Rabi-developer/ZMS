@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck } from 'react-icons/fa';
@@ -26,6 +26,7 @@ const EntryVoucherList = () => {
   const [deleteId, setDeleteId] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [totalRows, setTotalRows] = useState(0);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedVoucherIds, setSelectedVoucherIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
@@ -47,21 +48,49 @@ const EntryVoucherList = () => {
     return accountIndex[value]?.description || value || '-';
   };
 
-  const fetchVouchers = async () => {
+  // Create stable handlers for pagination
+  const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
+    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    console.log('EntryVoucher page index changing from', pageIndex, 'to', resolvedPageIndex);
+    setPageIndex(resolvedPageIndex);
+  }, [pageIndex]);
+
+  const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
+    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    console.log('EntryVoucher page size changing from', pageSize, 'to', resolvedPageSize);
+    setPageSize(resolvedPageSize);
+    setPageIndex(0); // Reset to first page when page size changes
+  }, [pageSize]);
+
+  const fetchVouchers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllEntryVoucher(pageIndex + 1, pageSize);
+      // Convert 0-based pageIndex to 1-based for API
+      const apiPageIndex = pageIndex + 1;
+      console.log('Fetching entry vouchers with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
+      
+      const response = await getAllEntryVoucher(apiPageIndex, pageSize);
+      console.log('EntryVoucher API Response:', response);
+      
       setVouchers(response?.data || []);
+      
+      // Set total rows from the API response
+      if (response.misc) {
+        setTotalRows(response.misc.total || 0);
+        console.log('EntryVoucher total rows set to:', response.misc.total);
+      }
     } catch (error) {
+      console.error('Failed to fetch vouchers:', error);
       toast('Failed to fetch vouchers', { type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageIndex, pageSize]);
 
   useEffect(() => {
+    console.log('EntryVoucher useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize);
     fetchVouchers();
-  }, [pageIndex, pageSize]);
+  }, [fetchVouchers]);
 
   useEffect(() => {
     let filtered = vouchers;
@@ -357,10 +386,11 @@ const EntryVoucherList = () => {
           data={filteredVouchers}
           loading={loading}
           link="/entryvoucher/create"
-          setPageIndex={setPageIndex}
+          setPageIndex={handlePageIndexChange}
           pageIndex={pageIndex}
           pageSize={pageSize}
-          setPageSize={setPageSize}
+          setPageSize={handlePageSizeChange}
+          totalRows={totalRows}
           onRowClick={async (id: string) => {
             try {
               setDetailsLoading(true);

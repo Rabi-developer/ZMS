@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash } from 'react-icons/fa';
@@ -29,6 +29,7 @@ const PaymentABLList = () => {
   const [deleteId, setDeleteId] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [totalRows, setTotalRows] = useState(0);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [selectedPaymentIds, setSelectedPaymentIds] = useState<string[]>([]);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState<string | null>(null);
@@ -48,22 +49,49 @@ const PaymentABLList = () => {
     { id: 2, name: 'Completed', color: '#10b981' },
   ];
 
-  const fetchPayments = async () => {
+  // Create stable handlers for pagination
+  const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
+    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    console.log('PaymentABL page index changing from', pageIndex, 'to', resolvedPageIndex);
+    setPageIndex(resolvedPageIndex);
+  }, [pageIndex]);
+
+  const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
+    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    console.log('PaymentABL page size changing from', pageSize, 'to', resolvedPageSize);
+    setPageSize(resolvedPageSize);
+    setPageIndex(0); // Reset to first page when page size changes
+  }, [pageSize]);
+
+  const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllPaymentABL(pageIndex + 1, pageSize);
-      console.log('Payments Response:', response?.data);
+      // Convert 0-based pageIndex to 1-based for API
+      const apiPageIndex = pageIndex + 1;
+      console.log('Fetching payments with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
+      
+      const response = await getAllPaymentABL(apiPageIndex, pageSize);
+      console.log('Payments Response:', response);
+      
       setPayments(response?.data || []);
+      
+      // Set total rows from the API response
+      if (response.misc) {
+        setTotalRows(response.misc.total || 0);
+        console.log('PaymentABL total rows set to:', response.misc.total);
+      }
     } catch (error) {
+      console.error('Failed to fetch payments:', error);
       toast('Failed to fetch payments', { type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageIndex, pageSize]);
 
   useEffect(() => {
+    console.log('PaymentABL useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize);
     fetchPayments();
-  }, [pageIndex, pageSize]);
+  }, [fetchPayments]);
 
   useEffect(() => {
     let filtered = payments;
@@ -313,10 +341,11 @@ const PaymentABLList = () => {
           data={filteredPayments}
           loading={loading}
           link="/paymentABL/create"
-          setPageIndex={setPageIndex}
+          setPageIndex={handlePageIndexChange}
           pageIndex={pageIndex}
           pageSize={pageSize}
-          setPageSize={setPageSize}
+          setPageSize={handlePageSizeChange}
+          totalRows={totalRows}
           onRowClick={handleRowClick}
           onRowDoubleClick={handleRowDoubleClick}
         />

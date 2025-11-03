@@ -21,6 +21,9 @@ const getAllConsignment  = async (pageIndex: any = 1, pageSize: any = 10, filter
     if (filters.orderNo) {
       queryParams += `&OrderNo=${filters.orderNo}`;
     }
+    if (filters.status) {
+      queryParams += `&Status=${filters.status}`;
+    }
     const response = await apiFetch(`Consignment?${queryParams}`, {
       method: 'GET',
       headers: {}, 

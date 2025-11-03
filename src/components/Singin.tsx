@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { login } from "../apis/auth"; // Ensure this path is correct
+import { usePermissions } from "@/contexts/PermissionContext";
+import { LoginResponse } from "@/utils/permissions";
 import { FiMail, FiLock, FiUser, FiEye, FiEyeOff } from "react-icons/fi";
 
 const SignIn: React.FC = () => {
@@ -13,13 +15,11 @@ const SignIn: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  
+  // Get permission context
+  const { login: loginUser } = usePermissions();
 
-  // Redirect to / if already authenticated
-  useEffect(() => {
-    if (localStorage.getItem("userName")) {
-      router.push("/");
-    }
-  }, [router]);
+  // Remove automatic redirect logic - let user access signin page always
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,16 +27,28 @@ const SignIn: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await login({ Username: email, password });
+      console.log('Attempting login with:', { Username: email });
+      const response: LoginResponse = await login({ Username: email, password });
+      console.log('Login response:', response);
 
-      if (response.statusCode === 200) {
-        localStorage.setItem("token", response?.data?.token);
-        localStorage.setItem("userName", response?.data?.userName);
-        router.push("/"); // Use router for client-side redirect
+      if (response.statusCode === 200 && response.data) {
+        // Use the permission context login function
+        loginUser(response.data);
+        
+        console.log('Login successful:', {
+          user: response.data.userName,
+          permissions: response.data.permissions
+        });
+        
+        // Only redirect after successful login
+        setTimeout(() => {
+          router.push("/");
+        }, 500);
       } else {
-        setError(response.message || "Login failed. Please try again.");
+        setError(response.statusMessage || "Login failed. Please try again.");
       }
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message || "An error occurred. Please try again.");
     } finally {
       setIsLoading(false);

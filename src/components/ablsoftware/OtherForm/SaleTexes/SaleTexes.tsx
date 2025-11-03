@@ -91,12 +91,14 @@ const SalesTaxesForm = ({ isEdit = false, initialData }: SalesTaxesFormProps) =>
           taxType: initialData.taxType || undefined,
           percentage: initialData.percentage || '',
           receivable: {
-            accountId: initialData.receivable?.accountId || '',
-            description: initialData.receivable?.description || '',
+            // Handle both nested and flat API response formats
+            accountId: initialData.receivable?.accountId || (initialData as any).receivableAccountId || '',
+            description: initialData.receivable?.description || (initialData as any).receivableDescription || '',
           },
           payable: {
-            accountId: initialData.payable?.accountId || '',
-            description: initialData.payable?.description || '',
+            // Handle both nested and flat API response formats
+            accountId: initialData.payable?.accountId || (initialData as any).payableAccountId || '',
+            description: initialData.payable?.description || (initialData as any).payableDescription || '',
           },
         }
       : {
@@ -190,12 +192,14 @@ const SalesTaxesForm = ({ isEdit = false, initialData }: SalesTaxesFormProps) =>
         taxType: initialData.taxType || undefined,
         percentage: initialData.percentage || '',
         receivable: {
-          accountId: initialData.receivable?.accountId || '',
-          description: initialData.receivable?.description || '',
+          // Handle both nested and flat API response formats
+          accountId: initialData.receivable?.accountId || (initialData as any).receivableAccountId || '',
+          description: initialData.receivable?.description || (initialData as any).receivableDescription || '',
         },
         payable: {
-          accountId: initialData.payable?.accountId || '',
-          description: initialData.payable?.description || '',
+          // Handle both nested and flat API response formats
+          accountId: initialData.payable?.accountId || (initialData as any).payableAccountId || '',
+          description: initialData.payable?.description || (initialData as any).payableDescription || '',
         },
       });
       // Set extracted percentage
@@ -228,17 +232,14 @@ const SalesTaxesForm = ({ isEdit = false, initialData }: SalesTaxesFormProps) =>
       isActive: true,
       isDeleted: false,
       salesTexNumber: generatedSalesTexNumber,
-      taxName: data.taxName || 'Default Tax Name',
-      taxType: data.taxType || 'Sale Tax',
+      taxName: data.taxName,
+      taxType: data.taxType,
       percentage: data.percentage || '0',
-      receivable: {
-        accountId: data.receivable.accountId || 'default-receivable-id',
-        description: data.receivable.description || 'Default Receivable Description',
-      },
-      payable: {
-        accountId: data.payable.accountId || 'default-payable-id',
-        description: data.payable.description || 'Default Payable Description',
-      },
+      // Send as flat fields to match API expectations
+      receivableAccountId: data.receivable.accountId,
+      receivableDescription: data.receivable.description,
+      payableAccountId: data.payable.accountId,
+      payableDescription: data.payable.description,
     };
 
     const payload = isEdit
@@ -389,12 +390,12 @@ const SalesTaxesForm = ({ isEdit = false, initialData }: SalesTaxesFormProps) =>
                     render={({ field }) => (
                       <AblCustomDropdown
                         label="Receivable Account"
-                        options={revenueAccounts.map(acc => ({ id: acc.id, name: `${acc.id} - ${acc.description}` }))}
+                        options={revenueAccounts.map(acc => ({ id: acc.listid, name: `${acc.listid} - ${acc.description}` }))}
                         selectedOption={field.value || ''}
                         onChange={(value) => {
-                          const selectedAccount = revenueAccounts.find(acc => acc.id === value);
+                          const selectedAccount = revenueAccounts.find(acc => acc.listid === value);
                           if (selectedAccount) {
-                            setValue('receivable.accountId', selectedAccount.id, { shouldValidate: true });
+                            setValue('receivable.accountId', selectedAccount.listid, { shouldValidate: true });
                             setValue('receivable.description', selectedAccount.description, { shouldValidate: true });
                           }
                         }}
@@ -418,12 +419,12 @@ const SalesTaxesForm = ({ isEdit = false, initialData }: SalesTaxesFormProps) =>
                     render={({ field }) => (
                       <AblCustomDropdown
                         label="Payable Account"
-                        options={liabilityAccounts.map(acc => ({ id: acc.id, name: `${acc.id} - ${acc.description}` }))}
+                        options={liabilityAccounts.map(acc => ({ id: acc.listid, name: `${acc.listid} - ${acc.description}` }))}
                         selectedOption={field.value || ''}
                         onChange={(value) => {
-                          const selectedAccount = liabilityAccounts.find(acc => acc.id === value);
+                          const selectedAccount = liabilityAccounts.find(acc => acc.listid === value);
                           if (selectedAccount) {
-                            setValue('payable.accountId', selectedAccount.id, { shouldValidate: true });
+                            setValue('payable.accountId', selectedAccount.listid, { shouldValidate: true });
                             setValue('payable.description', selectedAccount.description, { shouldValidate: true });
                           }
                         }}

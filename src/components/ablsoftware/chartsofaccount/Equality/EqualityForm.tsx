@@ -79,6 +79,9 @@ const EqualityForm = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState<string>('');
+  const [monthlyAccounts, setMonthlyAccounts] = useState<Account[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [alerts, setAlerts] = useState<Account[]>([]);
   const [currentAlertIndex, setCurrentAlertIndex] = useState(0);
@@ -172,7 +175,29 @@ const EqualityForm = () => {
   const fetchEquality = async () => {
     try {
       setLoading(true);
-      const response: ApiResponse<Account[]> = await getAllEquality(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      // Convert 0-based pageIndex to 1-based for API
+      const apiPageIndex = pageIndex === 0 ? 1 : pageIndex + 1;
+      
+      // Try server-side search first if search query exists
+      if (debouncedSearchQuery.trim()) {
+        try {
+          const filters = { searchQuery: debouncedSearchQuery.trim() };
+          console.log('Fetching equality with server-side search:', { apiPageIndex, pageSize, filters });
+          
+          const response: ApiResponse<Account[]> = await getAllEquality(apiPageIndex, pageSize, filters);
+          const hierarchicalAccounts = buildHierarchy(response.data);
+          setTotalPages(response.misc.totalPages);
+          setAccounts(hierarchicalAccounts);
+          checkDueDates(response.data);
+          return;
+        } catch (searchError) {
+          console.log('Server-side search not supported, falling back to client-side filtering');
+        }
+      }
+      
+      // Default fetch without search (or fallback for client-side search)
+      console.log('Fetching equality without search:', { apiPageIndex, pageSize });
+      const response: ApiResponse<Account[]> = await getAllEquality(apiPageIndex, pageSize);
       const hierarchicalAccounts = buildHierarchy(response.data);
       setTotalPages(response.misc.totalPages);
       setAccounts(hierarchicalAccounts);
@@ -188,9 +213,25 @@ const EqualityForm = () => {
     }
   };
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     fetchEquality();
-  }, [pageIndex, pageSize]);
+  }, [pageIndex, pageSize, debouncedSearchQuery]);
+
+  // Reset to first page when search query changes
+  useEffect(() => {
+    if (debouncedSearchQuery.trim()) {
+      setPageIndex(0);
+    }
+  }, [debouncedSearchQuery]);
 
   const checkDueDates = (accounts: Account[]) => {
     const today = new Date();
@@ -211,6 +252,91 @@ const EqualityForm = () => {
     });
     setAlerts(newAlerts);
     setCurrentAlertIndex(0);
+  };
+
+  const filterAccountsByMonth = (accounts: Account[], selectedDate: string): Account[] => {
+    if (!selectedDate) return [];
+    
+    const targetDate = new Date(selectedDate);
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth();
+    
+    const filterRecursive = (account: Account): Account | null => {
+      // Check if this account is due in the selected month
+      let matchesSelf = false;
+      if (account.dueDate && account.paid !== "true") {
+        try {
+          const dueDate = new Date(account.dueDate);
+          if (!isNaN(dueDate.getTime())) {
+            matchesSelf = dueDate.getFullYear() === targetYear && dueDate.getMonth() === targetMonth;
+          }
+        } catch (error) {
+          console.error(`Invalid dueDate for account ${account.id}:`, account.dueDate);
+        }
+      }
+
+      // Check children recursively
+      const filteredChildren = account.children
+        .map((child) => filterRecursive(child))
+        .filter((child): child is Account => child !== null);
+
+      if (matchesSelf || filteredChildren.length > 0) {
+        return {
+          ...account,
+          children: filteredChildren,
+        };
+      }
+
+      return null;
+    };
+
+    return accounts
+      .map((account) => filterRecursive(account))
+      .filter((account): account is Account => account !== null);
+  };
+
+  const getMonthlyAlerts = (accounts: Account[], selectedDate: string): Account[] => {
+    if (!selectedDate) return [];
+    
+    const targetDate = new Date(selectedDate);
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const getAllAccountsFlat = (accounts: Account[]): Account[] => {
+      let result: Account[] = [];
+      accounts.forEach(account => {
+        result.push(account);
+        if (account.children && account.children.length > 0) {
+          result = result.concat(getAllAccountsFlat(account.children));
+        }
+      });
+      return result;
+    };
+    
+    const flatAccounts = getAllAccountsFlat(accounts);
+    
+    return flatAccounts.filter(account => {
+      if (account.paid === "true" || !account.dueDate) return false;
+      try {
+        const dueDate = new Date(account.dueDate);
+        if (isNaN(dueDate.getTime())) return false;
+        
+        // Check if due date is in the selected month
+        const isInTargetMonth = dueDate.getFullYear() === targetYear && dueDate.getMonth() === targetMonth;
+        if (!isInTargetMonth) return false;
+        
+        // Check if it's within 3 days from today
+        dueDate.setHours(0, 0, 0, 0);
+        const diffTime = dueDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 3 && diffDays >= -30; // Show alerts for 3 days before and up to 30 days overdue
+      } catch (error) {
+        console.error(`Invalid dueDate for account ${account.id}:`, account.dueDate);
+        return false;
+      }
+    });
   };
 
   const findAccount = (accounts: Account[], id: string): Account | null => {
@@ -295,11 +421,11 @@ const EqualityForm = () => {
   }, []);
 
   useEffect(() => {
-    const initialAccountExists = accounts.some(account => account.listid === '0');
+    const initialAccountExists = accounts.some(account => account.listid === '1');
     if (!initialAccountExists) {
       const initialAccount: Account = {
         id: '',
-        listid: '0',
+        listid: '1',
         description: 'Equality',
         parentAccountId: null,
         children: [],
@@ -310,6 +436,25 @@ const EqualityForm = () => {
       setAccounts([initialAccount, ...accounts]);
     }
   }, [accounts]);
+
+  // Handle monthly alerts when date is selected
+  useEffect(() => {
+    if (selectedDate && accounts.length > 0) {
+      const monthlyAlerts = getMonthlyAlerts(accounts, selectedDate);
+      setAlerts(monthlyAlerts);
+      setCurrentAlertIndex(0);
+      
+      // Update monthly accounts for display
+      const monthlyFiltered = filterAccountsByMonth(accounts, selectedDate);
+      setMonthlyAccounts(monthlyFiltered);
+    } else {
+      // Use regular alerts for all accounts when no date selected
+      setMonthlyAccounts([]);
+      if (accounts.length > 0) {
+        checkDueDates(accounts);
+      }
+    }
+  }, [selectedDate, accounts]);
 
   const onSubmit = async (data: AccountFormData) => {
     setLoading(true);
@@ -490,14 +635,21 @@ const EqualityForm = () => {
       .filter((account): account is Account => account !== null);
   };
 
-  const filteredAccounts = filterAccountsByQuery(accounts, searchQuery);
+  // Apply date-based filtering first if date is selected
+  const dateFilteredAccounts = selectedDate ? filterAccountsByMonth(accounts, selectedDate) : accounts;
+  
+  // Then apply search filtering
+  const filteredAccounts = debouncedSearchQuery.trim() ? filterAccountsByQuery(dateFilteredAccounts, debouncedSearchQuery) : dateFilteredAccounts;
 
   const handlePageSizeChange = (newPageSize: number) => {
     setPageSize(newPageSize);
     setPageIndex(0);
   };
 
-  const paginatedAccounts = filteredAccounts.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
+  // For client-side search, we need to handle pagination differently
+  const paginatedAccounts = debouncedSearchQuery.trim() 
+    ? filteredAccounts.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize)
+    : filteredAccounts; // Server-side pagination already handles this
 
   const renderAccounts = (accounts: Account[], level = 0) => {
     return (
@@ -632,7 +784,9 @@ const EqualityForm = () => {
                 <FaTimes size={16} />
               </button>
               <div className="flex justify-between items-center mb-2">
-                <span className="font-bold text-white text-lg">Payment Due Alert</span>
+                <span className="font-bold text-white text-lg">
+                  {selectedDate ? 'Monthly Payment Alert' : 'Payment Due Alert'}
+                </span>
                 {alerts.length > 1 && (
                   <div className="flex gap-2">
                     <button
@@ -662,6 +816,11 @@ const EqualityForm = () => {
                   (new Date(alert.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
                 )}{' '}
                 day(s)!
+                {selectedDate && (
+                  <span className="block text-sm mt-1 opacity-90">
+                    ({new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} filter active)
+                  </span>
+                )}
               </p>
               <p className="text-sm text-white opacity-80">Due at: {formatDateTime(alert.dueDate)}</p>
               <Button
@@ -993,7 +1152,28 @@ const EqualityForm = () => {
           </h1>
         </div>
 
-        <div className="w-full flex justify-end mb-4">
+        <div className="w-full flex justify-end gap-4 mb-4">
+          {/* Date Filter */}
+          <div className="flex items-center border-2 border-[#3a614c] rounded-lg focus-within:ring-2 focus-within:ring-[#4a7a5e] shadow-md">
+            <label className="ml-3 text-gray-600 text-sm font-medium">Filter by Month:</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="p-2 outline-none bg-transparent text-gray-800"
+            />
+            {selectedDate && (
+              <button 
+                onClick={() => setSelectedDate('')}
+                className="mr-2 text-gray-500 hover:text-red-600 transition-colors"
+                title="Clear date filter"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          
+          {/* Search Input */}
           <div className="flex items-center border-2 border-[#3a614c] rounded-lg focus-within:ring-2 focus-within:ring-[#4a7a5e] shadow-md">
             <VscGoToSearch className="ml-3 text-gray-500" size={20} />
             <input
@@ -1011,10 +1191,20 @@ const EqualityForm = () => {
 
         <div>{renderAccounts(paginatedAccounts)}</div>
         <div className="flex justify-between py-2 mt-4 px-4 rounded-lg items-center">
-          <div className="flex items-center">
+          <div className="flex flex-col">
             <span className="text-sm text-gray-700">
-              Page {pageIndex + 1} of {totalPages}
+              {debouncedSearchQuery.trim() ? (
+                `Showing ${paginatedAccounts.length} of ${filteredAccounts.length} results`
+              ) : (
+                `Page ${pageIndex + 1} of ${totalPages}`
+              )}
             </span>
+            {selectedDate && (
+              <span className="text-xs text-blue-600 mt-1">
+                Filtering by month: {new Date(selectedDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                {alerts.length > 0 && ` • ${alerts.length} alert(s) for this month`}
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-3">
             <span className="text-sm text-gray-700">Rows per page:</span>

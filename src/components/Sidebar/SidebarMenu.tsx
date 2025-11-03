@@ -1,8 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FiChevronDown, FiChevronUp, FiChevronRight } from 'react-icons/fi';
 import { sideBarItems } from '@/components/lib/StaticData/sideBarItems';
 import { ablSideBarItems } from '@/components/lib/StaticData/ablSideBarItems';
+import { usePermissions } from '@/contexts/PermissionContext';
+import { filterMenuItemsByPermissions } from '@/utils/permissions';
 import Link from 'next/link';
 
 type SubMenuItem = {
@@ -36,6 +38,17 @@ const SidebarMenu: React.FC<{
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
   const menuItemRefs = React.useRef<{ [key: string]: HTMLLIElement | null }>({});
   const subMenuItemRefs = React.useRef<{ [key: string]: HTMLLIElement | null }>({});
+
+  // Get permissions from context
+  const { permissions, isLoading } = usePermissions();
+
+  // Filter menu items based on permissions
+  const filteredMenuItems = useMemo(() => {
+    if (isLoading) return [];
+    
+    const items = activeInterface === 'ZMS' ? sideBarItems : ablSideBarItems;
+    return filterMenuItemsByPermissions(items, permissions);
+  }, [activeInterface, permissions, isLoading]);
 
   useEffect(() => {
     if (isCollapsed) {
@@ -104,7 +117,7 @@ const SidebarMenu: React.FC<{
     );
   };
 
-  const items = activeInterface === 'ZMS' ? sideBarItems : ablSideBarItems;
+  const items = filteredMenuItems;
 
   const filteredItems = (items as SidebarItem[]).filter((item: SidebarItem) => {
     if (searchQuery === '') return true;
@@ -333,9 +346,14 @@ const SidebarMenu: React.FC<{
 
   return (
     <div className={`${isCollapsed ? '' : 'px-3'} py-4`}>
-      <ul className="space-y-1 h-full">
-        {filteredItems.length > 0 ? (
-          filteredItems.map((item: SidebarItem, index: number) => (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        </div>
+      ) : (
+        <ul className="space-y-1 h-full">
+          {filteredItems.length > 0 ? (
+            filteredItems.map((item: SidebarItem, index: number) => (
             <li
               key={index}
               ref={(el) => {
@@ -416,12 +434,13 @@ const SidebarMenu: React.FC<{
                 renderSubMenu(item.sub_menu, item.text)}
             </li>
           ))
-        ) : (
-          <li className="px-4 py-2 text-gray-500 dark:text-gray-400">
-            No matching items found
-          </li>
-        )}
-      </ul>
+          ) : (
+            <li className="px-4 py-2 text-gray-500 dark:text-gray-400">
+              No matching items found
+            </li>
+          )}
+        </ul>
+      )}
     </div>
   );
 };

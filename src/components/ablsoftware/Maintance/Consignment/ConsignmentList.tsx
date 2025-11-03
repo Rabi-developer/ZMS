@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash } from 'react-icons/fa';
@@ -51,38 +51,75 @@ const ConsignmentList = () => {
     { id: 5, name: 'Pending', color: '#3b82f6' },
   ];
 
-  const fetchConsignments = async () => {
+  // Create stable handlers for pagination
+  const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
+    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    console.log('Consignment page index changing from', pageIndex, 'to', resolvedPageIndex);
+    setPageIndex(resolvedPageIndex);
+  }, [pageIndex]);
+
+  const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
+    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    console.log('Consignment page size changing from', pageSize, 'to', resolvedPageSize);
+    setPageSize(resolvedPageSize);
+    setPageIndex(0); // Reset to first page when page size changes
+  }, [pageSize]);
+
+  const fetchConsignments = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllConsignment(pageIndex + 1, pageSize);
-      setConsignments(response?.data || []);
-      const misc = response?.misc || {};
-      const serverTotal = misc.total ?? misc.totalCount ?? (response?.data?.length || 0);
-      const serverTotalPages = misc.totalPages ?? (serverTotal && pageSize ? Math.ceil(serverTotal / pageSize) : 0);
-      setTotalRows(Number(serverTotal) || 0);
-      setTotalPages(Number(serverTotalPages) || 0);
+      // Include status filter in API call if not 'All'
+      const filterParams = selectedStatusFilter !== 'All' ? { status: selectedStatusFilter } : {};
+      const response = await getAllConsignment(pageIndex + 1, pageSize, filterParams);
+      
+      if (response?.data) {
+        setConsignments(response.data);
+        const misc = response.misc || {};
+        const serverTotal = misc.total ?? misc.totalCount ?? response.data.length;
+        const serverTotalPages = misc.totalPages ?? (serverTotal && pageSize ? Math.ceil(serverTotal / pageSize) : 0);
+        setTotalRows(Number(serverTotal) || 0);
+        setTotalPages(Number(serverTotalPages) || 0);
+        
+        // If we're on a page that doesn't exist, go to the last available page
+        if (serverTotalPages > 0 && pageIndex >= serverTotalPages) {
+          setPageIndex(Math.max(0, serverTotalPages - 1));
+        }
+      } else {
+        setConsignments([]);
+        setTotalRows(0);
+        setTotalPages(0);
+      }
     } catch (error) {
+      console.error('Error fetching consignments:', error);
       toast('Failed to fetch consignments', { type: 'error' });
+      setConsignments([]);
+      setTotalRows(0);
+      setTotalPages(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageIndex, pageSize, selectedStatusFilter]);
 
   useEffect(() => {
+    console.log('Consignment useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize, 'statusFilter:', selectedStatusFilter);
     fetchConsignments();
-  }, [pageIndex, pageSize]);
+  }, [fetchConsignments]);
 
   useEffect(() => {
-    let filtered = consignments;
-    if (selectedStatusFilter !== 'All') {
-      filtered = consignments.filter((c) => c.status === selectedStatusFilter);
-    }
-    setFilteredConsignments(filtered);
-  }, [consignments, selectedStatusFilter]);
+    // Since we're now filtering on the server side, just use the consignments as they are
+    setFilteredConsignments(consignments);
+  }, [consignments]);
 
   useEffect(() => {
     setPageIndex(0);
   }, [selectedStatusFilter]);
+
+  // Reset to first page if current page exceeds total pages
+  useEffect(() => {
+    if (totalPages > 0 && pageIndex >= totalPages) {
+      setPageIndex(Math.max(0, totalPages - 1));
+    }
+  }, [totalPages, pageIndex]);
 
   useEffect(() => {
     if (searchParams.get('refresh') === 'true') {
@@ -226,8 +263,13 @@ const ConsignmentList = () => {
       setSelectedRowId(null);
       setBookingStatus(null);
       setSelectedConsignmentForFiles(null);
-      setSelectedStatusFilter(newStatus);
-      setPageIndex(0);
+      
+      // Only change filter if it's different and reset page
+      if (selectedStatusFilter !== newStatus) {
+        setSelectedStatusFilter(newStatus);
+        setPageIndex(0);
+      }
+      
       toast('Consignment Status Updated Successfully', { type: 'success' });
       await fetchConsignments();
     } catch (error) {
@@ -330,11 +372,11 @@ const ConsignmentList = () => {
           data={filteredConsignments}
           loading={loading}
           link="/consignment/create"
-          setPageIndex={setPageIndex}
+          setPageIndex={handlePageIndexChange}
           pageIndex={pageIndex}
           pageSize={pageSize}
-          setPageSize={setPageSize}
-          totalRows={selectedStatusFilter === 'All' ? totalRows : filteredConsignments.length}
+          setPageSize={handlePageSizeChange}
+          totalRows={totalRows}
           onRowClick={handleRowClick}
           onRowDoubleClick={handleRowDoubleClick}
         />

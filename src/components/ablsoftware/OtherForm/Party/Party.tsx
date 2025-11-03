@@ -18,7 +18,7 @@ import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
 // Define the schema for party form validation
 const partySchema = z.object({
-  PartyNumber: z.string().optional(),
+  partyNumber: z.string().min(1, 'Party number is required'),
   name: z.string().optional(),
   currency: z.string().optional(),
   address: z.string().optional(),
@@ -68,7 +68,7 @@ const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
     resolver: zodResolver(partySchema),
     defaultValues: initialData
       ? {
-          PartyNumber: initialData.PartyNumber || '',
+          partyNumber: initialData.partyNumber || '',
           name: initialData.name || '',
           currency: initialData.currency || '',
           address: initialData.address || '',
@@ -87,7 +87,7 @@ const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
           receivableAccount: initialData.receivableAccount || '',
         }
       : {
-          PartyNumber: '',
+          partyNumber: `P${Date.now()}${Math.floor(Math.random() * 1000)}`, // Generate initial party number
           name: '',
           currency: '',
           address: '',
@@ -150,7 +150,7 @@ const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
 
   useEffect(() => {
     if (isEdit && initialData) {
-      setValue('PartyNumber', initialData.PartyNumber || '');
+      setValue('partyNumber', initialData.partyNumber || '');
       setValue('name', initialData.name || '');
       setValue('currency', initialData.currency || '');
       setValue('address', initialData.address || '');
@@ -170,12 +170,13 @@ const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
     }
   }, [isEdit, setValue, router]);
 
-  // Generate PartyNumber for new parties
+  // Generate partyNumber for new parties
   useEffect(() => {
     if (!isEdit) {
-      // Generate a unique PartyNumber for new parties
+      // Generate a unique partyNumber for new parties
       const generatedPartyNumber = `P${Date.now()}${Math.floor(Math.random() * 1000)}`;
-      setValue('PartyNumber', generatedPartyNumber);
+      console.log('Generated party number:', generatedPartyNumber);
+      setValue('partyNumber', generatedPartyNumber);
     }
   }, [isEdit, setValue]);
 
@@ -185,15 +186,23 @@ const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
       if (isEdit) {
         const newid = window.location.pathname.split('/').pop();
         // Send actual id in payload for update
-        await updateParty(data.PartyNumber!, { ...data, id: newid || '' });
+        await updateParty(data.partyNumber!, { ...data, id: newid || '' });
         toast.success('Party updated successfully!');
       } else {
-        // For new parties, generate a unique PartyNumber
+        // For new parties, ensure partyNumber is set
         const partyData = { ...data };
-        if (!partyData.PartyNumber || partyData.PartyNumber.trim() === '') {
-          // Generate a unique PartyNumber using timestamp and random number
-          partyData.PartyNumber = `P${Date.now()}${Math.floor(Math.random() * 1000)}`;
+        
+        // Double-check partyNumber is present and valid
+        if (!partyData.partyNumber || partyData.partyNumber.trim() === '') {
+          // Generate a unique partyNumber using timestamp and random number
+          partyData.partyNumber = `P${Date.now()}${Math.floor(Math.random() * 1000)}`;
+          console.warn('PartyNumber was missing, generated new one:', partyData.partyNumber);
         }
+        
+        // Ensure partyNumber is included in the payload
+        console.log('Creating party with data:', partyData);
+        console.log('PartyNumber being sent:', partyData.partyNumber);
+        
         await createParty(partyData);
         toast.success('Party created successfully!');
       }
@@ -292,21 +301,23 @@ const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
                   
                   <div className="space-y-5">
                     <Controller
-                      name="PartyNumber"
+                      name="partyNumber"
                       control={control}
                       render={({ field }) => (
                         <div className="relative">
                           <ABLCustomInput
                             {...field}
-                            label="ID"
+                            label="Party Number"
                             type="text"
                             placeholder={isEdit ? "Party Number" : "Auto-generated"}
                             register={register}
-                            error={errors.PartyNumber?.message}
-                            id="PartyNumber"
-                            disabled
+                            error={errors.partyNumber?.message}
+                            id="partyNumber"
+                            disabled={!isEdit}
+                            onFocus={() => setIdFocused(true)}
+                            onBlur={() => setIdFocused(false)}
                           />
-                          {idFocused && (
+                          {idFocused && !isEdit && (
                             <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
                               Auto-generated
                             </div>

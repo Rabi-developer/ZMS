@@ -167,12 +167,6 @@ export function DataTable<TData extends { id: string }, TValue>({
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [columnSearches, setColumnSearches] = useState<Record<string, string>>({});
 
-  const handlePaginationChange = (updater: any) => {
-    const newPagination = typeof updater === 'function' ? updater({ pageIndex, pageSize }) : updater;
-    setPageIndex(newPagination.pageIndex);
-    setPageSize(newPagination.pageSize);
-  };
-
   const table = useReactTable({
     data,
     columns,
@@ -181,17 +175,17 @@ export function DataTable<TData extends { id: string }, TValue>({
       columnFilters,
       columnVisibility,
       globalFilter,
-      pagination: { pageIndex, pageSize },
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: handlePaginationChange,
     globalFilterFn,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    // Disable built-in pagination since we're doing server-side pagination
+    manualPagination: true,
   });
 
   const searchColumn = table.getColumn(searchName);
@@ -522,7 +516,7 @@ export function DataTable<TData extends { id: string }, TValue>({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageIndex(() => 0)}
+                onClick={() => setPageIndex(0)}
                 disabled={pageIndex === 0}
                 className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -531,32 +525,45 @@ export function DataTable<TData extends { id: string }, TValue>({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPageIndex((prev) => Math.max(prev - 1, 0))}
+                onClick={() => {
+                  const prevPage = Math.max(pageIndex - 1, 0);
+                  setPageIndex(prevPage);
+                }}
                 disabled={pageIndex === 0}
                 className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FaAngleLeft className="mr-1" /> Previous
               </Button>
               <div className="flex items-center gap-1">
-                {Array.from(
-                  { length: Math.ceil((totalRows || data.length) / pageSize) },
-                  (_, i) => (
-                    <Button
-                      key={i}
-                      variant={i === pageIndex ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPageIndex(() => i)}
-                      className={cn(
-                        "w-8 h-8 p-0 transition-all duration-200",
-                        i === pageIndex
-                          ? "bg-[#6e997f] text-white hover:bg-[#6e997f]/80"
-                          : "border-[#6e997f] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white"
-                      )}
-                    >
-                      {i + 1}
-                    </Button>
-                  )
-                )}
+                {(() => {
+                  const totalPages = Math.ceil((totalRows || data.length) / pageSize);
+                  const maxVisiblePages = 5; // Limit visible pages to prevent too many buttons
+                  const startPage = Math.max(0, Math.min(pageIndex - Math.floor(maxVisiblePages / 2), totalPages - maxVisiblePages));
+                  const endPage = Math.min(totalPages, startPage + maxVisiblePages);
+                  
+                  return Array.from(
+                    { length: endPage - startPage },
+                    (_, i) => {
+                      const pageNumber = startPage + i;
+                      return (
+                        <Button
+                          key={pageNumber}
+                          variant={pageNumber === pageIndex ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPageIndex(pageNumber)}
+                          className={cn(
+                            "w-8 h-8 p-0 transition-all duration-200",
+                            pageNumber === pageIndex
+                              ? "bg-[#6e997f] text-white hover:bg-[#6e997f]/80"
+                              : "border-[#6e997f] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white"
+                          )}
+                        >
+                          {pageNumber + 1}
+                        </Button>
+                      );
+                    }
+                  );
+                })()}
               </div>
               {(() => {
                 const lastIndex = Math.max(Math.ceil((totalRows || data.length) / pageSize) - 1, 0);
@@ -565,8 +572,11 @@ export function DataTable<TData extends { id: string }, TValue>({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPageIndex((prev) => Math.min(prev + 1, lastIndex))}
-                      disabled={pageIndex >= lastIndex}
+                      onClick={() => {
+                        const nextPage = Math.min(pageIndex + 1, lastIndex);
+                        setPageIndex(nextPage);
+                      }}
+                      disabled={pageIndex >= lastIndex || (totalRows || data.length) === 0}
                       className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next <FaAngleRight className="ml-1" />
@@ -574,7 +584,7 @@ export function DataTable<TData extends { id: string }, TValue>({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setPageIndex(() => lastIndex)}
+                      onClick={() => setPageIndex(lastIndex)}
                       disabled={pageIndex >= lastIndex}
                       className="border-[#4d7c61] text-[#4d7c61] hover:bg-[#6e997f] hover:text-white transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >

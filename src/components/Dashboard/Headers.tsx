@@ -7,6 +7,7 @@ import DropdownUser from '@/components/Header/DropdownUser';
 import AccountToggle from '@/components/Sidebar/AccountToggle';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePermissions } from '@/contexts/PermissionContext';
 
 const Headers = ({
   toggleSidebar,
@@ -19,7 +20,7 @@ const Headers = ({
   activeInterface: 'ZMS' | 'ABL';
   isCollapsed: boolean;
 }) => {
-  const [userName, setUserName] = useState<string | null>(null);
+  const { userData, isAuthenticated } = usePermissions();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSubDropdownOpen, setIsSubDropdownOpen] = useState(false); // New state for sub-dropdown
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -27,10 +28,7 @@ const Headers = ({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const maintenanceButtonRef = useRef<HTMLDivElement>(null); // Ref for Maintenance link
 
-  useEffect(() => {
-    const storedUserName = localStorage.getItem('userName');
-    setUserName(storedUserName);
-  }, []);
+  const userName = userData?.userName;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -271,7 +269,7 @@ const Headers = ({
             </AnimatePresence>
           </div>
           <DarkMode />
-          {userName ? (
+          {isAuthenticated && userName ? (
             <DropdownUser activeInterface={activeInterface} />
           ) : (
             <Link
