@@ -260,7 +260,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
           const booking = initialData.data ? initialData.data : initialData;
           setBookingId(booking.id || '');
           setValue('id', booking.id || '');
-          setValue('OrderNo', booking.orderNo || booking.id || '');
+          setValue('OrderNo', String(booking.orderNo || booking.id || ''));
           setValue('orderDate', booking.orderDate || '');
           setValue('transporter', booking.transporter || '');
           setValue('vendor', booking.vendor || '');
@@ -356,7 +356,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
     const payload = {
       ...(isEdit ? { id: bookingOrderId } : {}),
       // Only include OrderNo for updates, let the server auto-generate it for new records
-      ...(isEdit && data.OrderNo ? { orderNo: data.OrderNo } : {}),
+    ///  ...(isEdit && data.OrderNo ? { orderNo: data.OrderNo } : {}),
       orderDate: data.orderDate || '',
       transporter: data.transporter || '',
       vendor: data.vendor || '',
@@ -464,13 +464,13 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
     } else {
       const res = await createBookingOrder(payload);
       const createdId: string | undefined = res?.data;
-      const createdOrderNo: string | undefined = res?.orderNo; // Get the auto-generated OrderNo from response
+      const createdOrderNo: string | number | undefined = res?.orderNo; // Get the auto-generated OrderNo from response
       
       if (createdId) setBookingId(createdId);
       
       // Update the form with the auto-generated OrderNo
       if (createdOrderNo) {
-        setValue('OrderNo', createdOrderNo);
+        setValue('OrderNo', String(createdOrderNo));
       }
       
       if (createdId) {
@@ -515,11 +515,11 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
       }
       toast.success('Booking Order created successfully!');
       try {
-        if (typeof onSaved === 'function') onSaved({ id: createdId, orderNo: createdOrderNo || data.OrderNo });
+        if (typeof onSaved === 'function') onSaved({ id: createdId, orderNo: String(createdOrderNo || data.OrderNo || '') });
       } catch (e) {
         console.warn('onSaved callback failed', e);
       }
-      return { id: createdId, orderNo: createdOrderNo || data.OrderNo };
+      return { id: createdId, orderNo: String(createdOrderNo || data.OrderNo || '') };
     }
   };
 
@@ -529,7 +529,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
       const saved = await saveBookingOnly(data);
       // Update the form with the returned OrderNo (either existing or newly generated)
       if (saved?.orderNo) {
-        setValue('OrderNo', saved.orderNo);
+        setValue('OrderNo', String(saved.orderNo));
       }
       router.push('/bookingorder');
     } catch (error) {
