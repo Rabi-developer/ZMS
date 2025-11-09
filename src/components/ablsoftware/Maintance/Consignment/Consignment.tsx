@@ -213,11 +213,11 @@ const ConsignmentForm = ({ isEdit = false }) => {
         setBookingOrders(
           bookRes.data.map((b: any) => ({
             id: b.id,
-            orderNo: b.orderNo || b.OrderNo || '', // Handle both orderNo and OrderNo
-            vehicleNo: b.vehicleNo || '',
-            cargoWeight: b.cargoWeight || '',
-            orderDate: b.orderDate || '',
-            vendor: b.vendor || '',
+            orderNo: String(b.orderNo ?? b.OrderNo ?? ''), // Ensure string
+            vehicleNo: String(b.vehicleNo ?? ''),
+            cargoWeight: String(b.cargoWeight ?? ''),
+            orderDate: String(b.orderDate ?? ''),
+            vendor: String(b.vendor ?? ''),
           }))
         );
         setUnits([
@@ -243,7 +243,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
           if (booking) {
             // Convert orderNo to string for display
             const orderNoStr = String(booking.orderNo || '');
-            setValue('orderNo', orderNoStr);
+            setValue('orderNo', orderNoStr, { shouldValidate: true });
             setBookingOrderNo(orderNoStr);
           } else {
             // helpful debug when testing locally
@@ -301,7 +301,27 @@ const ConsignmentForm = ({ isEdit = false }) => {
             ];
             keys.forEach((key) => {
               if (consignment[key] !== undefined) {
-                setValue(key, consignment[key]);
+                // Coerce string fields that might arrive as numbers
+                const stringFields: (keyof ConsignmentFormData)[] = [
+                  'consignmentMode','receiptNo','orderNo','biltyNo','date','consignmentNo','consignor','consignmentDate','consignee','receiverName','receiverContactNo','shippingLine','containerNo','port','destination','freightFrom','freight','sbrTax','deliveryCharges','insuranceCharges','tollTax','otherCharges','deliveryDate','remarks','creditAllowed'
+                ];
+                const value: any = consignment[key];
+                if (stringFields.includes(key)) {
+                  setValue(key, value != null ? String(value) : '', { shouldValidate: true } as any);
+                } else if (key === 'items' && Array.isArray(value)) {
+                  setValue('items', value.map((it: any) => ({
+                    ...it,
+                    id: it?.id != null ? String(it.id) : undefined,
+                    desc: it?.desc != null ? String(it.desc) : '',
+                    qtyUnit: it?.qtyUnit != null ? String(it.qtyUnit) : '',
+                    weightUnit: it?.weightUnit != null ? String(it.weightUnit) : '',
+                    qty: Number(it?.qty ?? 0),
+                    rate: Number(it?.rate ?? 0),
+                    weight: Number(it?.weight ?? 0),
+                  })), { shouldValidate: true });
+                } else {
+                  setValue(key, value as any, { shouldValidate: true } as any);
+                }
               }
             });
           } catch (error) {
@@ -371,13 +391,50 @@ const ConsignmentForm = ({ isEdit = false }) => {
     try {
       const payload = {
         ...data,
-        orderNo: data.orderNo || orderNoParam || '',
-        items: isEdit
-          ? data.items.map((item, idx) => ({
-              ...item,
-              ...(item.id ? { id: item.id } : {}),
-            }))
-          : data.items,
+        // Coerce string fields
+        consignmentMode: data.consignmentMode != null ? String(data.consignmentMode) : '',
+        receiptNo: data.receiptNo != null ? String(data.receiptNo) : '',
+        orderNo: String(data.orderNo || orderNoParam || ''),
+        biltyNo: data.biltyNo != null ? String(data.biltyNo) : '',
+        date: data.date != null ? String(data.date) : '',
+        consignmentNo: data.consignmentNo != null ? String(data.consignmentNo) : '',
+        consignor: data.consignor != null ? String(data.consignor) : '',
+        consignmentDate: data.consignmentDate != null ? String(data.consignmentDate) : '',
+        consignee: data.consignee != null ? String(data.consignee) : '',
+        receiverName: data.receiverName != null ? String(data.receiverName) : '',
+        receiverContactNo: data.receiverContactNo != null ? String(data.receiverContactNo) : '',
+        shippingLine: data.shippingLine != null ? String(data.shippingLine) : '',
+        containerNo: data.containerNo != null ? String(data.containerNo) : '',
+        port: data.port != null ? String(data.port) : '',
+        destination: data.destination != null ? String(data.destination) : '',
+        freightFrom: data.freightFrom != null ? String(data.freightFrom) : '',
+        freight: data.freight != null ? String(data.freight) : '',
+        sbrTax: data.sbrTax != null ? String(data.sbrTax) : '',
+        deliveryCharges: data.deliveryCharges != null ? String(data.deliveryCharges) : '',
+        insuranceCharges: data.insuranceCharges != null ? String(data.insuranceCharges) : '',
+        tollTax: data.tollTax != null ? String(data.tollTax) : '',
+        otherCharges: data.otherCharges != null ? String(data.otherCharges) : '',
+        deliveryDate: data.deliveryDate != null ? String(data.deliveryDate) : '',
+        remarks: data.remarks != null ? String(data.remarks) : '',
+        creditAllowed: data.creditAllowed != null ? String(data.creditAllowed) : '',
+        // Numbers
+        totalQty: Number(data.totalQty || 0),
+        sprAmount: Number(data.sprAmount || 0),
+        totalAmount: Number(data.totalAmount || 0),
+        receivedAmount: Number(data.receivedAmount || 0),
+        incomeTaxDed: Number(data.incomeTaxDed || 0),
+        incomeTaxAmount: Number(data.incomeTaxAmount || 0),
+        // Items coercion
+        items: (isEdit ? data.items : data.items).map((item) => ({
+          ...item,
+          id: item.id != null ? String(item.id) : undefined,
+          desc: item.desc != null ? String(item.desc) : '',
+          qtyUnit: item.qtyUnit != null ? String(item.qtyUnit) : '',
+          weightUnit: item.weightUnit != null ? String(item.weightUnit) : '',
+          qty: Number(item.qty || 0),
+          rate: Number(item.rate || 0),
+          weight: Number(item.weight || 0),
+        })),
       };
       let createdConsignment = null;
       if (isEdit) {

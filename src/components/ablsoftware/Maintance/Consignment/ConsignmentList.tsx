@@ -422,7 +422,7 @@ const ConsignmentList = () => {
                 items: Array.isArray(consignment.items) ? consignment.items : undefined,
               }))}
           />
-        </div>
+        </div> 
       )}
       {openDelete && (
         <DeleteConfirmModel

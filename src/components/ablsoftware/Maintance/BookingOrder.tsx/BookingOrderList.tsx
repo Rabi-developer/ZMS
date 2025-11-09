@@ -768,7 +768,8 @@ const BookingOrderList = () => {
               orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
               bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
               consignments={consignments[selectedRowId] || []}
-              hideBookingOrderInfo
+              // hideBookingOrderInfo
+              
             />
           </div>
         )}

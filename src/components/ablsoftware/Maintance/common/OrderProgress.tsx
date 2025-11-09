@@ -27,6 +27,8 @@ interface Charge {
 
 interface OrderProgressProps {
   orderNo?: string | null;
+  selectedOrderNo?: string | null;
+  selectedBiltyNo?: string | null;
   bookingStatus?: string | null;
   consignments?: Consignment[];
   bookingOrder?: { orderNo: string; orderDate: string; vehicleNo: string } | null;
@@ -47,7 +49,7 @@ const formatNumber = (v: string | number | undefined | null): number => {
   return isNaN(n) ? 0 : n;
 };
 
-const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, consignments = [], bookingOrder, hideBookingOrderInfo }) => {
+const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, selectedOrderNo, selectedBiltyNo, bookingStatus, consignments = [], bookingOrder, hideBookingOrderInfo }) => {
   const [charges, setCharges] = useState<Charge[]>([]);
   const [chargesCount, setChargesCount] = useState<number>(0);
   const [chargesPaidCount, setChargesPaidCount] = useState<number>(0);
@@ -59,7 +61,21 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
   const [paymentNos, setPaymentNos] = useState<string[]>([]);
   const [paymentsTotalPaid, setPaymentsTotalPaid] = useState<number>(0);
 
-  const consignmentCount = consignments?.length || 0;
+  const selOrder = (selectedOrderNo ?? orderNo) ? String((selectedOrderNo ?? orderNo) as any).trim() : '';
+  const selBilty = selectedBiltyNo ? String(selectedBiltyNo).trim() : '';
+
+  const filteredConsignments = useMemo(() => {
+    const norm = (v: any) => String(v ?? '').trim();
+    return (consignments || []).filter((c: any) => {
+      const biltyKeys = [c.biltyNo, c.BiltyNo, c.consignmentNo, c.ConsignmentNo, c.id].map(norm);
+      const matchesBilty = selBilty ? biltyKeys.includes(selBilty) : true;
+      const cOrder = norm(c.orderNo ?? c.OrderNo ?? selOrder);
+      const matchesOrder = selOrder ? cOrder === selOrder : true;
+      return matchesOrder && matchesBilty;
+    });
+  }, [consignments, selOrder, selBilty]);
+
+  const consignmentCount = filteredConsignments?.length || 0;
   const allConsDelivered = useMemo(() => {
     if (!consignments || consignments.length === 0) return false;
     return consignments.every((c) => (c.status || "").toLowerCase() === "delivered");
@@ -253,25 +269,27 @@ const OrderProgress: React.FC<OrderProgressProps> = ({ orderNo, bookingStatus, c
 
     if (consignments.length > 0) {
       consignments.forEach((c, index) => {
+        const consignorName = (c as any).consignorName ?? (c as any).ConsignorName ?? c.consignor ?? (c as any).Consignor ?? '';
+        const consigneeName = (c as any).consigneeName ?? (c as any).ConsigneeName ?? c.consignee ?? (c as any).Consignee ?? '';
         const row: any = {
-          biltyNo: c.biltyNo ?? (c as any).BiltyNo ?? (c as any).consignmentNo ?? (c as any).ConsignmentNo ?? (c as any).id ?? '',
-          receiptNo: c.receiptNo ?? (c as any).ReceiptNo ?? (receiptNos.length > 0 ? receiptNos.join(', ') : ''),
-          paymentNo: paymentNos.length > 0 ? paymentNos.join(', ') : '',
-          orderNo: bo?.orderNo || '',
-          orderDate: bo?.orderDate || '',
-          vehicleNo: bo?.vehicleNo || '',
-          consignor: c.consignor ?? (c as any).Consignor ?? '',
-          consignee: c.consignee ?? (c as any).Consignee ?? '',
-          items: Array.isArray(c.items) ? c.items.map((item: any) => item.desc).join(', ') : '',
-          qty: Array.isArray(c.items) ? c.items.map((item: any) => `${item.qty} ${item.qtyUnit}`).join(', ') : (c as any).qty || '',
-          totalAmount: c.totalAmount ?? (c as any).TotalAmount ?? (c as any).amount ?? '',
-          receivedAmount: c.receivedAmount ?? (c as any).ReceivedAmount ?? (c as any).receiptAmount ?? (receiptsTotalReceived > 0 ? receiptsTotalReceived : '-'),
-          deliveryDate: c.deliveryDate ?? (c as any).DeliveryDate ?? (c as any).date ?? '',
-          consignmentStatus: c.status ?? (c as any).Status ?? '',
-          paidToPerson: charges.length > 0 ? charges.map((ch) => ch.paidToPerson || '').join(', ') : '',
-          charges: charges.length > 0 ? charges.map((ch) => ch.charges || '').join(', ') : '',
-          amount: charges.length > 0 ? charges.map((ch) => ch.amount || '').join(', ') : '',
-          paidAmount: paymentsTotalPaid > 0 ? paymentsTotalPaid : '',
+        biltyNo: c.biltyNo ?? (c as any).BiltyNo ?? (c as any).consignmentNo ?? (c as any).ConsignmentNo ?? (c as any).id ?? '',
+        receiptNo: c.receiptNo ?? (c as any).ReceiptNo ?? (receiptNos.length > 0 ? receiptNos.join(', ') : ''),
+        paymentNo: paymentNos.length > 0 ? paymentNos.join(', ') : '',
+        orderNo: bo?.orderNo || '',
+        orderDate: bo?.orderDate || '',
+        vehicleNo: bo?.vehicleNo || '',
+        consignor: consignorName,
+        consignee: consigneeName,
+        items: Array.isArray(c.items) ? c.items.map((item: any) => item.desc).join(', ') : '',
+        qty: Array.isArray(c.items) ? c.items.map((item: any) => `${item.qty} ${item.qtyUnit}`).join(', ') : (c as any).qty || '',
+        totalAmount: c.totalAmount ?? (c as any).TotalAmount ?? (c as any).amount ?? '',
+        receivedAmount: c.receivedAmount ?? (c as any).ReceivedAmount ?? (c as any).receiptAmount ?? (receiptsTotalReceived > 0 ? receiptsTotalReceived : '-'),
+        deliveryDate: c.deliveryDate ?? (c as any).DeliveryDate ?? (c as any).date ?? '',
+        consignmentStatus: c.status ?? (c as any).Status ?? '',
+        paidToPerson: charges.length > 0 ? charges.map((ch) => ch.paidToPerson || '').join(', ') : '',
+        charges: charges.length > 0 ? charges.map((ch) => ch.charges || '').join(', ') : '',
+        amount: charges.length > 0 ? charges.map((ch) => ch.amount || '').join(', ') : '',
+        paidAmount: paymentsTotalPaid > 0 ? paymentsTotalPaid : '',
         };
         rows.push(row);
       });

@@ -31,7 +31,7 @@ interface DropdownOption {
 interface BookingOrder {
   id: string;
   vehicleNo: string;
-  orderNo: string;
+  orderNo: string; // always coerced to string
   munshayana: string;
 }
 
@@ -186,9 +186,9 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
         setBookingOrders(
           bookRes.data.map((b: any) => ({
             id: b.id,
-            vehicleNo: b.vehicleNo || '',
-            orderNo: b.orderNo || b.id || '',
-            munshayana: b.munshayana || '',
+            vehicleNo: String(b.vehicleNo ?? ''),
+            orderNo: String(b.orderNo ?? b.id ?? ''),
+            munshayana: String(b.munshayana ?? ''),
           }))
         );
 
@@ -270,15 +270,15 @@ const selectedBrokerId = lines.find(
   }, [isEdit, initialData, reset]);
 
   const selectVehicle = (order: BookingOrder, index: number) => {
-    setValue(`lines.${index}.vehicleNo`, order.vehicleNo, { shouldValidate: true });
-    setValue(`lines.${index}.orderNo`, order.orderNo, { shouldValidate: true });
-    setValue(`lines.${index}.amount`, chargesMap[order.vehicleNo] || 0, { shouldValidate: true });
+    setValue(`lines.${index}.vehicleNo`, String(order.vehicleNo), { shouldValidate: true });
+    setValue(`lines.${index}.orderNo`, String(order.orderNo), { shouldValidate: true });
+    setValue(`lines.${index}.amount`, Number(chargesMap[order.vehicleNo] || 0), { shouldValidate: true });
     setValue(`lines.${index}.munshayana`, 0, { shouldValidate: true });
     setValue(`lines.${index}.isAdditionalLine`, false, { shouldValidate: true });
     setSelectedLineIndex(index);
     setShowPopup(false);
     setSearchQuery('');
-    console.log('Updated lines:', watch('lines')); // Debug log
+    console.log('Updated lines:', watch('lines'));
   };
 
   const addLine = () => {
@@ -308,29 +308,29 @@ const selectedBrokerId = lines.find(
     setIsSubmitting(true);
     try {
       const payload = {
-        id: isEdit ? window.location.pathname.split('/').pop() || '' : null,
-        isActive: true,
-        isDeleted: false,
-        invoiceNo: data.invoiceNo || `INV${Date.now()}${Math.floor(Math.random() * 1000)}`,
-        paymentDate: data.paymentDate,
-        lines: data.lines.map(line =>
-          line.isAdditionalLine
-            ? {
-                isAdditionalLine: true,
-                nameCharges: line.nameCharges,
-                amountCharges: line.amountCharges,
-              }
-            : {
-                isAdditionalLine: false,
-                vehicleNo: line.vehicleNo,
-                orderNo: line.orderNo,
-                amount: line.amount,
-                munshayana: line.munshayana || undefined,
-                broker: line.broker || '',
-                dueDate: line.dueDate || '',
-                remarks: line.remarks || '',
-              }
-        ),
+      id: isEdit ? window.location.pathname.split('/').pop() || '' : null,
+      isActive: true,
+      isDeleted: false,
+      invoiceNo: data.invoiceNo || `INV${Date.now()}${Math.floor(Math.random() * 1000)}`,
+      paymentDate: String(data.paymentDate || ''),
+      lines: data.lines.map((line) =>
+      line.isAdditionalLine
+      ? {
+      isAdditionalLine: true,
+      nameCharges: String(line.nameCharges || ''),
+      amountCharges: Number(line.amountCharges || 0),
+      }
+      : {
+      isAdditionalLine: false,
+      vehicleNo: String(line.vehicleNo || ''),
+      orderNo: String(line.orderNo || ''),
+      amount: Number(line.amount || 0),
+      munshayana: typeof line.munshayana === 'number' ? line.munshayana : Number(line.munshayana || 0),
+      broker: String(line.broker || ''),
+      dueDate: String(line.dueDate || ''),
+      remarks: String(line.remarks || ''),
+      }
+      ),
       };
 
       if (isEdit) {
@@ -352,10 +352,14 @@ const selectedBrokerId = lines.find(
   const getMunshayanaName = (id: string) => munshyanas.find(m => m.id === id)?.name || id;
 
   const filteredBookingOrders = bookingOrders.filter(
-    order =>
-      order.vehicleNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.orderNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      getMunshayanaName(order.munshayana).toLowerCase().includes(searchQuery.toLowerCase())
+    (order) => {
+      const q = searchQuery.toLowerCase();
+      return (
+        order.vehicleNo.toLowerCase().includes(q) ||
+        String(order.orderNo).toLowerCase().includes(q) ||
+        getMunshayanaName(order.munshayana).toLowerCase().includes(q)
+      );
+    }
   );
 
   // Total Amount is the amount of the first non-additional line
@@ -776,43 +780,53 @@ const selectedBrokerId = lines.find(
                       />
                     </div>
                   </div>
-                  <div className="max-h-48 overflow-y-auto space-y-2">
-                    {filteredBookingOrders.length > 0 ? (
-                      filteredBookingOrders.map((order) => (
-                        <div
-                          key={order.id}
-                          onClick={() => selectVehicle(order, selectedLineIndex || 0)}
-                          className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
-                        >
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <MdLocalShipping className="text-[#3a614c] text-base" />
-                              <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
-                                Vehicle No: {order.vehicleNo}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <FaReceipt className="text-[#3a614c] text-base" />
-                              <span className="text-xs text-gray-600 dark:text-gray-400">Order No: {order.orderNo}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <FaMoneyBillWave className="text-[#3a614c] text-base" />
-                              <span className="text-xs text-gray-600 dark:text-gray-400">
-                                Amount: {chargesMap[order.vehicleNo] || 0}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <MdPayment className="text-[#3a614c] text-base" />
-                              <span className="text-xs text-gray-600 dark:text-gray-400">
-                                Munshayana: {getMunshayanaName(order.munshayana)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 text-center">No results found</p>
-                    )}
+                  <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                          <th className="px-3 py-2 text-left font-semibold">Vehicle No</th>
+                          <th className="px-3 py-2 text-left font-semibold">Order No</th>
+                          <th className="px-3 py-2 text-left font-semibold">Amount</th>
+                          <th className="px-3 py-2 text-left font-semibold">Munshayana</th>
+                          <th className="px-3 py-2 text-left font-semibold">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {filteredBookingOrders.length > 0 ? (
+                          filteredBookingOrders.map((order) => (
+                            <tr
+                              key={order.id}
+                              className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
+                              onClick={() => selectVehicle(order, selectedLineIndex || 0)}
+                              tabIndex={0}
+                            >
+                              <td className="px-3 py-2">{order.vehicleNo}</td>
+                              <td className="px-3 py-2">{order.orderNo}</td>
+                              <td className="px-3 py-2">{chargesMap[order.vehicleNo] || 0}</td>
+                              <td className="px-3 py-2">{getMunshayanaName(order.munshayana)}</td>
+                              <td className="px-3 py-2">
+                                <Button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    selectVehicle(order, selectedLineIndex || 0);
+                                  }}
+                                  className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-3 py-1 rounded-md shadow-sm"
+                                >
+                                  Select
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={5} className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">
+                              No results found
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                   <div className="flex justify-end mt-3">
                     <Button

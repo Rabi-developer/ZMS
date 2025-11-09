@@ -142,7 +142,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
       ? {
           chargeNo: initialData.chargeNo || '',
           chargeDate: initialData.chargeDate || new Date().toISOString().split('T')[0],
-          orderNo: initialData.orderNo || (fromBooking ? orderNoParam : ''),
+          orderNo: initialData.orderNo || (fromBooking ? String(orderNoParam) : ''),
           createdBy: initialData.createdBy || '',
           creationDate: initialData.creationDate || '',
           updatedBy: initialData.updatedBy || '',
@@ -158,7 +158,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
       : {
           chargeNo: '',
           chargeDate: new Date().toISOString().split('T')[0],
-          orderNo: fromBooking ? orderNoParam : '',
+          orderNo: fromBooking ? String(orderNoParam) : '',
           createdBy: '',
           creationDate: '',
           updatedBy: '',
@@ -223,12 +223,12 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
         setBookingOrders(
           bookRes.data.map((b: any) => ({
             id: b.id,
-            orderNo: b.orderNo || '',
-            vehicleNo: b.vehicleNo || '',
-            cargoWeight: b.cargoWeight || '',
-            orderDate: b.orderDate || '',
-            vendor: b.vendor || '',
-            vendorName: b.vendorName || b.vendor || 'Unknown',
+            orderNo: String(b.orderNo ?? ''),
+            vehicleNo: String(b.vehicleNo ?? ''),
+            cargoWeight: String(b.cargoWeight ?? ''),
+            orderDate: String(b.orderDate ?? ''),
+            vendor: String(b.vendor ?? ''),
+            vendorName: b.vendorName || String(b.vendor ?? '') || 'Unknown',
           }))
         );
 
@@ -258,9 +258,9 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
         }
 
         if (fromBooking && orderNoParam) {
-          setValue('orderNo', orderNoParam);
+          setValue('orderNo', String(orderNoParam), { shouldValidate: true });
           try {
-            const consRes = await getAllConsignment(1, 10, { orderNo: orderNoParam });
+            const consRes = await getAllConsignment(1, 10, { orderNo: String(orderNoParam) });
             setConsignments([...consRes.data]);
           } catch (e) {
             console.warn('Failed to fetch consignments for booking', e);
@@ -268,10 +268,20 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
         }
 
         if (isEdit && initialData) {
-          setValue('chargeNo', initialData.chargeNo || '');
-          setValue('chargeDate', initialData.chargeDate || '');
-          setValue('orderNo', initialData.orderNo || '');
-          setValue('lines', Array.isArray(initialData.lines) ? initialData.lines : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }]);
+          setValue('chargeNo', String(initialData.chargeNo || ''));
+          setValue('chargeDate', String(initialData.chargeDate || ''));
+          setValue('orderNo', String(initialData.orderNo || ''));
+          setValue(
+            'lines',
+            Array.isArray(initialData.lines)
+              ? initialData.lines.map((ln: any) => ({
+                  ...ln,
+                  biltyNo: ln?.biltyNo != null ? String(ln.biltyNo) : '',
+                  vehicle: ln?.vehicle != null ? String(ln.vehicle) : '',
+                  charge: ln?.charge != null ? String(ln.charge) : '',
+                }))
+              : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }]
+          );
           try {
             const consRes = await getAllConsignment(1, 10, { chargeNo: initialData.chargeNo });
             setConsignments([...consRes.data]);
@@ -288,12 +298,12 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   }, [isEdit, setValue, fromBooking, orderNoParam, initialData]);
 
   const selectBilty = (cons: Consignment, index: number) => {
-    setValue(`lines.${index}.biltyNo`, cons.biltyNo);
+    setValue(`lines.${index}.biltyNo`, String(cons.biltyNo));
     setShowBiltyPopup(false);
   };
 
   const selectOrder = (order: BookingOrder) => {
-    setValue('orderNo', order.orderNo);
+    setValue('orderNo', String(order.orderNo));
     setShowOrderPopup(false);
   };
 
@@ -365,34 +375,34 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
             setIsSubmitting(true);
             try {
               const payload: any = {
-                chargeDate: data.chargeDate || '',
-                orderNo: data.orderNo || orderNoParam || '',
-                creationDate: data.creationDate || '',
-                updationDate: data.updationDate || '',
-                status: data.status || '',
+                chargeDate: String(data.chargeDate || ''),
+                orderNo: String((data.orderNo ?? orderNoParam) ?? ''),
+                creationDate: String(data.creationDate || ''),
+                updationDate: String(data.updationDate || ''),
+                status: String(data.status || ''),
                 lines: (data.lines || []).map((line) => ({
-                  charge: line.charge || '',
-                  biltyNo: line.biltyNo || '',
-                  date: line.date || '',
-                  vehicle: line.vehicle || '',
-                  paidTo: line.paidTo || '',
-                  contact: line.contact || '',
-                  remarks: line.remarks || '',
-                  amount: line.amount || 0,
+                  charge: line.charge != null ? String(line.charge) : '',
+                  biltyNo: line.biltyNo != null ? String(line.biltyNo) : '',
+                  date: String(line.date || ''),
+                  vehicle: line.vehicle != null ? String(line.vehicle) : '',
+                  paidTo: line.paidTo != null ? String(line.paidTo) : '',
+                  contact: line.contact != null ? String(line.contact) : '',
+                  remarks: line.remarks != null ? String(line.remarks) : '',
+                  amount: Number(line.amount || 0),
                 })),
                 payments: (data.payments || []).map((payment) => ({
-                  paidAmount: payment.paidAmount || 0,
-                  bankCash: payment.bankCash || '',
-                  chqNo: payment.chqNo || '',
-                  chqDate: payment.chqDate || '',
-                  payNo: payment.payNo || '',
-                  orderNo: payment.orderNo || '',
-                  vehicleNo: payment.vehicleNo || '',
+                  paidAmount: Number(payment.paidAmount || 0),
+                  bankCash: payment.bankCash != null ? String(payment.bankCash) : '',
+                  chqNo: payment.chqNo != null ? String(payment.chqNo) : '',
+                  chqDate: payment.chqDate != null ? String(payment.chqDate) : '',
+                  payNo: payment.payNo != null ? String(payment.payNo) : '',
+                  orderNo: payment.orderNo != null ? String(payment.orderNo) : '',
+                  vehicleNo: payment.vehicleNo != null ? String(payment.vehicleNo) : '',
                 })),
               };
               const newId = window.location.pathname.split('/').pop();
               if (isEdit && data.chargeNo) {
-                payload.chargeNo = data.chargeNo;
+                payload.chargeNo = String(data.chargeNo);
                 payload.id =  newId;
               }
               
@@ -406,7 +416,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
               }
               if (fromBooking) {
                 setTimeout(() => {
-                  router.push(`/bookingorder/create?orderNo={encodeURIComponent(orderNoParam)}`);
+                  router.push(`/bookingorder/create?orderNo=${encodeURIComponent(String(orderNoParam))}`);
                 }, 800);
               } else {
                 router.push('/charges');
