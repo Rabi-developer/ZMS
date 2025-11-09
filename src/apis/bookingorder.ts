@@ -132,13 +132,24 @@ const addConsignmentToBookingOrder = async (bookingOrderId: string, consignment:
   try {
     // Ensure bookingOrderId is present in payload as the API expects it in body too
     const payload = { ...consignment, bookingOrderId };
+    
+    // Log the payload for debugging purposes
+    console.log('Adding consignment to booking order:', {
+      bookingOrderId,
+      consignmentId: payload.consignmentId,
+      payload
+    });
+    
     const response = await apiFetch(`BookingOrder/${bookingOrderId}/consignments`, {
       method: 'POST',
-      headers: {},
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(payload),
     }, true);
     return response;
   } catch (error: any) {
+    console.error('Error in addConsignmentToBookingOrder:', error);
     throw error;
   }
 };

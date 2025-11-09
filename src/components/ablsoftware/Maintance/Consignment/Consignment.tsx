@@ -436,20 +436,21 @@ const ConsignmentForm = ({ isEdit = false }) => {
           weight: Number(item.weight || 0),
         })),
       };
-      let createdConsignment = null;
+      let createdConsignmentId = null;
       if (isEdit) {
         const newId = window.location.pathname.split('/').pop();
         await updateConsignment({ ...payload, id: newId });
         toast.success('Consignment updated successfully!');
       } else {
         const res = await createConsignment(payload);
-        createdConsignment = res?.data;
+        createdConsignmentId = res?.data; // This contains the consignment ID
         toast.success('Consignment created successfully!');
       }
 
-      if (bookingOrderId) {
+      if (bookingOrderId && createdConsignmentId) {
         try {
           const consPayload = {
+            consignmentId: createdConsignmentId, // Add the consignmentId from API response
             biltyNo: payload.biltyNo,
             bookingOrderId,
             receiptNo: payload.receiptNo,
@@ -462,11 +463,25 @@ const ConsignmentForm = ({ isEdit = false }) => {
             delDate: payload.deliveryDate || '',
             status: 'Active',
           };
+          
+          console.log('Linking consignment to booking order:', {
+            bookingOrderId,
+            consignmentId: createdConsignmentId,
+            payload: consPayload
+          });
+          
           await addConsignmentToBookingOrder(bookingOrderId, consPayload);
+          toast.success('Consignment linked to booking order successfully!');
         } catch (e) {
           toast.error('Failed to link consignment to booking order');
+          console.error('Error linking consignment to booking order:', e);
         }
+      } else if (bookingOrderId && !createdConsignmentId) {
+        console.warn('BookingOrderId provided but no consignmentId received from createConsignment API');
+        toast.warn('Consignment created but could not link to booking order - missing consignment ID');
+      }
 
+      if (bookingOrderId) {
         if (submitMode === 'addAnother') {
           reset({
             ...consignmentSchema.parse({}),

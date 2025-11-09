@@ -128,6 +128,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromBooking = searchParams.get('fromBooking') === 'true';
+  const bookingOrderId = searchParams.get('bookingOrderId') || '';
   const orderNoParam = searchParams.get('orderNo') || '';
   const {
     control,
@@ -142,7 +143,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
       ? {
           chargeNo: initialData.chargeNo || '',
           chargeDate: initialData.chargeDate || new Date().toISOString().split('T')[0],
-          orderNo: initialData.orderNo || (fromBooking ? String(orderNoParam) : ''),
+          orderNo: initialData.orderNo || '',
           createdBy: initialData.createdBy || '',
           creationDate: initialData.creationDate || '',
           updatedBy: initialData.updatedBy || '',
@@ -158,7 +159,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
       : {
           chargeNo: '',
           chargeDate: new Date().toISOString().split('T')[0],
-          orderNo: fromBooking ? String(orderNoParam) : '',
+          orderNo: '',
           createdBy: '',
           creationDate: '',
           updatedBy: '',
@@ -209,6 +210,11 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('Charges component - URL params:', {
+          fromBooking,
+          bookingOrderId,
+          orderNoParam
+        });
         const [munRes, consRes, baRes, bookRes, paymentRes] = await Promise.all([
           getAllMunshyana(1, 1000),
           getAllConsignment(1, 1000),
@@ -257,7 +263,29 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           );
         }
 
-        if (fromBooking && orderNoParam) {
+        // Handle auto-selection when coming from booking order
+        if (fromBooking && bookingOrderId) {
+          console.log('Setting up charges from booking order. BookingOrderId:', bookingOrderId);
+          
+          // Find the booking order by ID
+          const selectedBookingOrder = bookRes.data.find((b: any) => String(b.id).trim() === String(bookingOrderId).trim());
+          
+          if (selectedBookingOrder) {
+            const orderNoStr = String(selectedBookingOrder.orderNo || selectedBookingOrder.OrderNo || '');
+            console.log('Found booking order:', selectedBookingOrder, 'OrderNo:', orderNoStr);
+            setValue('orderNo', orderNoStr, { shouldValidate: true });
+            
+            try {
+              const consRes = await getAllConsignment(1, 10, { orderNo: orderNoStr });
+              setConsignments([...consRes.data]);
+            } catch (e) {
+              console.warn('Failed to fetch consignments for booking', e);
+            }
+          } else {
+            console.warn('BookingOrder not found for id:', bookingOrderId, 'Available orders:', bookRes.data.map((x: any) => ({ id: x.id, orderNo: x.orderNo })));
+          }
+        } else if (fromBooking && orderNoParam) {
+          // Fallback to using orderNo parameter if provided
           setValue('orderNo', String(orderNoParam), { shouldValidate: true });
           try {
             const consRes = await getAllConsignment(1, 10, { orderNo: String(orderNoParam) });
@@ -295,7 +323,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
       }
     };
     fetchData();
-  }, [isEdit, setValue, fromBooking, orderNoParam, initialData]);
+  }, [isEdit, setValue, fromBooking, bookingOrderId, orderNoParam, initialData]);
 
   const selectBilty = (cons: Consignment, index: number) => {
     setValue(`lines.${index}.biltyNo`, String(cons.biltyNo));
@@ -305,6 +333,12 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const selectOrder = (order: BookingOrder) => {
     setValue('orderNo', String(order.orderNo));
     setShowOrderPopup(false);
+  };
+
+  const getSelectedOrderDetails = () => {
+    const orderNo = watch('orderNo');
+    if (!orderNo) return null;
+    return bookingOrders.find((order) => order.orderNo === orderNo);
   };
 
   const handlePaidToChange = (value: string, index: number) => {
@@ -376,7 +410,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
             try {
               const payload: any = {
                 chargeDate: String(data.chargeDate || ''),
-                orderNo: String((data.orderNo ?? orderNoParam) ?? ''),
+                orderNo: String(data.orderNo || orderNoParam || ''),
                 creationDate: String(data.creationDate || ''),
                 updationDate: String(data.updationDate || ''),
                 status: String(data.status || ''),
@@ -414,7 +448,11 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                 await createCharges(payload);
                 toast.success('Charges created successfully!');
               }
-              if (fromBooking) {
+              if (fromBooking && bookingOrderId) {
+                setTimeout(() => {
+                  router.push(`/bookingorder/edit/${bookingOrderId}`);
+                }, 800);
+              } else if (fromBooking && orderNoParam) {
                 setTimeout(() => {
                   router.push(`/bookingorder/create?orderNo=${encodeURIComponent(String(orderNoParam))}`);
                 }, 800);
@@ -471,9 +509,9 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                     type="button"
                     onClick={() => setShowOrderPopup(true)}
                     className="mb-3 w-full bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs"
-                    disabled={isFieldDisabled('orderNo')}
+                    disabled={fromBooking || isFieldDisabled('orderNo')}
                   >
-                    Select Order No
+                    {fromBooking ? 'Order Auto-Selected' : 'Select Order No'}
                   </Button>
                   <ABLCustomInput
                     label="Order No"
@@ -483,6 +521,35 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                     id="orderNo"
                     disabled
                   />
+                  {getSelectedOrderDetails() && (
+                    <div className="mt-3 bg-white dark:bg-gray-800 rounded-lg shadow-md p-3 border border-gray-200 dark:border-gray-600">
+                      <h4 className="text-xs font-semibold text-gray-800 dark:text-gray-200 mb-2">Selected Order Details</h4>
+                      <table className="w-full text-xs text-left text-gray-500 dark:text-gray-400">
+                        <tbody>
+                          <tr className="border-b dark:border-gray-700">
+                            <td className="py-1 px-2 font-medium text-gray-900 dark:text-white">Order No</td>
+                            <td className="py-1 px-2">{getSelectedOrderDetails()?.orderNo}</td>
+                          </tr>
+                          <tr className="border-b dark:border-gray-700">
+                            <td className="py-1 px-2 font-medium text-gray-900 dark:text-white">Vehicle No</td>
+                            <td className="py-1 px-2">{getSelectedOrderDetails()?.vehicleNo}</td>
+                          </tr>
+                          <tr className="border-b dark:border-gray-700">
+                            <td className="py-1 px-2 font-medium text-gray-900 dark:text-white">Cargo Weight</td>
+                            <td className="py-1 px-2">{getSelectedOrderDetails()?.cargoWeight}</td>
+                          </tr>
+                          <tr className="border-b dark:border-gray-700">
+                            <td className="py-1 px-2 font-medium text-gray-900 dark:text-white">Order Date</td>
+                            <td className="py-1 px-2">{getSelectedOrderDetails()?.orderDate}</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1 px-2 font-medium text-gray-900 dark:text-white">Vendor</td>
+                            <td className="py-1 px-2">{getSelectedOrderDetails()?.vendorName}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
