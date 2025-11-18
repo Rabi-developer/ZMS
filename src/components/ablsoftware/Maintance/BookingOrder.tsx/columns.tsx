@@ -92,7 +92,7 @@ export const columns = (
     accessorKey: 'toLocation',
   },
   {
-    header: 'Name', // Assuming this is a placeholder; adjust if needed
+    header: '',
     accessorKey: 'name',
   },
   {

@@ -9,6 +9,8 @@ import ABLNewCustomInput from '@/components/ui/ABLNewCustomInput';
 import AblNewCustomDrpdown from '@/components/ui/AblNewCustomDrpdown';
 import { createConsignment, updateConsignment, getSingleConsignment } from '@/apis/consignment';
 import { getAllPartys } from '@/apis/party';
+import { getAllCustomers } from '@/apis/customer';
+import { getAllVendor } from '@/apis/vendors';
 import { addConsignmentToBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllSaleTexes } from '@/apis/salestexes';
@@ -46,6 +48,7 @@ interface BookingOrder {
   cargoWeight: string;
   orderDate: string;
   vendor: string;
+  originalVendorId?: string;
 }
 
 interface Item {
@@ -178,6 +181,9 @@ const ConsignmentForm = ({ isEdit = false }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
   const [parties, setParties] = useState<DropdownOption[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [transporters, setTransporters] = useState<any[]>([]);
   const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
   const [showOrderPopup, setShowOrderPopup] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -199,27 +205,163 @@ const ConsignmentForm = ({ isEdit = false }) => {
   const tollTax = watch('tollTax');
   const otherCharges = watch('otherCharges');
 
+  // Helper function to check if value looks like an ID (UUID pattern)
+  const isUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
+
+  // Function to resolve party ID to name
+  const resolvePartyName = (partyId: string): string => {
+    if (!partyId || !isUUID(partyId)) return partyId;
+    
+    console.log('Resolving party ID:', partyId);
+
+    // Try to find in parties first
+    const party = parties.find(p => p.id === partyId);
+    if (party) {
+      console.log('Found in parties:', party.name);
+      return party.name;
+    }
+
+    // Try customers
+    const customer = customers.find(c => c.id === partyId);
+    if (customer) {
+      console.log('Found in customers:', customer.name);
+      return customer.name;
+    }
+
+    // Try vendors  
+    const vendor = vendors.find(v => v.id === partyId);
+    if (vendor) {
+      console.log('Found in vendors:', vendor.name);
+      return vendor.name;
+    }
+
+    // Try transporters
+    const transporter = transporters.find(t => t.id === partyId);
+    if (transporter) {
+      console.log('Found in transporters:', transporter.name);
+      return transporter.name;
+    }
+
+    console.log('Party not found, returning original ID:', partyId);
+    return partyId;
+  };
+
+  // Function to auto-populate fields when bilty number is entered
+  const handleBiltyNumberChange = async (biltyNo: string) => {
+    if (!biltyNo || biltyNo.trim().length === 0) return;
+    
+    try {
+      console.log('Auto-populating data for bilty number:', biltyNo);
+      
+      // Find matching consignment by bilty number in booking orders
+      const matchingOrder = bookingOrders.find(order => {
+        const orderBiltyNo = (order as any).biltyNo;
+        return orderBiltyNo === biltyNo || String(orderBiltyNo).trim() === biltyNo.trim();
+      });
+      
+      if (matchingOrder) {
+        console.log('Found matching order:', matchingOrder);
+        const orderAny = matchingOrder as any;
+        
+        // Auto-populate related fields
+        if (orderAny.consignor && !watch('consignor')) {
+          setValue('consignor', orderAny.consignor, { shouldValidate: true });
+        }
+        if (orderAny.consignee && !watch('consignee')) {
+          setValue('consignee', orderAny.consignee, { shouldValidate: true });
+        }
+        if (matchingOrder.orderNo && !watch('orderNo')) {
+          setValue('orderNo', String(matchingOrder.orderNo), { shouldValidate: true });
+        }
+        
+        toast.success('Auto-populated data from matching consignment');
+      }
+    } catch (error) {
+      console.error('Error auto-populating data:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [partRes, bookRes, unitRes, taxRes, transporterRes] = await Promise.all([
+        const [partRes, custRes, vendRes, bookRes, unitRes, taxRes, transporterRes] = await Promise.all([
           getAllPartys(1, 1000),
+          getAllCustomers(1, 1000),
+          getAllVendor(1, 1000),
           getAllBookingOrder(1, 1000),
           getAllUnitOfMeasures(1, 1000),
           getAllSaleTexes(1, 1000),
           getAllTransporter(),
         ]);
-        setParties(partRes.data.map((p: Party) => ({ id: p.id, name: p.name })));
-        setBookingOrders(
-          bookRes.data.map((b: any) => ({
+        
+        // Store all party data for name resolution
+        setCustomers(custRes.data || []);
+        setVendors(vendRes.data || []);
+        setTransporters(transporterRes.data || []);
+        
+        // Create comprehensive party options including all party types
+        const allPartyOptions: DropdownOption[] = [
+          // Parties
+          ...partRes.data.map((p: Party) => ({ id: p.id, name: p.name })),
+          // Customers
+          ...(custRes.data || []).map((c: any) => ({ id: c.id, name: c.name })),
+          // Vendors
+          ...(vendRes.data || []).map((v: any) => ({ id: v.id, name: v.name })),
+          // Transporters  
+          ...(transporterRes.data || []).map((t: any) => ({ id: t.id, name: t.name }))
+        ];
+        
+        setParties(allPartyOptions);
+        
+        // Helper function to resolve party names using local data
+        const resolvePartyNameLocal = (partyId: string): string => {
+          if (!partyId || !isUUID(partyId)) return partyId;
+          
+          // Try customers
+          const customer = (custRes.data || []).find((c: any) => c.id === partyId);
+          if (customer) return customer.name;
+
+          // Try parties
+          const party = (partRes.data || []).find((p: any) => p.id === partyId);
+          if (party) return party.name;
+
+          // Try vendors  
+          const vendor = (vendRes.data || []).find((v: any) => v.id === partyId);
+          if (vendor) return vendor.name;
+
+          // Try transporters
+          const transporter = (transporterRes.data || []).find((t: any) => t.id === partyId);
+          if (transporter) return transporter.name;
+
+          return partyId; // Return original if not found
+        };
+        
+        // Create enhanced booking orders with resolved vendor names
+        const enhancedBookingOrders = bookRes.data.map((b: any) => {
+          const originalVendor = b.vendor || '';
+          const resolvedVendor = originalVendor ? resolvePartyNameLocal(originalVendor) : '';
+          
+          console.log(`Booking Order ${b.id} vendor resolution:`, {
+            originalVendor,
+            resolvedVendor,
+            isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(originalVendor)
+          });
+          
+          return {
             id: b.id,
             orderNo: String(b.orderNo ?? b.OrderNo ?? ''), // Ensure string
             vehicleNo: String(b.vehicleNo ?? ''),
             cargoWeight: String(b.cargoWeight ?? ''),
             orderDate: String(b.orderDate ?? ''),
-            vendor: String(b.vendor ?? ''),
-          }))
-        );
+            vendor: resolvedVendor || originalVendor || '-', // Use resolved name or fallback to original
+            originalVendorId: originalVendor // Keep original ID for reference
+          };
+        });
+        
+        setBookingOrders(enhancedBookingOrders);
         setUnits([
           { id: 'Meter', name: 'Meter' },
           { id: 'Yard', name: 'Yard' },
@@ -605,14 +747,25 @@ const ConsignmentForm = ({ isEdit = false }) => {
                     )}
                   />
                   <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-2">
-                    <ABLNewCustomInput
-                      label="Bilty No"
-                      type="text"
-                      placeholder="Enter bilty number"
-                      register={register}
-                      error={errors.biltyNo?.message}
-                      id="biltyNo"
-                      disabled={isFieldDisabled('biltyNo')}
+                    <Controller
+                      name="biltyNo"
+                      control={control}
+                      render={({ field }) => (
+                        <ABLNewCustomInput
+                          {...field}
+                          label="Bilty No"
+                          type="text"
+                          placeholder="Enter bilty number"
+                          register={register}
+                          error={errors.biltyNo?.message}
+                          id="biltyNo"
+                          disabled={isFieldDisabled('biltyNo')}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            handleBiltyNumberChange(e.target.value);
+                          }}
+                        />
+                      )}
                     />
                     <ABLNewCustomInput
                       label="Date"
@@ -630,7 +783,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                         <AblNewCustomDrpdown
                           label="Consignor"
                           options={parties}
-                          selectedOption={field.value || ''}
+                          selectedOption={resolvePartyName(field.value || '')}
                           onChange={(value) => setValue('consignor', value, { shouldValidate: true })}
                           error={errors.consignor?.message}
                           disabled={isFieldDisabled('consignor')}
@@ -644,7 +797,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                         <AblNewCustomDrpdown
                           label="Consignee"
                           options={parties}
-                          selectedOption={field.value || ''}
+                          selectedOption={resolvePartyName(field.value || '')}
                           onChange={(value) => setValue('consignee', value, { shouldValidate: true })}
                           error={errors.consignee?.message}
                           disabled={isFieldDisabled('consignee')}

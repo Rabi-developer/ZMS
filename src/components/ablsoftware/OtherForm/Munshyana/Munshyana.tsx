@@ -151,15 +151,15 @@ const MunshyanaForm = ({ isEdit = false, initialData }: MunshyanaFormProps) => {
 
   // Create dropdown options from accounts
   const accountOptions = accounts.map(account => ({
-    id: account.id,
-    name: `${account.id} - ${account.description}`,
+    id: account.listid, // Use listid as the identifier (e.g., "1.1")
+    name: `${account.listid} - ${account.description}`,
   }));
 
   // Handle account selection
-  const handleAccountSelection = (accountId: string) => {
-    const selectedAccount = accounts.find(account => account.id === accountId);
+  const handleAccountSelection = (accountListId: string) => {
+    const selectedAccount = accounts.find(account => account.listid === accountListId);
     if (selectedAccount) {
-      setValue('accountId', selectedAccount.id, { shouldValidate: true });
+      setValue('accountId', selectedAccount.listid, { shouldValidate: true }); // Store listid instead of id
       setValue('description', selectedAccount.description, { shouldValidate: true });
     }
   };

@@ -1,10 +1,26 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getAllBusinessAssociate, deleteBusinessAssociate } from '@/apis/businessassociate';
 import { columns, BusinessAssociateType } from '@/components/ablsoftware/OtherForm/Businessassociate/columns';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { toast } from 'react-toastify';
+
+interface ApiResponse {
+  data: BusinessAssociateType[];
+  statusCode: number;
+  statusMessage: string;
+  misc: {
+    totalPages: number;
+    total: number;
+    pageIndex: number;
+    pageSize: number;
+    refId: string;
+    searchQuery: string | null;
+    totalCount: number | null;
+    pageNumber: number;
+  };
+}
 
 const BusinessAssociatesList = () => {
   const [businessAssociates, setBusinessAssociates] = useState<BusinessAssociateType[]>([]);
@@ -15,22 +31,50 @@ const BusinessAssociatesList = () => {
   const [selectedBusinessAssociate, setSelectedBusinessAssociate] = useState<BusinessAssociateType | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
+  const [totalRows, setTotalRows] = useState(0);
 
-  const fetchBusinessAssociates = async () => {
+  // Create stable handlers for pagination
+  const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
+    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    console.log('Page index changing from', pageIndex, 'to', resolvedPageIndex);
+    setPageIndex(resolvedPageIndex);
+  }, [pageIndex]);
+
+  const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
+    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    console.log('Page size changing from', pageSize, 'to', resolvedPageSize);
+    setPageSize(resolvedPageSize);
+    setPageIndex(0); // Reset to first page when page size changes
+  }, [pageSize]);
+
+  const fetchBusinessAssociates = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllBusinessAssociate(pageIndex === 0 ? 1 : pageIndex, pageSize);
+      // Convert 0-based pageIndex to 1-based for API
+      const apiPageIndex = pageIndex + 1;
+      console.log('Fetching business associates with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
+      
+      const response: ApiResponse = await getAllBusinessAssociate(apiPageIndex, pageSize);
+      
+      console.log('API Response:', response);
       setBusinessAssociates(response.data || []);
+      // Set total rows from the API response
+      if (response.misc) {
+        setTotalRows(response.misc.total || 0);
+        console.log('Total rows set to:', response.misc.total);
+      }
     } catch (error) {
-      console.error(error);
+      console.error('Failed to fetch business associates:', error);
+      toast.error('Failed to fetch business associates');
     } finally {
       setLoading(false);
     }
-  };
+  }, [pageIndex, pageSize]);
 
   useEffect(() => {
+    console.log('useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize);
     fetchBusinessAssociates();
-  }, [pageIndex, pageSize]);
+  }, [fetchBusinessAssociates]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -69,16 +113,17 @@ const BusinessAssociatesList = () => {
   };
 
   return (
-    <div className="container mx-auto mt-4 max-w-screen p-6">
+    <div className="container mx-auto mt-4 max-w-screen p-6 bg-white rounded-xl shadow-lg border border-gray-200">
       <DataTable
         columns={columns(handleDeleteOpen, handleViewOpen)}
         data={businessAssociates}
         loading={loading}
         link={'/businessassociate/create'}
-        setPageIndex={setPageIndex}
+        setPageIndex={handlePageIndexChange}
         pageIndex={pageIndex}
         pageSize={pageSize}
-        setPageSize={setPageSize}
+        setPageSize={handlePageSizeChange}
+        totalRows={totalRows}
         searchName="name"
       />
       

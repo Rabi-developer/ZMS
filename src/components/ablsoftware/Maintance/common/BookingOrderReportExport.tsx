@@ -27,7 +27,8 @@ import type { ColumnKey as ExportColumnKey } from '@/components/ablsoftware/Main
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
 
 // Types
-type ColumnKey = "serial" | "orderNo" | "orderDate" | "vehicleNo" | "bookingAmount" | "biltyNo" | "biltyAmount" | "consignor" | "consignee" | "article" | "qty" | "departure" | "destination" | "vendor" | "carrier";
+type LocalColumnKey = "serial" | "orderNo" | "orderDate" | "vehicleNo" | "bookingAmount" | "biltyNo" | "biltyAmount" | "consignor" | "consignee" | "article" | "qty" | "departure" | "destination" | "vendor" | "carrier";
+type ColumnKey = LocalColumnKey | ExportColumnKey;
 
 interface RowData {
   serial: number | string;
@@ -423,7 +424,7 @@ const BookingOrderReportExport: React.FC = () => {
       toast.error("No data to export.");
       return;
     }
-    const columnsToUse = isGeneral ? GENERAL_COLUMNS : [...DETAIL_COLUMNS, 'carrier'];
+    const columnsToUse = isGeneral ? GENERAL_COLUMNS : [...DETAIL_COLUMNS, 'carrier'] as ColumnKey[];
     const { colOrder, headRows, drawSeparators } = buildStructure(columnsToUse, isGeneral);
     exportBookingOrderToExcel(data, columnsToUse, computeFilterLine(), colOrder, headRows);
     toast.success("Excel generated");

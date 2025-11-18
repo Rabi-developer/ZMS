@@ -6,8 +6,12 @@ import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash } from 'react-icons/
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllConsignment, deleteConsignment, updateConsignmentStatus } from '@/apis/consignment';
+import { getAllConsignment, deleteConsignment, updateConsignmentStatus, getSingleConsignment } from '@/apis/consignment';
 import { getAllBookingOrder } from '@/apis/bookingorder';
+import { getAllCustomers } from '@/apis/customer';
+import { getAllPartys } from '@/apis/party';
+import { getAllVendor } from '@/apis/vendors';
+import { getAllTransporter } from '@/apis/transporter';
 import { columns, Consignment, getStatusStyles } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
@@ -18,11 +22,22 @@ interface UploadedFile {
   type: string;
 }
 
+interface PartyOption {
+  id: string;
+  name: string;
+}
+
 const ConsignmentList = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [consignments, setConsignments] = useState<Consignment[]>([]);
   const [filteredConsignments, setFilteredConsignments] = useState<Consignment[]>([]);
+  const [consignmentsWithItems, setConsignmentsWithItems] = useState<{[id: string]: any}>({});
+  const [loadingItems, setLoadingItems] = useState<{[id: string]: boolean}>({});
+  const [customers, setCustomers] = useState<PartyOption[]>([]);
+  const [parties, setParties] = useState<PartyOption[]>([]);
+  const [vendors, setVendors] = useState<PartyOption[]>([]);
+  const [transporters, setTransporters] = useState<PartyOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [deleteId, setDeleteId] = useState('');
@@ -36,6 +51,55 @@ const ConsignmentList = () => {
   const [updating, setUpdating] = useState(false);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  
+  // Function to fetch detailed consignment data including items
+  const fetchConsignmentDetails = useCallback(async (consignmentId: string) => {
+    if (consignmentsWithItems[consignmentId] || loadingItems[consignmentId]) {
+      return; // Already loaded or currently loading
+    }
+
+    try {
+      setLoadingItems(prev => ({ ...prev, [consignmentId]: true }));
+      console.log('Fetching detailed consignment data for ID:', consignmentId);
+      
+      const response = await getSingleConsignment(consignmentId);
+      if (response?.data) {
+        console.log('Detailed consignment data received:', {
+          id: consignmentId,
+          items: response.data.items,
+          itemsCount: Array.isArray(response.data.items) ? response.data.items.length : 0
+        });
+        
+        // Store the detailed consignment data
+        setConsignmentsWithItems(prev => ({
+          ...prev,
+          [consignmentId]: response.data
+        }));
+        
+        // Update the main consignments list with items data
+        setConsignments(prev => prev.map(cons => 
+          cons.id === consignmentId 
+            ? { ...cons, items: response.data.items }
+            : cons
+        ));
+        
+        // Update filtered consignments as well
+        setFilteredConsignments(prev => prev.map(cons => 
+          cons.id === consignmentId 
+            ? { ...cons, items: response.data.items }
+            : cons
+        ));
+        
+        toast.success('Items data loaded successfully');
+      }
+    } catch (error) {
+      console.error('Error fetching consignment details:', error);
+      toast.error('Failed to load consignment details');
+    } finally {
+      setLoadingItems(prev => ({ ...prev, [consignmentId]: false }));
+    }
+  }, [consignmentsWithItems, loadingItems]);
+  
   // File upload states
   const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
   const [selectedConsignmentForFiles, setSelectedConsignmentForFiles] = useState<string | null>(null);
@@ -50,6 +114,36 @@ const ConsignmentList = () => {
     { id: 4, name: 'UnApproved', color: '#10b981' },
     { id: 5, name: 'Pending', color: '#3b82f6' },
   ];
+
+  // Function to resolve party IDs to names
+  const resolvePartyName = (id?: string): string => {
+    if (!id || id.trim() === '') return '-';
+    
+    // Check if it's already a name (not a UUID)
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return id; // Already a name, return as is
+    }
+
+    // Try to find the name in customers
+    const customer = customers.find(c => c.id === id);
+    if (customer) return customer.name;
+
+    // Try to find the name in parties
+    const party = parties.find(p => p.id === id);
+    if (party) return party.name;
+
+    // Try to find the name in vendors
+    const vendor = vendors.find(v => v.id === id);
+    if (vendor) return vendor.name;
+
+    // Try to find the name in transporters
+    const transporter = transporters.find(t => t.id === id);
+    if (transporter) return transporter.name;
+
+    // If not found, return a shortened version of the ID with a warning
+    console.warn(`Unresolved party ID: ${id}`);
+    return `ID: ${id.substring(0, 8)}...`;
+  };
 
   // Create stable handlers for pagination
   const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
@@ -68,14 +162,129 @@ const ConsignmentList = () => {
   const fetchConsignments = useCallback(async () => {
     try {
       setLoading(true);
-      // Include status filter in API call if not 'All'
-      const filterParams = selectedStatusFilter !== 'All' ? { status: selectedStatusFilter } : {};
-      const response = await getAllConsignment(pageIndex + 1, pageSize, filterParams);
       
-      if (response?.data) {
-        setConsignments(response.data);
-        const misc = response.misc || {};
-        const serverTotal = misc.total ?? misc.totalCount ?? response.data.length;
+      // Fetch consignments and party data in parallel
+      const [consignmentResponse, customersRes, partiesRes, vendorsRes, transportersRes] = await Promise.all([
+        getAllConsignment(pageIndex + 1, pageSize, selectedStatusFilter !== 'All' ? { status: selectedStatusFilter } : {}),
+        getAllCustomers(1, 1000).catch(err => { console.warn('Failed to fetch customers:', err); return { data: [] }; }),
+        getAllPartys(1, 1000).catch(err => { console.warn('Failed to fetch parties:', err); return { data: [] }; }),
+        getAllVendor(1, 1000).catch(err => { console.warn('Failed to fetch vendors:', err); return { data: [] }; }),
+        getAllTransporter(1, 1000).catch(err => { console.warn('Failed to fetch transporters:', err); return { data: [] }; })
+      ]);
+      
+      // Store party data for resolution
+      const customersData = customersRes?.data?.map((c: any) => ({ 
+        id: c.id, 
+        name: c.name || c.customerName || c.Name || c.CustomerName || c.title || c.Title 
+      })) || [];
+      const partiesData = partiesRes?.data?.map((p: any) => ({ 
+        id: p.id, 
+        name: p.name || p.partyName || p.Name || p.PartyName || p.title || p.Title 
+      })) || [];
+      const vendorsData = vendorsRes?.data?.map((v: any) => ({ 
+        id: v.id, 
+        name: v.name || v.vendorName || v.Name || v.VendorName || v.title || v.Title 
+      })) || [];
+      const transportersData = transportersRes?.data?.map((t: any) => ({ 
+        id: t.id, 
+        name: t.name || t.transporterName || t.Name || t.TransporterName || t.title || t.Title 
+      })) || [];
+      
+      // Debug: Log the party data to understand structure
+      console.log('Customers data:', customersData.slice(0, 3));
+      console.log('Parties data:', partiesData.slice(0, 3));
+      console.log('Vendors data:', vendorsData.slice(0, 3));
+      console.log('Transporters data:', transportersData.slice(0, 3));
+      
+      setCustomers(customersData);
+      setParties(partiesData);
+      setVendors(vendorsData);
+      setTransporters(transportersData);
+
+      // Helper function to resolve party names using local data
+      const resolvePartyNameLocal = (id?: string): string => {
+        if (!id || id.trim() === '') return '-';
+        
+        // Check if it's already a name (not a UUID)
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          return id; // Already a name, return as is
+        }
+
+        // Debug: Log the ID being resolved
+        console.log(`Resolving party ID: ${id}`);
+
+        // Try to find the name in all party types
+        const customer = customersData.find((c: PartyOption) => c.id === id);
+        if (customer) {
+          console.log(`Found customer: ${customer.name} for ID: ${id}`);
+          return customer.name;
+        }
+
+        const party = partiesData.find((p: PartyOption) => p.id === id);
+        if (party) {
+          console.log(`Found party: ${party.name} for ID: ${id}`);
+          return party.name;
+        }
+
+        const vendor = vendorsData.find((v: PartyOption) => v.id === id);
+        if (vendor) {
+          console.log(`Found vendor: ${vendor.name} for ID: ${id}`);
+          return vendor.name;
+        }
+
+        const transporter = transportersData.find((t: PartyOption) => t.id === id);
+        if (transporter) {
+          console.log(`Found transporter: ${transporter.name} for ID: ${id}`);
+          return transporter.name;
+        }
+
+        // If not found, return a shortened version of the ID with a warning
+        console.warn(`Unresolved party ID: ${id}`);
+        return `ID: ${id.substring(0, 8)}...`;
+      };
+      
+      if (consignmentResponse?.data) {
+        // Debug: Log the raw consignment data to understand structure
+        if (consignmentResponse.data.length > 0) {
+          console.log('Raw consignment data:', consignmentResponse.data[0]);
+          console.log('Consignor field:', consignmentResponse.data[0].consignor || consignmentResponse.data[0].consignorId);
+          console.log('Consignee field:', consignmentResponse.data[0].consignee || consignmentResponse.data[0].consigneeId);
+        }
+
+        // Resolve consignor and consignee names in the consignment data
+        const consignmentsWithResolvedNames = consignmentResponse.data.map((consignment: any) => {
+          const resolvedConsignor = resolvePartyNameLocal(
+            consignment.consignor || consignment.consignorId || consignment.Consignor || consignment.ConsignorId
+          );
+          const resolvedConsignee = resolvePartyNameLocal(
+            consignment.consignee || consignment.consigneeId || consignment.Consignee || consignment.ConsigneeId
+          );
+          
+          console.log(`Consignment ${consignment.id} resolution:`, {
+            originalConsignor: consignment.consignor || consignment.consignorId || consignment.Consignor || consignment.ConsignorId,
+            resolvedConsignor,
+            originalConsignee: consignment.consignee || consignment.consigneeId || consignment.Consignee || consignment.ConsigneeId,
+            resolvedConsignee
+          });
+          
+          return {
+            ...consignment,
+            consignor: resolvedConsignor,
+            consignee: resolvedConsignee
+          };
+        });
+        
+        // Debug: Log the first resolved consignment
+        if (consignmentsWithResolvedNames.length > 0) {
+          console.log('First resolved consignment:', {
+            original: consignmentResponse.data[0],
+            resolved: consignmentsWithResolvedNames[0]
+          });
+        }
+        
+        setConsignments(consignmentsWithResolvedNames);
+        const misc = consignmentResponse.misc || {};
+        const serverTotal = misc.total ?? misc.totalCount ?? consignmentResponse.data.length;
         const serverTotalPages = misc.totalPages ?? (serverTotal && pageSize ? Math.ceil(serverTotal / pageSize) : 0);
         setTotalRows(Number(serverTotal) || 0);
         setTotalPages(Number(serverTotalPages) || 0);
@@ -158,6 +367,10 @@ const ConsignmentList = () => {
     setSelectedConsignmentIds([consignmentId]);
     setSelectedRowId(consignmentId);
     setSelectedConsignmentForFiles(consignmentId);
+    
+    // Fetch detailed consignment data including items
+    await fetchConsignmentDetails(consignmentId);
+    
     const consignment = consignments.find((item) => item.id === consignmentId);
     if (consignment?.orderNo) {
       try {
@@ -289,43 +502,67 @@ const ConsignmentList = () => {
       return;
     }
 
-    const formattedData = dataToExport.map((c) => ({
-      'Receipt No': c.receiptNo || '-',
-      'Order No': c.orderNo || '-',
-      'Bilty No': c.biltyNo || '-',
-      'Date': c.date || '-',
-      'Consignment No': c.consignmentNo || '-',
-      'Consignor': c.consignor || '-',
-      'Consignment Date': c.consignmentDate || '-',
-      'Consignee': c.consignee || '-',
-      'Receiver Name': c.receiverName || '-',
-      'Receiver Contact No': c.receiverContactNo || '-',
-      'Shipping Line': c.shippingLine || '-',
-      'Container No': c.containerNo || '-',
-      'Port': c.port || '-',
-      'Destination': c.destination || '-',
-      'Items': c.items || '-',
-      'Item Desc': c.itemDesc || '-',
-      'Qty': c.qty || '-',
-      'Weight': c.weight || '-',
-      'Total Qty': c.totalQty || '-',
-      'Freight': c.freight || '-',
-      'SRB Tax': c.srbTax || '-',
-      'SRB Amount': c.srbAmount || '-',
-      'Delivery Charges': c.deliveryCharges || '-',
-      'Insurance Charges': c.insuranceCharges || '-',
-      'Toll Tax': c.tollTax || '-',
-      'Other Charges': c.otherCharges || '-',
-      'Total Amount': c.totalAmount || '-',
-      'Received Amount': c.receivedAmount || '-',
-      'Income Tax Ded.': c.incomeTaxDed || '-',
-      'Income Tax Amount': c.incomeTaxAmount || '-',
-      'Delivery Date': c.deliveryDate || '-',
-      'Freight From': c.freightFrom || '-',
-      'Remarks': c.remarks || '-',
-      'Status': c.status || 'Pending',
-      'Files': (consignmentFiles[c.id] || []).map((f) => f.name).join(', ') || '-',
-    }));
+    const formattedData = dataToExport.map((c) => {
+      // Format items data properly
+      let itemsDescription = '';
+      let itemsQuantity = '';
+      let itemsWeight = '';
+      
+      if (Array.isArray(c.items) && c.items.length > 0) {
+        // Filter out empty items and create descriptions
+        const validItems = c.items.filter((item: any) => item.desc && item.desc.trim() !== '');
+        itemsDescription = validItems.map((item: any) => item.desc || '').join(', ');
+        itemsQuantity = validItems.map((item: any) => `${item.qty || 0} ${item.qtyUnit || ''}`).join(', ');
+        itemsWeight = validItems.map((item: any) => `${item.weight || 0} ${item.weightUnit || ''}`).join(', ');
+      } else if (consignmentsWithItems[c.id]?.items) {
+        // Use detailed items data if available
+        const detailedItems = consignmentsWithItems[c.id].items;
+        const validItems = detailedItems.filter((item: any) => item.desc && item.desc.trim() !== '');
+        itemsDescription = validItems.map((item: any) => item.desc || '').join(', ');
+        itemsQuantity = validItems.map((item: any) => `${item.qty || 0} ${item.qtyUnit || ''}`).join(', ');
+        itemsWeight = validItems.map((item: any) => `${item.weight || 0} ${item.weightUnit || ''}`).join(', ');
+      }
+      
+      return {
+        'Receipt No': c.receiptNo || '-',
+        'Order No': c.orderNo || '-',
+        'Bilty No': c.biltyNo || '-',
+        'Date': c.date || '-',
+        'Consignment No': c.consignmentNo || '-',
+        'Consignor': c.consignor || '-', // Now contains resolved name
+        'Consignment Date': c.consignmentDate || '-',
+        'Consignee': c.consignee || '-', // Now contains resolved name
+        'Receiver Name': c.receiverName || '-',
+        'Receiver Contact No': c.receiverContactNo || '-',
+        'Shipping Line': c.shippingLine || '-',
+        'Container No': c.containerNo || '-',
+        'Port': c.port || '-',
+        'Destination': c.destination || '-',
+        'Items Description': itemsDescription || 'No items loaded',
+        'Items Quantity': itemsQuantity || '-',
+        'Items Weight': itemsWeight || '-',
+        'Item Desc': c.itemDesc || '-',
+        'Qty': c.qty || '-',
+        'Weight': c.weight || '-',
+        'Total Qty': c.totalQty || '-',
+        'Freight': c.freight || '-',
+        'SRB Tax': c.srbTax || '-',
+        'SRB Amount': c.srbAmount || '-',
+        'Delivery Charges': c.deliveryCharges || '-',
+        'Insurance Charges': c.insuranceCharges || '-',
+        'Toll Tax': c.tollTax || '-',
+        'Other Charges': c.otherCharges || '-',
+        'Total Amount': c.totalAmount || '-',
+        'Received Amount': c.receivedAmount || '-',
+        'Income Tax Ded.': c.incomeTaxDed || '-',
+        'Income Tax Amount': c.incomeTaxAmount || '-',
+        'Delivery Date': c.deliveryDate || '-',
+        'Freight From': c.freightFrom || '-',
+        'Remarks': c.remarks || '-',
+        'Status': c.status || 'Pending',
+        'Files': (consignmentFiles[c.id] || []).map((f) => f.name).join(', ') || '-',
+      };
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(formattedData);
     const workbook = XLSX.utils.book_new();
@@ -417,10 +654,31 @@ const ConsignmentList = () => {
             bookingStatus={bookingStatus}
             consignments={consignments
               .filter((c) => c.id === selectedRowId)
-              .map((consignment) => ({
-                ...consignment,
-                items: Array.isArray(consignment.items) ? consignment.items : undefined,
-              }))}
+              .map((consignment) => {
+                // Debug: Log the consignment data being passed to OrderProgress
+                console.log('Passing consignment to OrderProgress:', {
+                  id: consignment.id,
+                  consignor: consignment.consignor,
+                  consignee: consignment.consignee,
+                  biltyNo: consignment.biltyNo,
+                  items: consignment.items,
+                  itemsType: typeof consignment.items,
+                  itemsIsArray: Array.isArray(consignment.items),
+                  itemsLength: Array.isArray(consignment.items) ? consignment.items.length : 0,
+                  detailedItems: consignmentsWithItems[consignment.id]?.items
+                });
+                
+                // Use detailed items if available, otherwise use regular items
+                const finalItems = consignmentsWithItems[consignment.id]?.items || consignment.items;
+                
+                return {
+                  ...consignment,
+                  items: Array.isArray(finalItems) ? finalItems : [],
+                  // Ensure consignor and consignee are resolved names
+                  consignor: consignment.consignor, // Already resolved in fetchConsignments
+                  consignee: consignment.consignee, // Already resolved in fetchConsignments
+                };
+              })}
           />
         </div> 
       )}

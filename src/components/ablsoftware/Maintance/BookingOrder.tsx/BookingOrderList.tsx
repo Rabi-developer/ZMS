@@ -18,6 +18,8 @@ import {
 } from '@/apis/bookingorder';
 import { getAllVendor } from '@/apis/vendors';
 import { getAllTransporter } from '@/apis/transporter';
+import { getAllCustomers } from '@/apis/customer';
+import { getAllPartys } from '@/apis/party';
 import { Edit, Trash } from 'lucide-react';
 import { columns, getStatusStyles, BookingOrder } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
@@ -40,6 +42,7 @@ interface Consignment {
   receivedAmount: string;
   deliveryDate: string;
   status: string;
+  consignmentNo: string;
 }
 
 interface ExtendedBookingOrder extends BookingOrder {
@@ -83,6 +86,8 @@ const BookingOrderList = () => {
   const [consignments, setConsignments] = useState<{ [orderId: string]: Consignment[] }>({});
   const [vendors, setVendors] = useState<DropdownOption[]>([]);
   const [transporters, setTransporters] = useState<DropdownOption[]>([]);
+  const [customers, setCustomers] = useState<DropdownOption[]>([]);
+  const [parties, setParties] = useState<DropdownOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [deleteId, setDeleteId] = useState('');
@@ -117,15 +122,31 @@ const BookingOrderList = () => {
 
   const resolvePartyName = (val?: string): string => {
     if (!val) return '-';
+    
+    // Check if it's already a name (not a UUID)
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+      return val; // Already a name, return as is
+    }
+
+    // Try to find the name in customers
+    const fromCustomers = customers.find((c) => c.id === val);
+    if (fromCustomers) return fromCustomers.name;
+
+    // Try to find the name in parties
+    const fromParties = parties.find((p) => p.id === val);
+    if (fromParties) return fromParties.name;
+
+    // Try to find the name in vendors
     const fromVendors = vendors.find((v) => v.id === val || v.name === val);
     if (fromVendors) return fromVendors.name;
+
+    // Try to find the name in transporters
     const fromTransporters = transporters.find((t) => t.id === val || t.name === val);
     if (fromTransporters) return fromTransporters.name;
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
-      console.warn(`Unresolved party ID: ${val}`);
-      return `Unresolved ID: ${val.substring(0, 8)}...`;
-    }
-    return val;
+
+    // If not found, return a shortened version of the ID with a warning
+    console.warn(`Unresolved party ID: ${val}`);
+    return `Unresolved ID: ${val.substring(0, 8)}...`;
   };
 
   // Create stable handlers for pagination
@@ -149,32 +170,68 @@ const BookingOrderList = () => {
       const apiPageIndex = pageIndex + 1;
       console.log('Fetching booking orders with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
       
-      const [ordersRes, vendorsRes, transportersRes] = await Promise.all([
+      const [ordersRes, vendorsRes, transportersRes, customersRes, partiesRes] = await Promise.all([
         getAllBookingOrder(apiPageIndex, pageSize),
         getAllVendor(),
         getAllTransporter(),
+        getAllCustomers(1, 1000).catch(err => { console.warn('Failed to fetch customers:', err); return { data: [] }; }),
+        getAllPartys(1, 1000).catch(err => { console.warn('Failed to fetch parties:', err); return { data: [] }; }),
       ]);
 
       const orders = ordersRes?.data || [];
       const vendorsData = vendorsRes.data?.map((v: any) => ({ id: v.id, name: v.name })) || [];
       const transportersData = transportersRes.data?.map((t: any) => ({ id: t.id, name: t.name })) || [];
+      const customersData = customersRes?.data?.map((c: any) => ({ 
+        id: c.id, 
+        name: c.name || c.customerName || c.Name || c.CustomerName || c.title || c.Title 
+      })) || [];
+      const partiesData = partiesRes?.data?.map((p: any) => ({ 
+        id: p.id, 
+        name: p.name || p.partyName || p.Name || p.PartyName || p.title || p.Title 
+      })) || [];
 
+      // Debug: Log the party data to understand structure
+      console.log('BookingOrder - Party data loaded:', {
+        customers: customersData.slice(0, 3),
+        parties: partiesData.slice(0, 3),
+        vendors: vendorsData.slice(0, 3),
+        transporters: transportersData.slice(0, 3)
+      });
+      
       console.log('BookingOrder API Response:', ordersRes);
       setVendors(vendorsData);
       setTransporters(transportersData);
+      setCustomers(customersData);
+      setParties(partiesData);
       
       // Helper function to resolve party names using local data
       const resolvePartyNameLocal = (val?: string): string => {
         if (!val) return '-';
+        
+        // Check if it's already a name (not a UUID)
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+          return val; // Already a name, return as is
+        }
+
+        // Try to find the name in customers
+        const fromCustomers = customersData.find((c: DropdownOption) => c.id === val);
+        if (fromCustomers) return fromCustomers.name;
+
+        // Try to find the name in parties
+        const fromParties = partiesData.find((p: DropdownOption) => p.id === val);
+        if (fromParties) return fromParties.name;
+
+        // Try to find the name in vendors
         const fromVendors = vendorsData.find((v: DropdownOption) => v.id === val || v.name === val);
         if (fromVendors) return fromVendors.name;
+
+        // Try to find the name in transporters
         const fromTransporters = transportersData.find((t: DropdownOption) => t.id === val || t.name === val);
         if (fromTransporters) return fromTransporters.name;
-        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
-          console.warn(`Unresolved party ID: ${val}`);
-          return `Unresolved ID: ${val.substring(0, 8)}...`;
-        }
-        return val;
+
+        // If not found, return a shortened version of the ID with a warning
+        console.warn(`Unresolved party ID: ${val}`);
+        return `Unresolved ID: ${val.substring(0, 8)}...`;
       };
       
       // Resolve vendor and transporter names in booking orders
@@ -194,13 +251,77 @@ const BookingOrderList = () => {
 
       const consignmentsMap: { [orderId: string]: Consignment[] } = {};
       for (const order of orders) {
-        const consRes = await getConsignmentsForBookingOrder(order.id, 1, 100);
-        consignmentsMap[order.id] = consRes?.data?.map((c: any) => ({
-          ...c,
-          consignor: resolvePartyName(c.consignor),
-          consignee: resolvePartyName(c.consignee),
-          orderNo: order.orderNo,
-        })) || [];
+        const consRes = await getConsignmentsForBookingOrder(order.id, 1, 100, {
+          includeDetails: true // Request additional details if supported by API
+        });
+        
+        const consignmentData = consRes?.data || [];
+        
+        // Debug: Log the raw consignment data to understand structure
+        if (consignmentData.length > 0) {
+          console.log('Raw consignment data for order', order.id, ':', consignmentData);
+          console.log('First consignment biltyNo fields:', {
+            biltyNo: consignmentData[0].biltyNo,
+            BiltyNo: consignmentData[0].BiltyNo,
+            bilty_no: consignmentData[0].bilty_no,
+            biltyNumber: consignmentData[0].biltyNumber,
+            BiltyNumber: consignmentData[0].BiltyNumber,
+            consignmentNo: consignmentData[0].consignmentNo,
+            ConsignmentNo: consignmentData[0].ConsignmentNo,
+            id: consignmentData[0].id,
+            _allFields: Object.keys(consignmentData[0])
+          });
+        }
+        
+        // Enhanced consignment mapping with complete data
+        consignmentsMap[order.id] = consignmentData.map((c: any) => {
+          const originalConsignor = c.consignor || c.consignorId || c.Consignor || c.ConsignorId;
+          const originalConsignee = c.consignee || c.consigneeId || c.Consignee || c.ConsigneeId;
+          const resolvedConsignor = resolvePartyNameLocal(originalConsignor);
+          const resolvedConsignee = resolvePartyNameLocal(originalConsignee);
+          
+          console.log(`BookingOrder consignment ${c.id || 'unknown'} resolution:`, {
+            originalConsignor,
+            resolvedConsignor,
+            originalConsignee,
+            resolvedConsignee
+          });
+          
+          return {
+            ...c,
+            consignor: resolvedConsignor,
+            consignee: resolvedConsignee,
+            orderNo: order.orderNo,
+            // Use actual biltyNo field, not ID
+            biltyNo: (() => {
+              const foundBiltyNo = c.biltyNo || c.BiltyNo || c.bilty_no || c.biltyNumber || c.BiltyNumber || c.consignmentNo || c.ConsignmentNo || '';
+              console.log(`BookingOrder: Mapping biltyNo for consignment ${c.id}:`, {
+                foundBiltyNo,
+                c_biltyNo: c.biltyNo,
+                c_BiltyNo: c.BiltyNo,
+                c_bilty_no: c.bilty_no,
+                c_biltyNumber: c.biltyNumber,
+                c_BiltyNumber: c.BiltyNumber,
+                c_consignmentNo: c.consignmentNo,
+                c_ConsignmentNo: c.ConsignmentNo
+              });
+              return foundBiltyNo;
+            })(),
+          // Map items data properly
+          items: Array.isArray(c.items) ? c.items : 
+                 (c.item ? [{ desc: c.item, qty: c.qty || 1, qtyUnit: c.qtyUnit || 'pcs' }] : []),
+          // Ensure quantities are properly formatted
+          qty: c.qty || c.quantity || (Array.isArray(c.items) ? 
+                c.items.reduce((sum: number, item: any) => sum + (parseInt(item.qty) || 0), 0) : 0),
+          // Ensure proper status
+          status: c.status || c.Status || 'Pending',
+          // Map other important fields
+          totalAmount: c.totalAmount || c.TotalAmount || c.amount || '',
+          receivedAmount: c.receivedAmount || c.ReceivedAmount || c.receiptAmount || '',
+          deliveryDate: c.deliveryDate || c.DeliveryDate || c.date || '',
+          receiptNo: c.receiptNo || c.ReceiptNo || ''
+          };
+        });
       }
       setConsignments(consignmentsMap);
     } catch (error) {
@@ -214,22 +335,94 @@ const BookingOrderList = () => {
   const fetchConsignments = async (orderId: string) => {
     try {
       const order = bookingOrders.find((o) => o.id === orderId);
-      if (!order) return;
-
-      if (!consignments[orderId]) {
-        setFetchingConsignments((prev) => ({ ...prev, [orderId]: true }));
-        const response = await getConsignmentsForBookingOrder(orderId, 1, 100);
-        const notes = response?.data?.map((c: any) => ({
-          ...c,
-          consignor: resolvePartyName(c.consignor),
-          consignee: resolvePartyName(c.consignee),
-          orderNo: order.orderNo,
-        })) || [];
-        setConsignments((prev) => ({ ...prev, [orderId]: notes }));
-        setBookingOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, relatedConsignments: notes } : o))
-        );
+      if (!order) {
+        console.log('fetchConsignments: Order not found for ID:', orderId);
+        return;
       }
+
+      // Always fetch fresh consignments when clicked, don't rely on cache
+      console.log('fetchConsignments: Fetching consignments for order:', orderId, order.orderNo);
+      setFetchingConsignments((prev) => ({ ...prev, [orderId]: true }));
+      
+      const response = await getConsignmentsForBookingOrder(orderId, 1, 100);
+      const consignmentData = response?.data || [];
+      
+      console.log('fetchConsignments: API response for order', orderId, ':', {
+        response,
+        consignmentData,
+        dataLength: consignmentData.length
+      });
+      
+      // Debug: Log the raw consignment data to understand structure
+      if (consignmentData.length > 0) {
+        console.log('Raw consignment data (fetchConsignments) for order', orderId, ':', consignmentData);
+        console.log('First consignment biltyNo fields:', {
+          biltyNo: consignmentData[0].biltyNo,
+          BiltyNo: consignmentData[0].BiltyNo,
+          bilty_no: consignmentData[0].bilty_no,
+          biltyNumber: consignmentData[0].biltyNumber,
+          BiltyNumber: consignmentData[0].BiltyNumber,
+          consignmentNo: consignmentData[0].consignmentNo,
+          ConsignmentNo: consignmentData[0].ConsignmentNo,
+          id: consignmentData[0].id,
+          _allFields: Object.keys(consignmentData[0])
+        });
+      }
+        
+      // Enhance consignment data with resolved party names and complete details
+      const enhancedConsignments = consignmentData.map((c: any) => {
+        const originalConsignor = c.consignor || c.consignorId || c.Consignor || c.ConsignorId;
+        const originalConsignee = c.consignee || c.consigneeId || c.Consignee || c.ConsigneeId;
+        const resolvedConsignor = resolvePartyName(originalConsignor);
+        const resolvedConsignee = resolvePartyName(originalConsignee);
+        
+        console.log(`BookingOrder fetchConsignments ${c.id || 'unknown'} resolution:`, {
+          originalConsignor,
+          resolvedConsignor,
+          originalConsignee,
+          resolvedConsignee
+        });
+        
+        return {
+          ...c,
+          consignor: resolvedConsignor,
+          consignee: resolvedConsignee,
+          orderNo: order.orderNo,
+          // Use actual biltyNo field, with proper fallbacks
+          biltyNo: (() => {
+            const foundBiltyNo = c.biltyNo || c.BiltyNo || c.bilty_no || c.biltyNumber || c.BiltyNumber || '';
+            console.log(`BookingOrder fetchConsignments: Mapping biltyNo for consignment ${c.id}:`, {
+              foundBiltyNo,
+              c_biltyNo: c.biltyNo,
+              c_BiltyNo: c.BiltyNo,
+              c_bilty_no: c.bilty_no,
+              c_biltyNumber: c.biltyNumber,
+              c_BiltyNumber: c.BiltyNumber,
+              c_consignmentNo: c.consignmentNo,
+              c_ConsignmentNo: c.ConsignmentNo
+            });
+            return foundBiltyNo;
+          })(),
+          // Ensure consignmentNo is properly mapped
+          consignmentNo: c.consignmentNo || c.ConsignmentNo || c.consignment_no || '',
+          // Enhance items data if available
+          items: Array.isArray(c.items) ? c.items : (c.item ? [{ desc: c.item, qty: c.qty || 1, qtyUnit: 'pcs' }] : []),
+          // Ensure proper status formatting
+          status: c.status || c.Status || 'Pending'
+        };
+      });
+      
+      console.log('fetchConsignments: Enhanced consignments:', enhancedConsignments);
+      
+      setConsignments((prev) => {
+        const updatedState = { ...prev, [orderId]: enhancedConsignments };
+        console.log('fetchConsignments: Updated consignments state:', updatedState);
+        return updatedState;
+      });
+      
+      setBookingOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, relatedConsignments: enhancedConsignments } : o))
+      );
     } catch (error) {
       toast('Failed to fetch consignments', { type: 'error' });
       console.error('Error fetching consignments:', error);
@@ -282,15 +475,23 @@ const BookingOrderList = () => {
   };
 
   const handleRowClick = async (orderId: string) => {
+    console.log('handleRowClick called for orderId:', orderId);
     if (selectedOrderIds.includes(orderId)) {
+      console.log('Order already selected, skipping...');
       return;
     }
+    console.log('Setting selected order and fetching consignments...');
     setSelectedOrderIds([orderId]);
     setSelectedRowId(orderId);
     setSelectedOrderForFiles(orderId);
+    
+    // Always fetch consignments when row is clicked
+    console.log('About to call fetchConsignments for:', orderId);
     await fetchConsignments(orderId);
+    
     const selectedOrder = bookingOrders.find((order) => order.id === orderId);
     setSelectedBulkStatus(selectedOrder?.status || null);
+    console.log('handleRowClick completed for order:', selectedOrder?.orderNo);
   };
 
   const handleRowDoubleClick = (orderId: string) => {
@@ -764,12 +965,50 @@ const BookingOrderList = () => {
 
         {selectedRowId && (
           <div className="mt-4">
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 rounded">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">
+                    Order Progress for: {bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
+                  </h3>
+                  <div className="mt-1 text-sm text-blue-700">
+                    {fetchingConsignments[selectedRowId] ? (
+                      <span className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        Loading consignment details...
+                      </span>
+                    ) : (
+                      <span>
+                        {consignments[selectedRowId]?.length || 0} consignment(s) found
+                        {consignments[selectedRowId]?.length > 0 && (
+                          <>
+                            {consignments[selectedRowId]?.some(c => c.biltyNo && c.biltyNo.trim() !== '' && c.biltyNo !== '-') ? 
+                              ` • Bilty Numbers: ${consignments[selectedRowId]?.filter(c => c.biltyNo && c.biltyNo.trim() !== '' && c.biltyNo !== '-').map(c => c.biltyNo).join(', ')}` :
+                              ' • No bilty numbers found'
+                            }
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
             <OrderProgress
               orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
               bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
               consignments={consignments[selectedRowId] || []}
+              bookingOrder={{
+                orderNo: bookingOrders.find((o) => o.id === selectedRowId)?.orderNo || '',
+                orderDate: bookingOrders.find((o) => o.id === selectedRowId)?.orderDate || '',
+                vehicleNo: bookingOrders.find((o) => o.id === selectedRowId)?.vehicleNo || '',
+              }}
               // hideBookingOrderInfo
-              
             />
           </div>
         )}
