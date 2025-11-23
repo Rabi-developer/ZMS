@@ -130,72 +130,72 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     resolver: zodResolver(paymentSchema),
     defaultValues: initialData
       ? {
-          paymentNo: initialData.paymentNo || '',
-          paymentDate: initialData.paymentDate || '',
-          paymentMode: initialData.paymentMode || '',
-          bankName: initialData.bankName || '',
-          chequeNo: initialData.chequeNo || '',
-          chequeDate: initialData.chequeDate || '',
-          remarks: initialData.remarks || '',
-          paidTo: initialData.paidTo || '',
-          paidAmount: initialData.paidAmount ?? null,
-          advanced: initialData.advanced ?? null,
-          advancedDate: initialData.advancedDate || '',
-          pdc: initialData.pdc ?? null,
-          pdcDate: initialData.pdcDate || '',
-          paymentAmount: initialData.paymentAmount ?? null,
-          paymentABLItems: (initialData.paymentABLItems || initialData.paymentABLItem)?.map?.((row: any) => ({
-            id: row.id ?? null,
-            vehicleNo: row.vehicleNo || '',
-            orderNo: row.orderNo || '',
-            charges: row.charges || '',
-            chargeNo: row.chargeNo || '',
-            orderDate: row.orderDate || '',
-            dueDate: row.dueDate || '',
-            expenseAmount: row.expenseAmount ?? null,
-            balance: row.balance ?? null,
-            paidAmount: row.paidAmount ?? null,
-          })) ?? [{
-            id: null,
-            vehicleNo: '',
-            orderNo: '',
-            charges: '',
-            chargeNo: '',
-            orderDate: '',
-            dueDate: '',
-            expenseAmount: null,
-            balance: null,
-            paidAmount: null,
-          }],
-        }
-      : {
-          paymentNo: '',
-          paymentDate: '',
-          paymentMode: '',
-          bankName: '',
-          chequeNo: '',
-          chequeDate: '',
-          remarks: '',
-          paidTo: '',
+        paymentNo: initialData.paymentNo || '',
+        paymentDate: initialData.paymentDate || '',
+        paymentMode: initialData.paymentMode || '',
+        bankName: initialData.bankName || '',
+        chequeNo: initialData.chequeNo || '',
+        chequeDate: initialData.chequeDate || '',
+        remarks: initialData.remarks || '',
+        paidTo: initialData.paidTo || '',
+        paidAmount: initialData.paidAmount ?? null,
+        advanced: initialData.advanced ?? null,
+        advancedDate: initialData.advancedDate || '',
+        pdc: initialData.pdc ?? null,
+        pdcDate: initialData.pdcDate || '',
+        paymentAmount: initialData.paymentAmount ?? null,
+        paymentABLItems: (initialData.paymentABLItems || initialData.paymentABLItem)?.map?.((row: any) => ({
+          id: row.id ?? null,
+          vehicleNo: row.vehicleNo || '',
+          orderNo: row.orderNo || '',
+          charges: row.charges || '',
+          chargeNo: row.chargeNo || '',
+          orderDate: row.orderDate || '',
+          dueDate: row.dueDate || '',
+          expenseAmount: row.expenseAmount ?? null,
+          balance: row.balance ?? null,
+          paidAmount: row.paidAmount ?? null,
+        })) ?? [{
+          id: null,
+          vehicleNo: '',
+          orderNo: '',
+          charges: '',
+          chargeNo: '',
+          orderDate: '',
+          dueDate: '',
+          expenseAmount: null,
+          balance: null,
           paidAmount: null,
-          advanced: null,
-          advancedDate: '',
-          pdc: null,
-          pdcDate: '',
-          paymentAmount: null,
-          paymentABLItems: [{
-            id: null,
-            vehicleNo: '',
-            orderNo: '',
-            charges: '',
-            chargeNo: '',
-            orderDate: '',
-            dueDate: '',
-            expenseAmount: null,
-            balance: null,
-            paidAmount: null,
-          }],
-        },
+        }],
+      }
+      : {
+        paymentNo: '',
+        paymentDate: '',
+        paymentMode: '',
+        bankName: '',
+        chequeNo: '',
+        chequeDate: '',
+        remarks: '',
+        paidTo: '',
+        paidAmount: null,
+        advanced: null,
+        advancedDate: '',
+        pdc: null,
+        pdcDate: '',
+        paymentAmount: null,
+        paymentABLItems: [{
+          id: null,
+          vehicleNo: '',
+          orderNo: '',
+          charges: '',
+          chargeNo: '',
+          orderDate: '',
+          dueDate: '',
+          expenseAmount: null,
+          balance: null,
+          paidAmount: null,
+        }],
+      },
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -263,19 +263,19 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     const allCharges = charges.flatMap((charge) =>
       Array.isArray(charge.lines) && charge.lines.length > 0
         ? charge.lines
-            .filter((line) => charge.status === 'Approved' && charge.isActive)
-            .map((line) => ({
-              id: line.id,
-              chargeNo: charge.chargeNo,
-              chargeName: line.vehicle || `Charge ${line.id}`,
-              orderNo: charge.orderNo,
-              chargeDate: charge.chargeDate || new Date().toISOString().split('T')[0],
-              date: line.date || charge.chargeDate || '',
-              vehicle: line.vehicle || '',
-              amount: Number(line.amount) || 0,
-              balance: Number(line.amount) || 0,
-              paidTo: line.paidTo || '',
-            }))
+          .filter((line) => charge.status === 'Approved' && charge.isActive)
+          .map((line) => ({
+            id: line.id,
+            chargeNo: charge.chargeNo,
+            chargeName: line.vehicle || `Charge ${line.id}`,
+            orderNo: charge.orderNo,
+            chargeDate: charge.chargeDate || new Date().toISOString().split('T')[0],
+            date: line.date || charge.chargeDate || '',
+            vehicle: line.vehicle || '',
+            amount: Number(line.amount) || 0,
+            balance: Number(line.amount) || 0,
+            paidTo: line.paidTo || '',
+          }))
         : []
     ).filter((charge) => !selectedChargeNos.includes(charge.chargeNo));
     return allCharges
@@ -294,7 +294,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           charge.vehicle || '',
           charge.amount?.toString() || '',
           charge.balance?.toString() || '',
-        ].some((field) => field.toLowerCase().includes(chargeSearch.toLowerCase()))
+        ].some((field) => String(field).toLowerCase().includes(chargeSearch.toLowerCase()))
       );
   };
 
@@ -310,8 +310,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         setBookingOrders(
           orderRes.data.map((item: any) => ({
             id: item.id || item.orderNo,
-            orderNo: item.orderNo || item.id,
-            vehicleNo: item.vehicleNo || 'N/A',
+            orderNo: String(item.orderNo || item.id || ''),
+            vehicleNo: String(item.vehicleNo || 'N/A'),
             orderDate: item.orderDate || new Date().toISOString().split('T')[0],
             vendor: item.vendor || 'N/A',
             vendorName: item.vendorName || item.vendor || 'Unknown',
@@ -319,8 +319,15 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         );
         const validCharges = chargeRes.data
           .filter((item: any) => {
-            if (!item.lines || !Array.isArray(item.lines) || item.lines.length === 0 || item.status !== 'Approved') {
-              console.warn('Invalid charge entry skipped:', item);
+            // Check if charge is approved (case-insensitive)
+            const isApproved = item.status && item.status.toLowerCase() === 'approved';
+            if (!isApproved) {
+              console.warn('Charge not approved, skipped:', item);
+              return false;
+            }
+            // Check if lines exist and have at least one entry
+            if (!item.lines || !Array.isArray(item.lines) || item.lines.length === 0) {
+              console.warn('Charge has no lines, skipped:', item);
               return false;
             }
             return true;
@@ -374,8 +381,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     if (isEdit && initialData) {
       const normalizedItems = (initialData.paymentABLItems || initialData.paymentABLItem)?.map((row: any) => ({
         id: row.id ?? null,
-        vehicleNo: row.vehicleNo || '',
-        orderNo: row.orderNo || '',
+        vehicleNo: String(row.vehicleNo || ''),
+        orderNo: String(row.orderNo || ''),
         charges: row.charges || '',
         chargeNo: row.chargeNo || '',
         orderDate: row.orderDate || '',
@@ -444,8 +451,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   }, [paymentABLItems, watch, setValue]);
 
   const selectOrder = (index: number, order: BookingOrder) => {
-    setValue(`paymentABLItems.${index}.vehicleNo`, order.vehicleNo, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.orderNo`, order.orderNo, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.vehicleNo`, String(order.vehicleNo || ''), { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.orderNo`, String(order.orderNo || ''), { shouldValidate: true });
     setValue(`paymentABLItems.${index}.orderDate`, order.orderDate, { shouldValidate: true });
     setValue('paidTo', order.vendorName, { shouldValidate: true });
     setShowOrderPopup(null);
@@ -453,9 +460,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   };
 
   const selectCharge = (index: number, charge: any) => {
-    setValue(`paymentABLItems.${index}.charges`, charge.chargeName, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.chargeNo`, charge.chargeNo, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.vehicleNo`, charge.vehicle, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.chargeNo`, String(charge.chargeNo || ''), { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.vehicleNo`, String(charge.vehicle || ''), { shouldValidate: true });
     setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: true });
     setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: true });
     setValue(`paymentABLItems.${index}.expenseAmount`, charge.amount || null, { shouldValidate: true });
@@ -671,6 +678,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.paidAmount?.message}
                 id="paidAmount"
+                registerOptions={{ valueAsNumber: true }}
                 disabled
               />
               <ABLCustomInput
@@ -688,6 +696,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.advanced?.message}
                 id="advanced"
+                registerOptions={{ valueAsNumber: true }}
               />
               <ABLCustomInput
                 label="Advanced Date"
@@ -704,6 +713,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.pdc?.message}
                 id="pdc"
+                registerOptions={{ valueAsNumber: true }}
               />
               <ABLCustomInput
                 label="PDC Date"
@@ -720,6 +730,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.paymentAmount?.message}
                 id="paymentAmount"
+                registerOptions={{ valueAsNumber: true }}
                 disabled
               />
             </div>

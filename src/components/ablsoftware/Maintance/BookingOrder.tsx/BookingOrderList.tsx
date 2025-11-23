@@ -122,7 +122,7 @@ const BookingOrderList = () => {
 
   const resolvePartyName = (val?: string): string => {
     if (!val) return '-';
-    
+
     // Check if it's already a name (not a UUID)
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
       return val; // Already a name, return as is
@@ -169,7 +169,7 @@ const BookingOrderList = () => {
       // Convert 0-based pageIndex to 1-based for API
       const apiPageIndex = pageIndex + 1;
       console.log('Fetching booking orders with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
-      
+
       const [ordersRes, vendorsRes, transportersRes, customersRes, partiesRes] = await Promise.all([
         getAllBookingOrder(apiPageIndex, pageSize),
         getAllVendor(),
@@ -181,13 +181,13 @@ const BookingOrderList = () => {
       const orders = ordersRes?.data || [];
       const vendorsData = vendorsRes.data?.map((v: any) => ({ id: v.id, name: v.name })) || [];
       const transportersData = transportersRes.data?.map((t: any) => ({ id: t.id, name: t.name })) || [];
-      const customersData = customersRes?.data?.map((c: any) => ({ 
-        id: c.id, 
-        name: c.name || c.customerName || c.Name || c.CustomerName || c.title || c.Title 
+      const customersData = customersRes?.data?.map((c: any) => ({
+        id: c.id,
+        name: c.name || c.customerName || c.Name || c.CustomerName || c.title || c.Title
       })) || [];
-      const partiesData = partiesRes?.data?.map((p: any) => ({ 
-        id: p.id, 
-        name: p.name || p.partyName || p.Name || p.PartyName || p.title || p.Title 
+      const partiesData = partiesRes?.data?.map((p: any) => ({
+        id: p.id,
+        name: p.name || p.partyName || p.Name || p.PartyName || p.title || p.Title
       })) || [];
 
       // Debug: Log the party data to understand structure
@@ -197,17 +197,17 @@ const BookingOrderList = () => {
         vendors: vendorsData.slice(0, 3),
         transporters: transportersData.slice(0, 3)
       });
-      
+
       console.log('BookingOrder API Response:', ordersRes);
       setVendors(vendorsData);
       setTransporters(transportersData);
       setCustomers(customersData);
       setParties(partiesData);
-      
+
       // Helper function to resolve party names using local data
       const resolvePartyNameLocal = (val?: string): string => {
         if (!val) return '-';
-        
+
         // Check if it's already a name (not a UUID)
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
           return val; // Already a name, return as is
@@ -233,14 +233,14 @@ const BookingOrderList = () => {
         console.warn(`Unresolved party ID: ${val}`);
         return `Unresolved ID: ${val.substring(0, 8)}...`;
       };
-      
+
       // Resolve vendor and transporter names in booking orders
       const ordersWithResolvedNames = orders.map((order: any) => ({
         ...order,
         vendor: resolvePartyNameLocal(order.vendor),
         transporter: resolvePartyNameLocal(order.transporter),
       }));
-      
+
       setBookingOrders(ordersWithResolvedNames);
 
       // Set total rows from the API response
@@ -254,9 +254,9 @@ const BookingOrderList = () => {
         const consRes = await getConsignmentsForBookingOrder(order.id, 1, 100, {
           includeDetails: true // Request additional details if supported by API
         });
-        
+
         const consignmentData = consRes?.data || [];
-        
+
         // Debug: Log the raw consignment data to understand structure
         if (consignmentData.length > 0) {
           console.log('Raw consignment data for order', order.id, ':', consignmentData);
@@ -272,21 +272,21 @@ const BookingOrderList = () => {
             _allFields: Object.keys(consignmentData[0])
           });
         }
-        
+
         // Enhanced consignment mapping with complete data
         consignmentsMap[order.id] = consignmentData.map((c: any) => {
           const originalConsignor = c.consignor || c.consignorId || c.Consignor || c.ConsignorId;
           const originalConsignee = c.consignee || c.consigneeId || c.Consignee || c.ConsigneeId;
           const resolvedConsignor = resolvePartyNameLocal(originalConsignor);
           const resolvedConsignee = resolvePartyNameLocal(originalConsignee);
-          
+
           console.log(`BookingOrder consignment ${c.id || 'unknown'} resolution:`, {
             originalConsignor,
             resolvedConsignor,
             originalConsignee,
             resolvedConsignee
           });
-          
+
           return {
             ...c,
             consignor: resolvedConsignor,
@@ -307,19 +307,19 @@ const BookingOrderList = () => {
               });
               return foundBiltyNo;
             })(),
-          // Map items data properly
-          items: Array.isArray(c.items) ? c.items : 
-                 (c.item ? [{ desc: c.item, qty: c.qty || 1, qtyUnit: c.qtyUnit || 'pcs' }] : []),
-          // Ensure quantities are properly formatted
-          qty: c.qty || c.quantity || (Array.isArray(c.items) ? 
-                c.items.reduce((sum: number, item: any) => sum + (parseInt(item.qty) || 0), 0) : 0),
-          // Ensure proper status
-          status: c.status || c.Status || 'Pending',
-          // Map other important fields
-          totalAmount: c.totalAmount || c.TotalAmount || c.amount || '',
-          receivedAmount: c.receivedAmount || c.ReceivedAmount || c.receiptAmount || '',
-          deliveryDate: c.deliveryDate || c.DeliveryDate || c.date || '',
-          receiptNo: c.receiptNo || c.ReceiptNo || ''
+            // Map items data properly
+            items: Array.isArray(c.items) ? c.items :
+              (c.item ? [{ desc: c.item, qty: c.qty || 1, qtyUnit: c.qtyUnit || 'pcs' }] : []),
+            // Ensure quantities are properly formatted
+            qty: c.qty || c.quantity || (Array.isArray(c.items) ?
+              c.items.reduce((sum: number, item: any) => sum + (parseInt(item.qty) || 0), 0) : 0),
+            // Ensure proper status
+            status: c.status || c.Status || 'Pending',
+            // Map other important fields
+            totalAmount: c.totalAmount || c.TotalAmount || c.amount || '',
+            receivedAmount: c.receivedAmount || c.ReceivedAmount || c.receiptAmount || '',
+            deliveryDate: c.deliveryDate || c.DeliveryDate || c.date || '',
+            receiptNo: c.receiptNo || c.ReceiptNo || ''
           };
         });
       }
@@ -343,16 +343,16 @@ const BookingOrderList = () => {
       // Always fetch fresh consignments when clicked, don't rely on cache
       console.log('fetchConsignments: Fetching consignments for order:', orderId, order.orderNo);
       setFetchingConsignments((prev) => ({ ...prev, [orderId]: true }));
-      
+
       const response = await getConsignmentsForBookingOrder(orderId, 1, 100);
       const consignmentData = response?.data || [];
-      
+
       console.log('fetchConsignments: API response for order', orderId, ':', {
         response,
         consignmentData,
         dataLength: consignmentData.length
       });
-      
+
       // Debug: Log the raw consignment data to understand structure
       if (consignmentData.length > 0) {
         console.log('Raw consignment data (fetchConsignments) for order', orderId, ':', consignmentData);
@@ -368,21 +368,21 @@ const BookingOrderList = () => {
           _allFields: Object.keys(consignmentData[0])
         });
       }
-        
+
       // Enhance consignment data with resolved party names and complete details
       const enhancedConsignments = consignmentData.map((c: any) => {
         const originalConsignor = c.consignor || c.consignorId || c.Consignor || c.ConsignorId;
         const originalConsignee = c.consignee || c.consigneeId || c.Consignee || c.ConsigneeId;
         const resolvedConsignor = resolvePartyName(originalConsignor);
         const resolvedConsignee = resolvePartyName(originalConsignee);
-        
+
         console.log(`BookingOrder fetchConsignments ${c.id || 'unknown'} resolution:`, {
           originalConsignor,
           resolvedConsignor,
           originalConsignee,
           resolvedConsignee
         });
-        
+
         return {
           ...c,
           consignor: resolvedConsignor,
@@ -390,7 +390,7 @@ const BookingOrderList = () => {
           orderNo: order.orderNo,
           // Use actual biltyNo field, with proper fallbacks
           biltyNo: (() => {
-            const foundBiltyNo = c.biltyNo || c.BiltyNo || c.bilty_no || c.biltyNumber || c.BiltyNumber || '';
+            const foundBiltyNo = c.biltyNo || c.BiltyNo || c.bilty_no || c.biltyNumber || c.BiltyNumber || c.consignmentNo || c.ConsignmentNo || '';
             console.log(`BookingOrder fetchConsignments: Mapping biltyNo for consignment ${c.id}:`, {
               foundBiltyNo,
               c_biltyNo: c.biltyNo,
@@ -411,15 +411,15 @@ const BookingOrderList = () => {
           status: c.status || c.Status || 'Pending'
         };
       });
-      
+
       console.log('fetchConsignments: Enhanced consignments:', enhancedConsignments);
-      
+
       setConsignments((prev) => {
         const updatedState = { ...prev, [orderId]: enhancedConsignments };
         console.log('fetchConsignments: Updated consignments state:', updatedState);
         return updatedState;
       });
-      
+
       setBookingOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, relatedConsignments: enhancedConsignments } : o))
       );
@@ -484,11 +484,11 @@ const BookingOrderList = () => {
     setSelectedOrderIds([orderId]);
     setSelectedRowId(orderId);
     setSelectedOrderForFiles(orderId);
-    
+
     // Always fetch consignments when row is clicked
     console.log('About to call fetchConsignments for:', orderId);
     await fetchConsignments(orderId);
-    
+
     const selectedOrder = bookingOrders.find((order) => order.id === orderId);
     setSelectedBulkStatus(selectedOrder?.status || null);
     console.log('handleRowClick completed for order:', selectedOrder?.orderNo);
@@ -525,7 +525,7 @@ const BookingOrderList = () => {
       toast('Please select an order first', { type: 'warning' });
       return;
     }
-    
+
     // Load existing files from the selected order if available
     const selectedOrder = bookingOrders.find((o) => o.id === selectedOrderForFiles);
     if (selectedOrder?.files && !orderFiles[selectedOrderForFiles]) {
@@ -544,7 +544,7 @@ const BookingOrderList = () => {
         [selectedOrderForFiles]: existingFiles,
       }));
     }
-    
+
     setOpenFileUploadModal(true);
   };
 
@@ -617,7 +617,7 @@ const BookingOrderList = () => {
       setLoading(true);
       // Join Cloudinary URLs into a comma-separated string
       const urls = orderFiles[selectedOrderForFiles].map((f) => f.url).join(',');
-      
+
       console.log('Saving files to backend:', { id: selectedOrderForFiles, files: urls });
 
       // Update the `files` field using updateBookingOrderFiles
@@ -626,7 +626,7 @@ const BookingOrderList = () => {
       toast('Files saved to backend successfully!', { type: 'success' });
       setOpenFileUploadModal(false);
       setSelectedOrderForFiles(null);
-      
+
       // Refresh the data to reflect the changes
       await fetchBookingOrdersAndConsignments();
     } catch (error) {
@@ -899,299 +899,299 @@ const BookingOrderList = () => {
   return (
     <WithTablePermission resource="BookingOrder">
       <div className="container mx-auto mt-4 max-w-screen p-6">
-      <div className="h-full w-full flex flex-col">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center">
-              <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
-              <select
-                value={selectedStatusFilter}
-                onChange={(e) => setSelectedStatusFilter(e.target.value)}
-                className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              >
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={fetchBookingOrdersAndConsignments}
-              className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
-            >
-              Refresh Data
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={exportToExcel}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-            >
-              <FaFileExcel size={18} />
-              Download Excel
-            </button>
-            <button
-              onClick={openPdfDialog}
-              className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white"
-            >
-              Bilties Receivable
-            </button>
-            <button
-              onClick={() => router.push('/ablorderreport')}
-              className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-              title="General Report PDF"
-            >
-              <FaFilePdf size={18} />
-              ABL Order Report
-            </button>
-          </div>
-        </div>
-        <div>
-          <DataTable
-            columns={columns(handleDeleteOpen, handleCheckboxChange, selectedOrderIds)}
-            data={filteredBookingOrders}
-            loading={loading}
-            link="/bookingorder/create"
-            setPageIndex={handlePageIndexChange}
-            pageIndex={pageIndex}
-            pageSize={pageSize}
-            setPageSize={handlePageSizeChange}
-            totalRows={totalRows}
-            onRowClick={handleRowClick}
-            onRowDoubleClick={handleRowDoubleClick}
-          />
-        </div>
-
-        {selectedRowId && (
-          <div className="mt-4">
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 rounded">
+        <div className="h-full w-full flex flex-col">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-blue-800">
-                    Order Progress for: {bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
-                  </h3>
-                  <div className="mt-1 text-sm text-blue-700">
-                    {fetchingConsignments[selectedRowId] ? (
-                      <span className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        Loading consignment details...
-                      </span>
-                    ) : (
-                      <span>
-                        {consignments[selectedRowId]?.length || 0} consignment(s) found
-                        {consignments[selectedRowId]?.length > 0 && (
-                          <>
-                            {consignments[selectedRowId]?.some(c => c.biltyNo && c.biltyNo.trim() !== '' && c.biltyNo !== '-') ? 
-                              ` • Bilty Numbers: ${consignments[selectedRowId]?.filter(c => c.biltyNo && c.biltyNo.trim() !== '' && c.biltyNo !== '-').map(c => c.biltyNo).join(', ')}` :
-                              ' • No bilty numbers found'
-                            }
-                          </>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </div>
+                <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
+                <select
+                  value={selectedStatusFilter}
+                  onChange={(e) => setSelectedStatusFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                >
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
               </div>
+              <button
+                onClick={fetchBookingOrdersAndConsignments}
+                className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
+              >
+                Refresh Data
+              </button>
             </div>
-            <OrderProgress
-              orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
-              bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
-              consignments={(consignments[selectedRowId] || []).map(c => ({
-                ...c,
-                qty: typeof c.qty === 'string' ? parseInt(c.qty) || 0 : c.qty
-              }))}
-              bookingOrder={{
-                orderNo: bookingOrders.find((o) => o.id === selectedRowId)?.orderNo || '',
-                orderDate: bookingOrders.find((o) => o.id === selectedRowId)?.orderDate || '',
-                vehicleNo: bookingOrders.find((o) => o.id === selectedRowId)?.vehicleNo || '',
-              }}
-              // hideBookingOrderInfo
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportToExcel}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+              >
+                <FaFileExcel size={18} />
+                Download Excel
+              </button>
+              <button
+                onClick={openPdfDialog}
+                className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white"
+              >
+                Bilties Receivable
+              </button>
+              <button
+                onClick={() => router.push('/ablorderreport')}
+                className="flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md transition-all duration-200"
+                title="General Report PDF"
+              >
+                <FaFilePdf size={18} />
+                ABL Order Report
+              </button>
+            </div>
+          </div>
+          <div>
+            <DataTable
+              columns={columns(handleDeleteOpen, handleCheckboxChange, selectedOrderIds)}
+              data={filteredBookingOrders}
+              loading={loading}
+              link="/bookingorder/create"
+              setPageIndex={handlePageIndexChange}
+              pageIndex={pageIndex}
+              pageSize={pageSize}
+              setPageSize={handlePageSizeChange}
+              totalRows={totalRows}
+              onRowClick={handleRowClick}
+              onRowDoubleClick={handleRowDoubleClick}
             />
           </div>
-        )}
 
-        <div className="space-y-2 h-[10vh]">
-          <div className="flex flex-wrap p-3 gap-3">
-            {statusOptionsConfig.map((option) => {
-              const isSelected = selectedBulkStatus === option.name;
-              return (
-                <button
-                  key={option.id}
-                  onClick={() => handleBulkStatusUpdate(option.name)}
-                  disabled={updating || !selectedOrderIds.length}
-                  className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
+          {selectedRowId && (
+            <div className="mt-4">
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 rounded">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">
+                      Order Progress for: {bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
+                    </h3>
+                    <div className="mt-1 text-sm text-blue-700">
+                      {fetchingConsignments[selectedRowId] ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                          Loading consignment details...
+                        </span>
+                      ) : (
+                        <span>
+                          {consignments[selectedRowId]?.length || 0} consignment(s) found
+                          {consignments[selectedRowId]?.length > 0 && (
+                            <>
+                              {consignments[selectedRowId]?.some(c => c.biltyNo && c.biltyNo.trim() !== '' && c.biltyNo !== '-') ?
+                                ` • Bilty Numbers: ${consignments[selectedRowId]?.filter(c => c.biltyNo && c.biltyNo.trim() !== '' && c.biltyNo !== '-').map(c => c.biltyNo).join(', ')}` :
+                                ' • No bilty numbers found'
+                              }
+                            </>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <OrderProgress
+                orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
+                bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
+                consignments={(consignments[selectedRowId] || []).map(c => ({
+                  ...c,
+                  qty: typeof c.qty === 'string' ? parseInt(c.qty) || 0 : c.qty
+                }))}
+                bookingOrder={{
+                  orderNo: bookingOrders.find((o) => o.id === selectedRowId)?.orderNo || '',
+                  orderDate: bookingOrders.find((o) => o.id === selectedRowId)?.orderDate || '',
+                  vehicleNo: bookingOrders.find((o) => o.id === selectedRowId)?.vehicleNo || '',
+                }}
+              // hideBookingOrderInfo
+              />
+            </div>
+          )}
+
+          <div className="space-y-2 h-[10vh]">
+            <div className="flex flex-wrap p-3 gap-3">
+              {statusOptionsConfig.map((option) => {
+                const isSelected = selectedBulkStatus === option.name;
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => handleBulkStatusUpdate(option.name)}
+                    disabled={updating || !selectedOrderIds.length}
+                    className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
                     ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
                     ${updating || !selectedOrderIds.length ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <span className="text-sm font-semibold text-center">{option.name}</span>
-                  {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
-                </button>
-              );
-            })}
-            <button
-              onClick={handleFileUploadClick}
-              disabled={!selectedOrderIds.length}
-              className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
+                  >
+                    <span className="text-sm font-semibold text-center">{option.name}</span>
+                    {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
+                  </button>
+                );
+              })}
+              <button
+                onClick={handleFileUploadClick}
+                disabled={!selectedOrderIds.length}
+                className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
                 ${selectedOrderIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-500' : 'border-gray-300 bg-white text-gray-700 opacity-50 cursor-not-allowed'}`}
-            >
-              <span className="text-sm font-semibold text-center">Upload Files</span>
-              {selectedOrderIds.length && <FaFileUpload className="text-blue-500 animate-bounce" size={18} />}
-            </button>
+              >
+                <span className="text-sm font-semibold text-center">Upload Files</span>
+                {selectedOrderIds.length && <FaFileUpload className="text-blue-500 animate-bounce" size={18} />}
+              </button>
+            </div>
           </div>
-        </div>
 
-        {openDelete && (
-          <DeleteConfirmModel
-            handleDeleteclose={handleDeleteClose}
-            handleDelete={handleDelete}
-            isOpen={openDelete}
-          />
-        )}
+          {openDelete && (
+            <DeleteConfirmModel
+              handleDeleteclose={handleDeleteClose}
+              handleDelete={handleDelete}
+              isOpen={openDelete}
+            />
+          )}
 
-        {openPdfModal && (
-          <div
-            id="pdfModal"
-            className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              if (target.id === 'pdfModal') closePdfDialog();
-            }}
-          >
-            <div className="bg-white rounded shadow p-5 w-full max-w-md">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold">Bilties Receivable</h3>
-                <button onClick={closePdfDialog} className="text-gray-500 hover:text-black">✕</button>
-              </div>
-              <div className="space-y-3">
-                <CustomSingleDatePicker
-                  label="Start From"
-                  selectedDate={pdfStartDate}
-                  onChange={setPdfStartDate}
-                  name="startDate"
-                />
-                <CustomSingleDatePicker
-                  label="To Date"
-                  selectedDate={pdfEndDate}
-                  onChange={setPdfEndDate}
-                  name="endDate"
-                />
-                <div className="flex justify-end gap-2 pt-2">
-                  <button onClick={closePdfDialog} className="px-4 py-2 rounded border">Cancel</button>
-                  <button onClick={handleGenerateGeneralPdf} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white">General PDF</button>
-                  <button onClick={handleGenerateReceivablePdf} className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Bilties Receivable</button>
+          {openPdfModal && (
+            <div
+              id="pdfModal"
+              className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
+              onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (target.id === 'pdfModal') closePdfDialog();
+              }}
+            >
+              <div className="bg-white rounded shadow p-5 w-full max-w-md">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold">Bilties Receivable</h3>
+                  <button onClick={closePdfDialog} className="text-gray-500 hover:text-black">✕</button>
+                </div>
+                <div className="space-y-3">
+                  <CustomSingleDatePicker
+                    label="Start From"
+                    selectedDate={pdfStartDate}
+                    onChange={setPdfStartDate}
+                    name="startDate"
+                  />
+                  <CustomSingleDatePicker
+                    label="To Date"
+                    selectedDate={pdfEndDate}
+                    onChange={setPdfEndDate}
+                    name="endDate"
+                  />
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button onClick={closePdfDialog} className="px-4 py-2 rounded border">Cancel</button>
+                    <button onClick={handleGenerateGeneralPdf} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white">General PDF</button>
+                    <button onClick={handleGenerateReceivablePdf} className="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Bilties Receivable</button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {openFileUploadModal && selectedOrderForFiles && (
-          <div
-            id="fileUploadModal"
-            className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
-            onClick={(e) => {
-              const target = e.target as HTMLElement;
-              if (target.id === 'fileUploadModal') {
-                setOpenFileUploadModal(false);
-                setSelectedOrderForFiles(null);
-              }
-            }}
-          >
-            <div className="bg-white rounded shadow p-5 w-full max-w-lg">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold">
-                  Files for Order {bookingOrders.find((o) => o.id === selectedOrderForFiles)?.orderNo || ''}
-                </h3>
-                <button
-                  onClick={() => {
-                    setOpenFileUploadModal(false);
-                    setSelectedOrderForFiles(null);
-                  }}
-                  className="text-gray-500 hover:text-black"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="space-y-3">
-                <input
-                  type="file"
-                  multiple
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept="image/*,application/pdf"
-                  max={10}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-                {orderFiles[selectedOrderForFiles]?.length > 0 ? (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-medium text-gray-700">Uploaded Files:</h4>
-                    <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                      {orderFiles[selectedOrderForFiles].map((file) => (
-                        <li key={file.id} className="flex items-center justify-between p-2 border rounded">
-                          <div className="flex items-center gap-2">
-                            {file.type.startsWith('image/') && (
-                              <img src={file.url} alt={file.name} className="w-12 h-12 object-cover rounded" />
-                            )}
-                            <span className="text-sm truncate max-w-[200px]">{file.name}</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleViewFile(file.url)}
-                              className="text-blue-600 hover:text-blue-800"
-                              title="View"
-                            >
-                              <FaEye size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleRemoveFile(selectedOrderForFiles, file.id)}
-                              className="text-red-600 hover:text-red-800"
-                              title="Remove"
-                            >
-                              <FaTrash size={18} />
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-500">No files uploaded yet.</p>
-                )}
-                <div className="flex justify-end gap-2 pt-2">
+          {openFileUploadModal && selectedOrderForFiles && (
+            <div
+              id="fileUploadModal"
+              className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
+              onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (target.id === 'fileUploadModal') {
+                  setOpenFileUploadModal(false);
+                  setSelectedOrderForFiles(null);
+                }
+              }}
+            >
+              <div className="bg-white rounded shadow p-5 w-full max-w-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold">
+                    Files for Order {bookingOrders.find((o) => o.id === selectedOrderForFiles)?.orderNo || ''}
+                  </h3>
                   <button
                     onClick={() => {
                       setOpenFileUploadModal(false);
                       setSelectedOrderForFiles(null);
                     }}
-                    className="px-4 py-2 rounded border"
+                    className="text-gray-500 hover:text-black"
                   >
-                    Close
+                    ✕
                   </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Add More
-                  </button>
-                  <button
-                    onClick={handleSaveFilesToBackend}
-                    disabled={orderFiles[selectedOrderForFiles]?.length === 0}
-                    className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-                  >
-                    Save Files to Order
-                  </button>
+                </div>
+                <div className="space-y-3">
+                  <input
+                    type="file"
+                    multiple
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/*,application/pdf"
+                    max={10}
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                  {orderFiles[selectedOrderForFiles]?.length > 0 ? (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-medium text-gray-700">Uploaded Files:</h4>
+                      <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                        {orderFiles[selectedOrderForFiles].map((file) => (
+                          <li key={file.id} className="flex items-center justify-between p-2 border rounded">
+                            <div className="flex items-center gap-2">
+                              {file.type.startsWith('image/') && (
+                                <img src={file.url} alt={file.name} className="w-12 h-12 object-cover rounded" />
+                              )}
+                              <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleViewFile(file.url)}
+                                className="text-blue-600 hover:text-blue-800"
+                                title="View"
+                              >
+                                <FaEye size={18} />
+                              </button>
+                              <button
+                                onClick={() => handleRemoveFile(selectedOrderForFiles, file.id)}
+                                className="text-red-600 hover:text-red-800"
+                                title="Remove"
+                              >
+                                <FaTrash size={18} />
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No files uploaded yet.</p>
+                  )}
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        setOpenFileUploadModal(false);
+                        setSelectedOrderForFiles(null);
+                      }}
+                      className="px-4 py-2 rounded border"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Add More
+                    </button>
+                    <button
+                      onClick={handleSaveFilesToBackend}
+                      disabled={orderFiles[selectedOrderForFiles]?.length === 0}
+                      className="px-4 py-2 rounded bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+                    >
+                      Save Files to Order
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
       </div>
     </WithTablePermission>
   );

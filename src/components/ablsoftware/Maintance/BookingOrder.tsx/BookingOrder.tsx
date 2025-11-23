@@ -18,6 +18,9 @@ import { getAllTransporter } from '@/apis/transporter';
 import { getAllVendor } from '@/apis/vendors';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllConsignment } from '@/apis/consignment';
+import { getAllCharges } from '@/apis/charges';
+import { getAllPaymentABL } from '@/apis/paymentABL';
+import { getAllBusinessAssociate } from '@/apis/businessassociate';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MdLocalShipping, MdInfo, MdLocationOn, MdPhone } from 'react-icons/md';
@@ -165,6 +168,9 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
   const [locations, setLocations] = useState<DropdownOption[]>([]);
   const [idFocused, setIdFocused] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [charges, setCharges] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
 
   // Backward compatibility: map legacy numeric values to human-readable text
   const vehicleTypeMap: Record<string, string> = {
@@ -209,11 +215,14 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [transRes, vendRes, munRes, allConsRes] = await Promise.all([
+        const [transRes, vendRes, munRes, allConsRes, chargesRes, payRes, baRes] = await Promise.all([
           getAllTransporter(1, 1000,),
           getAllVendor(1, 1000,),
           getAllMunshyana(1, 1000,),
           getAllConsignment(1, 1000, {}),
+          getAllCharges(1, 1000),
+          getAllPaymentABL(1, 1000),
+          getAllBusinessAssociate(1, 1000),
         ]);
 
         const transportersData = transRes.data?.map((t: any) => ({ id: t.id, name: t.name })) || [];
@@ -255,6 +264,9 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
         setMunshayanas(munshayanasData);
         setLocations(locationsData);
         setAllConsignments(allConsignmentsData);
+        setCharges(chargesRes.data || []);
+        setPayments(payRes.data || []);
+        setBusinessAssociates(baRes.data?.map((ba: any) => ({ id: ba.id, name: ba.name })) || []);
 
         if (isEdit && initialData) {
           const booking = initialData.data ? initialData.data : initialData;
@@ -338,7 +350,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
     const bookingOrderId = isEdit ? (bookingId || data.id) : undefined;
     const consignmentObjects = allConsignments
       .filter((cons) => selectedConsignments.includes(cons.biltyNo))
-      .map((cons) => ({ 
+      .map((cons) => ({
         id: cons.id,
         biltyNo: cons.biltyNo || '',
         receiptNo: cons.receiptNo || '',
@@ -356,7 +368,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
     const payload = {
       ...(isEdit ? { id: bookingOrderId } : {}),
       // Only include OrderNo for updates, let the server auto-generate it for new records
-    ///  ...(isEdit && data.OrderNo ? { orderNo: data.OrderNo } : {}),
+      ///  ...(isEdit && data.OrderNo ? { orderNo: data.OrderNo } : {}),
       orderDate: data.orderDate || '',
       transporter: data.transporter || '',
       vendor: data.vendor || '',
@@ -454,25 +466,25 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
       } catch (e) {
         console.warn('Failed to sync consignments after booking update', e);
       }
-        toast.success('Booking Order updated successfully!');
-        try {
-          if (typeof onSaved === 'function') onSaved({ id: idToUse, orderNo: data.OrderNo });
-        } catch (e) {
-          console.warn('onSaved callback failed', e);
-        }
-        return { id: idToUse, orderNo: data.OrderNo };
+      toast.success('Booking Order updated successfully!');
+      try {
+        if (typeof onSaved === 'function') onSaved({ id: idToUse, orderNo: data.OrderNo });
+      } catch (e) {
+        console.warn('onSaved callback failed', e);
+      }
+      return { id: idToUse, orderNo: data.OrderNo };
     } else {
       const res = await createBookingOrder(payload);
       const createdId: string | undefined = res?.data;
       const createdOrderNo: string | number | undefined = res?.orderNo; // Get the auto-generated OrderNo from response
-      
+
       if (createdId) setBookingId(createdId);
-      
+
       // Update the form with the auto-generated OrderNo
       if (createdOrderNo) {
         setValue('OrderNo', String(createdOrderNo));
       }
-      
+
       if (createdId) {
         try {
           const buildConsPayload = (cons: any, bookingOrderId: string) => ({
@@ -561,6 +573,46 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
     ].some((field) => field.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const getConsignmentDetails = (biltyNo: string) => {
+    // Find Charge Line
+    let chargeLine: any = null;
+    let linkedCharge: any = null;
+
+    for (const charge of charges) {
+      if (charge.status !== 'Approved') continue; // Optional: only consider approved charges?
+      const line = charge.lines?.find((l: any) => l.biltyNo === biltyNo);
+      if (line) {
+        chargeLine = line;
+        linkedCharge = charge;
+        break;
+      }
+    }
+
+    // Find Payments
+    let paymentInfo = { nos: [] as string[], amount: 0 };
+    if (linkedCharge) {
+      const relevantPayments = payments.filter((p) =>
+        p.paymentABLItem?.some((item: any) => item.charges === linkedCharge.chargeNo)
+      );
+
+      relevantPayments.forEach((p) => {
+        const items = p.paymentABLItem?.filter((item: any) => item.charges === linkedCharge.chargeNo);
+        items?.forEach((item: any) => {
+          paymentInfo.amount += (item.paidAmount || 0);
+        });
+        if (items?.length > 0 && p.paymentNo) paymentInfo.nos.push(p.paymentNo);
+      });
+    }
+
+    return {
+      chargeName: munshayanas.find((m) => m.id === chargeLine?.charge)?.name || chargeLine?.charge || '-',
+      chargeAmount: chargeLine?.amount || 0,
+      paidTo: businessAssociates.find((b) => b.id === chargeLine?.paidTo)?.name || chargeLine?.paidTo || '-',
+      paymentNo: paymentInfo.nos.join(', ') || '-',
+      paidAmount: paymentInfo.amount || 0,
+    };
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
       <div className="h-full w-full flex flex-col">
@@ -575,7 +627,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
           </div>
         )}
 
-          <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1000,20 +1052,28 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   <tr>
                     <th className="px-6 py-3">Bilty No</th>
                     <th className="px-6 py-3">Receipt No</th>
+                    <th className="px-6 py-3">Payment No</th>
+                    <th className="px-6 py-3">Order No</th>
+                    <th className="px-6 py-3">Order Date</th>
+                    <th className="px-6 py-3">Vehicle No</th>
                     <th className="px-6 py-3">Consignor</th>
                     <th className="px-6 py-3">Consignee</th>
-                    <th className="px-6 py-3">Item</th>
-                    <th className="px-6 py-3">Qty</th>
+                    <th className="px-6 py-3">Items</th>
+                    <th className="px-6 py-3">Quantity</th>
                     <th className="px-6 py-3">Total Amount</th>
-                    <th className="px-6 py-3">Recv. Amount</th>
-                    <th className="px-6 py-3">Del Date</th>
+                    <th className="px-6 py-3">Received Amount</th>
+                    <th className="px-6 py-3">Paid Amount</th>
+                    <th className="px-6 py-3">Delivery Date</th>
+                    <th className="px-6 py-3">Paid to Person</th>
+                    <th className="px-6 py-3">Charges</th>
+                    <th className="px-6 py-3">Amount</th>
                     <th className="px-6 py-3">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bookingConsignments.length === 0 ? (
-                    <tr>  
-                      <td colSpan={10} className="px-6 py-4 text-center">
+                    <tr>
+                      <td colSpan={18} className="px-6 py-4 text-center">
                         No consignments selected for this booking
                       </td>
                     </tr>
@@ -1022,13 +1082,28 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                       <tr key={cons.biltyNo} className="bg-white border-b dark:bg-gray-800 dark:border-gray-700">
                         <td className="px-6 py-3">{cons.biltyNo}</td>
                         <td className="px-6 py-3">{cons.receiptNo}</td>
-                        <td className="px-6 py-3">{cons.consignor}</td>
-                        <td className="px-6 py-3">{cons.consignee}</td>
-                        <td className="px-6 py-3">{cons.item}</td>
-                        <td className="px-6 py-3">{cons.qty ?? 'N/A'}</td>
-                        <td className="px-6 py-3">{cons.totalAmount ?? 'N/A'}</td>
-                        <td className="px-6 py-3">{cons.recvAmount ?? 'N/A'}</td>
-                        <td className="px-6 py-3">{cons.delDate}</td>
+                        {(() => {
+                          const details = getConsignmentDetails(cons.biltyNo);
+                          return (
+                            <>
+                              <td className="px-6 py-3">{details.paymentNo}</td>
+                              <td className="px-6 py-3">{getValues('OrderNo') || '-'}</td>
+                              <td className="px-6 py-3">{getValues('orderDate') || '-'}</td>
+                              <td className="px-6 py-3">{getValues('vehicleNo') || '-'}</td>
+                              <td className="px-6 py-3">{cons.consignor}</td>
+                              <td className="px-6 py-3">{cons.consignee}</td>
+                              <td className="px-6 py-3">{cons.item}</td>
+                              <td className="px-6 py-3">{cons.qty ?? 'N/A'}</td>
+                              <td className="px-6 py-3">{cons.totalAmount ?? 'N/A'}</td>
+                              <td className="px-6 py-3">{cons.recvAmount ?? 'N/A'}</td>
+                              <td className="px-6 py-3">{details.paidAmount}</td>
+                              <td className="px-6 py-3">{cons.delDate}</td>
+                              <td className="px-6 py-3">{details.paidTo}</td>
+                              <td className="px-6 py-3">{details.chargeName}</td>
+                              <td className="px-6 py-3">{details.chargeAmount}</td>
+                            </>
+                          );
+                        })()}
                         <td className="px-6 py-3 ">
                           <AblCustomDropdown
                             label=""
