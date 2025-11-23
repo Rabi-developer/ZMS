@@ -24,6 +24,9 @@ const getAllCharges  = async (pageIndex:any=1,pageSize:any=10, filters:any={}) =
       queryParams += `&OrderNo=${filters.orderNo}`;
     }
     
+    // Add parameter to include lines data in the response
+    queryParams += `&IncludeLines=true`;
+    
     const response = await apiFetch(`Charges?${queryParams}`, {
       method: 'GET',
       headers: {}, 

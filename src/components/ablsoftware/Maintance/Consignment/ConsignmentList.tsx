@@ -112,7 +112,7 @@ const ConsignmentList = () => {
     { id: 2, name: 'Canceled', color: '#ef4444' },
     { id: 3, name: 'Closed', color: '#6b7280' },
     { id: 4, name: 'UnApproved', color: '#10b981' },
-    { id: 5, name: 'Pending', color: '#3b82f6' },
+    { id: 5, name: 'Approved', color: '#3b82f6' },
   ];
 
   // Function to resolve party IDs to names
@@ -674,6 +674,8 @@ const ConsignmentList = () => {
                 return {
                   ...consignment,
                   items: Array.isArray(finalItems) ? finalItems : [],
+                  // Convert string to number for qty property to match Consignment type
+                  qty: typeof consignment.qty === 'string' ? parseFloat(consignment.qty) || 0 : consignment.qty,
                   // Ensure consignor and consignee are resolved names
                   consignor: consignment.consignor, // Already resolved in fetchConsignments
                   consignee: consignment.consignee, // Already resolved in fetchConsignments

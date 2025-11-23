@@ -74,18 +74,27 @@ const ChargesList = () => {
       const response = await getAllCharges(apiPageIndex, pageSize);
       console.log('Charges Response:', response); // Debug API response
       
-      const transformedCharges = response?.data.map((charge: any) => ({
-        ...charge,
-        orderNo: charge.orderNo || '-',
-        amount: charge.lines?.reduce((sum: number, line: any) => sum + (line.amount || 0), 0).toString() || '0',
-        biltyNo: charge.lines?.[0]?.biltyNo || '-',
-        date: charge.lines?.[0]?.date || '-',
-        vehicleNo: charge.lines?.[0]?.vehicle || '-',
-        paidToPerson: charge.lines?.[0]?.paidTo || '-',
-        contactNo: charge.lines?.[0]?.contact || '-',
-        remarks: charge.lines?.[0]?.remarks || '-',
-        status: charge.status || 'Unpaid',
-      }));
+      const transformedCharges = response?.data.map((charge: any) => {
+        // Handle case where lines is null or empty array
+        const lines = charge.lines || [];
+        const firstLine = lines.length > 0 ? lines[0] : {};
+        
+        // Calculate total amount from all lines, or default to 0
+        const totalAmount = lines.reduce((sum: number, line: any) => sum + (line.amount || 0), 0);
+        
+        return {
+          ...charge,
+          orderNo: charge.orderNo || '-',
+          amount: totalAmount.toString() || '0',
+          biltyNo: firstLine.biltyNo || '-',
+          date: firstLine.date || '-',
+          vehicleNo: firstLine.vehicle || '-',
+          paidToPerson: firstLine.paidTo || '-',
+          contactNo: firstLine.contact || '-',
+          remarks: firstLine.remarks || '-',
+          status: charge.status || 'Unpaid',
+        };
+      });
       setCharges(transformedCharges || []);
       
       // Set total rows from the API response
@@ -479,7 +488,7 @@ const ChargesList = () => {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </div> 
               ) : (
                 <p className="text-sm text-gray-500">No files uploaded for this charge.</p>
               )}

@@ -1002,7 +1002,10 @@ const BookingOrderList = () => {
             <OrderProgress
               orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
               bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
-              consignments={consignments[selectedRowId] || []}
+              consignments={(consignments[selectedRowId] || []).map(c => ({
+                ...c,
+                qty: typeof c.qty === 'string' ? parseInt(c.qty) || 0 : c.qty
+              }))}
               bookingOrder={{
                 orderNo: bookingOrders.find((o) => o.id === selectedRowId)?.orderNo || '',
                 orderDate: bookingOrders.find((o) => o.id === selectedRowId)?.orderDate || '',

@@ -34,6 +34,13 @@ interface Consignment {
   deliveryDate?: string;
   status?: string;
   orderNo?: string | number;
+  item?: string;
+  itemDesc?: string;
+  description?: string;
+  qty?: number;
+  quantity?: number;
+  qtyUnit?: string;
+  unit?: string;
 }
 
 interface BookingOrderInfo {
@@ -110,6 +117,14 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
   const [transporters, setTransporters] = useState<PartyOption[]>([]);
 
   const selOrder = orderNo ? String(orderNo).trim() : "";
+  
+  console.log("OrderProgress: Component props received:", {
+    orderNo: orderNo,
+    bookingOrderProp: bookingOrder,
+    selectedOrder: selOrder,
+    consignmentsLength: consignments.length,
+    timestamp: new Date().toISOString()
+  });
 
   // Resolve party name from ID
   const resolvePartyName = (id?: string): string => {
@@ -211,23 +226,88 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
       if (!selOrder || consignments.length === 0) return;
       setLoading(true);
       try {
+        console.log("OrderProgress: Fetching charges for order:", selOrder);
         const chargesRes = await getAllCharges(1, 100, { orderNo: selOrder });
-        const chargesData = (chargesRes?.data || []).filter((c: any) => String(c.orderNo) === selOrder);
+        console.log("OrderProgress: Raw charges response:", chargesRes);
+        
+        const allChargesData = chargesRes?.data || [];
+        console.log("OrderProgress: All charges data:", allChargesData);
+        
+        // Try multiple filtering approaches to catch charges
+        const exactMatch = allChargesData.filter((c: any) => String(c.orderNo) === String(selOrder));
+        const looseMatch = allChargesData.filter((c: any) => 
+          c.orderNo && String(c.orderNo).includes(String(selOrder))
+        );
+        const chargesData = exactMatch.length > 0 ? exactMatch : looseMatch;
+        
+        console.log("OrderProgress: Filtered charges data:", {
+          selOrder,
+          exactMatch,
+          looseMatch, 
+          finalChargesData: chargesData
+        });
+        
         const paid = chargesData.filter((x: any) => (x.status || "").toLowerCase() === "paid");
         const normalized = chargesData.flatMap((c: any) => {
-          const base = { paidToPerson: c.paidToPerson ?? "-", charges: c.charges ?? "-", amount: c.amount ?? "-" };
+          console.log("OrderProgress: Processing individual charge:", c);
+          const base = { 
+            paidToPerson: c.paidToPerson ?? c.paidTo ?? "-", 
+            charges: c.charges ?? c.chargeType ?? c.description ?? "-", 
+            amount: c.amount ?? c.chargeAmount ?? c.total ?? "-" 
+          };
           return Array.isArray(c.lines) && c.lines.length > 0
             ? c.lines.map((l: any) => ({
-                paidToPerson: l.paidTo ?? base.paidToPerson,
-                charges: l.charges ?? base.charges,
-                amount: l.amount ?? base.amount,
+                paidToPerson: l.paidTo ?? l.paidToPerson ?? base.paidToPerson,
+                charges: l.charges ?? l.chargeType ?? l.description ?? base.charges,
+                amount: l.amount ?? l.chargeAmount ?? l.total ?? base.amount,
               }))
             : [base];
         });
+        
+        console.log("OrderProgress: Charges data processed:", {
+          rawChargesData: chargesData,
+          normalizedCharges: normalized,
+          chargesCount: normalized.length,
+          chargesPaidCount: paid.length
+        });
+        
         if (mounted) {
           setChargesCount(normalized.length);
           setChargesPaidCount(paid.length);
           setCharges(normalized);
+        }
+
+        // Also try fetching charges without filters as fallback
+        if (normalized.length === 0) {
+          console.log("OrderProgress: No charges found with filters, trying without filters...");
+          const allChargesRes = await getAllCharges(1, 200, {});
+          const allCharges = allChargesRes?.data || [];
+          console.log("OrderProgress: All charges without filters:", allCharges);
+          
+          const matchingCharges = allCharges.filter((c: any) => {
+            return c.orderNo && (
+              String(c.orderNo) === String(selOrder) ||
+              String(c.orderNo).includes(String(selOrder)) ||
+              String(selOrder).includes(String(c.orderNo))
+            );
+          });
+          
+          console.log("OrderProgress: Matching charges found:", matchingCharges);
+          
+          if (matchingCharges.length > 0 && mounted) {
+            const fallbackNormalized = matchingCharges.flatMap((c: any) => {
+              const base = { 
+                paidToPerson: c.paidToPerson ?? c.paidTo ?? "-", 
+                charges: c.charges ?? c.chargeType ?? c.description ?? "-", 
+                amount: c.amount ?? c.chargeAmount ?? c.total ?? "-" 
+              };
+              return [base];
+            });
+            
+            setChargesCount(fallbackNormalized.length);
+            setCharges(fallbackNormalized);
+            console.log("OrderProgress: Using fallback charges:", fallbackNormalized);
+          }
         }
 
         const payRes = await getAllPaymentABL(1, 200);
@@ -247,7 +327,10 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
           setPaymentNos(paymentNosList);
           setPaymentsTotalPaid(totalPaid);
         }
-      } catch (err) {} finally {
+      } catch (err) {
+        console.error("OrderProgress: Error fetching charges:", err);
+        console.log("OrderProgress: Failed to fetch charges for order:", selOrder);
+      } finally {
         if (mounted) setLoading(false);
       }
     };
@@ -308,7 +391,57 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
 
     // Always show at least one row, even with no consignments
     if (consignments.length === 0) {
-      console.log("OrderProgress: No consignments, showing default row");
+      console.log("OrderProgress: No consignments, showing default row with charges if available");
+      
+      // Process charges even without consignments
+      const chargesInfo = (() => {
+        console.log("OrderProgress: Processing charges for no consignment case:", {
+          availableCharges: charges,
+          chargesLength: charges.length
+        });
+        
+        if (charges.length === 0) {
+          return {
+            paidToPerson: "-",
+            charges: "-", 
+            amount: "-",
+            hasCharges: false
+          };
+        }
+        
+        const validCharges = charges.filter(ch => 
+          ch.charges && ch.charges !== "-" && ch.charges !== "" && 
+          ch.charges !== null && ch.charges !== undefined
+        );
+        const validAmounts = charges.filter(ch => {
+          const amount = ch.amount;
+          return amount && amount !== "-" && amount !== "" && 
+                 amount !== null && amount !== undefined && 
+                 !isNaN(Number(amount)) && Number(amount) > 0;
+        });
+        const validPaidTo = charges.filter(ch => 
+          ch.paidToPerson && ch.paidToPerson !== "-" && 
+          ch.paidToPerson !== "" && ch.paidToPerson !== null && 
+          ch.paidToPerson !== undefined
+        );
+        
+        console.log("OrderProgress: Filtered charges for no consignment:", {
+          validCharges: validCharges,
+          validAmounts: validAmounts,
+          validPaidTo: validPaidTo
+        });
+        
+        return {
+          paidToPerson: validPaidTo.map(ch => ch.paidToPerson).join(", ") || "-",
+          charges: validCharges.map(ch => ch.charges).join(", ") || "-",
+          amount: validAmounts.map(ch => {
+            const amt = formatNumber(ch.amount);
+            return amt > 0 ? amt.toLocaleString() : ch.amount;
+          }).join(", ") || "-",
+          hasCharges: validCharges.length > 0 || validAmounts.length > 0
+        };
+      })();
+      
       rows.push({
         biltyNo: "No Bilty",
         receiptNo: receiptNos.join(", ") || "-",
@@ -324,9 +457,10 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
         receivedAmount: receiptsTotalReceived > 0 ? receiptsTotalReceived.toLocaleString() : "-",
         deliveryDate: "-",
         consignmentStatus: "No Consignment",
-        paidToPerson: "-",
-        charges: "-",
-        amount: "-",
+        paidToPerson: chargesInfo.paidToPerson,
+        charges: chargesInfo.charges,
+        amount: chargesInfo.amount,
+        hasCharges: chargesInfo.hasCharges,
         paidAmount: paymentsTotalPaid > 0 ? paymentsTotalPaid.toLocaleString() : "-",
       });
       return rows;
@@ -420,6 +554,57 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
         consignmentId: c.id
       });
       
+        // Enhanced charges processing
+        const chargesInfo = (() => {
+          console.log("OrderProgress: Processing charges for consignment:", {
+            consignmentIndex: index,
+            biltyNo: finalBiltyNo,
+            availableCharges: charges,
+            chargesLength: charges.length
+          });
+          
+          if (charges.length === 0) {
+            return {
+              paidToPerson: "-",
+              charges: "-", 
+              amount: "-",
+              hasCharges: false
+            };
+          }
+          
+          const validCharges = charges.filter(ch => 
+            ch.charges && ch.charges !== "-" && ch.charges !== "" && 
+            ch.charges !== null && ch.charges !== undefined
+          );
+          const validAmounts = charges.filter(ch => {
+            const amount = ch.amount;
+            return amount && amount !== "-" && amount !== "" && 
+                   amount !== null && amount !== undefined && 
+                   !isNaN(Number(amount)) && Number(amount) > 0;
+          });
+          const validPaidTo = charges.filter(ch => 
+            ch.paidToPerson && ch.paidToPerson !== "-" && 
+            ch.paidToPerson !== "" && ch.paidToPerson !== null && 
+            ch.paidToPerson !== undefined
+          );
+          
+          console.log("OrderProgress: Filtered charges data:", {
+            validCharges: validCharges,
+            validAmounts: validAmounts,
+            validPaidTo: validPaidTo
+          });
+          
+          return {
+            paidToPerson: validPaidTo.map(ch => ch.paidToPerson).join(", ") || "-",
+            charges: validCharges.map(ch => ch.charges).join(", ") || "-",
+            amount: validAmounts.map(ch => {
+              const amt = formatNumber(ch.amount);
+              return amt > 0 ? amt.toLocaleString() : ch.amount;
+            }).join(", ") || "-",
+            hasCharges: validCharges.length > 0 || validAmounts.length > 0
+          };
+        })();
+        
       rows.push({
         biltyNo: finalBiltyNo,
         receiptNo: c.receiptNo != null ? String(c.receiptNo) : (receiptNos.join(", ") || "-"),
@@ -435,9 +620,10 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
         receivedAmount: formatNumber(c.receivedAmount).toLocaleString(),
         deliveryDate: formatDate(c.deliveryDate),
         consignmentStatus: c.status ?? "Pending",
-        paidToPerson: charges.map(ch => ch.paidToPerson).filter(Boolean).join(", ") || "-",
-        charges: charges.map(ch => ch.charges).filter(Boolean).join(", ") || "-",
-        amount: charges.map(ch => ch.amount).filter(Boolean).join(", ") || "-",
+        paidToPerson: chargesInfo.paidToPerson,
+        charges: chargesInfo.charges,
+        amount: chargesInfo.amount,
+        hasCharges: chargesInfo.hasCharges,
         paidAmount: paymentsTotalPaid > 0 ? paymentsTotalPaid.toLocaleString() : "-",
       });
     });
@@ -467,6 +653,11 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
               {consignmentCount} Consignment{consignmentCount > 1 ? "s" : ""}
             </span>
           )}
+          {chargesCount > 0 && (
+            <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
+              {chargesCount} Charge{chargesCount > 1 ? "s" : ""} • {chargesPaidCount} Paid
+            </span>
+          )}
         </h4>
 
         <div className="overflow-x-auto">
@@ -493,8 +684,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
                   <th className="p-3 font-semibold">Paid</th>
                   <th className="p-3 font-semibold">Delivery Date</th>
                   <th className="p-3 font-semibold">Paid To</th>
-                  <th className="p-3 font-semibold">Charges</th>
-                  <th className="p-3 font-semibold">Amount</th>
+                  <th className="p-3 font-semibold text-green-700 bg-green-50">Charges</th>
+                  <th className="p-3 font-semibold text-emerald-700 bg-emerald-50">Amount</th>
                   <th className="p-3 font-semibold">Status</th>
                 </tr>
               </thead>
@@ -519,9 +710,27 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
                     <td className="p-3 text-emerald-700 font-medium">{row.receivedAmount}</td>
                     <td className="p-3 text-purple-700 font-medium">{row.paidAmount}</td>
                     <td className="p-3 text-orange-700 font-medium">{row.deliveryDate}</td>
-                    <td className="p-3">{row.paidToPerson}</td>
-                    <td className="p-3">{row.charges}</td>
-                    <td className="p-3">{row.amount}</td>
+                    <td className={`p-3 ${row.hasCharges ? 'text-blue-700 font-medium' : 'text-gray-500'}`}>
+                      {row.paidToPerson !== "-" ? (
+                        <span className="bg-blue-50 px-2 py-1 rounded text-xs">{row.paidToPerson}</span>
+                      ) : (
+                        row.paidToPerson
+                      )}
+                    </td>
+                    <td className={`p-3 min-w-[120px] ${row.hasCharges ? 'text-green-700 font-medium' : 'text-gray-500'}`}>
+                      {row.charges !== "-" ? (
+                        <span className="bg-green-100 px-3 py-1 rounded-md text-sm font-medium text-green-800">{row.charges}</span>
+                      ) : (
+                        <span className="text-gray-400 italic">No Charges</span>
+                      )}
+                    </td>
+                    <td className={`p-3 min-w-[100px] ${row.hasCharges ? 'text-emerald-700 font-semibold' : 'text-gray-500'}`}>
+                      {row.amount !== "-" ? (
+                        <span className="bg-emerald-100 px-3 py-1 rounded-md text-sm font-bold text-emerald-800">₹{row.amount}</span>
+                      ) : (
+                        <span className="text-gray-400 italic">No Amount</span>
+                      )}
+                    </td>
                     <td className="p-3">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         row.consignmentStatus === "Delivered" ? "bg-green-100 text-green-800" :
