@@ -505,6 +505,9 @@ const BookingOrderList = () => {
 
   const handleCheckboxChange = async (orderId: string, checked: boolean) => {
     if (checked) {
+      // Auto-refresh data when checkbox is selected
+      await fetchBookingOrdersAndConsignments();
+      
       setSelectedOrderIds([orderId]);
       setSelectedRowId(orderId);
       setSelectedOrderForFiles(orderId);

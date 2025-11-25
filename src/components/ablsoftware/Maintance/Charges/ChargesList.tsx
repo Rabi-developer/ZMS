@@ -7,7 +7,8 @@ import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllCharges, deleteCharges, updateChargesStatus } from '@/apis/charges';
-import { getAllConsignment } from '@/apis/consignment';
+import { getConsignmentsForBookingOrder } from '@/apis/bookingorder';
+import { getAllBookingOrder } from '@/apis/bookingorder';
 import { columns, Charge } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
@@ -164,10 +165,23 @@ const ChargesList = () => {
     console.log('Selected Charge:', charge); // Debug selected charge
     if (charge?.orderNo && charge.orderNo !== '-') {
       try {
-        const response = await getAllConsignment(1, 100, { orderNo: charge.orderNo });
-        setConsignments(response?.data || []);
+        // First get the booking order to find its ID
+        const bookingResponse = await getAllBookingOrder(1, 200, { orderNo: charge.orderNo });
+        const bookingOrder = bookingResponse?.data?.find((b: any) => String(b.orderNo) === String(charge.orderNo));
+        
+        if (bookingOrder?.id) {
+          // Now fetch consignments using the booking order ID
+          const response = await getConsignmentsForBookingOrder(bookingOrder.id, 1, 100, { includeDetails: true });
+          console.log('Fetched consignments for charge:', response?.data);
+          setConsignments(response?.data || []);
+        } else {
+          console.warn('No booking order found for orderNo:', charge.orderNo);
+          setConsignments([]);
+        }
       } catch (error) {
+        console.error('Failed to fetch consignments:', error);
         toast('Failed to fetch consignments', { type: 'error' });
+        setConsignments([]);
       }
     } else {
       setConsignments([]);
@@ -188,6 +202,9 @@ const ChargesList = () => {
 
   const handleCheckboxChange = async (chargeId: string, checked: boolean) => {
     if (checked) {
+      // Auto-refresh data when checkbox is selected
+      await fetchCharges();
+      
       setSelectedChargeIds([chargeId]);
       setSelectedRowId(chargeId);
       setSelectedChargeForFiles(chargeId);
@@ -195,10 +212,23 @@ const ChargesList = () => {
       console.log('Checked Charge:', charge); // Debug checked charge
       if (charge?.orderNo && charge.orderNo !== '-') {
         try {
-          const response = await getAllConsignment(1, 100, { orderNo: charge.orderNo });
-          setConsignments(response?.data || []);
+          // First get the booking order to find its ID
+          const bookingResponse = await getAllBookingOrder(1, 200, { orderNo: charge.orderNo });
+          const bookingOrder = bookingResponse?.data?.find((b: any) => String(b.orderNo) === String(charge.orderNo));
+          
+          if (bookingOrder?.id) {
+            // Now fetch consignments using the booking order ID
+            const response = await getConsignmentsForBookingOrder(bookingOrder.id, 1, 100, { includeDetails: true });
+            console.log('Fetched consignments for checked charge:', response?.data);
+            setConsignments(response?.data || []);
+          } else {
+            console.warn('No booking order found for orderNo:', charge.orderNo);
+            setConsignments([]);
+          }
         } catch (error) {
+          console.error('Failed to fetch consignments:', error);
           toast('Failed to fetch consignments', { type: 'error' });
+          setConsignments([]);
         }
       } else {
         setConsignments([]);

@@ -7,8 +7,7 @@ import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllPaymentABL, deletePaymentABL, updatePaymentABLStatus } from '@/apis/paymentABL';
-import { getAllConsignment } from '@/apis/consignment';
-import { getAllBookingOrder } from '@/apis/bookingorder';
+import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
 import { columns, PaymentABL } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
@@ -144,13 +143,23 @@ const PaymentABLList = () => {
     if (Array.isArray(items) && items.length > 0) {
       const orderNo = items[0]?.orderNo;
       try {
-        const consResponse = await getAllConsignment(1, 100, { orderNo });
-        setConsignments(consResponse?.data || []);
-        const bookingResponse = await getAllBookingOrder(1, 100, { orderNo });
-        const booking = bookingResponse?.data.find((b: any) => b.orderNo === orderNo);
+        const bookingResponse = await getAllBookingOrder(1, 200, { orderNo });
+        const booking = bookingResponse?.data?.find((b: any) => String(b.orderNo) === String(orderNo));
         setBookingStatus(booking?.status || null);
+        
+        if (booking?.id) {
+          const consResponse = await getConsignmentsForBookingOrder(booking.id, 1, 100, { includeDetails: true });
+          console.log('Fetched consignments for payment:', consResponse?.data);
+          setConsignments(consResponse?.data || []);
+        } else {
+          console.warn('No booking order found for orderNo:', orderNo);
+          setConsignments([]);
+        }
       } catch (error) {
+        console.error('Failed to fetch related data:', error);
         toast('Failed to fetch related data', { type: 'error' });
+        setConsignments([]);
+        setBookingStatus(null);
       }
     } else {
       setConsignments([]);
@@ -173,6 +182,9 @@ const PaymentABLList = () => {
 
   const handleCheckboxChange = async (paymentId: string, checked: boolean) => {
     if (checked) {
+      // Auto-refresh data when checkbox is selected
+      await fetchPayments();
+      
       setSelectedPaymentIds([paymentId]);
       setSelectedRowId(paymentId);
       setSelectedPaymentForFiles(paymentId);
@@ -182,13 +194,23 @@ const PaymentABLList = () => {
       if (Array.isArray(items) && items.length > 0) {
         const orderNo = items[0]?.orderNo;
         try {
-          const consResponse = await getAllConsignment(1, 100, { orderNo });
-          setConsignments(consResponse?.data || []);
-          const bookingResponse = await getAllBookingOrder(1, 100, { orderNo });
-          const booking = bookingResponse?.data.find((b: any) => b.orderNo === orderNo);
+          const bookingResponse = await getAllBookingOrder(1, 200, { orderNo });
+          const booking = bookingResponse?.data?.find((b: any) => String(b.orderNo) === String(orderNo));
           setBookingStatus(booking?.status || null);
+          
+          if (booking?.id) {
+            const consResponse = await getConsignmentsForBookingOrder(booking.id, 1, 100, { includeDetails: true });
+            console.log('Fetched consignments for checked payment:', consResponse?.data);
+            setConsignments(consResponse?.data || []);
+          } else {
+            console.warn('No booking order found for orderNo:', orderNo);
+            setConsignments([]);
+          }
         } catch (error) {
+          console.error('Failed to fetch related data:', error);
           toast('Failed to fetch related data', { type: 'error' });
+          setConsignments([]);
+          setBookingStatus(null);
         }
       } else {
         setConsignments([]);

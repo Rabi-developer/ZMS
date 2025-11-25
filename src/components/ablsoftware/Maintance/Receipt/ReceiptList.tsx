@@ -6,8 +6,7 @@ import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash } from 'react-icons/
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import { getAllReceipt, deleteReceipt, updateReceiptStatus } from '@/apis/receipt';
-import { getAllConsignment } from '@/apis/consignment';
-import { getAllBookingOrder } from '@/apis/bookingorder';
+import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
 import { columns, Receipt } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
@@ -72,7 +71,13 @@ const ReceiptList = () => {
       const response = await getAllReceipt(apiPageIndex, pageSize);
       console.log('Receipts Response:', response);
       
-      setReceipts(response?.data || []);
+      // Transform receipts to extract orderNo from items
+      const transformedReceipts = response?.data?.map((receipt: any) => ({
+        ...receipt,
+        orderNo: receipt.items?.[0]?.vehicleNo || receipt.orderNo || undefined,
+      })) || [];
+      
+      setReceipts(transformedReceipts);
       
       // Set total rows from the API response
       if (response.misc) {
@@ -141,13 +146,23 @@ const ReceiptList = () => {
     console.log('Selected Receipt:', receipt);
     if (receipt?.orderNo) {
       try {
-        const consResponse = await getAllConsignment(1, 100, { orderNo: receipt.orderNo });
-        setConsignments(consResponse?.data || []);
-        const bookingResponse = await getAllBookingOrder(1, 100, { orderNo: receipt.orderNo });
-        const booking = bookingResponse?.data.find((b: any) => b.orderNo === receipt.orderNo);
+        const bookingResponse = await getAllBookingOrder(1, 200, { orderNo: receipt.orderNo });
+        const booking = bookingResponse?.data?.find((b: any) => String(b.orderNo) === String(receipt.orderNo));
         setBookingStatus(booking?.status || null);
+        
+        if (booking?.id) {
+          const consResponse = await getConsignmentsForBookingOrder(booking.id, 1, 100, { includeDetails: true });
+          console.log('Fetched consignments for receipt:', consResponse?.data);
+          setConsignments(consResponse?.data || []);
+        } else {
+          console.warn('No booking order found for orderNo:', receipt.orderNo);
+          setConsignments([]);
+        }
       } catch (error) {
+        console.error('Failed to fetch related data:', error);
         toast('Failed to fetch related data', { type: 'error' });
+        setConsignments([]);
+        setBookingStatus(null);
       }
     } else {
       setConsignments([]);
@@ -170,6 +185,9 @@ const ReceiptList = () => {
 
   const handleCheckboxChange = async (receiptId: string, checked: boolean) => {
     if (checked) {
+      // Auto-refresh data when checkbox is selected
+      await fetchReceipts();
+      
       setSelectedReceiptIds([receiptId]);
       setSelectedRowId(receiptId);
       setSelectedReceiptForFiles(receiptId);
@@ -177,13 +195,23 @@ const ReceiptList = () => {
       console.log('Checked Receipt:', receipt);
       if (receipt?.orderNo) {
         try {
-          const consResponse = await getAllConsignment(1, 100, { orderNo: receipt.orderNo });
-          setConsignments(consResponse?.data || []);
-          const bookingResponse = await getAllBookingOrder(1, 100, { orderNo: receipt.orderNo });
-          const booking = bookingResponse?.data.find((b: any) => b.orderNo === receipt.orderNo);
+          const bookingResponse = await getAllBookingOrder(1, 200, { orderNo: receipt.orderNo });
+          const booking = bookingResponse?.data?.find((b: any) => String(b.orderNo) === String(receipt.orderNo));
           setBookingStatus(booking?.status || null);
+          
+          if (booking?.id) {
+            const consResponse = await getConsignmentsForBookingOrder(booking.id, 1, 100, { includeDetails: true });
+            console.log('Fetched consignments for checked receipt:', consResponse?.data);
+            setConsignments(consResponse?.data || []);
+          } else {
+            console.warn('No booking order found for orderNo:', receipt.orderNo);
+            setConsignments([]);
+          }
         } catch (error) {
+          console.error('Failed to fetch related data:', error);
           toast('Failed to fetch related data', { type: 'error' });
+          setConsignments([]);
+          setBookingStatus(null);
         }
       } else {
         setConsignments([]);
