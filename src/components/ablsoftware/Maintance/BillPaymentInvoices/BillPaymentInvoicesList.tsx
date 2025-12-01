@@ -6,7 +6,7 @@ import { FaFileExcel, FaCheck, FaFilePdf, FaFileUpload, FaEye, FaTrash } from 'r
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllBiltyPaymentInvoice, deleteBiltyPaymentInvoice, updateBiltyPaymentInvoiceStatus } from '@/apis/biltypaymentnnvoice';
+import { getAllBiltyPaymentInvoice, deleteBiltyPaymentInvoice, updateBiltyPaymentInvoiceStatus, getSingleBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
 import { getAllConsignment } from '@/apis/consignment';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { columns, BillPaymentInvoice } from './columns';
@@ -351,40 +351,53 @@ const BillPaymentInvoicesList = () => {
 
   const preparePdfPayload = async (invoiceId: string) => {
     try {
-      const response = await getAllBiltyPaymentInvoice(1, 1000);
-      const detailedInvoice = response?.data?.find((item: ApiBiltyPaymentInvoice) => item.id === invoiceId);
+      console.log('Fetching invoice details for ID:', invoiceId);
+      const response = await getSingleBiltyPaymentInvoice(invoiceId);
+      console.log('Invoice response:', response);
+      
+      const detailedInvoice = response?.data || response;
+      console.log('Detailed invoice:', detailedInvoice);
 
       if (!detailedInvoice) {
-        toast('Failed to fetch invoice details', { type: 'error' });
+        console.error('Invoice not found:', invoiceId);
+        toast('Invoice not found. Please try again.', { type: 'error' });
         return null;
       }
 
-      const firstLine = detailedInvoice.lines?.find((line: ApiBiltyPaymentInvoice['lines'][0]) => !line.isAdditionalLine);
+      if (!detailedInvoice.lines || detailedInvoice.lines.length === 0) {
+        console.error('Invoice has no lines:', detailedInvoice);
+        toast('Invoice has no line items', { type: 'error' });
+        return null;
+      }
+
+      const firstLine = detailedInvoice.lines?.find((line: ApiBiltyPaymentInvoice['lines'][0]) => !line.isAdditionalLine) || detailedInvoice.lines?.[0];
       const brokerDetails = {
         name: firstLine?.broker || undefined,
         mobile: undefined,
       };
 
-      return {
-        invoiceNo: detailedInvoice.invoiceNo,
-        paymentDate: detailedInvoice.paymentDate,
-        bookingDate: detailedInvoice.creationDate || detailedInvoice.createdDateTime,
-        checkDate: detailedInvoice.updationDate || detailedInvoice.modifiedDateTime || detailedInvoice.paymentDate,
+      const payload = {
+        invoiceNo: detailedInvoice.invoiceNo || '',
+        paymentDate: detailedInvoice.paymentDate || new Date().toISOString(),
+        bookingDate: detailedInvoice.creationDate || detailedInvoice.createdDateTime || new Date().toISOString(),
+        checkDate: detailedInvoice.updationDate || detailedInvoice.modifiedDateTime || detailedInvoice.paymentDate || new Date().toISOString(),
         lines: detailedInvoice.lines?.map((line: ApiBiltyPaymentInvoice['lines'][0]) => ({
           isAdditionalLine: line.isAdditionalLine || false,
-          biltyNo: line.orderNo,
-          vehicleNo: line.vehicleNo,
-          orderNo: line.orderNo,
+          biltyNo: line.orderNo || '',
+          vehicleNo: line.vehicleNo || '',
+          orderNo: line.orderNo || '',
           amount: Number(line.amount) || 0,
-          munshayana: Number(line.munshayana) || 0,
-          nameCharges: line.nameCharges || undefined,
-          amountCharges: Number(line.amountCharges) || undefined,
+          munshayana: typeof line.munshayana === 'string' ? Number(line.munshayana) : (line.munshayana || 0),
+          nameCharges: line.nameCharges || '',
+          amountCharges: Number(line.amountCharges) || 0,
         })) || [],
         broker: brokerDetails,
       };
+      console.log('PDF payload created:', payload);
+      return payload;
     } catch (error) {
       console.error('Failed to prepare PDF payload:', error);
-      toast('Unable to prepare invoice PDF', { type: 'error' });
+      toast('Unable to fetch invoice details', { type: 'error' });
       return null;
     }
   };
@@ -395,14 +408,27 @@ const BillPaymentInvoicesList = () => {
       return;
     }
 
-    const invoiceId = selectedBillPaymentIds[0];
-    const payload = await preparePdfPayload(invoiceId);
-    if (!payload) {
-      return;
-    }
+    try {
+      const invoiceId = selectedBillPaymentIds[0];
+      console.log('Starting PDF download for invoice:', invoiceId);
+      console.log('Selected IDs:', selectedBillPaymentIds);
+      
+      const payload = await preparePdfPayload(invoiceId);
+      
+      if (!payload) {
+        console.error('Failed to prepare PDF payload - payload is null');
+        toast('Failed to prepare invoice for PDF', { type: 'error' });
+        return;
+      }
 
-    await exportBiltyPaymentInvoicePdf(payload, `${payload.invoiceNo || invoiceId}.pdf`);
-    toast('Invoice PDF downloaded successfully', { type: 'success' });
+      console.log('Calling exportBiltyPaymentInvoicePdf with payload:', payload);
+      await exportBiltyPaymentInvoicePdf(payload, `${payload.invoiceNo || invoiceId}.pdf`);
+      toast('Invoice PDF downloaded successfully', { type: 'success' });
+    } catch (error: any) {
+      console.error('Error downloading PDF:', error);
+      const errorMessage = error?.message || 'Failed to download PDF';
+      toast(errorMessage, { type: 'error' });
+    }
   };
 
   return (
