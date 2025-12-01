@@ -374,118 +374,118 @@ export function DataTable<TData extends { id: string }, TValue>({
           )}
         </div>
         <div className="px-6 pb-6">
-          <div className="overflow-hidden rounded-lg border-2 border-[#6e997f] dark:border-[#6e997f] shadow-sm">
-            <div className="overflow-x-auto">
-              <div className="max-h-[350px] overflow-y-auto">
-                <Table className="w-full">
-                  <TableHeader className="bg-[#3a614c]/5 sticky top-0 z-10">
-                    {table.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id} className="border-b-2 border-[#6e997f]">
-                        {headerGroup.headers.map((header) => (
-                          <TableHead
-                            key={header.id}
-                            className="text-sm font-bold text-[#3a614c] dark:text-[#3a614c] px-4 py-4 bg-white/80 backdrop-blur-sm"
-                          >
-                            <div className="flex items-center gap-2">
-                              {header.isPlaceholder ? null : (
-                                <div
-                                  className={cn(
-                                    "flex items-center gap-2",
-                                    header.column.getCanSort() && "cursor-pointer select-none hover:text-[#3a614c] transition-colors"
-                                  )}
-                                  onClick={header.column.getToggleSortingHandler()}
-                                >
-                                  {flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}
-                                  {header.column.getCanSort() && (
-                                    <span className="ml-1">
-                                      {header.column.getIsSorted() === "desc" ? (
-                                        <FaSortAmountDown size={12} className="text-[#3a614c]" />
-                                      ) : header.column.getIsSorted() === "asc" ? (
-                                        <FaSortAmountUp size={12} className="text-[#3a614c]" />
-                                      ) : (
-                                        <div className="w-3 h-3 opacity-30">
-                                          <FaSortAmountDown size={12} />
-                                        </div>
-                                      )}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {table.getRowModel().rows.length ? (
-                      table.getRowModel().rows.map((row, index) => (
-                        <motion.tr
-                          key={row.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.3, delay: index * 0.05 }}
-                          className="border-b border-[#6e997f]/30 hover:bg-[#3a614c]/5 transition-all duration-200 group cursor-pointer"
-                          onClick={() => onRowClick?.(row.original.id)}
-                          onDoubleClick={() => onRowDoubleClick?.(row.original.id)} // Added double-click handler
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell
-                              key={cell.id}
-                              className="px-4 py-3 text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors"
+            <div className="overflow-hidden rounded-lg border-2 border-[#6e997f] dark:border-[#6e997f] shadow-sm">
+              <div className="overflow-x-auto">
+                <div className="max-h-[350px] overflow-y-auto relative">
+                  <table className="w-full table-fixed">
+                    <thead className="bg-[#3a614c]/5 sticky top-0 z-10">
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <tr key={headerGroup.id} className="border-b-2 border-[#6e997f]">
+                          {headerGroup.headers.map((header) => (
+                            <th
+                              key={header.id}
+                              className="text-sm font-bold text-[#3a614c] dark:text-[#3a614c] px-4 py-4 bg-white/80 backdrop-blur-sm"
                             >
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext()
-                              )}
-                            </TableCell>
+                              <div className="flex items-center gap-2">
+                                {header.isPlaceholder ? null : (
+                                  <div
+                                    className={cn(
+                                      "flex items-center gap-2",
+                                      header.column.getCanSort() && "cursor-pointer select-none hover:text-[#3a614c] transition-colors"
+                                    )}
+                                    onClick={header.column.getToggleSortingHandler()}
+                                  >
+                                    {flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
+                                    {header.column.getCanSort() && (
+                                      <span className="ml-1">
+                                        {header.column.getIsSorted() === "desc" ? (
+                                          <FaSortAmountDown size={12} className="text-[#3a614c]" />
+                                        ) : header.column.getIsSorted() === "asc" ? (
+                                          <FaSortAmountUp size={12} className="text-[#3a614c]" />
+                                        ) : (
+                                          <div className="w-3 h-3 opacity-30">
+                                            <FaSortAmountDown size={12} />
+                                          </div>
+                                        )}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </th>
                           ))}
-                        </motion.tr>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={columns.length}
-                          className="text-center py-12"
-                        >
-                          {loading ? (
-                            <div className="flex flex-col items-center gap-4">
-                              <Loader />
-                              <span className="text-gray-500">Loading data...</span>
-                            </div>
-                          ) : (
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              className="flex flex-col items-center gap-4"
-                            >
-                              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-                                <FaPersonCircleXmark
-                                  size={32}
-                                  className="text-gray-400"
-                                />
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {table.getRowModel().rows.length ? (
+                        table.getRowModel().rows.map((row, index) => (
+                          <motion.tr
+                            key={row.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.05 }}
+                            className="border-b border-[#6e997f]/30 hover:bg-[#3a614c]/5 transition-all duration-200 group cursor-pointer"
+                            onClick={() => onRowClick?.(row.original.id)}
+                            onDoubleClick={() => onRowDoubleClick?.(row.original.id)}
+                          >
+                            {row.getVisibleCells().map((cell) => (
+                              <td
+                                key={cell.id}
+                                className="px-4 py-3 text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors"
+                              >
+                                {flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext()
+                                )}
+                              </td>
+                            ))}
+                          </motion.tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={columns.length}
+                            className="text-center py-12"
+                          >
+                            {loading ? (
+                              <div className="flex flex-col items-center gap-4">
+                                <Loader />
+                                <span className="text-gray-500">Loading data...</span>
                               </div>
-                              <div className="text-center">
-                                <h3 className="text-lg font-semibold text-gray-700 mb-1">No Records Found</h3>
-                                <p className="text-gray-500">
-                                  {globalFilter || columnFilters.length > 0
-                                    ? "Try adjusting your search criteria"
-                                    : "No data available to display"}
-                                </p>
-                              </div>
-                            </motion.div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                            ) : (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="flex flex-col items-center gap-4"
+                              >
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                                  <FaPersonCircleXmark
+                                    size={32}
+                                    className="text-gray-400"
+                                  />
+                                </div>
+                                <div className="text-center">
+                                  <h3 className="text-lg font-semibold text-gray-700 mb-1">No Records Found</h3>
+                                  <p className="text-gray-500">
+                                    {globalFilter || columnFilters.length > 0
+                                      ? "Try adjusting your search criteria"
+                                      : "No data available to display"}
+                                  </p>
+                                </div>
+                              </motion.div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
         </div>
         <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t-2 border-gray dark:border-[#6e997f] rounded-b-xl">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
