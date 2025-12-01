@@ -42,11 +42,15 @@ const PaymentABLList = () => {
   const [paymentFiles, setPaymentFiles] = useState<{ [paymentId: string]: UploadedFile[] }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const statusOptions = ['All', 'Pending', 'Completed'];
+ const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'UnApproved', 'Closed'];
   const statusOptionsConfig = [
-    { id: 1, name: 'Pending', color: '#f59e0b' },
-    { id: 2, name: 'Completed', color: '#10b981' },
+    { id: 1, name: 'Prepared', color: '#3b82f6' },
+    { id: 2, name: 'Approved', color: '#10b981' },
+    { id: 3, name: 'Canceled', color: '#ef4444' },
+    { id: 4, name: 'UnApproved', color: '#f59e0b' },
+    { id: 5, name: 'Closed', color: '#6b7280' },
   ];
+
 
   // Create stable handlers for pagination
   const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {

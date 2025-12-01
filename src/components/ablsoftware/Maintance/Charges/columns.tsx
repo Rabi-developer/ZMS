@@ -69,6 +69,7 @@ export const columns = (
   {
     header: 'Charge No',
     accessorKey: 'chargeNo',
+    
   },
   {
     header: 'Charge Date',

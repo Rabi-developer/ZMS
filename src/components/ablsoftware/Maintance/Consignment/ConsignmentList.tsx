@@ -106,7 +106,7 @@ const ConsignmentList = () => {
   const [consignmentFiles, setConsignmentFiles] = useState<{ [consignmentId: string]: UploadedFile[] }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const statusOptions = ['All', 'Prepared', 'Canceled', 'Closed', 'UnApproved', 'Pending'];
+  const statusOptions = ['All', 'Prepared', 'Canceled', 'Closed', 'UnApproved', 'Approved'];
   const statusOptionsConfig = [
     { id: 1, name: 'Prepared', color: '#f59e0b' },
     { id: 2, name: 'Canceled', color: '#ef4444' },

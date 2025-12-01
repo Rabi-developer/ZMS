@@ -522,12 +522,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         chequeDate: data.chequeDate || '',
         remarks: data.remarks || '',
         paidTo: data.paidTo,
-        paidAmount: data.paidAmount ?? null,
-        advanced: data.advanced ?? null,
+        paidAmount: data.paidAmount !== null && data.paidAmount !== undefined ? String(data.paidAmount) : null,
+        advanced: data.advanced !== null && data.advanced !== undefined ? String(data.advanced) : null,
         advancedDate: data.advancedDate || '',
-        pdc: data.paidAmount ?? null,
+        pdc: data.pdc !== null && data.pdc !== undefined ? String(data.pdc) : null,
         pdcDate: data.pdcDate || '',
-        paymentAmount: data.paymentAmount ?? null,
+        paymentAmount: data.paymentAmount !== null && data.paymentAmount !== undefined ? String(data.paymentAmount) : null,
         paymentABLItem: data.paymentABLItems.map(row => ({
           id: row.id ?? null,
           vehicleNo: row.vehicleNo || '',
@@ -535,9 +535,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           charges: row.chargeNo || '',
           orderDate: row.orderDate || '',
           dueDate: row.dueDate || '',
-          expenseAmount: row.expenseAmount ?? null,
-          balance: row.balance ?? null,
-          paidAmount: row.paidAmount ?? null,
+          expenseAmount: row.expenseAmount !== null && row.expenseAmount !== undefined ? String(row.expenseAmount) : null,
+          balance: row.balance !== null && row.balance !== undefined ? String(row.balance) : null,
+          paidAmount: row.paidAmount !== null && row.paidAmount !== undefined ? String(row.paidAmount) : null,
         })),
       };
 
@@ -678,7 +678,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.paidAmount?.message}
                 id="paidAmount"
-                registerOptions={{ valueAsNumber: true }}
                 disabled
               />
               <ABLCustomInput
@@ -696,7 +695,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.advanced?.message}
                 id="advanced"
-                registerOptions={{ valueAsNumber: true }}
+                // Ensure value is parsed as number
+                {...register('advanced', { valueAsNumber: true })}
               />
               <ABLCustomInput
                 label="Advanced Date"
@@ -713,7 +713,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.pdc?.message}
                 id="pdc"
-                registerOptions={{ valueAsNumber: true }}
+                // Ensure value is parsed as number
+                {...register('pdc', { valueAsNumber: true })}
               />
               <ABLCustomInput
                 label="PDC Date"
@@ -730,7 +731,6 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.paymentAmount?.message}
                 id="paymentAmount"
-                registerOptions={{ valueAsNumber: true }}
                 disabled
               />
             </div>
