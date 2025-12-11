@@ -21,6 +21,7 @@ export const getStatusStyles = (status: string) => {
 };
 
 export interface Consignment {
+  files: any;
   id: string;
   receiptNo: string;
   orderNo: string;

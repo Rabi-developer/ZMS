@@ -91,4 +91,42 @@ const updateReceiptStatus = async (ReceiptStatus: { id: string; status: string }
     throw error;
   }
 };
-export { createReceipt , getAllReceipt , getAllReceiptPositions , getSingleReceipt , updateReceipt , deleteReceipt, updateReceiptStatus  };
+const updateReceiptFiles = async ({ id, files }: { id: string; files: string }) => {
+  try {
+    if (!id) throw new Error('updateReceiptFiles: id is required');
+    if (typeof files !== 'string') throw new Error('updateReceiptFiles: files must be a comma-separated string');
+
+    // Try partial update first (PATCH only Files field)
+    try {
+      const patchResponse = await apiFetch(`Receipt/Files/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, files }),
+      }, true);
+      return patchResponse;
+    } catch (patchErr) {
+      console.warn('PATCH Receipt/{id} failed, falling back to merge+PUT:', patchErr);
+    }
+
+    // Fallback: fetch existing order and merge Files, then PUT full payload
+    const existing = await getSingleReceipt(id);
+    const existingOrder = (existing as any)?.data || existing;
+    if (!existingOrder) throw new Error('updateReceiptFiles: existing order not found');
+
+    const payload = { ...existingOrder, files };
+    const response = await apiFetch(`Receipt`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, true);
+
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+export { createReceipt , getAllReceipt , getAllReceiptPositions , getSingleReceipt , updateReceipt , deleteReceipt, updateReceiptStatus, updateReceiptFiles  };

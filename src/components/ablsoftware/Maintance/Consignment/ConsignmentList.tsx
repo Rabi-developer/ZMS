@@ -2,17 +2,23 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash } from 'react-icons/fa';
+import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash, FaFilePdf } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllConsignment, deleteConsignment, updateConsignmentStatus, getSingleConsignment } from '@/apis/consignment';
+import {
+  getAllConsignment,
+  deleteConsignment,
+  updateConsignmentStatus,
+  getSingleConsignment,
+  updateConsignmentFiles,
+} from '@/apis/consignment';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllCustomers } from '@/apis/customer';
 import { getAllPartys } from '@/apis/party';
 import { getAllVendor } from '@/apis/vendors';
 import { getAllTransporter } from '@/apis/transporter';
-import { columns, Consignment, getStatusStyles } from './columns';
+import { columns, Consignment } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
 interface UploadedFile {
@@ -30,14 +36,17 @@ interface PartyOption {
 const ConsignmentList = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [consignments, setConsignments] = useState<Consignment[]>([]);
   const [filteredConsignments, setFilteredConsignments] = useState<Consignment[]>([]);
-  const [consignmentsWithItems, setConsignmentsWithItems] = useState<{[id: string]: any}>({});
-  const [loadingItems, setLoadingItems] = useState<{[id: string]: boolean}>({});
+  const [consignmentsWithItems, setConsignmentsWithItems] = useState<{ [id: string]: any }>({});
+  const [loadingItems, setLoadingItems] = useState<{ [id: string]: boolean }>({});
+
   const [customers, setCustomers] = useState<PartyOption[]>([]);
   const [parties, setParties] = useState<PartyOption[]>([]);
   const [vendors, setVendors] = useState<PartyOption[]>([]);
   const [transporters, setTransporters] = useState<PartyOption[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [deleteId, setDeleteId] = useState('');
@@ -51,56 +60,8 @@ const ConsignmentList = () => {
   const [updating, setUpdating] = useState(false);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-  
-  // Function to fetch detailed consignment data including items
-  const fetchConsignmentDetails = useCallback(async (consignmentId: string) => {
-    if (consignmentsWithItems[consignmentId] || loadingItems[consignmentId]) {
-      return; // Already loaded or currently loading
-    }
 
-    try {
-      setLoadingItems(prev => ({ ...prev, [consignmentId]: true }));
-      console.log('Fetching detailed consignment data for ID:', consignmentId);
-      
-      const response = await getSingleConsignment(consignmentId);
-      if (response?.data) {
-        console.log('Detailed consignment data received:', {
-          id: consignmentId,
-          items: response.data.items,
-          itemsCount: Array.isArray(response.data.items) ? response.data.items.length : 0
-        });
-        
-        // Store the detailed consignment data
-        setConsignmentsWithItems(prev => ({
-          ...prev,
-          [consignmentId]: response.data
-        }));
-        
-        // Update the main consignments list with items data
-        setConsignments(prev => prev.map(cons => 
-          cons.id === consignmentId 
-            ? { ...cons, items: response.data.items }
-            : cons
-        ));
-        
-        // Update filtered consignments as well
-        setFilteredConsignments(prev => prev.map(cons => 
-          cons.id === consignmentId 
-            ? { ...cons, items: response.data.items }
-            : cons
-        ));
-        
-        toast.success('Items data loaded successfully');
-      }
-    } catch (error) {
-      console.error('Error fetching consignment details:', error);
-      toast.error('Failed to load consignment details');
-    } finally {
-      setLoadingItems(prev => ({ ...prev, [consignmentId]: false }));
-    }
-  }, [consignmentsWithItems, loadingItems]);
-  
-  // File upload states
+  // File Upload States
   const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
   const [selectedConsignmentForFiles, setSelectedConsignmentForFiles] = useState<string | null>(null);
   const [consignmentFiles, setConsignmentFiles] = useState<{ [consignmentId: string]: UploadedFile[] }>({});
@@ -115,183 +76,97 @@ const ConsignmentList = () => {
     { id: 5, name: 'Approved', color: '#3b82f6' },
   ];
 
-  // Function to resolve party IDs to names
-  const resolvePartyName = (id?: string): string => {
-    if (!id || id.trim() === '') return '-';
-    
-    // Check if it's already a name (not a UUID)
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-      return id; // Already a name, return as is
+  const resolvePartyName = (
+    id?: string,
+    lists?: {
+      customers: PartyOption[];
+      parties: PartyOption[];
+      vendors: PartyOption[];
+      transporters: PartyOption[];
     }
+  ): string => {
+    if (!id || id.trim() === '') return '-';
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return id;
+    }
+    const srcCustomers = lists?.customers ?? customers;
+    const srcParties = lists?.parties ?? parties;
+    const srcVendors = lists?.vendors ?? vendors;
+    const srcTransporters = lists?.transporters ?? transporters;
 
-    // Try to find the name in customers
-    const customer = customers.find(c => c.id === id);
-    if (customer) return customer.name;
-
-    // Try to find the name in parties
-    const party = parties.find(p => p.id === id);
-    if (party) return party.name;
-
-    // Try to find the name in vendors
-    const vendor = vendors.find(v => v.id === id);
-    if (vendor) return vendor.name;
-
-    // Try to find the name in transporters
-    const transporter = transporters.find(t => t.id === id);
-    if (transporter) return transporter.name;
-
-    // If not found, return a shortened version of the ID with a warning
-    console.warn(`Unresolved party ID: ${id}`);
-    return `ID: ${id.substring(0, 8)}...`;
+    const found =
+      srcCustomers.find(c => c.id === id) ||
+      srcParties.find(p => p.id === id) ||
+      srcVendors.find(v => v.id === id) ||
+      srcTransporters.find(t => t.id === id);
+    return found ? found.name : `ID: ${id.substring(0, 8)}...`;
   };
 
-  // Create stable handlers for pagination
   const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
-    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
-    console.log('Consignment page index changing from', pageIndex, 'to', resolvedPageIndex);
-    setPageIndex(resolvedPageIndex);
+    const resolved = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    setPageIndex(resolved);
   }, [pageIndex]);
 
   const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
-    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
-    console.log('Consignment page size changing from', pageSize, 'to', resolvedPageSize);
-    setPageSize(resolvedPageSize);
-    setPageIndex(0); // Reset to first page when page size changes
+    const resolved = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    setPageSize(resolved);
+    setPageIndex(0);
   }, [pageSize]);
+
+  const fetchConsignmentDetails = useCallback(async (consignmentId: string) => {
+    if (consignmentsWithItems[consignmentId] || loadingItems[consignmentId]) return;
+    try {
+      setLoadingItems(prev => ({ ...prev, [consignmentId]: true }));
+      const response = await getSingleConsignment(consignmentId);
+      if (response?.data) {
+        setConsignmentsWithItems(prev => ({ ...prev, [consignmentId]: response.data }));
+        setConsignments(prev => prev.map(c => c.id === consignmentId ? { ...c, items: response.data.items } : c));
+        setFilteredConsignments(prev => prev.map(c => c.id === consignmentId ? { ...c, items: response.data.items } : c));
+      }
+    } catch (error) {
+      console.error('Error fetching consignment details:', error);
+      toast.error('Failed to load consignment details');
+    } finally {
+      setLoadingItems(prev => ({ ...prev, [consignmentId]: false }));
+    }
+  }, [consignmentsWithItems, loadingItems]);
 
   const fetchConsignments = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Fetch consignments and party data in parallel
-      const [consignmentResponse, customersRes, partiesRes, vendorsRes, transportersRes] = await Promise.all([
+      const [consRes, custRes, partyRes, vendRes, transRes] = await Promise.all([
         getAllConsignment(pageIndex + 1, pageSize, selectedStatusFilter !== 'All' ? { status: selectedStatusFilter } : {}),
-        getAllCustomers(1, 1000).catch(err => { console.warn('Failed to fetch customers:', err); return { data: [] }; }),
-        getAllPartys(1, 1000).catch(err => { console.warn('Failed to fetch parties:', err); return { data: [] }; }),
-        getAllVendor(1, 1000).catch(err => { console.warn('Failed to fetch vendors:', err); return { data: [] }; }),
-        getAllTransporter(1, 1000).catch(err => { console.warn('Failed to fetch transporters:', err); return { data: [] }; })
+        getAllCustomers(1, 1000).catch(() => ({ data: [] })),
+        getAllPartys(1, 1000).catch(() => ({ data: [] })),
+        getAllVendor(1, 1000).catch(() => ({ data: [] })),
+        getAllTransporter(1, 1000).catch(() => ({ data: [] })),
       ]);
-      
-      // Store party data for resolution
-      const customersData = customersRes?.data?.map((c: any) => ({ 
-        id: c.id, 
-        name: c.name || c.customerName || c.Name || c.CustomerName || c.title || c.Title 
-      })) || [];
-      const partiesData = partiesRes?.data?.map((p: any) => ({ 
-        id: p.id, 
-        name: p.name || p.partyName || p.Name || p.PartyName || p.title || p.Title 
-      })) || [];
-      const vendorsData = vendorsRes?.data?.map((v: any) => ({ 
-        id: v.id, 
-        name: v.name || v.vendorName || v.Name || v.VendorName || v.title || v.Title 
-      })) || [];
-      const transportersData = transportersRes?.data?.map((t: any) => ({ 
-        id: t.id, 
-        name: t.name || t.transporterName || t.Name || t.TransporterName || t.title || t.Title 
-      })) || [];
-      
-      // Debug: Log the party data to understand structure
-      console.log('Customers data:', customersData.slice(0, 3));
-      console.log('Parties data:', partiesData.slice(0, 3));
-      console.log('Vendors data:', vendorsData.slice(0, 3));
-      console.log('Transporters data:', transportersData.slice(0, 3));
-      
+
+      const customersData = custRes?.data?.map((c: any) => ({ id: c.id, name: c.name || c.customerName || c.title || '-' })) || [];
+      const partiesData = partyRes?.data?.map((p: any) => ({ id: p.id, name: p.name || p.partyName || p.title || '-' })) || [];
+      const vendorsData = vendRes?.data?.map((v: any) => ({ id: v.id, name: v.name || v.vendorName || v.title || '-' })) || [];
+      const transportersData = transRes?.data?.map((t: any) => ({ id: t.id, name: t.name || t.transporterName || t.title || '-' })) || [];
+
       setCustomers(customersData);
       setParties(partiesData);
       setVendors(vendorsData);
       setTransporters(transportersData);
 
-      // Helper function to resolve party names using local data
-      const resolvePartyNameLocal = (id?: string): string => {
-        if (!id || id.trim() === '') return '-';
-        
-        // Check if it's already a name (not a UUID)
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-          return id; // Already a name, return as is
-        }
+      if (consRes?.data) {
+        const resolved = consRes.data.map((c: any) => ({
+          ...c,
+          consignor: resolvePartyName(c.consignor || c.consignorId, { customers: customersData, parties: partiesData, vendors: vendorsData, transporters: transportersData }),
+          consignee: resolvePartyName(c.consignee || c.consigneeId, { customers: customersData, parties: partiesData, vendors: vendorsData, transporters: transportersData }),
+        }));
+        setConsignments(resolved);
 
-        // Debug: Log the ID being resolved
-        console.log(`Resolving party ID: ${id}`);
+        const misc = consRes.misc || {};
+        const total = misc.total ?? misc.totalCount ?? resolved.length;
+        setTotalRows(Number(total) || 0);
+        setTotalPages(total && pageSize ? Math.ceil(total / pageSize) : 0);
 
-        // Try to find the name in all party types
-        const customer = customersData.find((c: PartyOption) => c.id === id);
-        if (customer) {
-          console.log(`Found customer: ${customer.name} for ID: ${id}`);
-          return customer.name;
-        }
-
-        const party = partiesData.find((p: PartyOption) => p.id === id);
-        if (party) {
-          console.log(`Found party: ${party.name} for ID: ${id}`);
-          return party.name;
-        }
-
-        const vendor = vendorsData.find((v: PartyOption) => v.id === id);
-        if (vendor) {
-          console.log(`Found vendor: ${vendor.name} for ID: ${id}`);
-          return vendor.name;
-        }
-
-        const transporter = transportersData.find((t: PartyOption) => t.id === id);
-        if (transporter) {
-          console.log(`Found transporter: ${transporter.name} for ID: ${id}`);
-          return transporter.name;
-        }
-
-        // If not found, return a shortened version of the ID with a warning
-        console.warn(`Unresolved party ID: ${id}`);
-        return `ID: ${id.substring(0, 8)}...`;
-      };
-      
-      if (consignmentResponse?.data) {
-        // Debug: Log the raw consignment data to understand structure
-        if (consignmentResponse.data.length > 0) {
-          console.log('Raw consignment data:', consignmentResponse.data[0]);
-          console.log('Consignor field:', consignmentResponse.data[0].consignor || consignmentResponse.data[0].consignorId);
-          console.log('Consignee field:', consignmentResponse.data[0].consignee || consignmentResponse.data[0].consigneeId);
-        }
-
-        // Resolve consignor and consignee names in the consignment data
-        const consignmentsWithResolvedNames = consignmentResponse.data.map((consignment: any) => {
-          const resolvedConsignor = resolvePartyNameLocal(
-            consignment.consignor || consignment.consignorId || consignment.Consignor || consignment.ConsignorId
-          );
-          const resolvedConsignee = resolvePartyNameLocal(
-            consignment.consignee || consignment.consigneeId || consignment.Consignee || consignment.ConsigneeId
-          );
-          
-          console.log(`Consignment ${consignment.id} resolution:`, {
-            originalConsignor: consignment.consignor || consignment.consignorId || consignment.Consignor || consignment.ConsignorId,
-            resolvedConsignor,
-            originalConsignee: consignment.consignee || consignment.consigneeId || consignment.Consignee || consignment.ConsigneeId,
-            resolvedConsignee
-          });
-          
-          return {
-            ...consignment,
-            consignor: resolvedConsignor,
-            consignee: resolvedConsignee
-          };
-        });
-        
-        // Debug: Log the first resolved consignment
-        if (consignmentsWithResolvedNames.length > 0) {
-          console.log('First resolved consignment:', {
-            original: consignmentResponse.data[0],
-            resolved: consignmentsWithResolvedNames[0]
-          });
-        }
-        
-        setConsignments(consignmentsWithResolvedNames);
-        const misc = consignmentResponse.misc || {};
-        const serverTotal = misc.total ?? misc.totalCount ?? consignmentResponse.data.length;
-        const serverTotalPages = misc.totalPages ?? (serverTotal && pageSize ? Math.ceil(serverTotal / pageSize) : 0);
-        setTotalRows(Number(serverTotal) || 0);
-        setTotalPages(Number(serverTotalPages) || 0);
-        
-        // If we're on a page that doesn't exist, go to the last available page
-        if (serverTotalPages > 0 && pageIndex >= serverTotalPages) {
-          setPageIndex(Math.max(0, serverTotalPages - 1));
+        if (totalPages > 0 && pageIndex >= totalPages) {
+          setPageIndex(Math.max(0, totalPages - 1));
         }
       } else {
         setConsignments([]);
@@ -301,29 +176,14 @@ const ConsignmentList = () => {
     } catch (error) {
       console.error('Error fetching consignments:', error);
       toast('Failed to fetch consignments', { type: 'error' });
-      setConsignments([]);
-      setTotalRows(0);
-      setTotalPages(0);
     } finally {
       setLoading(false);
     }
   }, [pageIndex, pageSize, selectedStatusFilter]);
 
-  useEffect(() => {
-    console.log('Consignment useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize, 'statusFilter:', selectedStatusFilter);
-    fetchConsignments();
-  }, [fetchConsignments]);
-
-  useEffect(() => {
-    // Since we're now filtering on the server side, just use the consignments as they are
-    setFilteredConsignments(consignments);
-  }, [consignments]);
-
-  useEffect(() => {
-    setPageIndex(0);
-  }, [selectedStatusFilter]);
-
-  // Reset to first page if current page exceeds total pages
+  useEffect(() => { fetchConsignments(); }, [fetchConsignments]);
+  useEffect(() => { setFilteredConsignments(consignments); }, [consignments]);
+  useEffect(() => { setPageIndex(0); }, [selectedStatusFilter]);
   useEffect(() => {
     if (totalPages > 0 && pageIndex >= totalPages) {
       setPageIndex(Math.max(0, totalPages - 1));
@@ -335,7 +195,7 @@ const ConsignmentList = () => {
       fetchConsignments();
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('refresh');
-      router.replace(newUrl.pathname);
+      router.replace(newUrl.pathname + newUrl.search);
     }
   }, [searchParams, router]);
 
@@ -350,49 +210,33 @@ const ConsignmentList = () => {
     }
   };
 
-  const handleDeleteOpen = (id: string) => {
-    setOpenDelete(true);
-    setDeleteId(id);
-  };
-
-  const handleDeleteClose = () => {
-    setOpenDelete(false);
-    setDeleteId('');
-  };
+  const handleDeleteOpen = (id: string) => { setOpenDelete(true); setDeleteId(id); };
+  const handleDeleteClose = () => { setOpenDelete(false); setDeleteId(''); };
 
   const handleRowClick = async (consignmentId: string) => {
-    if (selectedConsignmentIds.includes(consignmentId)) {
-      return;
-    }
+    if (selectedConsignmentIds.includes(consignmentId)) return;
     setSelectedConsignmentIds([consignmentId]);
     setSelectedRowId(consignmentId);
     setSelectedConsignmentForFiles(consignmentId);
-    
-    // Fetch detailed consignment data including items
     await fetchConsignmentDetails(consignmentId);
-    
-    const consignment = consignments.find((item) => item.id === consignmentId);
+
+    const consignment = consignments.find(c => c.id === consignmentId);
     if (consignment?.orderNo) {
       try {
-        const response = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
-        const booking = response?.data.find((b: any) => b.orderNo === consignment.orderNo);
+        const res = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
+        const booking = res?.data.find((b: any) => b.orderNo === consignment.orderNo);
         setBookingStatus(booking?.status || null);
-      } catch (error) {
-        toast('Failed to fetch booking status', { type: 'error' });
-      }
+      } catch (err) { console.error(err); }
     }
-    const selectedConsignment = consignments.find((c) => c.id === consignmentId);
-    setSelectedBulkStatus(selectedConsignment?.status || null);
+    setSelectedBulkStatus(consignment?.status || null);
   };
 
-  const handleRowDoubleClick = (consignmentId: string) => {
-    if (selectedConsignmentIds.includes(consignmentId)) {
-      setSelectedConsignmentIds([]);
-      setSelectedRowId(null);
-      setBookingStatus(null);
-      setSelectedBulkStatus(null);
-      setSelectedConsignmentForFiles(null);
-    }
+  const handleRowDoubleClick = () => {
+    setSelectedConsignmentIds([]);
+    setSelectedRowId(null);
+    setBookingStatus(null);
+    setSelectedBulkStatus(null);
+    setSelectedConsignmentForFiles(null);
   };
 
   const handleCheckboxChange = async (consignmentId: string, checked: boolean) => {
@@ -400,15 +244,13 @@ const ConsignmentList = () => {
       setSelectedConsignmentIds([consignmentId]);
       setSelectedRowId(consignmentId);
       setSelectedConsignmentForFiles(consignmentId);
-      const consignment = consignments.find((item) => item.id === consignmentId);
+      const consignment = consignments.find(c => c.id === consignmentId);
       if (consignment?.orderNo) {
         try {
-          const response = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
-          const booking = response?.data.find((b: any) => b.orderNo === consignment.orderNo);
+          const res = await getAllBookingOrder(1, 100, { orderNo: consignment.orderNo });
+          const booking = res?.data.find((b: any) => b.orderNo === consignment.orderNo);
           setBookingStatus(booking?.status || null);
-        } catch (error) {
-          toast('Failed to fetch booking status', { type: 'error' });
-        }
+        } catch (err) { console.error(err); }
       }
     } else {
       setSelectedConsignmentIds([]);
@@ -416,164 +258,314 @@ const ConsignmentList = () => {
       setBookingStatus(null);
       setSelectedConsignmentForFiles(null);
     }
-    const selectedConsignment = consignments.find((c) => c.id === consignmentId);
-    setSelectedBulkStatus(checked ? selectedConsignment?.status || null : null);
+    setSelectedBulkStatus(checked ? consignments.find(c => c.id === consignmentId)?.status || null : null);
   };
 
+  // === FILE UPLOAD LOGIC (Same as BookingOrderList) ===
   const handleFileUploadClick = () => {
     if (!selectedConsignmentForFiles) {
       toast('Please select a consignment first', { type: 'warning' });
       return;
     }
+
+    const consignment = consignments.find(c => c.id === selectedConsignmentForFiles);
+    if (consignment?.files && !consignmentFiles[selectedConsignmentForFiles]) {
+      const existingFiles = consignment.files.split(',').map((url: string, i: number) => {
+        const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] || `file-${i + 1}`);
+        const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+        return { id: `exist-${i}`, name, url: url.trim(), type };
+      });
+      setConsignmentFiles(prev => ({ ...prev, [selectedConsignmentForFiles]: existingFiles }));
+    }
+
     setOpenFileUploadModal(true);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && selectedConsignmentForFiles) {
-      const newFiles = Array.from(files).map((file) => ({
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: file.name,
-        url: URL.createObjectURL(file),
-        type: file.type,
-      }));
-      setConsignmentFiles((prev) => ({
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !selectedConsignmentForFiles) return;
+
+    setLoading(true);
+    toast(`Uploading ${files.length} file(s)...`, { type: 'info' });
+
+    try {
+      const uploaded = await Promise.all(
+        Array.from(files).map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          if (!res.ok) throw new Error(await res.text());
+          const { url } = await res.json();
+          return {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: file.name,
+            url,
+            type: file.type || 'application/octet-stream',
+          };
+        })
+      );
+
+      setConsignmentFiles(prev => ({
         ...prev,
-        [selectedConsignmentForFiles]: [...(prev[selectedConsignmentForFiles] || []), ...newFiles],
+        [selectedConsignmentForFiles]: [...(prev[selectedConsignmentForFiles] || []), ...uploaded],
       }));
-      toast(`${files.length} file(s) uploaded for consignment ${selectedConsignmentForFiles}`, { type: 'success' });
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+
+      toast('Files uploaded successfully!', { type: 'success' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err: any) {
+      toast('Upload failed: ' + err.message, { type: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleViewFile = (url: string) => {
-    window.open(url, '_blank');
+  const handleSaveFilesToBackend = async () => {
+    if (!selectedConsignmentForFiles || !consignmentFiles[selectedConsignmentForFiles]?.length) {
+      toast('No files to save', { type: 'warning' });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const urls = consignmentFiles[selectedConsignmentForFiles].map(f => f.url).join(',');
+      await updateConsignmentFiles({ id: selectedConsignmentForFiles, files: urls });
+      toast('Files saved to consignment!', { type: 'success' });
+      setOpenFileUploadModal(false);
+      setSelectedConsignmentForFiles(null);
+      await fetchConsignments();
+    } catch (err) {
+      toast('Failed to save files', { type: 'error' });
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleViewFile = (url: string) => window.open(url, '_blank');
   const handleRemoveFile = (consignmentId: string, fileId: string) => {
-    setConsignmentFiles((prev) => ({
+    setConsignmentFiles(prev => ({
       ...prev,
-      [consignmentId]: prev[consignmentId].filter((file) => file.id !== fileId),
+      [consignmentId]: prev[consignmentId].filter(f => f.id !== fileId),
     }));
-    toast('File removed successfully', { type: 'success' });
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
-    if (selectedConsignmentIds.length === 0) {
+    if (!selectedConsignmentIds.length) {
       toast('Please select at least one consignment', { type: 'warning' });
       return;
     }
     try {
       setUpdating(true);
-      const updatePromises = selectedConsignmentIds.map((id) =>
-        updateConsignmentStatus({ id, status: newStatus })
-      );
-      await Promise.all(updatePromises);
+      await Promise.all(selectedConsignmentIds.map(id => updateConsignmentStatus({ id, status: newStatus })));
       setSelectedBulkStatus(newStatus);
       setSelectedConsignmentIds([]);
       setSelectedRowId(null);
       setBookingStatus(null);
       setSelectedConsignmentForFiles(null);
-      
-      // Only change filter if it's different and reset page
       if (selectedStatusFilter !== newStatus) {
         setSelectedStatusFilter(newStatus);
         setPageIndex(0);
       }
-      
-      toast('Consignment Status Updated Successfully', { type: 'success' });
+      toast('Status updated successfully', { type: 'success' });
       await fetchConsignments();
-    } catch (error) {
+    } catch (err) {
       toast('Failed to update status', { type: 'error' });
     } finally {
       setUpdating(false);
     }
   };
 
-  const exportToExcel = () => {
-    let dataToExport = selectedConsignmentIds.length > 0
-      ? filteredConsignments.filter((c) => selectedConsignmentIds.includes(c.id))
+  const exportToExcel = async () => {
+    const data = selectedConsignmentIds.length > 0
+      ? filteredConsignments.filter(c => selectedConsignmentIds.includes(c.id))
       : filteredConsignments;
 
-    if (dataToExport.length === 0) {
-      toast('No consignments to export', { type: 'warning' });
+    if (!data.length) {
+      toast('No data to export', { type: 'warning' });
       return;
     }
 
-    const formattedData = dataToExport.map((c) => {
-      // Format items data properly
-      let itemsDescription = '';
-      let itemsQuantity = '';
-      let itemsWeight = '';
-      
-      if (Array.isArray(c.items) && c.items.length > 0) {
-        // Filter out empty items and create descriptions
-        const validItems = c.items.filter((item: any) => item.desc && item.desc.trim() !== '');
-        itemsDescription = validItems.map((item: any) => item.desc || '').join(', ');
-        itemsQuantity = validItems.map((item: any) => `${item.qty || 0} ${item.qtyUnit || ''}`).join(', ');
-        itemsWeight = validItems.map((item: any) => `${item.weight || 0} ${item.weightUnit || ''}`).join(', ');
-      } else if (consignmentsWithItems[c.id]?.items) {
-        // Use detailed items data if available
-        const detailedItems = consignmentsWithItems[c.id].items;
-        const validItems = detailedItems.filter((item: any) => item.desc && item.desc.trim() !== '');
-        itemsDescription = validItems.map((item: any) => item.desc || '').join(', ');
-        itemsQuantity = validItems.map((item: any) => `${item.qty || 0} ${item.qtyUnit || ''}`).join(', ');
-        itemsWeight = validItems.map((item: any) => `${item.weight || 0} ${item.weightUnit || ''}`).join(', ');
-      }
-      
+    const rows = data.map(c => {
+      const items = consignmentsWithItems[c.id]?.items || c.items || [];
+      const desc = Array.isArray(items) ? items.map((i: any) => i.desc).filter(Boolean).join(', ') : '';
+      const qty = Array.isArray(items) ? items.map((i: any) => `${i.qty || 0} ${i.qtyUnit || ''}`).join(', ') : '';
+      const weight = Array.isArray(items) ? items.map((i: any) => `${i.weight || 0} ${i.weightUnit || ''}`).join(', ') : '';
+
       return {
         'Receipt No': c.receiptNo || '-',
         'Order No': c.orderNo || '-',
         'Bilty No': c.biltyNo || '-',
-        'Date': c.date || '-',
         'Consignment No': c.consignmentNo || '-',
-        'Consignor': c.consignor || '-', // Now contains resolved name
-        'Consignment Date': c.consignmentDate || '-',
-        'Consignee': c.consignee || '-', // Now contains resolved name
-        'Receiver Name': c.receiverName || '-',
-        'Receiver Contact No': c.receiverContactNo || '-',
-        'Shipping Line': c.shippingLine || '-',
-        'Container No': c.containerNo || '-',
-        'Port': c.port || '-',
-        'Destination': c.destination || '-',
-        'Items Description': itemsDescription || 'No items loaded',
-        'Items Quantity': itemsQuantity || '-',
-        'Items Weight': itemsWeight || '-',
-        'Item Desc': c.itemDesc || '-',
-        'Qty': c.qty || '-',
-        'Weight': c.weight || '-',
-        'Total Qty': c.totalQty || '-',
-        'Freight': c.freight || '-',
-        'SRB Tax': c.srbTax || '-',
-        'SRB Amount': c.srbAmount || '-',
-        'Delivery Charges': c.deliveryCharges || '-',
-        'Insurance Charges': c.insuranceCharges || '-',
-        'Toll Tax': c.tollTax || '-',
-        'Other Charges': c.otherCharges || '-',
+        'Consignor': c.consignor || '-',
+        'Consignee': c.consignee || '-',
+        'Items': desc || 'No items',
+        'Qty': qty || '-',
+        'Weight': weight || '-',
         'Total Amount': c.totalAmount || '-',
-        'Received Amount': c.receivedAmount || '-',
-        'Income Tax Ded.': c.incomeTaxDed || '-',
-        'Income Tax Amount': c.incomeTaxAmount || '-',
-        'Delivery Date': c.deliveryDate || '-',
-        'Freight From': c.freightFrom || '-',
-        'Remarks': c.remarks || '-',
-        'Status': c.status || 'Pending',
-        'Files': (consignmentFiles[c.id] || []).map((f) => f.name).join(', ') || '-',
+        'Received': c.receivedAmount || '-',
+        'Status': c.status || '-',
+        'Files': (consignmentFiles[c.id] || []).map(f => f.name).join(', ') || '-',
       };
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(formattedData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Consignments');
-    XLSX.writeFile(workbook, 'Consignments.xlsx');
+    // Prefer exceljs for professional styling; fallback to basic XLSX if needed
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      const ws = workbook.addWorksheet('Consignments');
+
+      // Page setup for printing
+      ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } } as any;
+
+      // Define headers (with Serial column first)
+      const headers = [
+        'Serial', 'Receipt No', 'Order No', 'Bilty No', 'Consignment No', 'Consignor', 'Consignee',
+        'Items', 'Qty', 'Weight', 'Total Amount', 'Received', 'Status', 'Files'
+      ];
+
+      // Compact column widths, centered by default
+      const widths: number[] = [8, 12, 10, 14, 16, 20, 20, 30, 10, 10, 14, 14, 12, 16];
+      ws.columns = headers.map((h, i) => ({ header: h, key: `col${i}`, width: widths[i] }));
+
+      // Insert title rows above header
+      const title = 'AL-NASAR BASHEER LOGISTICS';
+      const subtitle = 'Consignments Report';
+      ws.spliceRows(1, 0, [title]);
+      ws.spliceRows(2, 0, [subtitle]);
+
+      const totalCols = headers.length;
+      ws.mergeCells(1, 1, 1, totalCols);
+      ws.mergeCells(2, 1, 2, totalCols);
+
+      const titleRow = ws.getRow(1);
+      titleRow.font = { bold: true, size: 16 } as any;
+      titleRow.alignment = { vertical: 'middle', horizontal: 'center' } as any;
+      titleRow.height = 20;
+
+      const subtitleRow = ws.getRow(2);
+      subtitleRow.font = { bold: true, size: 12 } as any;
+      subtitleRow.alignment = { vertical: 'middle', horizontal: 'center' } as any;
+      subtitleRow.height = 18;
+
+      // After splicing rows, header is now at row 3
+      const headerRow = ws.getRow(3);
+      headerRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FF000000' } } as any;
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true } as any;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5EEF7' } } as any;
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF9E9E9E' } },
+          left: { style: 'thin', color: { argb: 'FF9E9E9E' } },
+          bottom: { style: 'thin', color: { argb: 'FF9E9E9E' } },
+          right: { style: 'thin', color: { argb: 'FF9E9E9E' } },
+        } as any;
+      });
+      headerRow.height = 18;
+
+      // Freeze panes below header
+      ws.views = [{ state: 'frozen', ySplit: 3 }];
+
+      // Data rows with serial and centered alignment
+      let totalAmountSum = 0;
+      let receivedSum = 0;
+      rows.forEach((r, idx) => {
+        const data = headers.map((h) => {
+          if (h === 'Serial') return idx + 1;
+          return (r as any)[h];
+        });
+        const added = ws.addRow(data);
+        // Update totals
+        const ta = (r as any)['Total Amount'];
+        const ra = (r as any)['Received'];
+        const taNum = typeof ta === 'number' ? ta : parseFloat(String(ta ?? '').replace(/[^0-9.-]/g, ''));
+        const raNum = typeof ra === 'number' ? ra : parseFloat(String(ra ?? '').replace(/[^0-9.-]/g, ''));
+        if (!isNaN(taNum)) totalAmountSum += taNum;
+        if (!isNaN(raNum)) receivedSum += raNum;
+      });
+
+      // Style body: borders, alignment, zebra striping, number formats
+      ws.eachRow((row, rowNumber) => {
+        if (rowNumber <= 3) return; // skip title+header rows
+        const isEven = rowNumber % 2 === 0;
+        row.eachCell((cell, colNumber) => {
+          // Base style
+          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true } as any;
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+            left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+            bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+            right: { style: 'thin', color: { argb: 'FFDDDDDD' } },
+          } as any;
+          if (isEven) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7F7' } } as any;
+          }
+          // Numeric formatting for Qty, Weight, Total Amount, Received
+          if (colNumber === 9 || colNumber === 10) {
+            const num = parseFloat(String(cell.value ?? '').replace(/[^0-9.-]/g, ''));
+            if (!isNaN(num)) {
+              cell.value = num;
+              cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true } as any;
+            }
+          }
+          if (colNumber === 11 || colNumber === 12) {
+            const num = parseFloat(String(cell.value ?? '').replace(/[^0-9.-]/g, ''));
+            if (!isNaN(num)) {
+              cell.value = num;
+              (cell as any).numFmt = '#,##0.00';
+              cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true } as any;
+            }
+          }
+        });
+      });
+
+      // Totals row
+      const totalsRow = ws.addRow([
+        '', '', '', '', '', '', '', 'TOTAL', '', '', totalAmountSum, receivedSum, '', ''
+      ]);
+      totalsRow.eachCell((cell, colNumber) => {
+        cell.font = { bold: true } as any;
+        cell.alignment = { vertical: 'middle', horizontal: colNumber >= 11 && colNumber <= 12 ? 'right' : 'center' } as any;
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF9E9E9E' } },
+          left: { style: 'thin', color: { argb: 'FF9E9E9E' } },
+          bottom: { style: 'thin', color: { argb: 'FF9E9E9E' } },
+          right: { style: 'thin', color: { argb: 'FF9E9E9E' } },
+        } as any;
+      });
+      const lastCol = headers.length;
+      ws.mergeCells(totalsRow.number, 8, totalsRow.number, 9); // merge "TOTAL" label over Items -> Qty
+      // Apply number formats to totals
+      const totalAmtCell = totalsRow.getCell(11);
+      const receivedCell = totalsRow.getCell(12);
+      (totalAmtCell as any).numFmt = '#,##0.00';
+      (receivedCell as any).numFmt = '#,##0.00';
+
+      // Apply autofilter to header row (row 3)
+      ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: lastCol } } as any;
+
+      // Export
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Consignments.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.warn('exceljs not available, falling back to basic XLSX export', err);
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Consignments');
+      XLSX.writeFile(wb, 'Consignments.xlsx');
+    }
   };
 
   return (
     <div className="container mx-auto mt-4 max-w-screen p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
           <div className="flex items-center">
             <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
             <select
@@ -581,211 +573,139 @@ const ConsignmentList = () => {
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
               className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
             >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
+              {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <button
-            onClick={fetchConsignments}
-            className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
-          >
-            Refresh Data
+          <button onClick={fetchConsignments} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
+            Refresh
           </button>
         </div>
-        <button
-          onClick={exportToExcel}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-        >
-          <FaFileExcel size={18} />
-          Download Excel
+        <button onClick={exportToExcel} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+          <FaFileExcel size={18} /> Download Excel
         </button>
       </div>
-      <div>
-        <DataTable
-          columns={columns(handleDeleteOpen, handleCheckboxChange, selectedConsignmentIds)}
-          data={filteredConsignments}
-          loading={loading}
-          link="/consignment/create"
-          setPageIndex={handlePageIndexChange}
-          pageIndex={pageIndex}
-          pageSize={pageSize}
-          setPageSize={handlePageSizeChange}
-          totalRows={totalRows}
-          onRowClick={handleRowClick}
-          onRowDoubleClick={handleRowDoubleClick}
-        />
-      </div>
-      <div className="space-y-2 h-[10vh]">
-        <div className="flex flex-wrap p-3 gap-3">
-          {statusOptionsConfig.map((option) => {
-            const isSelected = selectedBulkStatus === option.name;
-            return (
-              <button
-                key={option.id}
-                onClick={() => handleBulkStatusUpdate(option.name)}
-                disabled={updating || !selectedConsignmentIds.length}
-                className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-                  ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
-                  ${updating || !selectedConsignmentIds.length ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span className="text-sm font-semibold text-center">{option.name}</span>
-                {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
-              </button>
-            );
-          })}
-          <button
-            onClick={handleFileUploadClick}
-            disabled={!selectedConsignmentIds.length}
-            className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-              ${selectedConsignmentIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-500' : 'border-gray-300 bg-white text-gray-700 opacity-50 cursor-not-allowed'}`}
-          >
-            <span className="text-sm font-semibold text-center">Upload Files</span>
-            {selectedConsignmentIds.length && <FaFileUpload className="text-blue-500 animate-bounce" size={18} />}
-          </button>
-        </div>
-      </div>
+
+      <DataTable
+        columns={columns(handleDeleteOpen, handleCheckboxChange, selectedConsignmentIds)}
+        data={filteredConsignments}
+        loading={loading}
+        link="/consignment/create"
+        searchName="consignmentNo"
+        setPageIndex={handlePageIndexChange}
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        setPageSize={handlePageSizeChange}
+        totalRows={totalRows}
+        onRowClick={handleRowClick}
+        onRowDoubleClick={handleRowDoubleClick}
+      />
+
       {selectedRowId && (
-        <div className="mt-4">
+        <div className="mt-6">
           <OrderProgress
-            orderNo={consignments.find((c) => c.id === selectedRowId)?.orderNo}
+            orderNo={consignments.find(c => c.id === selectedRowId)?.orderNo}
             bookingStatus={bookingStatus}
             consignments={consignments
-              .filter((c) => c.id === selectedRowId)
-              .map((consignment) => {
-                // Debug: Log the consignment data being passed to OrderProgress
-                console.log('Passing consignment to OrderProgress:', {
-                  id: consignment.id,
-                  consignor: consignment.consignor,
-                  consignee: consignment.consignee,
-                  biltyNo: consignment.biltyNo,
-                  items: consignment.items,
-                  itemsType: typeof consignment.items,
-                  itemsIsArray: Array.isArray(consignment.items),
-                  itemsLength: Array.isArray(consignment.items) ? consignment.items.length : 0,
-                  detailedItems: consignmentsWithItems[consignment.id]?.items
-                });
-                
-                // Use detailed items if available, otherwise use regular items
-                const finalItems = consignmentsWithItems[consignment.id]?.items || consignment.items;
-                
-                return {
-                  ...consignment,
-                  items: Array.isArray(finalItems) ? finalItems : [],
-                  // Convert string to number for qty property to match Consignment type
-                  qty: typeof consignment.qty === 'string' ? parseFloat(consignment.qty) || 0 : consignment.qty,
-                  // Ensure consignor and consignee are resolved names
-                  consignor: consignment.consignor, // Already resolved in fetchConsignments
-                  consignee: consignment.consignee, // Already resolved in fetchConsignments
-                };
-              })}
+              .filter(c => c.id === selectedRowId)
+              .map(c => ({
+                ...c,
+                items: (consignmentsWithItems[c.id]?.items || c.items || []),
+                qty: typeof c.qty === 'string' ? parseFloat(c.qty) || 0 : c.qty,
+              }))}
           />
-        </div> 
+        </div>
       )}
-      {openDelete && (
-        <DeleteConfirmModel
-          handleDeleteclose={handleDeleteClose}
-          handleDelete={handleDelete}
-          isOpen={openDelete}
-        />
-      )}
-      {openFileUploadModal && selectedConsignmentForFiles && (
-        <div
-          id="fileUploadModal"
-          className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
-          onClick={(e) => {
-            const target = e.target as HTMLElement;
-            if (target.id === 'fileUploadModal') {
-              setOpenFileUploadModal(false);
-              setSelectedConsignmentForFiles(null);
-            }
-          }}
+
+      <div className="mt-6 flex flex-wrap gap-4 p-4">
+        {statusOptionsConfig.map(opt => {
+          const active = selectedBulkStatus === opt.name;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => handleBulkStatusUpdate(opt.name)}
+              disabled={updating || !selectedConsignmentIds.length}
+              className={`w-40 h-16 rounded-xl border-2 flex items-center justify-center font-semibold transition-all
+                ${active ? `border-[${opt.color}] bg-gradient-to-r from-[${opt.color}]/10 text-[${opt.color}]` : 'border-gray-300 bg-white'}
+                ${updating || !selectedConsignmentIds.length ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+            >
+              {opt.name}
+              {active && <FaCheck className="ml-2 animate-bounce" />}
+            </button>
+          );
+        })}
+        <button
+          onClick={handleFileUploadClick}
+          disabled={!selectedConsignmentIds.length}
+          className={`w-40 h-16 rounded-xl border-2 flex items-center justify-center font-semibold transition-all
+            ${selectedConsignmentIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-600 hover:scale-105' : 'border-gray-300 bg-white opacity-50'}`}
         >
-          <div className="bg-white rounded shadow p-5 w-full max-w-lg">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">Files for Consignment {consignments.find((c) => c.id === selectedConsignmentForFiles)?.consignmentNo || ''}</h3>
-              <button
-                onClick={() => {
-                  setOpenFileUploadModal(false);
-                  setSelectedConsignmentForFiles(null);
-                }}
-                className="text-gray-500 hover:text-black"
-              >
-                ✕
-              </button>
+          Upload Files
+          {selectedConsignmentIds.length && <FaFileUpload className="ml-2 animate-bounce" />}
+        </button>
+      </div>
+
+      {openDelete && <DeleteConfirmModel handleDeleteclose={handleDeleteClose} handleDelete={handleDelete} isOpen={openDelete} />}
+
+      {/* === FILE UPLOAD MODAL === */}
+      {openFileUploadModal && selectedConsignmentForFiles && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" onClick={(e) => e.target === e.currentTarget && setOpenFileUploadModal(false)}>
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">
+                Files - {consignments.find(c => c.id === selectedConsignmentForFiles)?.consignmentNo || 'Consignment'}
+              </h3>
+              <button onClick={() => { setOpenFileUploadModal(false); setSelectedConsignmentForFiles(null); }} className="text-3xl text-gray-500 hover:text-gray-800">&times;</button>
             </div>
-            <div className="space-y-3">
-              <input
-                type="file"
-                multiple
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept="image/*,application/pdf"
-                className="block w-full text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-full file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100"
-              />
-              {consignmentFiles[selectedConsignmentForFiles]?.length > 0 ? (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700">Uploaded Files:</h4>
-                  <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                    {consignmentFiles[selectedConsignmentForFiles].map((file) => (
-                      <li key={file.id} className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center gap-2">
-                          {file.type.startsWith('image/') && (
-                            <img
-                              src={file.url}
-                              alt={file.name}
-                              className="w-12 h-12 object-cover rounded"
-                            />
-                          )}
-                          <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+
+            <input
+              type="file"
+              multiple
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*,application/pdf"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+
+            {consignmentFiles[selectedConsignmentForFiles]?.length > 0 ? (
+              <div className="mt-6">
+                <h4 className="font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {consignmentFiles[selectedConsignmentForFiles].map(file => (
+                    <div key={file.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-4">
+                        {file.type.startsWith('image/') && <img src={file.url} alt={file.name} className="w-16 h-16 object-cover rounded" />}
+                        {file.type.includes('pdf') && <FaFilePdf size={48} className="text-red-600" />}
+                        <div>
+                          <p className="font-medium truncate max-w-xs">{file.name}</p>
+                          <p className="text-xs text-gray-500">{file.type}</p>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleViewFile(file.url)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="View File"
-                          >
-                            <FaEye size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleRemoveFile(selectedConsignmentForFiles, file.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Remove File"
-                          >
-                            <FaTrash size={18} />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                      </div>
+                      <div className="flex gap-3">
+                        <button onClick={() => handleViewFile(file.url)} className="text-blue-600 hover:text-blue-800"><FaEye size={20} /></button>
+                        <button onClick={() => handleRemoveFile(selectedConsignmentForFiles, file.id)} className="text-red-600 hover:text-red-800"><FaTrash size={20} /></button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <p className="text-sm text-gray-500">No files uploaded for this consignment.</p>
-              )}
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  onClick={() => {
-                    setOpenFileUploadModal(false);
-                    setSelectedConsignmentForFiles(null);
-                  }}
-                  className="px-4 py-2 rounded border"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Add More Files
-                </button>
               </div>
+            ) : (
+              <p className="text-center text-gray-500 my-8">No files uploaded yet.</p>
+            )}
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+              <button onClick={() => { setOpenFileUploadModal(false); setSelectedConsignmentForFiles(null); }} className="px-5 py-2 border rounded hover:bg-gray-100">
+                Cancel
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Add More Files
+              </button>
+              <button
+                onClick={handleSaveFilesToBackend}
+                disabled={!consignmentFiles[selectedConsignmentForFiles]?.length || loading}
+                className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {loading ? 'Saving...' : 'Save to Consignment'}
+              </button>
             </div>
           </div>
         </div>

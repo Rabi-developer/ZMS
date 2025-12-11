@@ -99,4 +99,43 @@ const updateConsignmentStatus = async (ConsignmentStatus: { id: string; status: 
     throw error;
   }
 };
-export { createConsignment , getAllConsignment , getAllConsignmentPositions , getSingleConsignment , updateConsignment , deleteConsignment, updateConsignmentStatus  };
+
+const updateConsignmentFiles = async ({ id, files }: { id: string; files: string }) => {
+  try {
+    if (!id) throw new Error('updateConsignmentFiles: id is required');
+    if (typeof files !== 'string') throw new Error('updateConsignmentFiles: files must be a comma-separated string');
+
+    // Try partial update first (PATCH only Files field)
+    try {
+      const patchResponse = await apiFetch(`Consignment/Files/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, files }),
+      }, true);
+      return patchResponse;
+    } catch (patchErr) {
+      console.warn('PATCH Consignment/{id} failed, falling back to merge+PUT:', patchErr);
+    }
+
+    // Fallback: fetch existing order and merge Files, then PUT full payload
+    const existing = await getSingleConsignment(id);
+    const existingOrder = (existing as any)?.data || existing;
+    if (!existingOrder) throw new Error('updateConsignmentFiles: existing order not found');
+
+    const payload = { ...existingOrder, files };
+    const response = await apiFetch(`Consignment`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, true);
+
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+export { createConsignment , getAllConsignment , getAllConsignmentPositions , getSingleConsignment , updateConsignment , deleteConsignment, updateConsignmentStatus , updateConsignmentFiles };

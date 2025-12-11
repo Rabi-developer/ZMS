@@ -2,11 +2,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash } from 'react-icons/fa';
+import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash, FaFilePdf } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllPaymentABL, deletePaymentABL, updatePaymentABLStatus } from '@/apis/paymentABL';
+import {
+  getAllPaymentABL,
+  deletePaymentABL,
+  updatePaymentABLStatus,
+  updatePaymentABLFiles, // ← Add this API function
+} from '@/apis/paymentABL';
 import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
 import { columns, PaymentABL } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
@@ -21,6 +26,7 @@ interface UploadedFile {
 const PaymentABLList = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [payments, setPayments] = useState<PaymentABL[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<PaymentABL[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,13 +42,14 @@ const PaymentABLList = () => {
   const [consignments, setConsignments] = useState<any[]>([]);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-  // File upload states
+
+  // File Upload States
   const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
   const [selectedPaymentForFiles, setSelectedPaymentForFiles] = useState<string | null>(null);
   const [paymentFiles, setPaymentFiles] = useState<{ [paymentId: string]: UploadedFile[] }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
- const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'UnApproved', 'Closed'];
+  const statusOptions = ['All', 'Prepared', 'Approved', 'Canceled', 'UnApproved', 'Closed'];
   const statusOptionsConfig = [
     { id: 1, name: 'Prepared', color: '#3b82f6' },
     { id: 2, name: 'Approved', color: '#10b981' },
@@ -51,38 +58,30 @@ const PaymentABLList = () => {
     { id: 5, name: 'Closed', color: '#6b7280' },
   ];
 
-
-  // Create stable handlers for pagination
   const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
-    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
-    console.log('PaymentABL page index changing from', pageIndex, 'to', resolvedPageIndex);
-    setPageIndex(resolvedPageIndex);
+    const resolved = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    setPageIndex(resolved);
   }, [pageIndex]);
 
   const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
-    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
-    console.log('PaymentABL page size changing from', pageSize, 'to', resolvedPageSize);
-    setPageSize(resolvedPageSize);
-    setPageIndex(0); // Reset to first page when page size changes
+    const resolved = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    setPageSize(resolved);
+    setPageIndex(0);
   }, [pageSize]);
 
   const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
-      // Convert 0-based pageIndex to 1-based for API
       const apiPageIndex = pageIndex + 1;
-      console.log('Fetching payments with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
-      
       const response = await getAllPaymentABL(apiPageIndex, pageSize);
-      console.log('Payments Response:', response);
-      
-      setPayments(response?.data || []);
-      
-      // Set total rows from the API response
-      if (response.misc) {
-        setTotalRows(response.misc.total || 0);
-        console.log('PaymentABL total rows set to:', response.misc.total);
-      }
+
+      const transformedPayments = (response?.data || []).map((p: any) => ({
+        ...p,
+        files: p.files || '', // Preserve files field
+      }));
+
+      setPayments(transformedPayments);
+      setTotalRows(response.misc?.total || 0);
     } catch (error) {
       console.error('Failed to fetch payments:', error);
       toast('Failed to fetch payments', { type: 'error' });
@@ -91,16 +90,12 @@ const PaymentABLList = () => {
     }
   }, [pageIndex, pageSize]);
 
-  useEffect(() => {
-    console.log('PaymentABL useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize);
-    fetchPayments();
-  }, [fetchPayments]);
+  useEffect(() => { fetchPayments(); }, [fetchPayments]);
 
   useEffect(() => {
-    let filtered = payments;
-    if (selectedStatusFilter !== 'All') {
-      filtered = payments.filter((p) => p.status === selectedStatusFilter);
-    }
+    const filtered = selectedStatusFilter === 'All'
+      ? payments
+      : payments.filter(p => p.status === selectedStatusFilter);
     setFilteredPayments(filtered);
   }, [payments, selectedStatusFilter]);
 
@@ -109,7 +104,7 @@ const PaymentABLList = () => {
       fetchPayments();
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('refresh');
-      router.replace(newUrl.pathname);
+      router.replace(newUrl.pathname + newUrl.search);
     }
   }, [searchParams, router]);
 
@@ -124,39 +119,29 @@ const PaymentABLList = () => {
     }
   };
 
-  const handleDeleteOpen = (id: string) => {
-    setOpenDelete(true);
-    setDeleteId(id);
-  };
-
-  const handleDeleteClose = () => {
-    setOpenDelete(false);
-    setDeleteId('');
-  };
+  const handleDeleteOpen = (id: string) => { setOpenDelete(true); setDeleteId(id); };
+  const handleDeleteClose = () => { setOpenDelete(false); setDeleteId(''); };
 
   const handleRowClick = async (paymentId: string) => {
-    if (selectedPaymentIds.includes(paymentId)) {
-      return;
-    }
+    if (selectedPaymentIds.includes(paymentId)) return;
+
     setSelectedPaymentIds([paymentId]);
     setSelectedRowId(paymentId);
     setSelectedPaymentForFiles(paymentId);
-    const payment = payments.find((item) => item.id === paymentId);
-    console.log('Selected Payment:', payment);
+
+    const payment = payments.find(p => p.id === paymentId);
     const items = payment?.PaymentABLItem ?? (payment as any)?.paymentABLItem;
     if (Array.isArray(items) && items.length > 0) {
       const orderNo = items[0]?.orderNo;
       try {
-        const bookingResponse = await getAllBookingOrder(1, 200, { orderNo });
-        const booking = bookingResponse?.data?.find((b: any) => String(b.orderNo) === String(orderNo));
+        const bookingRes = await getAllBookingOrder(1, 200, { orderNo });
+        const booking = bookingRes?.data?.find((b: any) => String(b.orderNo) === String(orderNo));
         setBookingStatus(booking?.status || null);
-        
+
         if (booking?.id) {
-          const consResponse = await getConsignmentsForBookingOrder(booking.id, 1, 100, { includeDetails: true });
-          console.log('Fetched consignments for payment:', consResponse?.data);
-          setConsignments(consResponse?.data || []);
+          const consRes = await getConsignmentsForBookingOrder(booking.id, 1, 100);
+          setConsignments(consRes?.data || []);
         } else {
-          console.warn('No booking order found for orderNo:', orderNo);
           setConsignments([]);
         }
       } catch (error) {
@@ -169,56 +154,40 @@ const PaymentABLList = () => {
       setConsignments([]);
       setBookingStatus(null);
     }
-    const selectedPayment = payments.find((p) => p.id === paymentId);
-    setSelectedBulkStatus(selectedPayment?.status || null);
+    setSelectedBulkStatus(payment?.status || null);
   };
 
-  const handleRowDoubleClick = (paymentId: string) => {
-    if (selectedPaymentIds.includes(paymentId)) {
-      setSelectedPaymentIds([]);
-      setSelectedRowId(null);
-      setConsignments([]);
-      setBookingStatus(null);
-      setSelectedBulkStatus(null);
-      setSelectedPaymentForFiles(null);
-    }
+  const handleRowDoubleClick = () => {
+    setSelectedPaymentIds([]);
+    setSelectedRowId(null);
+    setConsignments([]);
+    setBookingStatus(null);
+    setSelectedBulkStatus(null);
+    setSelectedPaymentForFiles(null);
   };
 
   const handleCheckboxChange = async (paymentId: string, checked: boolean) => {
     if (checked) {
-      // Auto-refresh data when checkbox is selected
-      await fetchPayments();
-      
       setSelectedPaymentIds([paymentId]);
       setSelectedRowId(paymentId);
       setSelectedPaymentForFiles(paymentId);
-      const payment = payments.find((item) => item.id === paymentId);
-      console.log('Checked Payment:', payment);
+
+      const payment = payments.find(p => p.id === paymentId);
       const items = payment?.PaymentABLItem ?? (payment as any)?.paymentABLItem;
       if (Array.isArray(items) && items.length > 0) {
         const orderNo = items[0]?.orderNo;
         try {
-          const bookingResponse = await getAllBookingOrder(1, 200, { orderNo });
-          const booking = bookingResponse?.data?.find((b: any) => String(b.orderNo) === String(orderNo));
+          const bookingRes = await getAllBookingOrder(1, 200, { orderNo });
+          const booking = bookingRes?.data?.find((b: any) => String(b.orderNo) === String(orderNo));
           setBookingStatus(booking?.status || null);
-          
+
           if (booking?.id) {
-            const consResponse = await getConsignmentsForBookingOrder(booking.id, 1, 100, { includeDetails: true });
-            console.log('Fetched consignments for checked payment:', consResponse?.data);
-            setConsignments(consResponse?.data || []);
-          } else {
-            console.warn('No booking order found for orderNo:', orderNo);
-            setConsignments([]);
+            const consRes = await getConsignmentsForBookingOrder(booking.id, 1, 100);
+            setConsignments(consRes?.data || []);
           }
         } catch (error) {
           console.error('Failed to fetch related data:', error);
-          toast('Failed to fetch related data', { type: 'error' });
-          setConsignments([]);
-          setBookingStatus(null);
         }
-      } else {
-        setConsignments([]);
-        setBookingStatus(null);
       }
     } else {
       setSelectedPaymentIds([]);
@@ -227,72 +196,118 @@ const PaymentABLList = () => {
       setBookingStatus(null);
       setSelectedPaymentForFiles(null);
     }
-    const selectedPayment = payments.find((p) => p.id === paymentId);
-    setSelectedBulkStatus(checked ? selectedPayment?.status || null : null);
+    setSelectedBulkStatus(checked ? payments.find(p => p.id === paymentId)?.status || null : null);
   };
 
+  // === FILE UPLOAD LOGIC (Same as BookingOrderList) ===
   const handleFileUploadClick = () => {
     if (!selectedPaymentForFiles) {
       toast('Please select a payment first', { type: 'warning' });
       return;
     }
+
+    const payment = payments.find(p => p.id === selectedPaymentForFiles);
+    if (payment?.files && !paymentFiles[selectedPaymentForFiles]) {
+      const existingFiles = payment.files.split(',').map((url: string, i: number) => {
+        const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] || `file-${i + 1}`);
+        const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+        return { id: `exist-${i}`, name, url: url.trim(), type };
+      });
+      setPaymentFiles(prev => ({ ...prev, [selectedPaymentForFiles]: existingFiles }));
+    }
+
     setOpenFileUploadModal(true);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && selectedPaymentForFiles) {
-      const newFiles = Array.from(files).map((file) => ({
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: file.name,
-        url: URL.createObjectURL(file),
-        type: file.type,
-      }));
-      setPaymentFiles((prev) => ({
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !selectedPaymentForFiles) return;
+
+    setLoading(true);
+    toast(`Uploading ${files.length} file(s)...`, { type: 'info' });
+
+    try {
+      const uploaded = await Promise.all(
+        Array.from(files).map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          if (!res.ok) throw new Error(await res.text());
+          const { url } = await res.json();
+          return {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: file.name,
+            url,
+            type: file.type || 'application/octet-stream',
+          };
+        })
+      );
+
+      setPaymentFiles(prev => ({
         ...prev,
-        [selectedPaymentForFiles]: [...(prev[selectedPaymentForFiles] || []), ...newFiles],
+        [selectedPaymentForFiles]: [...(prev[selectedPaymentForFiles] || []), ...uploaded],
       }));
-      toast(`${files.length} file(s) uploaded for payment ${selectedPaymentForFiles}`, { type: 'success' });
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+
+      toast('Files uploaded to Cloudinary!', { type: 'success' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err: any) {
+      toast('Upload failed: ' + err.message, { type: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleViewFile = (url: string) => {
-    window.open(url, '_blank');
+  const handleSaveFilesToBackend = async () => {
+    if (!selectedPaymentForFiles || !paymentFiles[selectedPaymentForFiles]?.length) {
+      toast('No files to save', { type: 'warning' });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const urls = paymentFiles[selectedPaymentForFiles].map(f => f.url).join(',');
+      await updatePaymentABLFiles({ id: selectedPaymentForFiles, files: urls });
+      toast('Files saved to payment successfully!', { type: 'success' });
+      setOpenFileUploadModal(false);
+      setSelectedPaymentForFiles(null);
+      await fetchPayments();
+    } catch (err) {
+      toast('Failed to save files', { type: 'error' });
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleViewFile = (url: string) => window.open(url, '_blank');
   const handleRemoveFile = (paymentId: string, fileId: string) => {
-    setPaymentFiles((prev) => ({
+    setPaymentFiles(prev => ({
       ...prev,
-      [paymentId]: prev[paymentId].filter((file) => file.id !== fileId),
+      [paymentId]: prev[paymentId].filter(f => f.id !== fileId),
     }));
-    toast('File removed successfully', { type: 'success' });
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
-    if (selectedPaymentIds.length === 0) {
+    if (!selectedPaymentIds.length) {
       toast('Please select at least one payment', { type: 'warning' });
       return;
     }
     try {
       setUpdating(true);
-      const updatePromises = selectedPaymentIds.map((id) =>
-        updatePaymentABLStatus({ id, status: newStatus })
-      );
-      await Promise.all(updatePromises);
+      await Promise.all(selectedPaymentIds.map(id => updatePaymentABLStatus({ id, status: newStatus })));
       setSelectedBulkStatus(newStatus);
       setSelectedPaymentIds([]);
       setSelectedRowId(null);
       setConsignments([]);
       setBookingStatus(null);
       setSelectedPaymentForFiles(null);
-      setSelectedStatusFilter(newStatus);
-      setPageIndex(0);
-      toast('Payment Status Updated Successfully', { type: 'success' });
+      if (selectedStatusFilter !== newStatus) {
+        setSelectedStatusFilter(newStatus);
+        setPageIndex(0);
+      }
+      toast('Status updated', { type: 'success' });
       await fetchPayments();
-    } catch (error) {
+    } catch (err) {
       toast('Failed to update status', { type: 'error' });
     } finally {
       setUpdating(false);
@@ -300,38 +315,42 @@ const PaymentABLList = () => {
   };
 
   const exportToExcel = () => {
-    let dataToExport = selectedPaymentIds.length > 0
-      ? filteredPayments.filter((p) => selectedPaymentIds.includes(p.id))
+    const data = selectedPaymentIds.length > 0
+      ? filteredPayments.filter(p => selectedPaymentIds.includes(p.id))
       : filteredPayments;
 
-    if (dataToExport.length === 0) {
-      toast('No payments to export', { type: 'warning' });
+    if (!data.length) {
+      toast('No data to export', { type: 'warning' });
       return;
     }
 
-    const formattedData = dataToExport.map((p) => ({
+    const rows = data.map(p => ({
       'Payment No': p.paymentNo || '-',
       'Payment Date': p.paymentDate || '-',
       'Paid To': p.paidTo || '-',
       'Payment Mode': p.paymentMode || '-',
       'Bank Name': p.bankName || '-',
       'Cheque No': p.chequeNo || '-',
-      'Cheque Date': p.chequeDate || '-',
       'Paid Amount': p.paidAmount || '-',
-      'Status': p.status || 'Pending',
-      'Files': (paymentFiles[p.id] || []).map((f) => f.name).join(', ') || '-',
+      'Status': p.status || '-',
+      'Files': (paymentFiles[p.id] || []).map(f => f.name).join(', ') || '-',
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(formattedData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Payments');
-    XLSX.writeFile(workbook, 'Payments.xlsx');
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Payments');
+    XLSX.writeFile(wb, 'Payments.xlsx');
+  };
+
+  const getOrderNoFromPayment = (payment: any) => {
+    const items = payment?.PaymentABLItem ?? payment?.paymentABLItem;
+    return Array.isArray(items) && items.length > 0 ? items[0]?.orderNo : undefined;
   };
 
   return (
     <div className="container mx-auto mt-4 max-w-screen p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
           <div className="flex items-center">
             <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
             <select
@@ -339,187 +358,132 @@ const PaymentABLList = () => {
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
               className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
             >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
+              {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <button
-            onClick={fetchPayments}
-            className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
-          >
-            Refresh Data
+          <button onClick={fetchPayments} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
+            Refresh
           </button>
         </div>
-        <button
-          onClick={exportToExcel}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-        >
-          <FaFileExcel size={18} />
-          Download Excel
+        <button onClick={exportToExcel} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+          <FaFileExcel size={18} /> Excel
         </button>
       </div>
-      <div>
-        <DataTable
-          columns={columns(handleDeleteOpen, handleCheckboxChange, selectedPaymentIds)}
-          data={filteredPayments}
-          loading={loading}
-          link="/paymentABL/create"
-          setPageIndex={handlePageIndexChange}
-          pageIndex={pageIndex}
-          pageSize={pageSize}
-          setPageSize={handlePageSizeChange}
-          totalRows={totalRows}
-          onRowClick={handleRowClick}
-          onRowDoubleClick={handleRowDoubleClick}
-        />
-      </div>
-      <div className="mt-4 space-y-2 h-[10vh]">
-        <div className="flex flex-wrap p-3 gap-3">
-          {statusOptionsConfig.map((option) => {
-            const isSelected = selectedBulkStatus === option.name;
-            return (
-              <button
-                key={option.id}
-                onClick={() => handleBulkStatusUpdate(option.name)}
-                disabled={updating || !selectedPaymentIds.length}
-                className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-                  ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
-                  ${updating || !selectedPaymentIds.length ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span className="text-sm font-semibold text-center">{option.name}</span>
-                {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
-              </button>
-            );
-          })}
-          <button
-            onClick={handleFileUploadClick}
-            disabled={!selectedPaymentIds.length}
-            className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-              ${selectedPaymentIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-500' : 'border-gray-300 bg-white text-gray-700 opacity-50 cursor-not-allowed'}`}
-          >
-            <span className="text-sm font-semibold text-center">Upload Files</span>
-            {selectedPaymentIds.length && <FaFileUpload className="text-blue-500 animate-bounce" size={18} />}
-          </button>
-        </div>
-      </div>
+
+      <DataTable
+        columns={columns(handleDeleteOpen, handleCheckboxChange, selectedPaymentIds)}
+        data={filteredPayments}
+        loading={loading}
+        link="/paymentABL/create"
+        setPageIndex={handlePageIndexChange}
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        setPageSize={handlePageSizeChange}
+        totalRows={totalRows}
+        onRowClick={handleRowClick}
+        onRowDoubleClick={handleRowDoubleClick}
+      />
+
       {selectedRowId && (
-        <div className="">
+        <div className="mt-6">
           <OrderProgress
-            orderNo={(() => {
-              const p = payments.find((p) => p.id === selectedRowId) as any;
-              const items = p?.PaymentABLItem ?? p?.paymentABLItem;
-              return Array.isArray(items) ? items[0]?.orderNo : undefined;
-            })()}
+            orderNo={getOrderNoFromPayment(payments.find(p => p.id === selectedRowId))}
             bookingStatus={bookingStatus}
             consignments={consignments}
           />
         </div>
       )}
-      {openDelete && (
-        <DeleteConfirmModel
-          handleDeleteclose={handleDeleteClose}
-          handleDelete={handleDelete}
-          isOpen={openDelete}
-        />
-      )}
-      {openFileUploadModal && selectedPaymentForFiles && (
-        <div
-          id="fileUploadModal"
-          className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
-          onClick={(e) => {
-            const target = e.target as HTMLElement;
-            if (target.id === 'fileUploadModal') {
-              setOpenFileUploadModal(false);
-              setSelectedPaymentForFiles(null);
-            }
-          }}
+
+      <div className="mt-6 flex flex-wrap gap-4 p-4">
+        {statusOptionsConfig.map(opt => {
+          const active = selectedBulkStatus === opt.name;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => handleBulkStatusUpdate(opt.name)}
+              disabled={updating || !selectedPaymentIds.length}
+              className={`w-40 h-16 rounded-xl border-2 flex items-center justify-center font-semibold transition-all
+                ${active ? `border-[${opt.color}] bg-gradient-to-r from-[${opt.color}]/10 text-[${opt.color}]` : 'border-gray-300 bg-white'}
+                ${updating || !selectedPaymentIds.length ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+            >
+              {opt.name}
+              {active && <FaCheck className="ml-2 animate-bounce" />}
+            </button>
+          );
+        })}
+        <button
+          onClick={handleFileUploadClick}
+          disabled={!selectedPaymentIds.length}
+          className={`w-40 h-16 rounded-xl border-2 flex items-center justify-center font-semibold transition-all
+            ${selectedPaymentIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-600 hover:scale-105' : 'border-gray-300 bg-white opacity-50'}`}
         >
-          <div className="bg-white rounded shadow p-5 w-full max-w-lg">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">Files for Payment {payments.find((p) => p.id === selectedPaymentForFiles)?.paymentNo || ''}</h3>
-              <button
-                onClick={() => {
-                  setOpenFileUploadModal(false);
-                  setSelectedPaymentForFiles(null);
-                }}
-                className="text-gray-500 hover:text-black"
-              >
-                ✕
-              </button>
+          Upload Files
+          {selectedPaymentIds.length && <FaFileUpload className="ml-2 animate-bounce" />}
+        </button>
+      </div>
+
+      {openDelete && <DeleteConfirmModel handleDeleteclose={handleDeleteClose} handleDelete={handleDelete} isOpen={openDelete} />}
+
+      {/* FILE UPLOAD MODAL */}
+      {openFileUploadModal && selectedPaymentForFiles && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" onClick={(e) => e.target === e.currentTarget && setOpenFileUploadModal(false)}>
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">
+                Files - Payment {payments.find(p => p.id === selectedPaymentForFiles)?.paymentNo || ''}
+              </h3>
+              <button onClick={() => { setOpenFileUploadModal(false); setSelectedPaymentForFiles(null); }} className="text-3xl text-gray-500 hover:text-gray-800">×</button>
             </div>
-            <div className="space-y-3">
-              <input
-                type="file"
-                multiple
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept="image/*,application/pdf"
-                className="block w-full text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-full file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100"
-              />
-              {paymentFiles[selectedPaymentForFiles]?.length > 0 ? (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700">Uploaded Files:</h4>
-                  <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                    {paymentFiles[selectedPaymentForFiles].map((file) => (
-                      <li key={file.id} className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center gap-2">
-                          {file.type.startsWith('image/') && (
-                            <img
-                              src={file.url}
-                              alt={file.name}
-                              className="w-12 h-12 object-cover rounded"
-                            />
-                          )}
-                          <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+
+            <input
+              type="file"
+              multiple
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*,application/pdf"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+
+            {paymentFiles[selectedPaymentForFiles]?.length > 0 ? (
+              <div className="mt-6">
+                <h4 className="font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {paymentFiles[selectedPaymentForFiles].map(file => (
+                    <div key={file.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-4">
+                        {file.type.startsWith('image/') && <img src={file.url} alt={file.name} className="w-16 h-16 object-cover rounded" />}
+                        {file.type.includes('pdf') && <FaFilePdf size={48} className="text-red-600" />}
+                        <div>
+                          <p className="font-medium truncate max-w-xs">{file.name}</p>
+                          <p className="text-xs text-gray-500">{file.type}</p>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleViewFile(file.url)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="View File"
-                          >
-                            <FaEye size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleRemoveFile(selectedPaymentForFiles, file.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Remove File"
-                          >
-                            <FaTrash size={18} />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                      </div>
+                      <div className="flex gap-3">
+                        <button onClick={() => handleViewFile(file.url)} className="text-blue-600 hover:text-blue-800"><FaEye size={20} /></button>
+                        <button onClick={() => handleRemoveFile(selectedPaymentForFiles, file.id)} className="text-red-600 hover:text-red-800"><FaTrash size={20} /></button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <p className="text-sm text-gray-500">No files uploaded for this payment.</p>
-              )}
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  onClick={() => {
-                    setOpenFileUploadModal(false);
-                    setSelectedPaymentForFiles(null);
-                  }}
-                  className="px-4 py-2 rounded border"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Add More Files
-                </button>
               </div>
+            ) : (
+              <p className="text-center text-gray-500 my-8 italic">No files uploaded yet.</p>
+            )}
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+              <button onClick={() => { setOpenFileUploadModal(false); setSelectedPaymentForFiles(null); }} className="px-5 py-2 border rounded hover:bg-gray-100">
+                Cancel
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Add More Files
+              </button>
+              <button
+                onClick={handleSaveFilesToBackend}
+                disabled={!paymentFiles[selectedPaymentForFiles]?.length || loading}
+                className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {loading ? 'Saving...' : 'Save to Payment'}
+              </button>
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Row } from '@tanstack/react-table';
 
 export interface BillPaymentInvoice {
+  files: any;
   id: string;
   invoiceNo: string;
   paymentDate: string;

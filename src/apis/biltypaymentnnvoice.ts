@@ -92,5 +92,42 @@ const updateBiltyPaymentInvoiceStatus = async (BiltyPaymentInvoiceStatus: { id: 
     throw error;
   }
 };
+const updateBiltyPaymentInvoiceFiles = async ({ id, files }: { id: string; files: string }) => {
+  try {
+    if (!id) throw new Error('updateBiltyPaymentInvoiceFiles: id is required');
+    if (typeof files !== 'string') throw new Error('updateBiltyPaymentInvoiceFiles: files must be a comma-separated string');
 
-export { createBiltyPaymentInvoice , getAllBiltyPaymentInvoice , getAllBiltyPaymentInvoicePositions , getSingleBiltyPaymentInvoice , updateBiltyPaymentInvoice , deleteBiltyPaymentInvoice, updateBiltyPaymentInvoiceStatus  };
+    // Try partial update first (PATCH only Files field)
+    try {
+      const patchResponse = await apiFetch(`BiltyPaymentInvoice/Files/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, files }),
+      }, true);
+      return patchResponse;
+    } catch (patchErr) {
+      console.warn('PATCH BiltyPaymentInvoice/{id} failed, falling back to merge+PUT:', patchErr);
+    }
+
+    // Fallback: fetch existing order and merge Files, then PUT full payload
+    const existing = await getSingleBiltyPaymentInvoice(id);
+    const existingOrder = (existing as any)?.data || existing;
+    if (!existingOrder) throw new Error('updateBiltyPaymentInvoiceFiles: existing order not found');
+
+    const payload = { ...existingOrder, files };
+    const response = await apiFetch(`BiltyPaymentInvoice`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, true);
+
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+export { createBiltyPaymentInvoice , getAllBiltyPaymentInvoice , getAllBiltyPaymentInvoicePositions , getSingleBiltyPaymentInvoice , updateBiltyPaymentInvoice , deleteBiltyPaymentInvoice, updateBiltyPaymentInvoiceStatus , updateBiltyPaymentInvoiceFiles  };

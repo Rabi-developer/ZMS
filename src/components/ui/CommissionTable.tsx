@@ -132,7 +132,11 @@ interface DataTableProps<TData extends { id: string }, TValue> {
   pageSize: number;
   totalRows?: number;
   onRowClick?: (id: string) => void;
-  onRowDoubleClick?: (id: string) => void; // Added prop for double-click
+  onRowDoubleClick?: (id: string) => void;
+  selectedRowIds?: string[];
+  onCheckboxChange?: (id: string, checked: boolean) => void;
+  expandedRowId?: string | null;
+  expandedRowRender?: (row: TData) => React.ReactElement;
 }
 
 function globalFilterFn(row: any, columnId: string, value: string) {
@@ -156,7 +160,11 @@ export function DataTable<TData extends { id: string }, TValue>({
   searchName = "name",
   hide = true,
   onRowClick,
-  onRowDoubleClick, // Added to props
+  onRowDoubleClick,
+  selectedRowIds = [],
+  onCheckboxChange,
+  expandedRowId,
+  expandedRowRender,
 }: DataTableProps<TData, TValue>) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -423,27 +431,35 @@ export function DataTable<TData extends { id: string }, TValue>({
                     <tbody>
                       {table.getRowModel().rows.length ? (
                         table.getRowModel().rows.map((row, index) => (
-                          <motion.tr
-                            key={row.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.05 }}
-                            className="border-b border-[#6e997f]/30 hover:bg-[#3a614c]/5 transition-all duration-200 group cursor-pointer"
-                            onClick={() => onRowClick?.(row.original.id)}
-                            onDoubleClick={() => onRowDoubleClick?.(row.original.id)}
-                          >
-                            {row.getVisibleCells().map((cell) => (
-                              <td
-                                key={cell.id}
-                                className="px-4 py-3 text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors"
-                              >
-                                {flexRender(
-                                  cell.column.columnDef.cell,
-                                  cell.getContext()
-                                )}
-                              </td>
-                            ))}
-                          </motion.tr>
+                          <React.Fragment key={row.id}>
+                            <motion.tr
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.3, delay: index * 0.05 }}
+                              className="border-b border-[#6e997f]/30 hover:bg-[#3a614c]/5 transition-all duration-200 group cursor-pointer"
+                              onClick={() => onRowClick?.(row.original.id)}
+                              onDoubleClick={() => onRowDoubleClick?.(row.original.id)}
+                            >
+                              {row.getVisibleCells().map((cell) => (
+                                <td
+                                  key={cell.id}
+                                  className="px-4 py-3 text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors"
+                                >
+                                  {flexRender(
+                                    cell.column.columnDef.cell,
+                                    cell.getContext()
+                                  )}
+                                </td>
+                              ))}
+                            </motion.tr>
+                            {expandedRowId === row.original.id && expandedRowRender && (
+                              <tr>
+                                <td colSpan={columns.length} className="p-0">
+                                  {expandedRowRender(row.original)}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         ))
                       ) : (
                         <tr>

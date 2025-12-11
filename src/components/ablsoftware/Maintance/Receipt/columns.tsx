@@ -5,6 +5,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Row } from '@tanstack/react-table';
 
 export interface Receipt {
+  files: any;
   id: string;
   receiptNo: string;
   receiptDate: string;

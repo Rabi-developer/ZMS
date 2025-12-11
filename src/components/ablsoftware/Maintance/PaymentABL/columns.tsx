@@ -5,6 +5,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Row } from '@tanstack/react-table';
 
 export interface PaymentABL {
+  files: any;
   id: string;
   paymentNo: string;
   paymentDate: string;

@@ -6,7 +6,13 @@ import { FaFileExcel, FaCheck, FaFilePdf, FaFileUpload, FaEye, FaTrash } from 'r
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllBiltyPaymentInvoice, deleteBiltyPaymentInvoice, updateBiltyPaymentInvoiceStatus, getSingleBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
+import {
+  getAllBiltyPaymentInvoice,
+  deleteBiltyPaymentInvoice,
+  updateBiltyPaymentInvoiceStatus,
+  getSingleBiltyPaymentInvoice,
+  updateBiltyPaymentInvoiceFiles, // ← Add this API function
+} from '@/apis/biltypaymentnnvoice';
 import { getAllConsignment } from '@/apis/consignment';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { columns, BillPaymentInvoice } from './columns';
@@ -29,6 +35,7 @@ interface ApiBiltyPaymentInvoice {
   updatedBy: string | null;
   updationDate: string | null;
   status: string | null;
+  files?: string; // ← Add this if your backend returns comma-separated URLs
   lines: Array<{
     id: string;
     vehicleNo: string;
@@ -63,6 +70,7 @@ const transformBiltyPaymentInvoice = (apiData: ApiBiltyPaymentInvoice[]): BillPa
       orderNo: firstLine.orderNo || '',
       amount: firstLine.amount?.toString() || '0',
       broker: firstLine.broker || '',
+      files: item.files || '', // Preserve files field
     };
   });
 };
@@ -70,6 +78,7 @@ const transformBiltyPaymentInvoice = (apiData: ApiBiltyPaymentInvoice[]): BillPa
 const BillPaymentInvoicesList = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [billPaymentInvoices, setBillPaymentInvoices] = useState<BillPaymentInvoice[]>([]);
   const [filteredBillPaymentInvoices, setFilteredBillPaymentInvoices] = useState<BillPaymentInvoice[]>([]);
   const [loading, setLoading] = useState(false);
@@ -85,7 +94,8 @@ const BillPaymentInvoicesList = () => {
   const [consignments, setConsignments] = useState<any[]>([]);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
-  // File upload states
+
+  // File Upload States
   const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
   const [selectedBillPaymentForFiles, setSelectedBillPaymentForFiles] = useState<string | null>(null);
   const [billPaymentFiles, setBillPaymentFiles] = useState<{ [billPaymentId: string]: UploadedFile[] }>({});
@@ -100,38 +110,25 @@ const BillPaymentInvoicesList = () => {
     { id: 5, name: 'Closed', color: '#6b7280' },
   ];
 
-  // Create stable handlers for pagination
   const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
-    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
-    console.log('BillPayment page index changing from', pageIndex, 'to', resolvedPageIndex);
-    setPageIndex(resolvedPageIndex);
+    const resolved = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
+    setPageIndex(resolved);
   }, [pageIndex]);
 
   const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
-    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
-    console.log('BillPayment page size changing from', pageSize, 'to', resolvedPageSize);
-    setPageSize(resolvedPageSize);
-    setPageIndex(0); // Reset to first page when page size changes
+    const resolved = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
+    setPageSize(resolved);
+    setPageIndex(0);
   }, [pageSize]);
 
   const fetchBillPaymentInvoices = useCallback(async () => {
     try {
       setLoading(true);
-      // Convert 0-based pageIndex to 1-based for API
       const apiPageIndex = pageIndex + 1;
-      console.log('Fetching bill payment invoices with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
-      
       const response = await getAllBiltyPaymentInvoice(apiPageIndex, pageSize);
-      console.log('Bill Payment Invoices Response:', response);
-      
       const transformedData = transformBiltyPaymentInvoice(response?.data || []);
       setBillPaymentInvoices(transformedData);
-      
-      // Set total rows from the API response
-      if (response.misc) {
-        setTotalRows(response.misc.total || 0);
-        console.log('BillPayment total rows set to:', response.misc.total);
-      }
+      setTotalRows(response.misc?.total || 0);
     } catch (error) {
       console.error('Failed to fetch bill payment invoices:', error);
       toast('Failed to fetch bill payment invoices', { type: 'error' });
@@ -140,16 +137,12 @@ const BillPaymentInvoicesList = () => {
     }
   }, [pageIndex, pageSize]);
 
-  useEffect(() => {
-    console.log('BillPayment useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize);
-    fetchBillPaymentInvoices();
-  }, [fetchBillPaymentInvoices]);
+  useEffect(() => { fetchBillPaymentInvoices(); }, [fetchBillPaymentInvoices]);
 
   useEffect(() => {
-    let filtered = billPaymentInvoices;
-    if (selectedStatusFilter !== 'All') {
-      filtered = billPaymentInvoices.filter((b) => b.status === selectedStatusFilter);
-    }
+    const filtered = selectedStatusFilter === 'All'
+      ? billPaymentInvoices
+      : billPaymentInvoices.filter(b => b.status === selectedStatusFilter);
     setFilteredBillPaymentInvoices(filtered);
   }, [billPaymentInvoices, selectedStatusFilter]);
 
@@ -158,7 +151,7 @@ const BillPaymentInvoicesList = () => {
       fetchBillPaymentInvoices();
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete('refresh');
-      router.replace(newUrl.pathname);
+      router.replace(newUrl.pathname + newUrl.search);
     }
   }, [searchParams, router]);
 
@@ -173,25 +166,17 @@ const BillPaymentInvoicesList = () => {
     }
   };
 
-  const handleDeleteOpen = (id: string) => {
-    setOpenDelete(true);
-    setDeleteId(id);
-  };
-
-  const handleDeleteClose = () => {
-    setOpenDelete(false);
-    setDeleteId('');
-  };
+  const handleDeleteOpen = (id: string) => { setOpenDelete(true); setDeleteId(id); };
+  const handleDeleteClose = () => { setOpenDelete(false); setDeleteId(''); };
 
   const handleRowClick = async (billPaymentId: string) => {
-    if (selectedBillPaymentIds.includes(billPaymentId)) {
-      return;
-    }
+    if (selectedBillPaymentIds.includes(billPaymentId)) return;
+
     setSelectedBillPaymentIds([billPaymentId]);
     setSelectedRowId(billPaymentId);
     setSelectedBillPaymentForFiles(billPaymentId);
-    const billPayment = billPaymentInvoices.find((item) => item.id === billPaymentId);
-    console.log('Selected Bill Payment Invoice:', billPayment);
+
+    const billPayment = billPaymentInvoices.find(b => b.id === billPaymentId);
     if (billPayment?.orderNo) {
       try {
         const consResponse = await getAllConsignment(1, 100, { orderNo: billPayment.orderNo });
@@ -206,19 +191,16 @@ const BillPaymentInvoicesList = () => {
       setConsignments([]);
       setBookingStatus(null);
     }
-    const selectedBillPayment = billPaymentInvoices.find((b) => b.id === billPaymentId);
-    setSelectedBulkStatus(selectedBillPayment?.status || null);
+    setSelectedBulkStatus(billPayment?.status || null);
   };
 
-  const handleRowDoubleClick = (billPaymentId: string) => {
-    if (selectedBillPaymentIds.includes(billPaymentId)) {
-      setSelectedBillPaymentIds([]);
-      setSelectedRowId(null);
-      setConsignments([]);
-      setBookingStatus(null);
-      setSelectedBulkStatus(null);
-      setSelectedBillPaymentForFiles(null);
-    }
+  const handleRowDoubleClick = () => {
+    setSelectedBillPaymentIds([]);
+    setSelectedRowId(null);
+    setConsignments([]);
+    setBookingStatus(null);
+    setSelectedBulkStatus(null);
+    setSelectedBillPaymentForFiles(null);
   };
 
   const handleCheckboxChange = async (billPaymentId: string, checked: boolean) => {
@@ -226,8 +208,8 @@ const BillPaymentInvoicesList = () => {
       setSelectedBillPaymentIds([billPaymentId]);
       setSelectedRowId(billPaymentId);
       setSelectedBillPaymentForFiles(billPaymentId);
-      const billPayment = billPaymentInvoices.find((item) => item.id === billPaymentId);
-      console.log('Checked Bill Payment Invoice:', billPayment);
+
+      const billPayment = billPaymentInvoices.find(b => b.id === billPaymentId);
       if (billPayment?.orderNo) {
         try {
           const consResponse = await getAllConsignment(1, 100, { orderNo: billPayment.orderNo });
@@ -238,9 +220,6 @@ const BillPaymentInvoicesList = () => {
         } catch (error) {
           toast('Failed to fetch related data', { type: 'error' });
         }
-      } else {
-        setConsignments([]);
-        setBookingStatus(null);
       }
     } else {
       setSelectedBillPaymentIds([]);
@@ -249,152 +228,266 @@ const BillPaymentInvoicesList = () => {
       setBookingStatus(null);
       setSelectedBillPaymentForFiles(null);
     }
-    const selectedBillPayment = billPaymentInvoices.find((b) => b.id === billPaymentId);
-    setSelectedBulkStatus(checked ? selectedBillPayment?.status || null : null);
+    setSelectedBulkStatus(checked ? billPaymentInvoices.find(b => b.id === billPaymentId)?.status || null : null);
   };
 
+  // === FILE UPLOAD LOGIC (Same as BookingOrderList) ===
   const handleFileUploadClick = () => {
     if (!selectedBillPaymentForFiles) {
       toast('Please select a bill payment invoice first', { type: 'warning' });
       return;
     }
+
+    const invoice = billPaymentInvoices.find(b => b.id === selectedBillPaymentForFiles);
+    if (invoice?.files && !billPaymentFiles[selectedBillPaymentForFiles]) {
+      const existingFiles = invoice.files.split(',').map((url: string, i: number) => {
+        const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] || `file-${i + 1}`);
+        const type = name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+        return { id: `exist-${i}`, name, url: url.trim(), type };
+      });
+      setBillPaymentFiles(prev => ({ ...prev, [selectedBillPaymentForFiles]: existingFiles }));
+    }
+
     setOpenFileUploadModal(true);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files && selectedBillPaymentForFiles) {
-      const newFiles = Array.from(files).map((file) => ({
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: file.name,
-        url: URL.createObjectURL(file),
-        type: file.type,
-      }));
-      setBillPaymentFiles((prev) => ({
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !selectedBillPaymentForFiles) return;
+
+    setLoading(true);
+    toast(`Uploading ${files.length} file(s)...`, { type: 'info' });
+
+    try {
+      const uploaded = await Promise.all(
+        Array.from(files).map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          if (!res.ok) throw new Error(await res.text());
+          const { url } = await res.json();
+          return {
+            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: file.name,
+            url,
+            type: file.type || 'application/octet-stream',
+          };
+        })
+      );
+
+      setBillPaymentFiles(prev => ({
         ...prev,
-        [selectedBillPaymentForFiles]: [...(prev[selectedBillPaymentForFiles] || []), ...newFiles],
+        [selectedBillPaymentForFiles]: [...(prev[selectedBillPaymentForFiles] || []), ...uploaded],
       }));
-      toast(`${files.length} file(s) uploaded for bill payment ${selectedBillPaymentForFiles}`, { type: 'success' });
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+
+      toast('Files uploaded to Cloudinary!', { type: 'success' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err: any) {
+      toast('Upload failed: ' + err.message, { type: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleViewFile = (url: string) => {
-    window.open(url, '_blank');
+  const handleSaveFilesToBackend = async () => {
+    if (!selectedBillPaymentForFiles || !billPaymentFiles[selectedBillPaymentForFiles]?.length) {
+      toast('No files to save', { type: 'warning' });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const urls = billPaymentFiles[selectedBillPaymentForFiles].map(f => f.url).join(',');
+      await updateBiltyPaymentInvoiceFiles({ id: selectedBillPaymentForFiles, files: urls });
+      toast('Files saved to invoice successfully!', { type: 'success' });
+      setOpenFileUploadModal(false);
+      setSelectedBillPaymentForFiles(null);
+      await fetchBillPaymentInvoices();
+    } catch (err) {
+      toast('Failed to save files', { type: 'error' });
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleViewFile = (url: string) => window.open(url, '_blank');
   const handleRemoveFile = (billPaymentId: string, fileId: string) => {
-    setBillPaymentFiles((prev) => ({
+    setBillPaymentFiles(prev => ({
       ...prev,
-      [billPaymentId]: prev[billPaymentId].filter((file) => file.id !== fileId),
+      [billPaymentId]: prev[billPaymentId].filter(f => f.id !== fileId),
     }));
-    toast('File removed successfully', { type: 'success' });
   };
 
   const handleBulkStatusUpdate = async (newStatus: string) => {
-    if (selectedBillPaymentIds.length === 0) {
-      toast('Please select at least one bill payment invoice', { type: 'warning' });
+    if (!selectedBillPaymentIds.length) {
+      toast('Please select at least one invoice', { type: 'warning' });
       return;
     }
     try {
       setUpdating(true);
-      const updatePromises = selectedBillPaymentIds.map((id) =>
-        updateBiltyPaymentInvoiceStatus({ id, status: newStatus })
-      );
-      await Promise.all(updatePromises);
+      await Promise.all(selectedBillPaymentIds.map(id => updateBiltyPaymentInvoiceStatus({ id, status: newStatus })));
       setSelectedBulkStatus(newStatus);
       setSelectedBillPaymentIds([]);
       setSelectedRowId(null);
       setConsignments([]);
       setBookingStatus(null);
       setSelectedBillPaymentForFiles(null);
-      setSelectedStatusFilter(newStatus);
-      setPageIndex(0);
-      toast('Bill Payment Invoice Status Updated Successfully', { type: 'success' });
+      if (selectedStatusFilter !== newStatus) {
+        setSelectedStatusFilter(newStatus);
+        setPageIndex(0);
+      }
+      toast('Status updated', { type: 'success' });
       await fetchBillPaymentInvoices();
-    } catch (error) {
+    } catch (err) {
       toast('Failed to update status', { type: 'error' });
     } finally {
       setUpdating(false);
     }
   };
 
-  const exportToExcel = () => {
-    let dataToExport = selectedBillPaymentIds.length > 0
-      ? filteredBillPaymentInvoices.filter((b) => selectedBillPaymentIds.includes(b.id))
+  const exportToExcel = async () => {
+    const data = selectedBillPaymentIds.length > 0
+      ? filteredBillPaymentInvoices.filter(b => selectedBillPaymentIds.includes(b.id))
       : filteredBillPaymentInvoices;
 
-    if (dataToExport.length === 0) {
-      toast('No bill payment invoices to export', { type: 'warning' });
+    if (!data.length) {
+      toast('No data to export', { type: 'warning' });
       return;
     }
 
-    const formattedData = dataToExport.map((b) => ({
+    const rows = data.map(b => ({
       'Invoice No': b.invoiceNo || '-',
       'Vehicle No': b.vehicleNo || '-',
       'Order No': b.orderNo || '-',
       'Amount': b.amount || '-',
       'Broker': b.broker || '-',
       'Payment Date': b.paymentDate || '-',
-      'Total Amount': b.totalAmount || '-',
-      'Status': b.status || 'Unpaid',
-      'Files': (billPaymentFiles[b.id] || []).map((f) => f.name).join(', ') || '-',
+      'Status': b.status || '-',
+      'Files': (billPaymentFiles[b.id] || []).map(f => f.name).join(', ') || '-',
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(formattedData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'BillPaymentInvoices');
-    XLSX.writeFile(workbook, 'BillPaymentInvoices.xlsx');
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const workbook = new ExcelJS.Workbook();
+      const ws = workbook.addWorksheet('BillPaymentInvoices');
+
+      // Page setup
+      ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } } as any;
+
+      // Headers with Serial
+      const headers = ['Serial','Invoice No','Vehicle No','Order No','Amount','Broker','Payment Date','Status','Files'];
+      const widths = [8,14,14,12,14,16,14,12,18];
+      ws.columns = headers.map((h,i)=>({ header: h, key: `col${i}`, width: widths[i] }));
+
+      // Title + Subtitle
+      const title = 'AL-NASAR BASHEER LOGISTICS';
+      const subtitle = 'Bill Payment Invoices Report';
+      ws.spliceRows(1,0,[title]);
+      ws.spliceRows(2,0,[subtitle]);
+      const totalCols = headers.length;
+      ws.mergeCells(1,1,1,totalCols);
+      ws.mergeCells(2,1,2,totalCols);
+      const titleRow = ws.getRow(1); titleRow.font = { bold: true, size: 16 } as any; titleRow.alignment = { vertical: 'middle', horizontal: 'center' } as any; titleRow.height = 20;
+      const subtitleRow = ws.getRow(2); subtitleRow.font = { bold: true, size: 12 } as any; subtitleRow.alignment = { vertical: 'middle', horizontal: 'center' } as any; subtitleRow.height = 18;
+
+      // Header styling (row 3)
+      const headerRow = ws.getRow(3);
+      headerRow.eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FF000000' } } as any;
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true } as any;
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5EEF7' } } as any;
+        cell.border = { top:{style:'thin',color:{argb:'FF9E9E9E'}}, left:{style:'thin',color:{argb:'FF9E9E9E'}}, bottom:{style:'thin',color:{argb:'FF9E9E9E'}}, right:{style:'thin',color:{argb:'FF9E9E9E'}} } as any;
+      });
+      headerRow.height = 18;
+      ws.views = [{ state: 'frozen', ySplit: 3 }];
+
+      // Data rows + totals
+      let amountSum = 0;
+      rows.forEach((r, idx) => {
+        const dataArr = headers.map(h => h==='Serial'? idx+1 : (r as any)[h]);
+        ws.addRow(dataArr);
+        const amt = (r as any)['Amount'];
+        const num = typeof amt === 'number' ? amt : parseFloat(String(amt ?? '').replace(/[^0-9.-]/g, ''));
+        if (!isNaN(num)) amountSum += num;
+      });
+
+      // Body styling + zebra + number formats
+      ws.eachRow((row, rowNum)=>{
+        if (rowNum <= 3) return;
+        const even = rowNum % 2 === 0;
+        row.eachCell((cell, col)=>{
+          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true } as any;
+          cell.border = { top:{style:'thin',color:{argb:'FFDDDDDD'}}, left:{style:'thin',color:{argb:'FFDDDDDD'}}, bottom:{style:'thin',color:{argb:'FFDDDDDD'}}, right:{style:'thin',color:{argb:'FFDDDDDD'}} } as any;
+          if (even) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7F7' } } as any;
+          // Amount right-align + number format
+          if (col === 5) {
+            const val = cell.value as any;
+            const num = parseFloat(String(val ?? '').replace(/[^0-9.-]/g, ''));
+            if (!isNaN(num)) { cell.value = num; (cell as any).numFmt = '#,##0.00'; cell.alignment = { vertical:'middle', horizontal:'right', wrapText:true } as any; }
+          }
+        });
+      });
+
+      // Totals row
+      const totalsRow = ws.addRow(['','','','TOTAL','', '', '', '', '']);
+      totalsRow.getCell(4).value = 'TOTAL';
+      ws.mergeCells(totalsRow.number, 4, totalsRow.number, 4);
+      totalsRow.getCell(5).value = amountSum;
+      (totalsRow.getCell(5) as any).numFmt = '#,##0.00';
+      totalsRow.eachCell((cell, col)=>{
+        cell.font = { bold: true } as any;
+        cell.alignment = { vertical: 'middle', horizontal: col===5 ? 'right' : 'center' } as any;
+        cell.border = { top:{style:'thin',color:{argb:'FF9E9E9E'}}, left:{style:'thin',color:{argb:'FF9E9E9E'}}, bottom:{style:'thin',color:{argb:'FF9E9E9E'}}, right:{style:'thin',color:{argb:'FF9E9E9E'}} } as any;
+      });
+
+      // AutoFilter on header row
+      ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: headers.length } } as any;
+
+      // Export
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'BillPaymentInvoices.xlsx'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch (err) {
+      console.warn('exceljs not available, falling back to basic XLSX export', err);
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'BillPaymentInvoices');
+      XLSX.writeFile(wb, 'BillPaymentInvoices.xlsx');
+    }
   };
 
   const preparePdfPayload = async (invoiceId: string) => {
     try {
-      console.log('Fetching invoice details for ID:', invoiceId);
       const response = await getSingleBiltyPaymentInvoice(invoiceId);
-      console.log('Invoice response:', response);
-      
       const detailedInvoice = response?.data || response;
-      console.log('Detailed invoice:', detailedInvoice);
 
-      if (!detailedInvoice) {
-        console.error('Invoice not found:', invoiceId);
-        toast('Invoice not found. Please try again.', { type: 'error' });
+      if (!detailedInvoice || !detailedInvoice.lines?.length) {
+        toast('Invoice not found or has no lines', { type: 'error' });
         return null;
       }
 
-      if (!detailedInvoice.lines || detailedInvoice.lines.length === 0) {
-        console.error('Invoice has no lines:', detailedInvoice);
-        toast('Invoice has no line items', { type: 'error' });
-        return null;
-      }
+      const firstLine = detailedInvoice.lines.find((l: any) => !l.isAdditionalLine) || detailedInvoice.lines[0];
 
-      const firstLine = detailedInvoice.lines?.find((line: ApiBiltyPaymentInvoice['lines'][0]) => !line.isAdditionalLine) || detailedInvoice.lines?.[0];
-      const brokerDetails = {
-        name: firstLine?.broker || undefined,
-        mobile: undefined,
-      };
-
-      const payload = {
+      return {
         invoiceNo: detailedInvoice.invoiceNo || '',
-        paymentDate: detailedInvoice.paymentDate || new Date().toISOString(),
-        bookingDate: detailedInvoice.creationDate || detailedInvoice.createdDateTime || new Date().toISOString(),
-        checkDate: detailedInvoice.updationDate || detailedInvoice.modifiedDateTime || detailedInvoice.paymentDate || new Date().toISOString(),
-        lines: detailedInvoice.lines?.map((line: ApiBiltyPaymentInvoice['lines'][0]) => ({
+        paymentDate: detailedInvoice.paymentDate || '',
+        bookingDate: detailedInvoice.creationDate || detailedInvoice.createdDateTime || '',
+        checkDate: detailedInvoice.updationDate || detailedInvoice.modifiedDateTime || '',
+        lines: detailedInvoice.lines.map((line: any) => ({
           isAdditionalLine: line.isAdditionalLine || false,
           biltyNo: line.orderNo || '',
           vehicleNo: line.vehicleNo || '',
           orderNo: line.orderNo || '',
           amount: Number(line.amount) || 0,
-          munshayana: typeof line.munshayana === 'string' ? Number(line.munshayana) : (line.munshayana || 0),
+          munshayana: Number(line.munshayana) || 0,
           nameCharges: line.nameCharges || '',
           amountCharges: Number(line.amountCharges) || 0,
-        })) || [],
-        broker: brokerDetails,
+        })),
+        broker: { name: firstLine?.broker || '' },
       };
-      console.log('PDF payload created:', payload);
-      return payload;
     } catch (error) {
       console.error('Failed to prepare PDF payload:', error);
       toast('Unable to fetch invoice details', { type: 'error' });
@@ -403,38 +496,23 @@ const BillPaymentInvoicesList = () => {
   };
 
   const handleDownloadPdf = async () => {
-    if (selectedBillPaymentIds.length === 0) {
-      toast('Please select a bill payment invoice first', { type: 'warning' });
+    if (!selectedBillPaymentIds.length) {
+      toast('Please select an invoice first', { type: 'warning' });
       return;
     }
 
-    try {
-      const invoiceId = selectedBillPaymentIds[0];
-      console.log('Starting PDF download for invoice:', invoiceId);
-      console.log('Selected IDs:', selectedBillPaymentIds);
-      
-      const payload = await preparePdfPayload(invoiceId);
-      
-      if (!payload) {
-        console.error('Failed to prepare PDF payload - payload is null');
-        toast('Failed to prepare invoice for PDF', { type: 'error' });
-        return;
-      }
-
-      console.log('Calling exportBiltyPaymentInvoicePdf with payload:', payload);
+    const invoiceId = selectedBillPaymentIds[0];
+    const payload = await preparePdfPayload(invoiceId);
+    if (payload) {
       await exportBiltyPaymentInvoicePdf(payload, `${payload.invoiceNo || invoiceId}.pdf`);
-      toast('Invoice PDF downloaded successfully', { type: 'success' });
-    } catch (error: any) {
-      console.error('Error downloading PDF:', error);
-      const errorMessage = error?.message || 'Failed to download PDF';
-      toast(errorMessage, { type: 'error' });
+      toast('PDF downloaded successfully', { type: 'success' });
     }
   };
 
   return (
     <div className="container mx-auto mt-4 max-w-screen p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-4">
           <div className="flex items-center">
             <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
             <select
@@ -442,194 +520,139 @@ const BillPaymentInvoicesList = () => {
               onChange={(e) => setSelectedStatusFilter(e.target.value)}
               className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
             >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
+              {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <button
-            onClick={fetchBillPaymentInvoices}
-            className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
-          >
-            Refresh Data
+          <button onClick={fetchBillPaymentInvoices} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
+            Refresh
           </button>
         </div>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={exportToExcel}
-            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-          >
-            <FaFileExcel size={18} />
-            Download Excel
+        <div className="flex gap-3">
+          <button onClick={exportToExcel} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+            <FaFileExcel size={18} /> Excel
           </button>
           {selectedBillPaymentIds.length > 0 && (
-            <button
-              onClick={handleDownloadPdf}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-            >
-              <FaFilePdf size={18} />
-              Download PDF
+            <button onClick={handleDownloadPdf} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded">
+              <FaFilePdf size={18} /> PDF
             </button>
           )}
         </div>
       </div>
-      <div>
-        <DataTable
-          columns={columns(handleDeleteOpen, handleCheckboxChange, selectedBillPaymentIds)}
-          data={filteredBillPaymentInvoices}
-          loading={loading}
-          link="/billpaymentinvoices/create"
-          setPageIndex={handlePageIndexChange}
-          pageIndex={pageIndex}
-          pageSize={pageSize}
-          setPageSize={handlePageSizeChange}
-          totalRows={totalRows}
-          onRowClick={handleRowClick}
-          onRowDoubleClick={handleRowDoubleClick}
-        />
-      </div>
-      <div className="mt-4 space-y-2 h-[10vh]">
-        <div className="flex flex-wrap p-3 gap-3">
-          {statusOptionsConfig.map((option) => {
-            const isSelected = selectedBulkStatus === option.name;
-            return (
-              <button
-                key={option.id}
-                onClick={() => handleBulkStatusUpdate(option.name)}
-                disabled={updating || !selectedBillPaymentIds.length}
-                className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-                  ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
-                  ${updating || !selectedBillPaymentIds.length ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span className="text-sm font-semibold text-center">{option.name}</span>
-                {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
-              </button>
-            );
-          })}
-          <button
-            onClick={handleFileUploadClick}
-            disabled={!selectedBillPaymentIds.length}
-            className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-              ${selectedBillPaymentIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-500' : 'border-gray-300 bg-white text-gray-700 opacity-50 cursor-not-allowed'}`}
-          >
-            <span className="text-sm font-semibold text-center">Upload Files</span>
-            {selectedBillPaymentIds.length && <FaFileUpload className="text-blue-500 animate-bounce" size={18} />}
-          </button>
-        </div>
-      </div>
+
+      <DataTable
+        columns={columns(handleDeleteOpen, handleCheckboxChange, selectedBillPaymentIds)}
+        data={filteredBillPaymentInvoices}
+        loading={loading}
+        link="/billpaymentinvoices/create"
+        setPageIndex={handlePageIndexChange}
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        setPageSize={handlePageSizeChange}
+        totalRows={totalRows}
+        onRowClick={handleRowClick}
+        onRowDoubleClick={handleRowDoubleClick}
+      />
+
       {selectedRowId && (
-        <div>
+        <div className="mt-6">
           <OrderProgress
-            orderNo={billPaymentInvoices.find((b) => b.id === selectedRowId)?.orderNo}
+            orderNo={billPaymentInvoices.find(b => b.id === selectedRowId)?.orderNo}
             bookingStatus={bookingStatus}
             consignments={consignments}
           />
         </div>
       )}
-      {openDelete && (
-        <DeleteConfirmModel
-          handleDeleteclose={handleDeleteClose}
-          handleDelete={handleDelete}
-          isOpen={openDelete}
-        />
-      )}
-      {openFileUploadModal && selectedBillPaymentForFiles && (
-        <div
-          id="fileUploadModal"
-          className="fixed top-0 right-0 left-0 z-50 flex justify-center items-center w-full h-full bg-black bg-opacity-60"
-          onClick={(e) => {
-            const target = e.target as HTMLElement;
-            if (target.id === 'fileUploadModal') {
-              setOpenFileUploadModal(false);
-              setSelectedBillPaymentForFiles(null);
-            }
-          }}
+
+      <div className="mt-6 flex flex-wrap gap-4 p-4">
+        {statusOptionsConfig.map(opt => {
+          const active = selectedBulkStatus === opt.name;
+          return (
+            <button
+              key={opt.id}
+              onClick={() => handleBulkStatusUpdate(opt.name)}
+              disabled={updating || !selectedBillPaymentIds.length}
+              className={`w-40 h-16 rounded-xl border-2 flex items-center justify-center font-semibold transition-all
+                ${active ? `border-[${opt.color}] bg-gradient-to-r from-[${opt.color}]/10 text-[${opt.color}]` : 'border-gray-300 bg-white'}
+                ${updating || !selectedBillPaymentIds.length ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+            >
+              {opt.name}
+              {active && <FaCheck className="ml-2 animate-bounce" />}
+            </button>
+          );
+        })}
+        <button
+          onClick={handleFileUploadClick}
+          disabled={!selectedBillPaymentIds.length}
+          className={`w-40 h-16 rounded-xl border-2 flex items-center justify-center font-semibold transition-all
+            ${selectedBillPaymentIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-600 hover:scale-105' : 'border-gray-300 bg-white opacity-50'}`}
         >
-          <div className="bg-white rounded shadow p-5 w-full max-w-lg">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold">Files for Invoice {billPaymentInvoices.find((b) => b.id === selectedBillPaymentForFiles)?.invoiceNo || ''}</h3>
-              <button
-                onClick={() => {
-                  setOpenFileUploadModal(false);
-                  setSelectedBillPaymentForFiles(null);
-                }}
-                className="text-gray-500 hover:text-black"
-              >
-                ✕
-              </button>
+          Upload Files
+          {selectedBillPaymentIds.length && <FaFileUpload className="ml-2 animate-bounce" />}
+        </button>
+      </div>
+
+      {openDelete && <DeleteConfirmModel handleDeleteclose={handleDeleteClose} handleDelete={handleDelete} isOpen={openDelete} />}
+
+      {/* FILE UPLOAD MODAL */}
+      {openFileUploadModal && selectedBillPaymentForFiles && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60" onClick={(e) => e.target === e.currentTarget && setOpenFileUploadModal(false)}>
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">
+                Files - Invoice {billPaymentInvoices.find(b => b.id === selectedBillPaymentForFiles)?.invoiceNo || ''}
+              </h3>
+              <button onClick={() => { setOpenFileUploadModal(false); setSelectedBillPaymentForFiles(null); }} className="text-3xl text-gray-500 hover:text-gray-800">×</button>
             </div>
-            <div className="space-y-3">
-              <input
-                type="file"
-                multiple
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept="image/*,application/pdf"
-                className="block w-full text-sm text-gray-500
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-full file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100"
-              />
-              {billPaymentFiles[selectedBillPaymentForFiles]?.length > 0 ? (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700">Uploaded Files:</h4>
-                  <ul className="mt-2 space-y-2 max-h-60 overflow-y-auto">
-                    {billPaymentFiles[selectedBillPaymentForFiles].map((file) => (
-                      <li key={file.id} className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center gap-2">
-                          {file.type.startsWith('image/') && (
-                            <img
-                              src={file.url}
-                              alt={file.name}
-                              className="w-12 h-12 object-cover rounded"
-                            />
-                          )}
-                          <span className="text-sm truncate max-w-[200px]">{file.name}</span>
+
+            <input
+              type="file"
+              multiple
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*,application/pdf"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+
+            {billPaymentFiles[selectedBillPaymentForFiles]?.length > 0 ? (
+              <div className="mt-6">
+                <h4 className="font-medium text-gray-700 mb-3">Uploaded Files</h4>
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {billPaymentFiles[selectedBillPaymentForFiles].map(file => (
+                    <div key={file.id} className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-4">
+                        {file.type.startsWith('image/') && <img src={file.url} alt={file.name} className="w-16 h-16 object-cover rounded" />}
+                        {file.type.includes('pdf') && <FaFilePdf size={48} className="text-red-600" />}
+                        <div>
+                          <p className="font-medium truncate max-w-xs">{file.name}</p>
+                          <p className="text-xs text-gray-500">{file.type}</p>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleViewFile(file.url)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="View File"
-                          >
-                            <FaEye size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleRemoveFile(selectedBillPaymentForFiles, file.id)}
-                            className="text-red-600 hover:text-red-800"
-                            title="Remove File"
-                          >
-                            <FaTrash size={18} />
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                      </div>
+                      <div className="flex gap-3">
+                        <button onClick={() => handleViewFile(file.url)} className="text-blue-600 hover:text-blue-800"><FaEye size={20} /></button>
+                        <button onClick={() => handleRemoveFile(selectedBillPaymentForFiles, file.id)} className="text-red-600 hover:text-red-800"><FaTrash size={20} /></button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ) : (
-                <p className="text-sm text-gray-500">No files uploaded for this invoice.</p>
-              )}
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  onClick={() => {
-                    setOpenFileUploadModal(false);
-                    setSelectedBillPaymentForFiles(null);
-                  }}
-                  className="px-4 py-2 rounded border"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Add More Files
-                </button>
               </div>
+            ) : (
+              <p className="text-center text-gray-500 my-8 italic">No files uploaded yet.</p>
+            )}
+
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+              <button onClick={() => { setOpenFileUploadModal(false); setSelectedBillPaymentForFiles(null); }} className="px-5 py-2 border rounded hover:bg-gray-100">
+                Cancel
+              </button>
+              <button onClick={() => fileInputRef.current?.click()} className="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                Add More Files
+              </button>
+              <button
+                onClick={handleSaveFilesToBackend}
+                disabled={!billPaymentFiles[selectedBillPaymentForFiles]?.length || loading}
+                className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+              >
+                {loading ? 'Saving...' : 'Save to Invoice'}
+              </button>
             </div>
           </div>
         </div>

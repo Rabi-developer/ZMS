@@ -5,6 +5,7 @@ import { ColumnDef } from '@tanstack/react-table';
 import { Row } from '@tanstack/react-table';
 
 export interface Charge {
+  files: any;
   id: string;
   chargeNo: string;
   chargeDate: string;

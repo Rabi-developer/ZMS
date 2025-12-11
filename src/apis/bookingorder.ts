@@ -187,11 +187,26 @@ const updateBookingOrderFiles = async ({ id, files }: { id: string; files: strin
     if (!id) throw new Error('updateBookingOrderFiles: id is required');
     if (typeof files !== 'string') throw new Error('updateBookingOrderFiles: files must be a comma-separated string');
 
-    const payload = {
-      id,
-      files, // Comma-separated string of Cloudinary URLs
-    };
+    // Try partial update first (PATCH only Files field)
+    try {
+      const patchResponse = await apiFetch(`BookingOrder/Files/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, files }),
+      }, true);
+      return patchResponse;
+    } catch (patchErr) {
+      console.warn('PATCH BookingOrder/{id} failed, falling back to merge+PUT:', patchErr);
+    }
 
+    // Fallback: fetch existing order and merge Files, then PUT full payload
+    const existing = await getSingleBookingOrder(id);
+    const existingOrder = (existing as any)?.data || existing;
+    if (!existingOrder) throw new Error('updateBookingOrderFiles: existing order not found');
+
+    const payload = { ...existingOrder, files };
     const response = await apiFetch(`BookingOrder`, {
       method: 'PUT',
       headers: {
@@ -205,6 +220,36 @@ const updateBookingOrderFiles = async ({ id, files }: { id: string; files: strin
     throw error;
   }
 };
+
+const uploadBookingOrderFiles = async (bookingOrderId: string, files: File[]) => {
+  if (!files || files.length === 0) throw new Error("No files selected");
+
+  const formData = new FormData();
+  files.forEach(file => formData.append("files", file));
+
+  const response = await apiFetch(`BookingOrder/${bookingOrderId}/upload-files`, {
+    method: 'PUT',
+    headers: {},
+    body: formData,
+  }, true);
+
+  return response;
+};
+const uploadAndUpdateBookingOrderFiles = async (bookingOrderId: string, files: File[]) => {
+  if (files.length === 0) throw new Error("No files selected");
+
+  const formData = new FormData();
+  files.forEach(file => formData.append("files", file));
+
+  return apiFetch(`BookingOrder/${bookingOrderId}/upload-files`, {
+    method: 'PUT',
+    headers: {},
+    body: formData,
+    // Don't set Content-Type — browser sets boundary automatically
+  }, true);
+};
+
+
 export {
   createBookingOrder,
   getAllBookingOrder,
@@ -218,5 +263,7 @@ export {
   addConsignmentToBookingOrder,
   updateConsignmentForBookingOrder,
   deleteConsignmentFromBookingOrder,
-  updateBookingOrderFiles
+  updateBookingOrderFiles,
+  uploadBookingOrderFiles,
+  uploadAndUpdateBookingOrderFiles
 };

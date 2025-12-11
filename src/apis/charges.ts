@@ -103,4 +103,42 @@ const updateChargesStatus = async (ChargesStatus: { id: string; status: string }
     throw error;
   }
 };
-export { createCharges , getAllCharges , getAllChargesPositions , getSingleCharges , updateCharges , deleteCharges, updateChargesStatus  };
+const updateChargesFiles = async ({ id, files }: { id: string; files: string }) => {
+  try {
+    if (!id) throw new Error('updateChargesFiles: id is required');
+    if (typeof files !== 'string') throw new Error('updateChargesFiles: files must be a comma-separated string');
+
+    // Try partial update first (PATCH only Files field)
+    try {
+      const patchResponse = await apiFetch(`Charges/Files/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, files }),
+      }, true);
+      return patchResponse;
+    } catch (patchErr) {
+      console.warn('PATCH Charges/{id} failed, falling back to merge+PUT:', patchErr);
+    }
+
+    // Fallback: fetch existing order and merge Files, then PUT full payload
+    const existing = await getSingleCharges(id);
+    const existingOrder = (existing as any)?.data || existing;
+    if (!existingOrder) throw new Error('updateChargesFiles: existing order not found');
+
+    const payload = { ...existingOrder, files };
+    const response = await apiFetch(`Charges`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, true);
+
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+export { createCharges , getAllCharges , getAllChargesPositions , getSingleCharges , updateCharges , deleteCharges, updateChargesStatus, updateChargesFiles  };

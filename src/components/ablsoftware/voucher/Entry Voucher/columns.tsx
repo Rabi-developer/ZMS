@@ -1,10 +1,11 @@
 import { Edit, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Row } from '@tanstack/react-table';
+import { Row, ColumnDef } from '@tanstack/react-table';
 import { MdReceipt } from 'react-icons/md';
 
 export interface Voucher {
+  files: any;
   id: string;
   voucherNo: string;
   voucherDate: string;
@@ -18,18 +19,41 @@ export interface Voucher {
 
 export const getStatusStyles = (status: string) => {
   switch (status) {
-    case 'Posted':
-      return 'bg-green-100 text-green-800';
-    case 'Draft':
+    case 'Prepared':
       return 'bg-yellow-100 text-yellow-800';
-    case 'Cancelled':
-      return 'bg-red-100 text-red-800';
+    case 'Checked':
+      return 'bg-blue-100 text-blue-800';
+    case 'Approved':
+      return 'bg-green-100 text-green-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }
 };
 
-export const columns = (handleDeleteOpen: (id: string) => void, handlePdf: (id: string) => void) => [
+export const columns = (
+handleDeleteOpen: (id: string) => void, handlePdf: (id: string) => void, selectedVoucherIds: string[], onCheckboxChange: (id: string, checked: boolean) => void, p0: (id: string) => void): ColumnDef<Voucher>[] => [
+  // Checkbox Column - Same as ConsignmentList
+  {
+    id: 'select',
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        checked={table.getIsAllRowsSelected()}
+        onChange={table.getToggleAllRowsSelectedHandler()}
+        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+      />
+    ),
+    cell: ({ row }: { row: Row<Voucher> }) => (
+      <input
+        type="checkbox"
+        checked={selectedVoucherIds.includes(row.original.id)}
+        onChange={(e) => onCheckboxChange(row.original.id, e.target.checked)}
+        onClick={(e) => e.stopPropagation()}
+        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+      />
+    ),
+  },
+
   {
     header: 'Voucher No',
     accessorKey: 'voucherNo',
@@ -50,40 +74,34 @@ export const columns = (handleDeleteOpen: (id: string) => void, handlePdf: (id: 
     header: 'Paid To',
     accessorKey: 'paidTo',
   },
-  // {
-  //   header: 'Total Debit',
-  //   accessorKey: 'totalDebit',
-  // },
-  // {
-  //   header: 'Total Credit',
-  //   accessorKey: 'totalCredit',
-  // },
-  {
-    header: '',
-    accessorKey: 'name',
-  },
   {
     header: 'Status',
     accessorKey: 'status',
     cell: ({ row }: { row: Row<Voucher> }) => (
-      <span className={`px-2 py-1 rounded-full ${getStatusStyles(row.original.status || 'Draft')}`}>
-        {row.original.status || 'Draft'}
+      <span
+        className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusStyles(
+          row.original.status || 'Prepared'
+        )}`}
+      >
+        {row.original.status || 'Prepared'}
       </span>
     ),
   },
   {
     header: 'Actions',
-    accessorKey: 'actions',
+    id: 'actions',
     cell: ({ row }: { row: Row<Voucher> }) => (
-      <div className="flex space-x-2">
-        <Link href={`/vouchers/edit/${row.original.id}`}>
-          <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600" title="Edit">
+      <div className="flex items-center gap-2">
+        <Link href={`/entryvoucher/edit/${row.original.id}`}>
+          <Button size="sm" variant="outline" className="hover:bg-yellow-50">
             <Edit size={16} />
           </Button>
         </Link>
+
         <Button
           size="sm"
-          className="bg-blue-600 hover:bg-blue-700"
+          variant="outline"
+          className="hover:bg-blue-50 text-blue-600"
           title="Download PDF"
           onClick={(e) => {
             e.stopPropagation();
@@ -92,9 +110,11 @@ export const columns = (handleDeleteOpen: (id: string) => void, handlePdf: (id: 
         >
           <MdReceipt size={16} />
         </Button>
+
         <Button
           size="sm"
-          className="bg-red-500 hover:bg-red-600"
+          variant="outline"
+          className="hover:bg-red-50 text-red-600"
           title="Delete"
           onClick={(e) => {
             e.stopPropagation();

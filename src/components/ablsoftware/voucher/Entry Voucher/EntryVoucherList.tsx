@@ -1,13 +1,19 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { FaFileExcel, FaCheck } from 'react-icons/fa';
-import { MdReceipt, MdClose } from 'react-icons/md';
+import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash, FaFilePdf } from 'react-icons/fa';
+import { MdReceipt } from 'react-icons/md';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
-import { getAllEntryVoucher, deleteEntryVoucher, updateEntryVoucher, getSingleEntryVoucher } from '@/apis/entryvoucher';
+import {
+  getAllEntryVoucher,
+  deleteEntryVoucher,
+  updateEntryVoucher,
+  getSingleEntryVoucher,
+  updateEntryVoucherFiles,
+} from '@/apis/entryvoucher';
 import { columns, Voucher } from './columns';
 import EntryVoucherPDFExport from './EntryVoucherPDFExport';
 import { getAllAblAssests } from '@/apis/ablAssests';
@@ -16,9 +22,17 @@ import { getAllAblLiabilities } from '@/apis/ablliabilities';
 import { getAllAblExpense } from '@/apis/ablExpense';
 import { getAllEquality } from '@/apis/equality';
 
+interface UploadedFile {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+}
+
 const EntryVoucherList = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [filteredVouchers, setFilteredVouchers] = useState<Voucher[]>([]);
   const [loading, setLoading] = useState(false);
@@ -33,9 +47,18 @@ const EntryVoucherList = () => {
   const [updating, setUpdating] = useState(false);
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
-  const [accountIndex, setAccountIndex] = useState<Record<string, { id: string; listid?: string; description?: string }>>({});
-  const [selectedVoucher, setSelectedVoucher] = useState<any | null>(null);
+  const [accountIndex, setAccountIndex] = useState<Record<string, any>>({});
+
+  // Row Expansion & Details
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [expandedVoucherDetails, setExpandedVoucherDetails] = useState<any>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
+
+  // File Upload
+  const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
+  const [selectedVoucherForFiles, setSelectedVoucherForFiles] = useState<string | null>(null);
+  const [voucherFiles, setVoucherFiles] = useState<{ [id: string]: UploadedFile[] }>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const statusOptions = ['All', 'Prepared', 'Checked', 'Approved'];
   const statusOptionsConfig = [
@@ -44,63 +67,39 @@ const EntryVoucherList = () => {
     { id: 3, name: 'Approved', color: '#ef4444' },
   ];
 
-  const displayAccount = (value: string) => {
-    return accountIndex[value]?.description || value || '-';
-  };
+  const displayAccount = (value: string) => accountIndex[value]?.description || value || '-';
 
-  // Create stable handlers for pagination
   const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
-    const resolvedPageIndex = typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex;
-    console.log('EntryVoucher page index changing from', pageIndex, 'to', resolvedPageIndex);
-    setPageIndex(resolvedPageIndex);
+    setPageIndex(typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex);
   }, [pageIndex]);
 
   const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
-    const resolvedPageSize = typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize;
-    console.log('EntryVoucher page size changing from', pageSize, 'to', resolvedPageSize);
-    setPageSize(resolvedPageSize);
-    setPageIndex(0); // Reset to first page when page size changes
+    setPageSize(typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize);
+    setPageIndex(0);
   }, [pageSize]);
 
   const fetchVouchers = useCallback(async () => {
     try {
       setLoading(true);
-      // Convert 0-based pageIndex to 1-based for API
-      const apiPageIndex = pageIndex + 1;
-      console.log('Fetching entry vouchers with pageIndex:', pageIndex, 'apiPageIndex:', apiPageIndex, 'pageSize:', pageSize);
-      
-      const response = await getAllEntryVoucher(apiPageIndex, pageSize);
-      console.log('EntryVoucher API Response:', response);
-      
-      setVouchers(response?.data || []);
-      
-      // Set total rows from the API response
-      if (response.misc) {
-        setTotalRows(response.misc.total || 0);
-        console.log('EntryVoucher total rows set to:', response.misc.total);
-      }
+      const response = await getAllEntryVoucher(pageIndex + 1, pageSize);
+      const data = (response?.data || []).map((v: any) => ({ ...v, files: v.files || '' }));
+      setVouchers(data);
+      setTotalRows(response.misc?.total || 0);
     } catch (error) {
-      console.error('Failed to fetch vouchers:', error);
       toast('Failed to fetch vouchers', { type: 'error' });
     } finally {
       setLoading(false);
     }
   }, [pageIndex, pageSize]);
 
-  useEffect(() => {
-    console.log('EntryVoucher useEffect triggered with pageIndex:', pageIndex, 'pageSize:', pageSize);
-    fetchVouchers();
-  }, [fetchVouchers]);
+  useEffect(() => { fetchVouchers(); }, [fetchVouchers]);
 
   useEffect(() => {
     let filtered = vouchers;
-    if (selectedStatusFilter !== 'All') {
-      filtered = vouchers.filter((v) => v.status === selectedStatusFilter);
-    }
+    if (selectedStatusFilter !== 'All') filtered = filtered.filter(v => v.status === selectedStatusFilter);
     if (startDate || endDate) {
-      filtered = filtered.filter((v) => {
+      filtered = filtered.filter(v => {
         const d = new Date(v.voucherDate);
-        if (isNaN(d.getTime())) return false;
         const s = startDate ? new Date(startDate) : null;
         const e = endDate ? new Date(endDate) : null;
         return (!s || d >= s) && (!e || d <= e);
@@ -110,113 +109,72 @@ const EntryVoucherList = () => {
   }, [vouchers, selectedStatusFilter, startDate, endDate]);
 
   useEffect(() => {
-    const refresh = searchParams.get('refresh') === 'true';
-    const createdId = searchParams.get('created');
-    if (refresh) {
-      fetchVouchers();
-      if (createdId) {
-        handlePdf(createdId);
-      }
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('refresh');
-      newUrl.searchParams.delete('created');
-      router.replace(newUrl.pathname);
-    }
-  }, [searchParams, router]);
-
-  useEffect(() => {
     const loadAccountIndex = async () => {
       try {
-        const [assets, revenues, liabilities, expenses, equities] = await Promise.all([
-          getAllAblAssests(1, 10000).catch(() => ({ data: [] })),
-          getAllAblRevenue(1, 10000).catch(() => ({ data: [] })),
-          getAllAblLiabilities(1, 10000).catch(() => ({ data: [] })),
-          getAllAblExpense(1, 10000).catch(() => ({ data: [] })),
-          getAllEquality(1, 10000).catch(() => ({ data: [] })),
-        ]);
-        const idx: Record<string, { id: string; listid?: string; description?: string }> = {};
-        const add = (arr: any[]) => arr?.forEach?.((a: any) => { if (a?.id) idx[a.id] = { id: a.id, listid: a.listid, description: a.description }; });
-        add(assets?.data || []);
-        add(revenues?.data || []);
-        add(liabilities?.data || []);
-        add(expenses?.data || []);
-        add(equities?.data || []);
+        const [a, r, l, e, eq] = await Promise.all([
+          getAllAblAssests(1, 10000),
+          getAllAblRevenue(1, 10000),
+          getAllAblLiabilities(1, 10000),
+          getAllAblExpense(1, 10000),
+          getAllEquality(1, 10000),
+        ].map(p => p.catch(() => ({ data: [] }))));
+
+        const idx: Record<string, any> = {};
+        [...a.data, ...r.data, ...l.data, ...e.data, ...eq.data].forEach(item => {
+          if (item?.id) idx[item.id] = item;
+        });
         setAccountIndex(idx);
-      } catch (e) {
-        console.error('Failed to build account index', e);
-      }
+      } catch (err) { console.error(err); }
     };
     loadAccountIndex();
   }, []);
 
-  const handleDelete = async () => {
-    try {
-      await deleteEntryVoucher(deleteId);
-      setOpenDelete(false);
-      toast('Voucher Deleted Successfully', { type: 'success' });
-      fetchVouchers();
-    } catch (error) {
-      toast('Failed to delete voucher', { type: 'error' });
+  // Row Click: Toggle Expand + Load Details + Select Row
+  const handleRowClick = async (voucherId: string) => {
+    const isCurrentlyExpanded = expandedRowId === voucherId;
+
+    // Collapse if already open
+    if (isCurrentlyExpanded) {
+      setExpandedRowId(null);
+      setExpandedVoucherDetails(null);
+      setSelectedVoucherIds([]);
+      setSelectedVoucherForFiles(null);
+      setSelectedBulkStatus(null);
+      return;
     }
-  };
 
-  const handleDeleteOpen = (id: string) => {
-    setOpenDelete(true);
-    setDeleteId(id);
-  };
+    // Expand and load
+    setExpandedRowId(voucherId);
+    setSelectedVoucherIds([voucherId]);
+    setSelectedVoucherForFiles(voucherId);
 
-  const handleDeleteClose = () => {
-    setOpenDelete(false);
-    setDeleteId('');
+    try {
+      setDetailsLoading(true);
+      const res = await getSingleEntryVoucher(voucherId);
+      setExpandedVoucherDetails(res?.data || null);
+    } catch (err) {
+      toast('Failed to load details', { type: 'error' });
+    } finally {
+      setDetailsLoading(false);
+    }
+
+    const voucher = vouchers.find(v => v.id === voucherId);
+    setSelectedBulkStatus(voucher?.status || null);
   };
 
   const handleCheckboxChange = (voucherId: string, checked: boolean) => {
-    if (checked) {
-      setSelectedVoucherIds((prev) => [...prev, voucherId]);
-    } else {
-      setSelectedVoucherIds((prev) => prev.filter((id) => id !== voucherId));
-    }
-
-    setTimeout(() => {
-      const selected = vouchers.filter((v) => selectedVoucherIds.includes(v.id));
-      const statuses = selected.map((v) => v.status).filter((status, index, self) => self.indexOf(status) === index);
-      setSelectedBulkStatus(statuses.length === 1 ? statuses[0] : null);
-    }, 100);
+    setSelectedVoucherIds(checked ? [voucherId] : []);
+    setSelectedVoucherForFiles(checked ? voucherId : null);
+    setSelectedBulkStatus(checked ? vouchers.find(v => v.id === voucherId)?.status || null : null);
   };
 
-  const handleBulkStatusUpdate = async (newStatus: string) => {
-    if (selectedVoucherIds.length === 0) {
-      toast('Please select at least one voucher', { type: 'warning' });
-      return;
-    }
-    try {
-      setUpdating(true);
-      const updatePromises = selectedVoucherIds.map((id) =>
-        updateEntryVoucher({ id, status: newStatus })
-      );
-      await Promise.all(updatePromises);
-      setSelectedBulkStatus(newStatus);
-      setSelectedVoucherIds([]);
-      setSelectedStatusFilter(newStatus);
-      setPageIndex(0);
-      toast('Voucher Status Updated Successfully', { type: 'success' });
-      await fetchVouchers();
-    } catch (error) {
-      toast('Failed to update status', { type: 'error' });
-    } finally {
-      setUpdating(false);
-    }
-  };
-
+  // PDF Download for Individual Voucher
   const handlePdf = async (id: string) => {
     try {
       const res = await getSingleEntryVoucher(id);
       const v = res?.data;
-      if (!v) {
-        toast('Voucher not found', { type: 'error' });
-        return;
-      }
-      console.log('Voucher for PDF:', JSON.stringify(v, null, 2));
+      if (!v) return toast('Voucher not found', { type: 'error' });
+
       EntryVoucherPDFExport.exportToPDF({
         voucher: {
           id: v.id,
@@ -231,261 +189,329 @@ const EntryVoucherList = () => {
           paidTo: v.paidTo,
           narration: v.narration,
           description: v.description,
-          preparedByName: v.preparedByName || v.preparedBy || v.prepared_user_name || v.preparedUserName || v.preparedUser?.name || v.createdByName || v.createdBy,
-          preparedAt: v.preparedAt || v.preparedDate || v.preparedOn || v.prepared_time || v.createdAt,
-          checkedByName: v.checkedByName || v.checkedBy || v.checked_user_name || v.checkedUserName || v.checkedUser?.name,
-          checkedAt: v.checkedAt || v.checkedDate || v.checkedOn || v.checked_time,
-          approvedByName: v.approvedByName || v.approvedBy || v.approved_user_name || v.approvedUserName || v.approvedUser?.name,
-          approvedAt: v.approvedAt || v.approvedDate || v.approvedOn || v.approved_time,
+          preparedByName: v.preparedByName || v.createdBy || v.preparedUser?.name,
+          preparedAt: v.preparedAt || v.createdAt,
+          checkedByName: v.checkedByName || v.checkedUser?.name,
+          checkedAt: v.checkedAt,
+          approvedByName: v.approvedByName || v.approvedUser?.name,
+          approvedAt: v.approvedAt,
           tableData: v.voucherDetails || [],
         },
         accountIndex,
       });
     } catch (error) {
-      console.error('Failed to generate voucher PDF:', error);
-      toast('Failed to generate voucher PDF', { type: 'error' });
+      toast('Failed to generate PDF', { type: 'error' });
     }
   };
 
-  const handleRangePdf = async () => {
+  // PDF Export for date range
+  const handlePdfRange = async () => {
     try {
-      const s = startDate ? new Date(startDate) : null;
-      const e = endDate ? new Date(endDate) : null;
-      const inRange = filteredVouchers.filter((v) => {
-        const d = new Date(v.voucherDate);
-        if (isNaN(d.getTime())) return false;
-        return (!s || d >= s) && (!e || d <= e);
-      });
-      if (inRange.length === 0) {
+      const list = filteredVouchers;
+      if (!list.length) {
         toast('No vouchers in selected range', { type: 'warning' });
         return;
       }
-
+      setLoading(true);
       const details = await Promise.all(
-        inRange.map(async (v) => {
-          try {
-            const res = await getSingleEntryVoucher(v.id);
-            const data = res?.data;
-            if (!data) return null;
-            return {
-              id: data.id,
-              voucherNo: data.voucherNo,
-              voucherDate: data.voucherDate,
-              referenceNo: data.referenceNo,
-              chequeNo: data.chequeNo,
-              depositSlipNo: data.depositSlipNo,
-              paymentMode: data.paymentMode,
-              bankName: data.bankName,
-              chequeDate: data.chequeDate,
-              paidTo: data.paidTo,
-              narration: data.narration,
-              description: data.description,
-              preparedByName: data.preparedByName || data.preparedBy || data.prepared_user_name || data.preparedUserName || data.preparedUser?.name || data.createdByName || data.createdBy,
-              preparedAt: data.preparedAt || data.preparedDate || data.preparedOn || data.prepared_time || data.createdAt,
-              checkedByName: data.checkedByName || data.checkedBy || data.checked_user_name || data.checkedUserName || data.checkedUser?.name,
-              checkedAt: data.checkedAt || data.checkedDate || data.checkedOn || data.checked_time,
-              approvedByName: data.approvedByName || data.approvedBy || data.approved_user_name || data.approvedUserName || data.approvedUser?.name,
-              approvedAt: data.approvedAt || data.approvedDate || data.approvedOn || data.approved_time,
-              tableData: data.voucherDetails || [],
-            };
-          } catch (e) {
-            return null;
-          }
+        list.map(v =>
+          getSingleEntryVoucher(v.id)
+            .then(res => res?.data)
+            .catch(() => null)
+        )
+      );
+      const vouchersDocs = details
+        .filter(Boolean)
+        .map((v: any) => ({
+          id: v.id,
+          voucherNo: v.voucherNo,
+          voucherDate: v.voucherDate,
+          referenceNo: v.referenceNo,
+          chequeNo: v.chequeNo,
+          depositSlipNo: v.depositSlipNo,
+          paymentMode: v.paymentMode,
+          bankName: v.bankName,
+          chequeDate: v.chequeDate,
+          paidTo: v.paidTo,
+          narration: v.narration,
+          description: v.description,
+          preparedByName: v.preparedByName || v.createdBy || v.preparedUser?.name,
+          preparedAt: v.preparedAt || v.createdAt,
+          checkedByName: v.checkedByName || v.checkedUser?.name,
+          checkedAt: v.checkedAt,
+          approvedByName: v.approvedByName || v.approvedUser?.name,
+          approvedAt: v.approvedAt,
+          tableData: v.voucherDetails || [],
+        }));
+      const filenameParts: string[] = [];
+      if (startDate) filenameParts.push(startDate);
+      if (endDate) filenameParts.push(endDate);
+      const filename = filenameParts.length ? `EntryVouchers_${filenameParts.join('_to_')}.pdf` : 'EntryVouchers.pdf';
+      EntryVoucherPDFExport.exportManyToPDF({ vouchers: vouchersDocs, accountIndex, filename });
+    } catch (error) {
+      toast('Failed to generate range PDF', { type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // File Upload Logic
+  const handleFileUploadClick = () => {
+    if (!selectedVoucherForFiles) return toast('Please select a voucher', { type: 'warning' });
+
+    const v = vouchers.find(v => v.id === selectedVoucherForFiles);
+    if (v?.files && !voucherFiles[selectedVoucherForFiles]) {
+      const files = v.files.split(',').map((url: string, i: number) => {
+        const name = decodeURIComponent(url.split('/').pop()?.split('?')[0] || `file-${i + 1}`);
+        const type = name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+        return { id: `old-${i}`, name, url: url.trim(), type };
+      });
+      setVoucherFiles(prev => ({ ...prev, [selectedVoucherForFiles]: files }));
+    }
+    setOpenFileUploadModal(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length || !selectedVoucherForFiles) return;
+
+    setLoading(true);
+    toast(`Uploading ${files.length} file(s)...`, { type: 'info' });
+
+    try {
+      const uploaded = await Promise.all(
+        Array.from(files).map(async file => {
+          const formData = new FormData();
+          formData.append('file', file);
+          const res = await fetch('/api/upload', { method: 'POST', body: formData });
+          if (!res.ok) throw new Error(await res.text());
+          const { url } = await res.json();
+          return { id: String(Date.now() + Math.random()), name: file.name, url, type: file.type };
         })
       );
 
-      const docs = details.filter(Boolean) as any[];
-      if (docs.length === 0) {
-        toast('No vouchers could be loaded', { type: 'warning' });
-        return;
-      }
+      setVoucherFiles(prev => ({
+        ...prev,
+        [selectedVoucherForFiles]: [...(prev[selectedVoucherForFiles] || []), ...uploaded],
+      }));
 
-      const filenameParts = ['VoucherSummary'];
-      if (startDate) filenameParts.push(startDate);
-      if (endDate) filenameParts.push(endDate);
-      const filename = filenameParts.join('-') + '.pdf';
+      toast('Uploaded!', { type: 'success' });
+      fileInputRef.current && (fileInputRef.current.value = '');
+    } catch (err: any) {
+      toast('Upload failed: ' + err.message, { type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      EntryVoucherPDFExport.exportManyToPDF({ vouchers: docs, accountIndex, filename });
-    } catch (error) {
-      console.error('Failed to generate range PDF:', error);
-      toast('Failed to generate range PDF', { type: 'error' });
+  const handleSaveFilesToBackend = async () => {
+    if (!selectedVoucherForFiles || !voucherFiles[selectedVoucherForFiles]?.length) return toast('No files', { type: 'warning' });
+
+    try {
+      setLoading(true);
+      const urls = voucherFiles[selectedVoucherForFiles].map(f => f.url).join(',');
+      await updateEntryVoucherFiles({ id: selectedVoucherForFiles, files: urls });
+      toast('Files saved!', { type: 'success' });
+      setOpenFileUploadModal(false);
+      setSelectedVoucherForFiles(null);
+      await fetchVouchers();
+    } catch (err) {
+      toast('Failed to save files', { type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewFile = (url: string) => window.open(url, '_blank');
+  const handleRemoveFile = (id: string, fileId: string) => {
+    setVoucherFiles(prev => ({
+      ...prev,
+      [id]: prev[id].filter(f => f.id !== fileId),
+    }));
+  };
+
+  const handleBulkStatusUpdate = async (status: string) => {
+    if (!selectedVoucherIds.length) return toast('Select a voucher', { type: 'warning' });
+    try {
+      setUpdating(true);
+      await Promise.all(selectedVoucherIds.map(id => updateEntryVoucher({ id, status })));
+      toast('Status updated', { type: 'success' });
+      setSelectedVoucherIds([]);
+      setSelectedVoucherForFiles(null);
+      setSelectedBulkStatus(status);
+      await fetchVouchers();
+    } catch (err) {
+      toast('Update failed', { type: 'error' });
+    } finally {
+      setUpdating(false);
     }
   };
 
   const exportToExcel = () => {
-    let dataToExport = selectedVoucherIds.length > 0
-      ? filteredVouchers.filter((v) => selectedVoucherIds.includes(v.id))
-      : filteredVouchers;
+    const data = selectedVoucherIds.length ? filteredVouchers.filter(v => selectedVoucherIds.includes(v.id)) : filteredVouchers;
+    if (!data.length) return toast('No data', { type: 'warning' });
 
-    if (dataToExport.length === 0) {
-      toast('No vouchers to export', { type: 'warning' });
-      return;
-    }
-
-    const formattedData = dataToExport.map((v) => ({
+    const rows = data.map(v => ({
       'Voucher No': v.voucherNo || '-',
-      'Voucher Date': v.voucherDate || '-',
-      'Reference No': v.referenceNo || '-',
-      'Payment Mode': v.paymentMode || '-',
-      'Paid To': v.paidTo || '-',
-      'Total Debit': v.totalDebit || '-',
-      'Total Credit': v.totalCredit || '-',
-      'Status': v.status || 'Draft',
+      'Date': v.voucherDate || '-',
+      'Paid To': displayAccount(v.paidTo),
+      'Debit': v.totalDebit || '-',
+      'Credit': v.totalCredit || '-',
+      'Status': v.status || '-',
+      'Files': (voucherFiles[v.id] || []).map(f => f.name).join(', ') || '-',
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(formattedData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Vouchers');
-    XLSX.writeFile(workbook, 'Vouchers.xlsx');
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Vouchers');
+    XLSX.writeFile(wb, 'EntryVouchers.xlsx');
+  };
+
+  const handleDeleteOpen = (id: string) => {
+    setDeleteId(id);
+    setOpenDelete(true);
   };
 
   return (
-    <div className="container mx-auto mt-4 max-w-screen p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center">
-            <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>
-            <select
-              value={selectedStatusFilter}
-              onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-md p-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#3a614c]"
-            >
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={fetchVouchers}
-            className="px-3 py-2 bg-[#3a614c] text-white rounded-md hover:bg-[#3a614c]/90 text-sm"
-          >
-            Refresh Data
+    <div className="container mx-auto mt-4 p-6">
+      {/* Header */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <select value={selectedStatusFilter} onChange={e => setSelectedStatusFilter(e.target.value)} className="border rounded p-2">
+            {statusOptions.map(s => <option key={s}>{s}</option>)}
+          </select>
+          <button onClick={fetchVouchers} className="px-4 py-2 bg-[#3a614c] text-white rounded hover:bg-[#3a614c]/90">
+            Refresh
           </button>
         </div>
-        <button
-          onClick={exportToExcel}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all duration-200"
-        >
-          <FaFileExcel size={18} />
-          Download Excel
-        </button>
+        <div className="flex gap-3">
+          <button onClick={exportToExcel} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            <FaFileExcel /> Excel
+          </button>
+          <button onClick={handlePdfRange} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+            <MdReceipt /> PDF (Range)
+          </button>
+        </div>
       </div>
+
+      {/* Date Filter */}
       <div className="mb-4 flex items-center gap-2 justify-end">
-        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border border-gray-300 rounded-md p-2" />
-        <span className="text-sm text-gray-600">to</span>
-        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border border-gray-300 rounded-md p-2" />
-        <button onClick={handleRangePdf} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-all duration-200">
-          <MdReceipt size=  {18} /> Download PDF (Date Range)
+        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="border rounded p-2" />
+        <span>to</span>
+        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="border rounded p-2" />
+      </div>
+
+      {/* DataTable with Expandable Rows + PDF Button */}
+      <DataTable
+        columns={columns(
+          handleDeleteOpen,
+          handlePdf,
+          selectedVoucherIds,
+          handleCheckboxChange,
+          () => {}
+        )}
+        data={filteredVouchers}
+        loading={loading}
+        link="/entryvoucher/create"
+        searchName="voucherNo"
+        setPageIndex={handlePageIndexChange}
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        setPageSize={handlePageSizeChange}
+        totalRows={totalRows}
+        onRowClick={handleRowClick}
+        selectedRowIds={selectedVoucherIds}
+        onCheckboxChange={handleCheckboxChange}
+        expandedRowId={expandedRowId}
+        expandedRowRender={(row: any) => (
+          <div className="p-6 bg-gray-50 border-t">
+            {detailsLoading ? (
+              <div className="text-center py-8">Loading details...</div>
+            ) : expandedVoucherDetails ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div><strong>Voucher No:</strong> {expandedVoucherDetails.voucherNo}</div>
+                  <div><strong>Date:</strong> {expandedVoucherDetails.voucherDate}</div>
+                  <div><strong>Mode:</strong> {expandedVoucherDetails.paymentMode}</div>
+                  <div><strong>Paid To:</strong> {displayAccount(expandedVoucherDetails.paidTo)}</div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="border px-3 py-2 text-left">Account</th>
+                        <th className="border px-3 py-2 text-right">Debit</th>
+                        <th className="border px-3 py-2 text-right">Credit</th>
+                        <th className="border px-3 py-2 text-left">Narration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(expandedVoucherDetails.voucherDetails || []).map((d: any, i: number) => (
+                        <tr key={i}>
+                          <td className="border px-3 py-2">{displayAccount(d.account1 || d.account2)}</td>
+                          <td className="border px-3 py-2 text-right">{Number(d.debit1 || d.debit2 || 0).toLocaleString()}</td>
+                          <td className="border px-3 py-2 text-right">{Number(d.credit1 || d.credit2 || 0).toLocaleString()}</td>
+                          <td className="border px-3 py-2">{d.narration || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">No details</div>
+            )}
+          </div>
+        )}
+      />
+
+      {/* Action Buttons */}
+      <div className="mt-6 flex flex-wrap gap-4 p-4">
+        {statusOptionsConfig.map(opt => (
+          <button
+            key={opt.id}
+            onClick={() => handleBulkStatusUpdate(opt.name)}
+            disabled={updating || !selectedVoucherIds.length}
+            className={`w-40 h-16 rounded-xl border-2 flex items-center justify-center font-semibold transition-all
+              ${selectedBulkStatus === opt.name ? `border-[${opt.color}] bg-gradient-to-r from-[${opt.color}]/10 text-[${opt.color}]` : 'border-gray-300'}
+              ${updating || !selectedVoucherIds.length ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+          >
+            {opt.name}
+            {selectedBulkStatus === opt.name && <FaCheck className="ml-2 animate-bounce" />}
+          </button>
+        ))}
+        <button
+          onClick={handleFileUploadClick}
+          disabled={!selectedVoucherIds.length}
+          className={`w-40 h-16 rounded-xl border-2 flex items-center justify-center font-semibold transition-all
+            ${selectedVoucherIds.length ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 text-blue-600 hover:scale-105' : 'border-gray-300 opacity-50'}`}
+        >
+          Upload Files
+          {selectedVoucherIds.length && <FaFileUpload className="ml-2 animate-bounce" />}
         </button>
       </div>
-      <div>
-        <DataTable
-          columns={columns(handleDeleteOpen, handlePdf)}
-          data={filteredVouchers}
-          loading={loading}
-          link="/entryvoucher/create"
-          setPageIndex={handlePageIndexChange}
-          pageIndex={pageIndex}
-          pageSize={pageSize}
-          setPageSize={handlePageSizeChange}
-          totalRows={totalRows}
-          onRowClick={async (id: string) => {
-            try {
-              setDetailsLoading(true);
-              const res = await getSingleEntryVoucher(id);
-              setSelectedVoucher(res?.data || null);
-            } catch (e) {
-              toast('Failed to load voucher details', { type: 'error' });
-            } finally {
-              setDetailsLoading(false);
-            }
-          }}
-        />
-      </div>
 
-      {selectedVoucher && (
-        <div className="mt-4 border rounded-md p-4 bg-gray-50">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-gray-800">Voucher Details</h3>
-            <button
-              className="text-gray-500 hover:text-gray-700"
-              onClick={() => setSelectedVoucher(null)}
-              title="Close"
-            >
-              <MdClose size={18} />
-            </button>
-          </div>
-
-          <div className="text-sm text-gray-700 grid grid-cols-2 gap-2 mb-3">
-            <div><span className="font-medium">Voucher No:</span> {selectedVoucher.voucherNo || '-'}</div>
-            <div><span className="font-medium">Voucher Date:</span> {selectedVoucher.voucherDate || '-'}</div>
-            <div><span className="font-medium">Payment Mode:</span> {selectedVoucher.paymentMode || '-'}</div>
-            <div><span className="font-medium">Paid To:</span> {displayAccount(selectedVoucher.paidTo)}</div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm border">
-              <thead className="bg-white">
-                <tr>
-                  <th className="border px-2 py-1 text-left">Account 1</th>
-                  <th className="border px-2 py-1 text-right">Debit 1</th>
-                  <th className="border px-2 py-1 text-right">Credit 1</th>
-                  <th className="border px-2 py-1 text-right">Project Balance 1</th>
-                  <th className="border px-2 py-1 text-left">Narration</th>
-                  <th className="border px-2 py-1 text-left">Account 2</th>
-                  <th className="border px-2 py-1 text-right">Debit 2</th>
-                  <th className="border px-2 py-1 text-right">Credit 2</th>
-                  <th className="border px-2 py-1 text-right">Project Balance 1</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(selectedVoucher.voucherDetails || selectedVoucher.tableData || []).map((d: any, idx: number) => (
-                  <tr key={d.id || idx}>
-                    <td className="border px-2 py-1">{displayAccount(d.account1)}</td>
-                    <td className="border px-2 py-1 text-right">{Number(d.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="border px-2 py-1 text-right">{Number(d.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="border px-2 py-1 text-right">{d.projectedBalance1}</td>
-                    <td className="border px-2 py-1">{d.narration || '-'}</td>
-                    <td className="border px-2 py-1">{displayAccount(d.account2)}</td>
-                    <td className="border px-2 py-1 text-right">{Number(d.debit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="border px-2 py-1 text-right">{Number(d.credit2 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className="border px-2 py-1 text-right">{d.projectedBalance2}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-4 space-y-2 h-[18vh]">
-        <div className="flex flex-wrap p-3 gap-3">
-          {statusOptionsConfig.map((option) => {
-            const isSelected = selectedBulkStatus === option.name;
-            return (
-              <button
-                key={option.id}
-                onClick={() => handleBulkStatusUpdate(option.name)}
-                disabled={updating}
-                className={`relative w-40 h-16 flex items-center justify-center p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 shadow-md hover:scale-105 active:scale-95
-                  ${isSelected ? `border-[${option.color}] bg-gradient-to-r from-[${option.color}/10] to-[${option.color}/20] text-[${option.color}]` : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'}
-                  ${updating ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <span className="text-sm font-semibold text-center">{option.name}</span>
-                {isSelected && <FaCheck className={`text-[${option.color}] animate-bounce`} size={18} />}
+      {/* Modals */}
+      {openDelete && <DeleteConfirmModel isOpen={openDelete} handleDeleteclose={() => setOpenDelete(false)} handleDelete={async () => { await deleteEntryVoucher(deleteId); setOpenDelete(false); fetchVouchers(); }} />}
+      
+      {openFileUploadModal && selectedVoucherForFiles && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold">Files - {vouchers.find(v => v.id === selectedVoucherForFiles)?.voucherNo}</h3>
+              <button onClick={() => { setOpenFileUploadModal(false); setSelectedVoucherForFiles(null); }} className="text-3xl">&times;</button>
+            </div>
+            <input type="file" multiple ref={fileInputRef} onChange={handleFileUpload} accept="image/*,application/pdf" className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700" />
+            {/* File list + actions */}
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+              <button onClick={() => setOpenFileUploadModal(false)} className="px-5 py-2 border rounded">Cancel</button>
+              <button onClick={() => fileInputRef.current?.click()} className="px-5 py-2 bg-blue-600 text-white rounded">Add More</button>
+              <button onClick={handleSaveFilesToBackend} disabled={loading || !voucherFiles[selectedVoucherForFiles]?.length} className="px-6 py-2 bg-green-600 text-white rounded disabled:opacity-50">
+                {loading ? 'Saving...' : 'Save Files'}
               </button>
-            );
-          })}
+            </div>
+          </div>
         </div>
-      </div>
-      {openDelete && (
-        <DeleteConfirmModel
-          handleDeleteclose={handleDeleteClose}
-          handleDelete={handleDelete}
-          isOpen={openDelete}
-        />
       )}
     </div>
   );
