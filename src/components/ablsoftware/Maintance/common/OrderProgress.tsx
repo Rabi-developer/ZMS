@@ -370,18 +370,42 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
         const payRes = await getAllPaymentABL(1, 200);
         const allPayments = payRes?.data || [];
         console.log("OrderProgress: All payments data:", allPayments);
+        console.log("OrderProgress: Looking for payments with orderNo:", selOrder);
+        
+        // Build lookup sets from consignments
         const biltyKeys = new Set(consignments.flatMap(c => [c.biltyNo, c.id]).filter(Boolean));
+        
         const payments = allPayments.filter((p: any) => {
           // Check if payment has paymentABLItem array
           const paymentItems = p.paymentABLItem || p.items || [];
           
-          // Match by orderNo in payment items
-          const matchOrder = paymentItems.some((item: any) => String(item.orderNo) === String(selOrder));
+          if (!Array.isArray(paymentItems) || paymentItems.length === 0) return false;
           
-          // Match by biltyNo or vehicleNo
-          const matchBilty = paymentItems.some((item: any) => biltyKeys.has(item.biltyNo ?? item.vehicleNo));
+          // Match by orderNo in payment items (string comparison)
+          const matchOrder = paymentItems.some((item: any) => {
+            const itemOrderNo = String(item.orderNo || "").trim();
+            const searchOrderNo = String(selOrder || "").trim();
+            return itemOrderNo && searchOrderNo && itemOrderNo === searchOrderNo;
+          });
           
-          return matchOrder || matchBilty;
+          // Match by vehicleNo in payment items (might contain biltyNo or consignment references)
+          const matchVehicle = paymentItems.some((item: any) => {
+            const itemVehicleNo = String(item.vehicleNo || "").trim();
+            return biltyKeys.has(itemVehicleNo) || 
+                   consignments.some(c => c.biltyNo?.toString() === itemVehicleNo);
+          });
+          
+          const matched = matchOrder || matchVehicle;
+          if (matched) {
+            console.log("OrderProgress: Payment matched:", {
+              paymentNo: p.paymentNo,
+              paymentItems,
+              matchOrder,
+              matchVehicle
+            });
+          }
+          
+          return matched;
         });
         
         console.log("OrderProgress: Filtered payments:", {
@@ -390,15 +414,19 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
           filteredPaymentsCount: payments.length,
           payments
         });
-        const completed = payments.filter((p: any) => (p.status || "").toLowerCase() === "completed");
+        
+        const completed = payments.filter((p: any) => (p.status || "").toLowerCase() === "completed" || (p.status || "").toLowerCase() === "active");
         const paymentNosList = payments.map((p: any) => p.paymentNo ?? "").filter(Boolean);
-        // Calculate total paid from payment items
+        
+        // Calculate total paid from payment items that match this order
         const totalPaid = payments.reduce((sum: number, p: any) => {
           const paymentItems = p.paymentABLItem || p.items || [];
-          const itemsTotal = paymentItems.reduce((itemSum: number, item: any) => {
-            return itemSum + (formatNumber(item.paidAmount) || formatNumber(item.expenseAmount) || 0);
-          }, 0);
-          return sum + itemsTotal;
+          const matchingItemsTotal = paymentItems
+            .filter((item: any) => String(item.orderNo) === String(selOrder))
+            .reduce((itemSum: number, item: any) => {
+              return itemSum + (formatNumber(item.paidAmount) || formatNumber(item.expenseAmount) || 0);
+            }, 0);
+          return sum + matchingItemsTotal;
         }, 0);
         
         console.log("OrderProgress: Payment totals:", {
@@ -431,51 +459,96 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
         const res = await getAllReceipt(1, 200);
         const list = res?.data || [];
         
-        // Match receipts by orderNo or by biltyNo from receipt items
+        console.log("OrderProgress: Fetching receipts for order:", selOrder);
+        console.log("OrderProgress: All receipts:", list);
+        console.log("OrderProgress: Consignments:", consignments);
+        
+        // Build lookup sets for matching
+        const biltyNos = new Set(consignments.map(c => c.biltyNo?.toString()).filter(Boolean));
+        const consignmentIds = new Set(consignments.map(c => c.id?.toString()).filter(Boolean));
+        
+        // Match receipts by items[].biltyNo or items[].vehicleNo matching consignment biltyNo or orderNo
         const recs = list.filter((r: any) => {
-          // Check if receipt has matching orderNo
-          const topOrder = r.orderNo ?? "";
-          if (String(topOrder) === selOrder) return true;
-          
-          // Check if receipt items have biltyNo matching consignments
+          // Check if receipt items match any consignment
           if (Array.isArray(r.items) && r.items.length > 0) {
             return r.items.some((item: any) => {
               const itemBiltyNo = item.biltyNo?.toString();
-              // Match by biltyNo or by receiptNo
+              const itemVehicleNo = item.vehicleNo?.toString();
+              
+              // Match by biltyNo
+              if (itemBiltyNo && biltyNos.has(itemBiltyNo)) return true;
+              
+              // Match by vehicleNo (which might be orderNo from booking order)
+              if (itemVehicleNo && String(itemVehicleNo) === String(selOrder)) return true;
+              
+              // Match consignments by their IDs
               return consignments.some(c => 
                 (c.biltyNo && itemBiltyNo === c.biltyNo?.toString()) ||
-                (c.receiptNo && itemBiltyNo === c.receiptNo?.toString())
+                (c.id && itemBiltyNo === c.id?.toString())
               );
             });
           }
           
           return false;
         });
+        
+        console.log("OrderProgress: Matched receipts:", recs);
+        
         const nos = recs.map((r: any) => r.receiptNo ?? "").filter(Boolean);
         const total = recs.reduce((sum: number, r: any) => sum + formatNumber(r.receiptAmount), 0);
         if (mounted) {
           setReceiptNos(nos);
           setReceiptsTotalReceived(total);
         }
-      } catch (e) { }
+      } catch (e) {
+        console.error("OrderProgress: Error fetching receipts:", e);
+      }
     };
     run();
     return () => { mounted = false; };
   }, [selOrder, consignments]);
 
-  // Progress steps
+  // Progress steps - Updated to match Bill Payment Invoice flow
   const steps: Step[] = useMemo(() => {
+    const hasReceipts = receiptNos.length > 0;
+    const hasPayments = paymentNos.length > 0;
+    
     const list: Step[] = [
-      { key: "booking", label: "Booking", completed: true, hint: `Order: ${selOrder}` },
-      { key: "consignment", label: "Consignment", completed: consignmentCount > 0, hint: consignmentCount > 0 ? `${consignmentCount} created` : "None" },
-      { key: "charges", label: "Charges", completed: chargesCount > 0, hint: chargesCount > 0 ? `${chargesCount} • ${chargesPaidCount} paid` : "None" },
-      { key: "receipt", label: "Receipt", completed: receiptsTotalReceived > 0, hint: receiptsTotalReceived > 0 ? `${receiptsTotalReceived.toLocaleString()}` : "None" },
-      { key: "payment", label: "Payment", completed: paymentsCompletedCount > 0, hint: paymentsCompletedCount > 0 ? `${paymentsCompletedCount} completed` : "None" },
+      { 
+        key: "booking", 
+        label: "Booking", 
+        completed: true, 
+        hint: `Order: ${selOrder}` 
+      },
+      { 
+        key: "consignment", 
+        label: "Consignment Issued", 
+        completed: consignmentCount > 0, 
+        hint: consignmentCount > 0 ? `${consignmentCount} created` : "None" 
+      },
+      { 
+        key: "charges", 
+        label: "Charges Note", 
+        completed: chargesCount > 0, 
+        hint: chargesCount > 0 ? `${chargesCount} charges` : "None" 
+      },
+      { 
+        key: "receipt", 
+        label: "Receipt Note", 
+        completed: hasReceipts, 
+        hint: hasReceipts ? `${receiptNos.length} receipt${receiptNos.length > 1 ? 's' : ''}` : "None" 
+      },
+      { 
+        key: "payment", 
+        label: "Payment Note", 
+        completed: hasPayments, 
+        hint: hasPayments ? `${paymentNos.length} payment${paymentNos.length > 1 ? 's' : ''}` : "None" 
+      },
     ];
     const firstNotDone = list.findIndex(s => !s.completed);
     if (firstNotDone >= 0) list[firstNotDone].active = true;
     return list;
-  }, [selOrder, consignmentCount, chargesCount, chargesPaidCount, receiptsTotalReceived, paymentsCompletedCount]);
+  }, [selOrder, consignmentCount, chargesCount, receiptNos, paymentNos]);
 
   // TABLE DATA – FORCED RE-RENDER + DEBUG
   const tableData = useMemo(() => {
@@ -665,6 +738,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
         console.log("OrderProgress: Processing charges for consignment:", {
           consignmentIndex: index,
           biltyNo: finalBiltyNo,
+          consignmentReceiptNo: c.receiptNo,
           availableCharges: charges,
           chargesLength: charges.length
         });
@@ -676,28 +750,47 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
             amount: "-",
             paidAmount: "-",
             paymentNos: "-",
-            hasCharges: false
+            hasCharges: false,
+            actualBiltyNo: finalBiltyNo
           };
         }
 
-        // Filter charges by biltyNo if available
+        // Filter charges - more intelligent matching
         const relevantCharges = charges.filter((ch: any) => {
           // Match by biltyNo (string comparison)
           const chargeBilty = String(ch.biltyNo || "").trim();
           const consignmentBilty = String(finalBiltyNo || "").trim();
+          const consignmentReceiptNo = String(c.receiptNo || "").trim();
 
-          // If both are present, match them.
-          if (chargeBilty && consignmentBilty && chargeBilty !== "No Bilty") {
-            return chargeBilty === consignmentBilty;
+          // 1. Direct biltyNo match
+          if (chargeBilty && consignmentBilty && chargeBilty === consignmentBilty) {
+            return true;
           }
 
-          // If charge has no bilty (order level charge) and there is only one consignment, link it.
+          // 2. Match by receipt number (charges might use receipt-based bilty)
+          if (chargeBilty && consignmentReceiptNo && 
+              (chargeBilty.includes(consignmentReceiptNo) || consignmentReceiptNo === chargeBilty)) {
+            return true;
+          }
+
+          // 3. If charge has no bilty but matches consignment index (for single consignment orders)
           if (!chargeBilty && consignments.length === 1) {
             return true;
           }
 
-          // Fallback: strict match (handles empty-empty case)
-          return chargeBilty === consignmentBilty;
+          // 4. If consignment has no bilty and there's only one charge set, link them
+          if (!consignmentBilty || consignmentBilty === "-" || consignmentBilty.startsWith("B-")) {
+            // This consignment doesn't have a proper biltyNo, try to match by index
+            if (consignments.length === charges.length && charges[index]) {
+              return charges[index] === ch;
+            }
+            // For orders with few consignments, distribute charges
+            if (consignments.length <= 2) {
+              return true;
+            }
+          }
+
+          return false;
         });
 
         const validCharges = relevantCharges.filter(ch =>
@@ -723,12 +816,19 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
         const relevantPaymentNos = relevantCharges.flatMap(ch => ch.paymentNos || []).filter(Boolean);
         const uniquePaymentNos = Array.from(new Set(relevantPaymentNos));
 
+        // Get the actual biltyNo from charges if available
+        const actualBiltyNo = relevantCharges.length > 0 && relevantCharges[0].biltyNo 
+          ? relevantCharges[0].biltyNo 
+          : finalBiltyNo;
+
         console.log("OrderProgress: Filtered charges data:", {
+          relevantCharges: relevantCharges,
           validCharges: validCharges,
           validAmounts: validAmounts,
           validPaidTo: validPaidTo,
           totalPaidForConsignment,
-          uniquePaymentNos
+          uniquePaymentNos,
+          actualBiltyNo
         });
 
         return {
@@ -740,7 +840,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
           }).join(", ") || "-",
           paidAmount: totalPaidForConsignment > 0 ? totalPaidForConsignment.toLocaleString() : "-",
           paymentNos: uniquePaymentNos.length > 0 ? uniquePaymentNos.join(", ") : "-",
-          hasCharges: validCharges.length > 0 || validAmounts.length > 0
+          hasCharges: validCharges.length > 0 || validAmounts.length > 0,
+          actualBiltyNo: actualBiltyNo
         };
       })();
 
@@ -748,10 +849,16 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
       const receivedAmt = c.receivedAmount ?? c.recvAmount ?? 0;
       const deliveryDt = c.deliveryDate ?? c.delDate ?? "";
 
+      // Use the actual biltyNo from charges if it's more specific than consignment biltyNo
+      const displayBiltyNo = chargesInfo.actualBiltyNo || finalBiltyNo;
+
       rows.push({
-        biltyNo: finalBiltyNo,
-        receiptNo: c.receiptNo != null ? String(c.receiptNo) : (receiptNos.join(", ") || "-"),
-        // Use payment numbers from charges if available, otherwise fallback to global
+        biltyNo: displayBiltyNo,
+        // Show receiptNo from consignment if available, otherwise show matched receipt numbers
+        receiptNo: c.receiptNo != null && String(c.receiptNo).trim() !== "" 
+          ? String(c.receiptNo) 
+          : (receiptNos.length > 0 ? receiptNos.join(", ") : "-"),
+        // Use payment numbers from charges if available, otherwise fallback to global payment numbers
         paymentNo: chargesInfo.paymentNos !== "-" ? chargesInfo.paymentNos : (paymentNos.join(", ") || "-"),
         orderNo: bo?.orderNo || selOrder || "-",
         orderDate: bo?.orderDate || "Not Set",
