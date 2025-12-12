@@ -9,6 +9,8 @@ import { getAllCustomers } from "@/apis/customer";
 import { getAllPartys } from "@/apis/party";
 import { getAllVendor } from "@/apis/vendors";
 import { getAllTransporter } from "@/apis/transporter";
+import { getAllBusinessAssociate } from "@/apis/businessassociate";
+import { getAllMunshyana } from "@/apis/munshyana";
 
 interface Consignment {
   consignmentNo: any;
@@ -122,6 +124,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
   const [parties, setParties] = useState<PartyOption[]>([]);
   const [vendors, setVendors] = useState<PartyOption[]>([]);
   const [transporters, setTransporters] = useState<PartyOption[]>([]);
+  const [businessAssociates, setBusinessAssociates] = useState<PartyOption[]>([]);
+  const [chargeTypes, setChargeTypes] = useState<PartyOption[]>([]);
 
   const selOrder = orderNo ? String(orderNo).trim() : "";
 
@@ -145,6 +149,26 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
       vendors.find(v => v.id === id) ||
       transporters.find(t => t.id === id);
     return found ? found.name : `ID: ${id.substring(0, 8)}...`;
+  };
+
+  // Resolve Business Associate name from ID
+  const resolveBusinessAssociateName = (id?: string): string => {
+    if (!id || id.trim() === "") return "-";
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return id;
+    }
+    const found = businessAssociates.find(ba => ba.id === id);
+    return found ? found.name : resolvePartyName(id); // Fallback to general party resolution
+  };
+
+  // Resolve Charge Type name from ID
+  const resolveChargeTypeName = (id?: string): string => {
+    if (!id || id.trim() === "") return "-";
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return id;
+    }
+    const found = chargeTypes.find(ct => ct.id === id);
+    return found ? found.name : id;
   };
 
   // UPDATE CONSIGNMENTS WHEN PROP CHANGES
@@ -230,17 +254,21 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
     let mounted = true;
     const fetchPartyData = async () => {
       try {
-        const [custRes, partyRes, vendorRes, transRes] = await Promise.all([
+        const [custRes, partyRes, vendorRes, transRes, baRes, chargesRes] = await Promise.all([
           getAllCustomers(1, 1000).catch(() => ({ data: [] })),
           getAllPartys(1, 1000).catch(() => ({ data: [] })),
           getAllVendor(1, 1000).catch(() => ({ data: [] })),
           getAllTransporter(1, 1000).catch(() => ({ data: [] })),
+          getAllBusinessAssociate(1, 1000).catch(() => ({ data: [] })),
+          getAllMunshyana(1, 1000).catch(() => ({ data: [] })),
         ]);
         if (mounted) {
           setCustomers((custRes?.data || []).map((c: any) => ({ id: c.id, name: c.name || c.customerName || "" })));
           setParties((partyRes?.data || []).map((p: any) => ({ id: p.id, name: p.name || p.partyName || "" })));
           setVendors((vendorRes?.data || []).map((v: any) => ({ id: v.id, name: v.name || v.vendorName || "" })));
           setTransporters((transRes?.data || []).map((t: any) => ({ id: t.id, name: t.name || t.transporterName || "" })));
+          setBusinessAssociates((baRes?.data || []).map((b: any) => ({ id: b.id, name: b.name || b.businessAssociateName || "" })));
+          setChargeTypes((chargesRes?.data || []).map((ch: any) => ({ id: ch.id, name: ch.name || ch.chargeName || ch.chargesName || "" })));
         }
       } catch (error) { }
     };
@@ -286,8 +314,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
 
           // Extract charge information - prioritize line data, fallback to parent charge data
           const base = {
-            paidToPerson: c.paidToPerson ?? c.paidTo ?? "-",
-            charges: c.charges ?? c.chargeType ?? c.description ?? `Charge #${c.chargeNo}`,
+            paidToPerson: resolveBusinessAssociateName(c.paidToPerson ?? c.paidTo) || "-",
+            charges: resolveChargeTypeName(c.charges ?? c.chargeType) || c.description || `Charge #${c.chargeNo}`,
             amount: c.amount ?? c.chargeAmount ?? c.total ?? "-",
             biltyNo: c.biltyNo ?? "",
             paidAmount: totalPaid,
@@ -298,8 +326,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
           return Array.isArray(c.lines) && c.lines.length > 0
             ? c.lines.map((l: any, idx: number) => {
                 // Use line data if available, otherwise use parent charge data
-                const linePaidTo = l.paidTo || l.paidToPerson || c.paidTo || c.paidToPerson || "-";
-                const lineCharges = l.charges || l.charge || l.chargeType || l.description || c.charges || c.chargeType || `Charge #${c.chargeNo}`;
+                const linePaidTo = resolveBusinessAssociateName(l.paidTo || l.paidToPerson || c.paidTo || c.paidToPerson) || "-";
+                const lineCharges = resolveChargeTypeName(l.charges || l.charge || l.chargeType) || l.description || resolveChargeTypeName(c.charges || c.chargeType) || `Charge #${c.chargeNo}`;
                 const lineAmount = l.amount ?? c.amount ?? c.chargeAmount ?? 0;
                 const lineBiltyNo = l.biltyNo || c.biltyNo || "";
                 
@@ -351,8 +379,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
               const pNos = (c.payments || []).map((p: any) => p.payNo).filter(Boolean);
 
               const base = {
-                paidToPerson: c.paidToPerson ?? c.paidTo ?? "-",
-                charges: c.charges ?? c.chargeType ?? c.description ?? `Charge #${c.chargeNo}`,
+                paidToPerson: resolveBusinessAssociateName(c.paidToPerson ?? c.paidTo) || "-",
+                charges: resolveChargeTypeName(c.charges ?? c.chargeType) || c.description || `Charge #${c.chargeNo}`,
                 amount: c.amount ?? c.chargeAmount ?? c.total ?? "-",
                 biltyNo: c.biltyNo ?? "",
                 paidAmount: totalPaid,
@@ -890,6 +918,10 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
     paymentsTotalPaid,
     selOrder,
     resolvePartyName,
+    resolveBusinessAssociateName,
+    resolveChargeTypeName,
+    businessAssociates,
+    chargeTypes,
   ]);
 
   const hideBookingCols = !!hideBookingOrderInfo;
