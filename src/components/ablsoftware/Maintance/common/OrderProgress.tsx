@@ -153,22 +153,28 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
 
   // Resolve Business Associate name from ID
   const resolveBusinessAssociateName = (id?: string): string => {
-    if (!id || id.trim() === "") return "-";
+    if (!id || id.trim() === "") return "";
+    // If it's already a name (not a GUID), return it
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       return id;
     }
     const found = businessAssociates.find(ba => ba.id === id);
-    return found ? found.name : resolvePartyName(id); // Fallback to general party resolution
+    if (found) return found.name;
+    // Fallback to general party resolution
+    const partyName = resolvePartyName(id);
+    return partyName !== `ID: ${id.substring(0, 8)}...` ? partyName : "";
   };
 
   // Resolve Charge Type name from ID
   const resolveChargeTypeName = (id?: string): string => {
-    if (!id || id.trim() === "") return "-";
+    if (!id || id.trim() === "") return "";
+    // If it's already a name (not a GUID), return it
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       return id;
     }
     const found = chargeTypes.find(ct => ct.id === id);
-    return found ? found.name : id;
+    // If found, return name; otherwise return empty string to allow fallback to description
+    return found ? found.name : "";
   };
 
   // UPDATE CONSIGNMENTS WHEN PROP CHANGES
@@ -313,9 +319,12 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
           const pNos = (c.payments || []).map((p: any) => p.payNo).filter(Boolean);
 
           // Extract charge information - prioritize line data, fallback to parent charge data
+          const paidToResolved = resolveBusinessAssociateName(c.paidToPerson ?? c.paidTo);
+          const chargeResolved = resolveChargeTypeName(c.charges ?? c.chargeType ?? c.charge);
+          
           const base = {
-            paidToPerson: resolveBusinessAssociateName(c.paidToPerson ?? c.paidTo) || "-",
-            charges: resolveChargeTypeName(c.charges ?? c.chargeType) || c.description || `Charge #${c.chargeNo}`,
+            paidToPerson: paidToResolved || "-",
+            charges: chargeResolved || c.description || `Charge #${c.chargeNo}`,
             amount: c.amount ?? c.chargeAmount ?? c.total ?? "-",
             biltyNo: c.biltyNo ?? "",
             paidAmount: totalPaid,
@@ -326,8 +335,14 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
           return Array.isArray(c.lines) && c.lines.length > 0
             ? c.lines.map((l: any, idx: number) => {
                 // Use line data if available, otherwise use parent charge data
-                const linePaidTo = resolveBusinessAssociateName(l.paidTo || l.paidToPerson || c.paidTo || c.paidToPerson) || "-";
-                const lineCharges = resolveChargeTypeName(l.charges || l.charge || l.chargeType) || l.description || resolveChargeTypeName(c.charges || c.chargeType) || `Charge #${c.chargeNo}`;
+                const linePaidToResolved = resolveBusinessAssociateName(l.paidTo || l.paidToPerson || c.paidTo || c.paidToPerson);
+                const linePaidTo = linePaidToResolved || paidToResolved || "-";
+                
+                // Backend uses 'charge' (singular) in lines
+                const lineChargeId = l.charge || l.charges || l.chargeType || c.charges || c.chargeType || c.charge;
+                const lineChargeResolved = resolveChargeTypeName(lineChargeId);
+                const lineCharges = lineChargeResolved || l.description || chargeResolved || `Charge #${c.chargeNo}`;
+                
                 const lineAmount = l.amount ?? c.amount ?? c.chargeAmount ?? 0;
                 const lineBiltyNo = l.biltyNo || c.biltyNo || "";
                 
@@ -378,9 +393,12 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
               const totalPaid = (c.payments || []).reduce((sum: number, p: any) => sum + (Number(p.paidAmount) || 0), 0);
               const pNos = (c.payments || []).map((p: any) => p.payNo).filter(Boolean);
 
+              const paidToResolved = resolveBusinessAssociateName(c.paidToPerson ?? c.paidTo);
+              const chargeResolved = resolveChargeTypeName(c.charges ?? c.chargeType ?? c.charge);
+
               const base = {
-                paidToPerson: resolveBusinessAssociateName(c.paidToPerson ?? c.paidTo) || "-",
-                charges: resolveChargeTypeName(c.charges ?? c.chargeType) || c.description || `Charge #${c.chargeNo}`,
+                paidToPerson: paidToResolved || "-",
+                charges: chargeResolved || c.description || `Charge #${c.chargeNo}`,
                 amount: c.amount ?? c.chargeAmount ?? c.total ?? "-",
                 biltyNo: c.biltyNo ?? "",
                 paidAmount: totalPaid,
