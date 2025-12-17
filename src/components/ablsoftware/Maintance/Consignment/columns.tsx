@@ -105,6 +105,10 @@ export const columns = (
     accessorKey: 'consignee',
   },
   {
+    header: '',
+    accessorKey: 'name',
+  },
+  {
     header: 'Status',
     accessorKey: 'status',
     cell: ({ row }: { row: Row<Consignment> }) => (

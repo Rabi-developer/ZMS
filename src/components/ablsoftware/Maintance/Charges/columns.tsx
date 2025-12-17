@@ -93,6 +93,10 @@ export const columns = (
     accessorKey: 'payment',
   },
   {
+    header: '',
+    accessorKey: 'name',
+  },
+  {
     header: 'Status',
     accessorKey: 'status',
     cell: ({ row }: { row: Row<Charge> }) => (
