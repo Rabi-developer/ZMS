@@ -39,7 +39,7 @@
     "react": "^19.0.2",
     "react-chartjs-2": "^5.3.0",
     "react-date-range": "^2.0.1",
-    "react-dom": "^19.0.0",
+    "react-dom": "^19.2.3",
     "react-google-charts": "^5.2.1",
     "react-graph": "^0.0.7",
     "react-hook-form": "^7.56.1",
