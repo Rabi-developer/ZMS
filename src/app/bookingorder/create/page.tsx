@@ -1,11 +1,15 @@
 "use client";
+import { Suspense } from 'react';
 import MainLayout from '@/components/MainLayout/MainLayout'
 import BookingOrderForm from '@/components/ablsoftware/Maintance/BookingOrder.tsx/BookingOrder';
-const ABL = () => {
+import Loader from '@/components/ui/Loader';
 
+const ABL = () => {
     return (
         <MainLayout activeInterface="ABL">
-              <BookingOrderForm />
+            <Suspense fallback={<Loader />}>
+                <BookingOrderForm />
+            </Suspense>
         </MainLayout>
     )
 }

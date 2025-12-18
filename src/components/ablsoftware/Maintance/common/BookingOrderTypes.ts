@@ -11,6 +11,7 @@ export const ALL_COLUMNS = [
   { key: "bookingAmount", label: "Booking Amount" },
   { key: "biltyNo", label: "Bilty No" },
   { key: "biltyAmount", label: "Bilty Amount" },
+  { key: "consignmentFreight", label: "Consignment Freight" },
   { key: "article", label: "Article" },
   { key: "qty", label: "Qty" },
   { key: "departure", label: "Departure" },

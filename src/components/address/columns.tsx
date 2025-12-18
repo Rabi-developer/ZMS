@@ -6,6 +6,7 @@ import Link from 'next/link'
 
 // Define a type for the new data structure
 export type User = {
+  id: string
   addressLine1: string
   addressLine2: string
   city: string

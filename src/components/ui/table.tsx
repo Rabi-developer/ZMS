@@ -119,6 +119,9 @@ const TableCell = React.forwardRef<
 ));
 TableCell.displayName = "TableCell";
 
+// Export all table components
+export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell };
+
 // New component for cells with truncation detection and tooltip
 const TableCellWithTooltip = ({ cell, className }: { cell: any; className?: string }) => {
   const cellRef = useRef<HTMLSpanElement>(null);

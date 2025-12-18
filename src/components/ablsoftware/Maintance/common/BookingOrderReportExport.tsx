@@ -20,15 +20,13 @@ import { exportBookingOrderToExcel } from './BookingOrderExcel';
 import { exportBiltiesReceivableToPDF } from "@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf";
 import { exportGeneralBookingOrderToPDF } from './BookingOrderGeneralPdf';
 import { exportDetailBookingOrderToPDF } from './BookingOrderDetailPdf';
-import type { ColumnKey as ExportColumnKey } from '@/components/ablsoftware/Maintance/common/BookingOrderTypes';
+import type { ColumnKey } from '@/components/ablsoftware/Maintance/common/BookingOrderTypes';
 
 
 // Company constant
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
 
-// Types
-type LocalColumnKey = "serial" | "orderNo" | "orderDate" | "vehicleNo" | "bookingAmount" | "biltyNo" | "biltyAmount" | "consignor" | "consignee" | "article" | "qty" | "departure" | "destination" | "vendor" | "carrier";
-type ColumnKey = LocalColumnKey | ExportColumnKey;
+// Use the imported ColumnKey type directly
 
 interface RowData {
   serial: number | string;

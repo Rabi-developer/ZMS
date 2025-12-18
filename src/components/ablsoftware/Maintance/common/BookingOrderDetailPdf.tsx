@@ -1,27 +1,6 @@
 'use client';
 import jsPDF from 'jspdf';
-
-// Define ColumnKey as a union of valid keys
-type ColumnKey = 'serial' | 'orderNo' | 'orderDate' | 'vehicleNo' | 'bookingAmount' | 'biltyNo' | 'consignmentFreight' | 'consignor' | 'consignee' | 'article' | 'qty';
-
-// Define RowData interface
-interface RowData {
-  isOrderRow?: boolean;
-  vendor?: string;
-  departure?: string;
-  destination?: string;
-  serial?: string | number;
-  orderNo?: string;
-  orderDate?: string;
-  vehicleNo?: string;
-  bookingAmount?: number;
-  biltyNo?: string;
-  consignmentFreight?: number;
-  consignor?: string;
-  consignee?: string;
-  article?: string;
-  qty?: string | number;
-}
+import type { ColumnKey, RowData } from '@/components/ablsoftware/Maintance/common/BookingOrderTypes';
 
 // Company constants
 const COMPANY_NAME = 'AL NASAR BASHEER LOGISTICS';

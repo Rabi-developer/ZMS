@@ -1,6 +1,6 @@
 "use client"
 import React from 'react';
-import { columns } from './columns'; // Ensure correct import
+import { columns, User } from './columns'; // Ensure correct import
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import {getAllAddress, deleteAddress } from '@/apis/address';
@@ -54,7 +54,7 @@ const BranchList = () => {
 
   return (
     <div className='container bg-white rounded-md'>
-      <DataTable columns={columns(handleDeleteOpen)} data={data} loading={loading} link={"/address/create"}
+      <DataTable<User, unknown> columns={columns(handleDeleteOpen)} data={data} loading={loading} link="/address/create"
         setPageIndex={setPageIndex} pageIndex={pageIndex} pageSize={pageSize} setPageSize={setPageSize} />
       {
         open && 
