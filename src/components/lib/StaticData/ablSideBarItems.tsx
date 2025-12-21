@@ -222,7 +222,7 @@ export const ablSideBarItems = [
     color: '#1a5f3a',
     sub_menu: [
       {
-        text: 'Gernal Ledger',
+        text: 'General Ledger',
         href: '/entryvoucher/ledger',
         icon: RiFilePdf2Line,
         color: '#1a5f3a',

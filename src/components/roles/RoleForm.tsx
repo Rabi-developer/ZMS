@@ -8,6 +8,8 @@ import { toast } from 'react-toastify';
 import { createRole, updateRole } from '@/apis/roles';
 import { sideBarItems } from '@/components/lib/StaticData/sideBarItems';
 import { ablSideBarItems } from '@/components/lib/StaticData/ablSideBarItems';
+import { usePermissions } from '@/contexts/PermissionContext';
+import { RESOURCE_ROUTES } from '@/utils/permissions';
 
 const CLAIM_VALUES = ['Read', 'Create', 'Update', 'Delete'] as const;
 
@@ -57,14 +59,16 @@ interface RoleFormProps {
   onClose?: (refresh?: boolean) => void;
 }
 
-const getMenuItems = (items: any[], system: 'ZMS' | 'ABL'): MenuItem[] => {
+const getMenuItems = (items: any[], system: 'ZMS' | 'ABL', hasAnyPermission?: (resources: string[], permissions: string[]) => boolean): MenuItem[] => {
   const menuStructure: MenuItem[] = [];
   items.forEach(item => {
-    if (item.type !== 'heading' && item.text && !['HOME', 'ABL', 'TRANSACTIONS', 'REPORTS', 'Voucher', 'ACCOUNTS & USERS'].includes(item.text)) {
+    if (item?.type !== 'heading' && item?.text) {
+      // Do not gate categories by current-user permissions or hard-coded exclusions.
+      // The role builder must list all resources to assign permissions.
       if (item.sub_menu?.length) {
         menuStructure.push({
           system,
-          category: item.text,  
+          category: item.text,
           forms: item.sub_menu.map((subItem: any) => ({
             name: subItem.text,
             href: subItem.href || '',
@@ -92,6 +96,7 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
     resolver: zodResolver(formSchema),
     defaultValues: initialData || { name: '', claims: [] },
   });
+  const { hasPermission } = usePermissions();
 
   const [permissionBuilder, setPermissionBuilder] = useState<PermissionBuilder>({
     selectedSystems: [],
@@ -102,7 +107,12 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
   });
   const claims = watch('claims') || [];
   const zmsMenuStructure = getMenuItems(sideBarItems, 'ZMS');
-  const ablMenuStructure = getMenuItems(ablSideBarItems, 'ABL');
+  const checkResourcePermissions = (resources: string[], permissions: string[]) => {
+    return resources.some(resource => 
+      permissions.some(permission => hasPermission(resource, permission as any))
+    );
+  };
+  const ablMenuStructure = getMenuItems(ablSideBarItems, 'ABL', checkResourcePermissions);
 
   const getMenuStructureForSystem = (system: 'ZMS' | 'ABL'): MenuItem[] => system === 'ZMS' ? zmsMenuStructure : ablMenuStructure;
   const getCategoriesForSystem = (system: 'ZMS' | 'ABL'): string[] => Array.from(new Set(getMenuStructureForSystem(system).map((item: MenuItem) => item.category)));
@@ -114,6 +124,32 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
     const categoryData = getMenuStructureForSystem(system).find((item: MenuItem) => item.category === category);
     const form = categoryData?.forms.find((f: any) => f.name === formName);
     return form?.subForms?.length ? form.subForms.map((subForm: any) => ({ id: subForm.name, name: subForm.name })) : [];
+  };
+
+  const getResourceNameFromHref = (href: string, system: 'ZMS' | 'ABL'): string => {
+    const resourcesForHref = Object.entries(RESOURCE_ROUTES)
+      .filter(([_, route]) => route === href)
+      .map(([resource, _]) => resource);
+    
+    if (resourcesForHref.length === 0) return '';
+    if (resourcesForHref.length === 1) return resourcesForHref[0];
+    
+    if (system === 'ABL') {
+      const ablResource = resourcesForHref.find(r => r.startsWith('Abl'));
+      if (ablResource) return ablResource;
+    } else {
+      const nonAblResource = resourcesForHref.find(r => !r.startsWith('Abl'));
+      if (nonAblResource) return nonAblResource;
+    }
+    
+    return resourcesForHref[0];
+  };
+
+  const toPascalCase = (text: string) => {
+    return text
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join('');
   };
 
   const buildFinalPermissions = () => {
@@ -141,20 +177,16 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
         });
       });
     });
-    
-    // Helper function to convert text to PascalCase (capitalize words and remove spaces)
-    const toPascalCase = (text: string) => {
-      return text
-        .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join('');
-    };
 
-    // Create claims using resource names as claimType and comma-separated permissions as claimValue
-    const claims = finalPermissions.map(perm => ({
-      claimType: toPascalCase(perm.subForm ? perm.subForm : perm.form), // Convert to PascalCase (e.g., "Branch Setting" -> "BranchSetting")
-      claimValue: perm.permissions.join(', '), // Comma-separated permissions
-    }));
+    const claims = finalPermissions.map(perm => {
+      const resourceName = getResourceNameFromHref(perm.href, perm.system);
+      const claimType = resourceName || toPascalCase(perm.subForm ? perm.subForm : perm.form);
+      
+      return {
+        claimType,
+        claimValue: perm.permissions.join(', '),
+      };
+    });
     
     setValue('claims', claims);
     return finalPermissions;
@@ -289,20 +321,19 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
   };
 
   const grantCategoryPermissions = (system: 'ZMS' | 'ABL', category: string) => {
+    const newPermissionBuilder = { ...permissionBuilder };
+    const systemCategories = newPermissionBuilder.selectedCategories[system] || [];
+    if (!systemCategories.includes(category)) {
+      newPermissionBuilder.selectedCategories[system] = [...systemCategories, category];
+    }
     const systemCategoryKey = `${system}-${category}`;
     const forms = getFormsForSystemCategory(system, category).map((f: FormItem) => f.id);
-    setPermissionBuilder(prev => ({
-      ...prev,
-      selectedCategories: { ...prev.selectedCategories, [system]: [...(prev.selectedCategories[system] || []), category] },
-      selectedForms: { ...prev.selectedForms, [systemCategoryKey]: forms },
-      currentFormPermissions: {
-        ...prev.currentFormPermissions,
-        ...forms.reduce((acc: { [key: string]: string[] }, form: string) => {
-          const formKey = `${system}-${category}-${form}`;
-          return { ...acc, [formKey]: [...CLAIM_VALUES] };
-        }, {}),
-      },
-    }));
+    newPermissionBuilder.selectedForms[systemCategoryKey] = forms;
+    forms.forEach((form: string) => {
+      const formKey = `${system}-${category}-${form}`;
+      newPermissionBuilder.currentFormPermissions[formKey] = [...CLAIM_VALUES];
+    });
+    setPermissionBuilder(newPermissionBuilder);
     toast.success(`Permissions granted for ${category}`);
   };
 
@@ -317,7 +348,7 @@ const RoleForm: React.FC<RoleFormProps> = ({ id, initialData, onClose }) => {
           >
             {system}
           </button>
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{system === 'ZMS' ? 'Zonal Management' : 'Abu Bakar Logistics'}</h4>
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{system === 'ZMS' ? 'Commision Based' : 'Transported Based Company'}</h4>
         </div>
         <button
           type="button"

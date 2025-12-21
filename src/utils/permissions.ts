@@ -257,11 +257,13 @@ export const RESOURCE_ROUTES: { [key: string]: string } = {
   'ProjectTarget': '/projecttarget',
   
   // Account - Charts of Accounts
+  'ChartOfAccounts': '/capitalaccount',
   'Equality': '/capitalaccount',
   'Liabilities': '/liabilities',
   'Assets': '/assets',
-  'Assests': '/assets', // Handle both spellings
+  'Assests': '/assets',
   'Expense': '/expense',
+  'Expenses': '/expense',
   'Revenue': '/revenue',
   
   // Contacts - DealLink
@@ -273,12 +275,15 @@ export const RESOURCE_ROUTES: { [key: string]: string } = {
   'DispatchNote': '/dispatchnote',
   'InspectionNote': '/inspectionnote',
   'Invoice': '/invoice',
-  'Payment': '/payment',
+  'ZMSPayment': '/payment',
   
   // Commission
   'CommissionInvoice': '/commisioninvoice',
   
-  // Booking & Orders
+  // text: 'Dashboard',
+   'Dashboard': '/ABLDashboardlayout',
+   
+  // Booking & Orders / Transport
   'BookingOrder': '/bookingorder',
   'Consignment': '/consignment',
   'Charges': '/charges',
@@ -295,10 +300,13 @@ export const RESOURCE_ROUTES: { [key: string]: string } = {
   'Transporter': '/transporter',
   'TransporterCompany': '/transportercompany',
   'Vendor': '/vendors',
-  'BusinessAssociate': '/businessassociate',
+  'BusinessAssociate': '/businessassociatea',
   'Brooker': '/brookers',
   
-  // ABL Resources
+  // ABL Charts Of Accounts
+  'AblCapitalAccount': '/capitalaccount',
+  'AblChartOfAccounts': '/capitalaccount',
+  'AblEquality': '/equality',
   'AblAssets': '/ablAssests',
   'AblAssests': '/ablAssests', // Handle both spellings  
   'AblExpense': '/ablExpense',
@@ -311,12 +319,13 @@ export const RESOURCE_ROUTES: { [key: string]: string } = {
   // Voucher Resources
   'VoucherEntry': '/entryvoucher',
   'Voucher': '/entryvoucher',
+  'VoucherMain': '/entryvoucher',
   'Schedules': '/abl/schedules',
   'Invoices': '/abl/invoices',
   
   // Voucher Reports
   'GeneralLedger': '/entryvoucher/ledger',
-  'GernalLedger': '/entryvoucher/ledger', // Handle misspelling
+  'GernalLedger': '/entryvoucher/ledger', // Legacy misspelling
   'TrialBalance': '/entryvoucher/trailbalance',
   'AgingReport': '/agingreport',
   'VoucherReport': '/entryvoucher/ledger', // Generic voucher report
@@ -337,13 +346,27 @@ export const getResourceRoute = (resource: string): string | null => {
 export const canAccessRoute = (route: string, permissions?: UserPermissions): boolean => {
   const userPermissions = permissions || getUserPermissions();
   
-  // Find resource by route
-  const resource = Object.keys(RESOURCE_ROUTES).find(
+  // Find resource by exact route match first
+  let resource = Object.keys(RESOURCE_ROUTES).find(
     key => RESOURCE_ROUTES[key] === route
   );
   
+  // If not found, try to extract base resource from route
   if (!resource) {
-    // If route is not mapped, allow access (for non-protected routes)
+    // Extract the first segment from the route (e.g., /users/create -> users)
+    const routeParts = route.split('/').filter(Boolean);
+    if (routeParts.length > 0) {
+      const baseSegment = routeParts[0];
+      
+      // Try to find resource with matching route base
+      resource = Object.keys(RESOURCE_ROUTES).find(
+        key => RESOURCE_ROUTES[key].split('/').filter(Boolean)[0] === baseSegment
+      );
+    }
+  }
+  
+  if (!resource) {
+    // If route is still not mapped, allow access (for non-protected routes)
     return true;
   }
   
