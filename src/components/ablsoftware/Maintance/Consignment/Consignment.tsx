@@ -589,12 +589,14 @@ const ConsignmentForm = ({ isEdit = false }) => {
         toast.success('Consignment created successfully!');
       }
 
-      if (bookingOrderId && createdConsignmentId) {
+      // Determine booking order to link: from query param or selected order
+      const derivedBookingOrderId = bookingOrderId || (getSelectedOrderDetails()?.id ?? '');
+      if (derivedBookingOrderId && createdConsignmentId) {
         try {
           const consPayload = {
             consignmentId: createdConsignmentId, // Add the consignmentId from API response
             biltyNo: payload.biltyNo,
-            bookingOrderId,
+            bookingOrderId: derivedBookingOrderId,
             receiptNo: payload.receiptNo,
             consignor: payload.consignor,
             consignee: payload.consignee,
@@ -607,19 +609,19 @@ const ConsignmentForm = ({ isEdit = false }) => {
           };
           
           console.log('Linking consignment to booking order:', {
-            bookingOrderId,
+            bookingOrderId: derivedBookingOrderId,
             consignmentId: createdConsignmentId,
             payload: consPayload
           });
           
-          await addConsignmentToBookingOrder(bookingOrderId, consPayload);
+          await addConsignmentToBookingOrder(derivedBookingOrderId, consPayload);
           toast.success('Consignment linked to booking order successfully!');
         } catch (e) {
           toast.error('Failed to link consignment to booking order');
           console.error('Error linking consignment to booking order:', e);
         }
-      } else if (bookingOrderId && !createdConsignmentId) {
-        console.warn('BookingOrderId provided but no consignmentId received from createConsignment API');
+      } else if (derivedBookingOrderId && !createdConsignmentId) {
+        console.warn('BookingOrderId provided/derived but no consignmentId received from createConsignment API');
         toast.warn('Consignment created but could not link to booking order - missing consignment ID');
       }
 
