@@ -13,7 +13,7 @@ import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllCharges } from '@/apis/charges';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
-import { MdLocalShipping, MdInfo, MdPayment, MdSearch } from 'react-icons/md';
+import { MdLocalShipping, MdInfo, MdSearch } from 'react-icons/md';
 import { FaMoneyBillWave, FaReceipt } from 'react-icons/fa';
 import Link from 'next/link';
 import { FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
@@ -22,30 +22,26 @@ import { FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
 interface DropdownOption {
   id: string;
   name: string;
-  contact?: string;
-  cnic?: string;
-  accountName?: string;
   mobile?: string;
 }
 
 interface BookingOrder {
   id: string;
   vehicleNo: string;
-  orderNo: string; // always coerced to string
+  orderNo: string;
   munshayana: string;
 }
 
 interface ChargeLine {
-  vehicle: string;
   amount: number;
 }
 
 interface Charge {
-  orderNo: string;
+  orderNo: string | number;
   lines: ChargeLine[];
 }
 
-// Schema for bill payment invoices
+// Zod Schema
 const billPaymentSchema = z.object({
   invoiceNo: z.string().optional(),
   paymentDate: z.string().min(1, 'Payment Date is required'),
@@ -56,7 +52,7 @@ const billPaymentSchema = z.object({
         vehicleNo: z.string().min(1, 'Vehicle No is required'),
         orderNo: z.string().min(1, 'Order No is required'),
         amount: z.number().min(0, 'Amount is required'),
-        munshayana: z.number().min(0, 'Munshayana must be non-negative').optional(),
+        munshayana: z.number().min(0).optional(),
         broker: z.string().optional(),
         dueDate: z.string().optional(),
         remarks: z.string().optional(),
@@ -74,15 +70,7 @@ type BillPaymentFormData = z.infer<typeof billPaymentSchema>;
 
 interface BillPaymentInvoiceFormProps {
   isEdit?: boolean;
-  initialData?: Partial<BillPaymentFormData> & {
-    id?: string;
-    isActive?: boolean;
-    isDeleted?: boolean;
-    createdDateTime?: string;
-    createdBy?: string;
-    modifiedDateTime?: string;
-    modifiedBy?: string;
-  };
+  initialData?: Partial<BillPaymentFormData> & { id?: string };
 }
 
 const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvoiceFormProps) => {
@@ -97,73 +85,27 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     reset,
   } = useForm<BillPaymentFormData>({
     resolver: zodResolver(billPaymentSchema),
-    defaultValues: initialData
-      ? {
-          invoiceNo: initialData.invoiceNo || '',
-          paymentDate: initialData.paymentDate || '',
-          lines: initialData.lines?.length
-            ? initialData.lines.map(line =>
-                line.isAdditionalLine
-                  ? {
-                      isAdditionalLine: true,
-                      nameCharges: line.nameCharges || '',
-                      amountCharges: line.amountCharges || 0,
-                    }
-                  : {
-                      isAdditionalLine: false,
-                      vehicleNo: line.vehicleNo || '',
-                      orderNo: line.orderNo || '',
-                      amount: line.amount || 0,
-                      munshayana: line.munshayana ? Number(line.munshayana) : 0,
-                      broker: line.broker || '',
-                      dueDate: line.dueDate || '',
-                      remarks: line.remarks || '',
-                    }
-              )
-            : [
-                {
-                  isAdditionalLine: false,
-                  vehicleNo: '',
-                  orderNo: '',
-                  amount: 0,
-                  munshayana: 0,
-                  broker: '',
-                  dueDate: '',
-                  remarks: '',
-                },
-              ],
-        }
-      : {
-          invoiceNo: '',
-          paymentDate: '',
-          lines: [
-            {
-              isAdditionalLine: false,
-              vehicleNo: '',
-              orderNo: '',
-              amount: 0,
-              munshayana: 0,
-              broker: '',
-              dueDate: '',
-              remarks: '',
-            },
-          ],
-        },
+    defaultValues: {
+      invoiceNo: '',
+      paymentDate: '',
+      lines: [{ isAdditionalLine: false, vehicleNo: '', orderNo: '', amount: 0, munshayana: 0 }],
+    },
   });
 
   const [idFocused, setIdFocused] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [munshyanas, setMunshyanas] = useState<DropdownOption[]>([]);
   const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
-  const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
-  const [chargesMap, setChargesMap] = useState<Record<string, number>>({});
+  const [validBookingOrders, setValidBookingOrders] = useState<BookingOrder[]>([]);
+  const [orderToFirstAmountMap, setOrderToFirstAmountMap] = useState<Record<string, number>>({});
+
   const [showPopup, setShowPopup] = useState(false);
   const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const lines = watch('lines');
   const [selectedBrokerDetails, setSelectedBrokerDetails] = useState<DropdownOption | null>(null);
 
-  // Fetch dropdown data and build chargesMap by vehicleNo
+  // Fetch all data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -173,134 +115,118 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
           getAllBookingOrder(1, 10000),
           getAllCharges(1, 10000),
         ]);
-        setMunshyanas(munRes.data.map((m: any) => ({ id: m.id, name: m.name })));
+
+        // Munshyana & Brokers
+        setMunshyanas(munRes.data?.map((m: any) => ({ id: m.id, name: m.chargesDesc || m.name })) || []);
         setBusinessAssociates(
-          baRes.data.map((ba: any) => ({
+          baRes.data?.map((ba: any) => ({
             id: ba.id,
             name: ba.name,
-            cnic: ba.cnic,
-            accountName: ba.accountName,
-            mobile: ba.mobile,
-          }))
-        );
-        setBookingOrders(
-          bookRes.data.map((b: any) => ({
-            id: b.id,
-            vehicleNo: String(b.vehicleNo ?? ''),
-            orderNo: String(b.orderNo ?? b.id ?? ''),
-            munshayana: String(b.munshayana ?? ''),
-          }))
+            mobile: ba.mobile || ba.contact || '',
+          })) || []
         );
 
-        // Build chargesMap with vehicleNo as key
-        const chargesSum: Record<string, number> = {};
-        chargesRes.data.forEach((charge: Charge) => {
-          charge.lines.forEach((line: ChargeLine) => {
-            if (line.vehicle) {
-              chargesSum[line.vehicle] = line.amount || 0; // Use individual amount per vehicle
-            }
-          });
+        // Booking Orders
+        const bookingOrders: BookingOrder[] = (bookRes.data || []).map((b: any) => ({
+          id: b.id,
+          vehicleNo: String(b.vehicleNo ?? ''),
+          orderNo: String(b.orderNo ?? b.id ?? ''),
+          munshayana: String(b.munshayana ?? ''),
+        }));
+
+        // Build map: orderNo → first charge amount + collect valid orders
+        const amountMap: Record<string, number> = {};
+        const validOrderNos = new Set<string>();
+
+        (chargesRes.data || []).forEach((charge: any) => {
+          const orderNo = String(charge.orderNo ?? '');
+          if (charge.lines && charge.lines.length > 0) {
+            const firstAmount = Number(charge.lines[0].amount ?? 0);
+            amountMap[orderNo] = firstAmount;
+            validOrderNos.add(orderNo);
+          }
         });
-        console.log('chargesMap:', chargesSum); // Debug log
-        setChargesMap(chargesSum);
+
+        setOrderToFirstAmountMap(amountMap);
+
+        // Filter only booking orders that have charges
+        const filtered = bookingOrders.filter((order) => validOrderNos.has(order.orderNo));
+        setValidBookingOrders(filtered);
+
       } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error('Failed to load data');
+        console.error('Error loading data:', error);
+        toast.error('Failed to load required data');
       }
     };
+
     fetchData();
   }, []);
 
-  // Update selected broker details
-  useEffect(() => {
-const selectedBrokerId = lines.find(
-  (line): line is Exclude<typeof line, { isAdditionalLine: true }> =>
-    !line.isAdditionalLine && !!line.broker
-)?.broker;    const broker = businessAssociates.find(ba => ba.id === selectedBrokerId);
-    setSelectedBrokerDetails(broker || null);
-  }, [lines, businessAssociates]);
-
-  // Generate invoiceNo for new bill payment
+  // Auto-generate invoice number
   useEffect(() => {
     if (!isEdit) {
-      const generatedInvoiceNo = `INV${Date.now()}${Math.floor(Math.random() * 1000)}`;
-      setValue('invoiceNo', generatedInvoiceNo);
+      const generated = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      setValue('invoiceNo', generated);
     }
   }, [isEdit, setValue]);
 
-  // Populate form with initialData in edit mode
+  // Edit mode: populate form
   useEffect(() => {
     if (isEdit && initialData) {
       reset({
         invoiceNo: initialData.invoiceNo || '',
         paymentDate: initialData.paymentDate || '',
         lines: initialData.lines?.length
-          ? initialData.lines.map(line =>
+          ? initialData.lines.map((line: any) =>
               line.isAdditionalLine
-                ? {
-                    isAdditionalLine: true,
-                    nameCharges: line.nameCharges || '',
-                    amountCharges: line.amountCharges || 0,
-                  }
+                ? { isAdditionalLine: true, nameCharges: line.nameCharges || '', amountCharges: line.amountCharges || 0 }
                 : {
                     isAdditionalLine: false,
                     vehicleNo: line.vehicleNo || '',
                     orderNo: line.orderNo || '',
-                    amount: line.amount || 0,
-                    munshayana: line.munshayana ? Number(line.munshayana) : 0,
+                    amount: Number(line.amount || 0),
+                    munshayana: Number(line.munshayana || 0),
                     broker: line.broker || '',
                     dueDate: line.dueDate || '',
                     remarks: line.remarks || '',
                   }
             )
-          : [
-              {
-                isAdditionalLine: false,
-                vehicleNo: '',
-                orderNo: '',
-                amount: 0,
-                munshayana: 0,
-                broker: '',
-                dueDate: '',
-                remarks: '',
-              },
-            ],
+          : [{ isAdditionalLine: false, vehicleNo: '', orderNo: '', amount: 0, munshayana: 0 }],
       });
     }
   }, [isEdit, initialData, reset]);
 
+  // Update broker details when selected
+  useEffect(() => {
+    const brokerId = (lines.find((line) => !line.isAdditionalLine) as any)?.broker;
+    const broker = businessAssociates.find((b) => b.id === brokerId);
+    setSelectedBrokerDetails(broker || null);
+  }, [lines, businessAssociates]);
+
+  // Select vehicle/order
   const selectVehicle = (order: BookingOrder, index: number) => {
-    setValue(`lines.${index}.vehicleNo`, String(order.vehicleNo), { shouldValidate: true });
-    setValue(`lines.${index}.orderNo`, String(order.orderNo), { shouldValidate: true });
-    setValue(`lines.${index}.amount`, Number(chargesMap[order.vehicleNo] || 0), { shouldValidate: true });
-    setValue(`lines.${index}.munshayana`, 0, { shouldValidate: true });
-    setValue(`lines.${index}.isAdditionalLine`, false, { shouldValidate: true });
-    setSelectedLineIndex(index);
+    const amount = orderToFirstAmountMap[order.orderNo] || 0;
+
+    setValue(`lines.${index}.vehicleNo`, order.vehicleNo);
+    setValue(`lines.${index}.orderNo`, order.orderNo);
+    setValue(`lines.${index}.amount`, amount);
+    setValue(`lines.${index}.munshayana`, 0);
+    setValue(`lines.${index}.isAdditionalLine`, false);
+
     setShowPopup(false);
     setSearchQuery('');
-    console.log('Updated lines:', watch('lines'));
   };
 
   const addLine = () => {
     setValue('lines', [
       ...lines,
-      {
-        isAdditionalLine: true,
-        nameCharges: '',
-        amountCharges: 0,
-      },
+      { isAdditionalLine: true, nameCharges: '', amountCharges: 0 },
     ]);
   };
 
   const removeLine = (index: number) => {
     if (lines.length > 1) {
-      const newLines = lines.filter((_, i) => i !== index);
-      setValue('lines', newLines);
-      if (selectedLineIndex === index) {
-        setSelectedLineIndex(null);
-      } else if (selectedLineIndex !== null && index < selectedLineIndex) {
-        setSelectedLineIndex(selectedLineIndex - 1);
-      }
+      setValue('lines', lines.filter((_, i) => i !== index));
     }
   };
 
@@ -308,29 +234,23 @@ const selectedBrokerId = lines.find(
     setIsSubmitting(true);
     try {
       const payload = {
-      id: isEdit ? window.location.pathname.split('/').pop() || '' : null,
-      isActive: true,
-      isDeleted: false,
-      invoiceNo: data.invoiceNo || `INV${Date.now()}${Math.floor(Math.random() * 1000)}`,
-      paymentDate: String(data.paymentDate || ''),
-      lines: data.lines.map((line) =>
-      line.isAdditionalLine
-      ? {
-      isAdditionalLine: true,
-      nameCharges: String(line.nameCharges || ''),
-      amountCharges: Number(line.amountCharges || 0),
-      }
-      : {
-      isAdditionalLine: false,
-      vehicleNo: String(line.vehicleNo || ''),
-      orderNo: String(line.orderNo || ''),
-      amount: Number(line.amount || 0),
-      munshayana: typeof line.munshayana === 'number' ? line.munshayana : Number(line.munshayana || 0),
-      broker: String(line.broker || ''),
-      dueDate: String(line.dueDate || ''),
-      remarks: String(line.remarks || ''),
-      }
-      ),
+        id: isEdit ? window.location.pathname.split('/').pop() : undefined,
+        invoiceNo: data.invoiceNo,
+        paymentDate: data.paymentDate,
+        lines: data.lines.map((line) =>
+          line.isAdditionalLine
+            ? { isAdditionalLine: true, nameCharges: line.nameCharges, amountCharges: line.amountCharges }
+            : {
+                isAdditionalLine: false,
+                vehicleNo: line.vehicleNo,
+                orderNo: line.orderNo,
+                amount: line.amount,
+                munshayana: line.munshayana ?? 0,
+                broker: line.broker,
+                dueDate: line.dueDate,
+                remarks: line.remarks,
+              }
+        ),
       };
 
       if (isEdit) {
@@ -342,531 +262,363 @@ const selectedBrokerId = lines.find(
       }
       router.push('/billpaymentinvoices');
     } catch (error) {
-      console.error('Error saving bill payment invoice:', error);
-      toast.error('An error occurred while saving the bill payment invoice');
+      console.error(error);
+      toast.error('Failed to save invoice');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getMunshayanaName = (id: string) => munshyanas.find(m => m.id === id)?.name || id;
+  const getMunshayanaName = (id: string) => {
+    return munshyanas.find((m) => m.id === id)?.name || id;
+  };
 
-  const filteredBookingOrders = bookingOrders.filter(
-    (order) => {
-      const q = searchQuery.toLowerCase();
-      return (
-        order.vehicleNo.toLowerCase().includes(q) ||
-        String(order.orderNo).toLowerCase().includes(q) ||
-        getMunshayanaName(order.munshayana).toLowerCase().includes(q)
-      );
-    }
-  );
+  const filteredBookingOrders = validBookingOrders.filter((order) => {
+    const q = searchQuery.toLowerCase();
+    return (
+      order.vehicleNo.toLowerCase().includes(q) ||
+      order.orderNo.toLowerCase().includes(q) ||
+      getMunshayanaName(order.munshayana).toLowerCase().includes(q)
+    );
+  });
 
-  // Total Amount is the amount of the first non-additional line
-  const firstNonAdditionalLine = lines.find(line => !line.isAdditionalLine);
-  const totalAmount = firstNonAdditionalLine ? firstNonAdditionalLine.amount || 0 : 0;
-  const totalAmountCharges = lines.reduce((sum, line) => sum + (line.isAdditionalLine ? line.amountCharges || 0 : 0), 0);
-  const combinedTotal = totalAmount + totalAmountCharges;
-  const munshayanaDeduction = lines.reduce((sum, line) => sum + (line.isAdditionalLine ? 0 : line.munshayana || 0), 0);
-  const finalTotal = combinedTotal - munshayanaDeduction;
-  const hasAdditionalLines = lines.some(line => line.isAdditionalLine);
+  // Calculations
+  const mainLine = lines.find((l: any) => !l.isAdditionalLine) as any;
+  const totalAmount = mainLine?.amount || 0;
+  const totalAdditional = lines.reduce((sum, l: any) => sum + (l.isAdditionalLine ? l.amountCharges || 0 : 0), 0);
+  const munshayanaDeduction = lines.reduce((sum, l: any) => sum + (!l.isAdditionalLine ? l.munshayana || 0 : 0), 0);
+  const finalTotal = totalAmount + totalAdditional - munshayanaDeduction;
+  const hasAdditionalLines = lines.some((l: any) => l.isAdditionalLine);
 
   return (
-    <div className="max-w-6xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="h-full w-full flex flex-col">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-full flex flex-col">
-          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-4 flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <FaMoneyBillWave className="text-xl" />
-                </div>
-                <div>
-                  <h1 className="text-lg font-bold tracking-tight">
-                    {isEdit ? 'Edit Bill Payment Invoice' : 'Add New Bill Payment Invoice'}
-                  </h1>
-                  <p className="text-white/90 text-xs">
-                    {isEdit ? 'Update bill payment invoice information' : 'Create a new bill payment invoice record'}
-                  </p>
-                </div>
+    <div className="max-w-7xl mx-auto p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-6 rounded-t-2xl">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <div className="bg-white/20 p-3 rounded-xl">
+                <FaMoneyBillWave className="text-3xl" />
               </div>
-              <Link href="/billpaymentinvoices">
-                <Button
-                  type="button"
-                  className="bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 border border-white/20 backdrop-blur-sm px-4 py-2 shadow-lg hover:shadow-xl text-sm font-medium"
-                >
-                  <FiX className="mr-2" /> Cancel
-                </Button>
-              </Link>
+              <div>
+                <h1 className="text-2xl font-bold">
+                  {isEdit ? 'Edit' : 'Create'} Bill Payment Invoice
+                </h1>
+                <p className="opacity-90">Manage transporter payments</p>
+              </div>
+            </div>
+            <Link href="/billpaymentinvoices">
+              <Button className="bg-white/20 hover:bg-white/30">
+                <FiX className="mr-2" /> Cancel
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-8">
+          {/* Basic Info */}
+          <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <FaReceipt /> Basic Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="relative">
+                <ABLCustomInput
+                  label="Invoice No"
+                  type="text"
+                  register={register}
+                  error={errors.invoiceNo?.message}
+                  id="invoiceNo"
+                  disabled
+                  onFocus={() => setIdFocused(true)}
+                  onBlur={() => setIdFocused(false)}
+                />
+                {idFocused && (
+                  <div className="absolute -top-7 left-0 bg-yellow-100 text-yellow-800 text-xs px-3 py-1 rounded">
+                    Auto-generated
+                  </div>
+                )}
+              </div>
+              <ABLCustomInput
+                label="Payment Date"
+                type="date"
+                register={register}
+                error={errors.paymentDate?.message}
+                id="paymentDate"
+              />
             </div>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="flex-1 p-4 overflow-hidden flex flex-col">
-            <div className="mb-4 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2 mb-3">
-                <FaReceipt className="text-gray-600 text-base" />
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Basic Information</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="relative">
-                  <ABLCustomInput
-                    label="Invoice No"
-                    type="text"
-                    placeholder={isEdit ? 'Invoice No' : 'Auto-generated'}
-                    register={register}
-                    error={errors.invoiceNo?.message}
-                    id="invoiceNo"
-                    disabled
-                    onFocus={() => setIdFocused(true)}
-                    onBlur={() => setIdFocused(false)}
-                  />
-                  {idFocused && (
-                    <div className="absolute -top-8 left-0 bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded shadow-lg z-10">
-                      Auto-generated
-                    </div>
-                  )}
-                </div>
-                <ABLCustomInput
-                  label="Payment Date"
-                  type="date"
-                  register={register}
-                  error={errors.paymentDate?.message}
-                  id="paymentDate"
-                />
-              </div>
+          {/* Lines Table */}
+          <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <MdLocalShipping /> Invoice Lines
+              </h3>
+              <Button type="button" onClick={addLine} className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white">
+                <FiPlus className="mr-2" /> Add Line
+              </Button>
             </div>
 
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="bg-white dark:bg-gray-900 p-3 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col h-full">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <MdLocalShipping className="text-gray-600 text-base" />
-                    <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Invoice Lines</h3>
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={addLine}
-                    className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-3 py-1.5 rounded-md shadow-sm hover:shadow-md"
-                  >
-                    <FiPlus className="mr-1" /> Add Line
-                  </Button>
-                </div>
-
-                <div className="flex-1 overflow-auto rounded-lg border border-gray-200 dark:border-gray-700">
-                  <table className="w-full text-xs">
-                    <thead className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 sticky top-0">
-                      <tr className="border-b border-gray-200 dark:border-gray-700">
-                        <th className="px-2 py-2 text-left font-semibold min-w-[80px]">Vehicle No</th>
-                        <th className="px-2 py-2 text-left font-semibold min-w-[80px]">Order No</th>
-                        <th className="px-2 py-2 text-left font-semibold min-w-[80px]">Amount</th>
-                        {hasAdditionalLines && (
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-200 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-4 py-3 text-left">Vehicle No</th>
+                    <th className="px-4 py-3 text-left">Order No</th>
+                    <th className="px-4 py-3 text-left">Amount</th>
+                    {hasAdditionalLines && <th className="px-4 py-3 text-left">Name Charges</th>}
+                    {hasAdditionalLines && <th className="px-4 py-3 text-left">Amount Charges</th>}
+                    <th className="px-4 py-3 text-left">Munshayana</th>
+                    <th className="px-4 py-3 text-left">Broker</th>
+                    <th className="px-4 py-3 text-left">Due Date</th>
+                    <th className="px-4 py-3 text-left">Remarks</th>
+                    <th className="px-4 py-3 text-left">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y dark:divide-gray-700">
+                  {lines.map((line: any, index) => (
+                    <tr key={index} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                      <td className="px-4 py-3">
+                        {!line.isAdditionalLine && (
                           <>
-                            <th className="px-2 py-2 text-left font-semibold min-w-[80px]">Name Charges</th>
-                            <th className="px-2 py-2 text-left font-semibold min-w-[80px]">Amount Charges</th>
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                setSelectedLineIndex(index);
+                                setShowPopup(true);
+                              }}
+                              className="mb-2 w-full text-xs bg-[#3a614c] hover:bg-[#3a614c]/90"
+                            >
+                              Select Vehicle
+                            </Button>
+                            <input
+                              {...register(`lines.${index}.vehicleNo`)}
+                              disabled
+                              className="w-full border rounded px-3 py-2 bg-gray-100"
+                            />
                           </>
                         )}
-                        <th className="px-2 py-2 text-left font-semibold min-w-[80px]">Munshayana</th>
-                        <th className="px-2 py-2 text-left font-semibold min-w-[80px]">Broker</th>
-                        <th className="px-2 py-2 text-left font-semibold min-w-[80px]">Due Date</th>
-                        <th className="px-2 py-2 text-left font-semibold min-w-[100px]">Remarks</th>
-                        <th className="px-2 py-2 text-left font-semibold min-w-[60px]">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {lines.map((line, index) => (
-                        <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                          <td className="px-2 py-2">
-                            {!line.isAdditionalLine && (
-                              <div className="space-y-1">
-                                <Button
-                                  type="button"
-                                  onClick={() => {
-                                    setShowPopup(true);
-                                    setSelectedLineIndex(index);
-                                  }}
-                                  className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 w-full rounded-md shadow-sm"
-                                >
-                                  Select
-                                </Button>
-                                <input
-                                  {...register(`lines.${index}.vehicleNo`)}
-                                  disabled
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                                />
-                                {!line.isAdditionalLine && errors.lines?.[index] && 'vehicleNo' in errors.lines[index] && (
-                                  <p className="text-red-500 text-xs mt-1">{(errors.lines[index] as any).vehicleNo?.message}</p>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-2 py-2">
-                            {!line.isAdditionalLine && (
-                              <>
-                                <input
-                                  {...register(`lines.${index}.orderNo`)}
-                                  disabled
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                                />
-                                {!line.isAdditionalLine && errors.lines?.[index] && 'orderNo' in errors.lines[index] && (
-                                  <p className="text-red-500 text-xs mt-1">{(errors.lines[index] as any).orderNo?.message}</p>
-                                )}
-                              </>
-                            )}
-                          </td>
-                          <td className="px-2 py-2">
-                            {!line.isAdditionalLine && (
-                              <>
-                                <input
-                                  type="number"
-                                  {...register(`lines.${index}.amount`, { valueAsNumber: true })}
-                                  disabled
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-                                />
-                                {!line.isAdditionalLine && errors.lines?.[index] && 'amount' in errors.lines[index] && (
-                                  <p className="text-red-500 text-xs mt-1">{(errors.lines[index] as any).amount?.message}</p>
-                                )}
-                              </>
-                            )}
-                          </td>
-                          {hasAdditionalLines && (
-                            <>
-                              <td className="px-2 py-2">
-                                {line.isAdditionalLine && (
-                                  <>
-                                    <input
-                                      {...register(`lines.${index}.nameCharges`)}
-                                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs bg-white dark:bg-gray-900 dark:text-white"
-                                      placeholder="Charge name"
-                                    />
-                                    {line.isAdditionalLine && errors.lines?.[index] && 'nameCharges' in errors.lines[index] && (
-                                      <p className="text-red-500 text-xs mt-1">{(errors.lines[index] as any).nameCharges?.message}</p>
-                                    )}
-                                  </>
-                                )}
-                              </td>
-                              <td className="px-2 py-2">
-                                {line.isAdditionalLine && (
-                                  <>
-                                    <input
-                                      type="number"
-                                      {...register(`lines.${index}.amountCharges`, { valueAsNumber: true })}
-                                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs bg-white dark:bg-gray-900 dark:text-white"
-                                      placeholder="Amount"
-                                    />
-                                    {line.isAdditionalLine && errors.lines?.[index] && 'amountCharges' in errors.lines[index] && (
-                                      <p className="text-red-500 text-xs mt-1">{(errors.lines[index] as any).amountCharges?.message}</p>
-                                    )}
-                                  </>
-                                )}
-                              </td>
-                            </>
-                          )}
-                          <td className="px-2 py-2">
-                            {!line.isAdditionalLine && (
-                              <>
-                                <input
-                                  type="number"
-                                  {...register(`lines.${index}.munshayana`, { valueAsNumber: true })}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs bg-white dark:bg-gray-900 dark:text-white"
-                                  placeholder="Deduction"
-                                />
-                                {!line.isAdditionalLine && errors.lines?.[index] && 'munshayana' in errors.lines[index] && (
-                                  <p className="text-red-500 text-xs mt-1">{(errors.lines[index] as any).munshayana?.message}</p>
-                                )}
-                              </>
-                            )}
-                          </td>
-                          <td className="px-2 py-2">
-                            {!line.isAdditionalLine && (
-                              <Controller
-                                name={`lines.${index}.broker`}
-                                control={control}
-                                render={({ field }) => (
-                                  <AblCustomDropdown
-                                    label=""
-                                    options={businessAssociates}
-                                    selectedOption={field.value || ''}
-                                    onChange={(value) => {
-                                      setValue(`lines.${index}.broker`, value, { shouldValidate: true });
-                                      const broker = businessAssociates.find(ba => ba.id === value);
-                                      setSelectedBrokerDetails(broker || null);
-                                    }}
-                                    error={!line.isAdditionalLine && errors.lines?.[index] && 'broker' in errors.lines[index] ? (errors.lines[index] as any).broker?.message : undefined}
-                                  />
-                                )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!line.isAdditionalLine && (
+                          <input
+                            {...register(`lines.${index}.orderNo`)}
+                            disabled
+                            className="w-full border rounded px-3 py-2 bg-gray-100"
+                          />
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!line.isAdditionalLine && (
+                          <input
+                            type="number"
+                            {...register(`lines.${index}.amount`, { valueAsNumber: true })}
+                            disabled
+                            className="w-full border rounded px-3 py-2 bg-gray-100"
+                          />
+                        )}
+                      </td>
+                      {hasAdditionalLines && (
+                        <>
+                          <td className="px-4 py-3">
+                            {line.isAdditionalLine && (
+                              <input
+                                {...register(`lines.${index}.nameCharges`)}
+                                className="w-full border rounded px-3 py-2"
+                                placeholder="Charge name"
                               />
                             )}
                           </td>
-                          <td className="px-2 py-2">
-                            {!line.isAdditionalLine && (
-                              <>
-                                <input
-                                  type="date"
-                                  {...register(`lines.${index}.dueDate`)}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs bg-white dark:bg-gray-900 dark:text-white"
-                                />
-                                {!line.isAdditionalLine && errors.lines?.[index] && 'dueDate' in errors.lines[index] && (
-                                  <p className="text-red-500 text-xs mt-1">{(errors.lines[index] as any).dueDate?.message}</p>
-                                )}
-                              </>
+                          <td className="px-4 py-3">
+                            {line.isAdditionalLine && (
+                              <input
+                                type="number"
+                                {...register(`lines.${index}.amountCharges`, { valueAsNumber: true })}
+                                className="w-full border rounded px-3 py-2"
+                              />
                             )}
                           </td>
-                          <td className="px-2 py-2">
-                            {!line.isAdditionalLine && (
-                              <>
-                                <input
-                                  {...register(`lines.${index}.remarks`)}
-                                  className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs bg-white dark:bg-gray-900 dark:text-white"
-                                  placeholder="Remarks"
-                                />
-                                {!line.isAdditionalLine && errors.lines?.[index] && 'remarks' in errors.lines[index] && (
-                                  <p className="text-red-500 text-xs mt-1">{(errors.lines[index] as any).remarks?.message}</p>
-                                )}
-                              </>
+                        </>
+                      )}
+                      <td className="px-4 py-3">
+                        {!line.isAdditionalLine && (
+                          <input
+                            type="number"
+                            {...register(`lines.${index}.munshayana`, { valueAsNumber: true })}
+                            className="w-full border rounded px-3 py-2"
+                          />
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!line.isAdditionalLine && (
+                          <Controller
+                            name={`lines.${index}.broker`}
+                            control={control}
+                            render={({ field }) => (
+                              <AblCustomDropdown
+                                options={businessAssociates}
+                                selectedOption={field.value || ''}
+                                onChange={field.onChange}
+                                label=""
+                              />
                             )}
+                          />
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!line.isAdditionalLine && (
+                          <input
+                            type="date"
+                            {...register(`lines.${index}.dueDate`)}
+                            className="w-full border rounded px-3 py-2"
+                          />
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!line.isAdditionalLine && (
+                          <input
+                            {...register(`lines.${index}.remarks`)}
+                            className="w-full border rounded px-3 py-2"
+                            placeholder="Remarks"
+                          />
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Button
+                          type="button"
+                          onClick={() => removeLine(index)}
+                          disabled={lines.length <= 1}
+                          className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2"
+                        >
+                          <FiTrash2 />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-200 dark:bg-gray-800 font-bold">
+                  <tr>
+                    <td colSpan={2} className="px-4 py-3">Total Amount</td>
+                    <td className="px-4 py-3">{totalAmount.toLocaleString()}</td>
+                    {hasAdditionalLines && <td colSpan={2} className="px-4 py-3 text-right">{totalAdditional.toLocaleString()}</td>}
+                    <td colSpan={6}></td>
+                  </tr>
+                  {munshayanaDeduction > 0 && (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-3 text-red-600">Munshayana Deduction</td>
+                      <td className="px-4 py-3 text-red-600">-{munshayanaDeduction.toLocaleString()}</td>
+                      <td colSpan={6}></td>
+                    </tr>
+                  )}
+                  <tr className="text-lg">
+                    <td colSpan={2} className="px-4 py-3">Final Total</td>
+                    <td colSpan={hasAdditionalLines ? 3 : 1} className="px-4 py-3 text-green-600">
+                      {finalTotal.toLocaleString()}
+                    </td>
+                    <td colSpan={5}></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          {/* Broker Info */}
+          {selectedBrokerDetails?.mobile && (
+            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-xl">
+              <h4 className="font-semibold mb-2 flex items-center gap-2">
+                <MdInfo /> Selected Broker Details
+              </h4>
+              <p className="text-sm">Mobile: {selectedBrokerDetails.mobile}</p>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl"
+            >
+              {isSubmitting ? (
+                <>Saving...</>
+              ) : (
+                <>
+                  <FiSave className="mr-2" />
+                  {isEdit ? 'Update Invoice' : 'Create Invoice'}
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      {/* Vehicle Selection Popup */}
+      {showPopup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden">
+            <div className="p-6 border-b flex justify-between items-center">
+              <h3 className="text-xl font-bold">Select Vehicle (Only Orders with Charges)</h3>
+              <Button onClick={() => { setShowPopup(false); setSearchQuery(''); }} variant="ghost">
+                <FiX className="text-2xl" />
+              </Button>
+            </div>
+
+            <div className="p-6">
+              <div className="relative mb-6">
+                <MdSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-xl" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by Vehicle No, Order No, or Munshayana..."
+                  className="w-full pl-12 pr-6 py-4 border-2 rounded-xl text-lg"
+                />
+              </div>
+
+              <div className="max-h-96 overflow-y-auto">
+                {filteredBookingOrders.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <p className="text-xl">No orders with charges found</p>
+                  </div>
+                ) : (
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-gray-100 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-6 py-4 text-left font-semibold">Vehicle No</th>
+                        <th className="px-6 py-4 text-left font-semibold">Order No</th>
+                        <th className="px-6 py-4 text-left font-semibold">Amount (First Line)</th>
+                        <th className="px-6 py-4 text-left font-semibold">Munshayana</th>
+                        <th className="px-6 py-4 text-left font-semibold">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {filteredBookingOrders.map((order) => (
+                        <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="px-6 py-4">{order.vehicleNo || '—'}</td>
+                          <td className="px-6 py-4 font-medium">{order.orderNo}</td>
+                          <td className="px-6 py-4 font-bold text-green-600">
+                            {orderToFirstAmountMap[order.orderNo]?.toLocaleString() || '0'}
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-6 py-4">{getMunshayanaName(order.munshayana)}</td>
+                          <td className="px-6 py-4">
                             <Button
-                              type="button"
-                              onClick={() => removeLine(index)}
-                              className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md shadow-sm"
-                              disabled={lines.length <= 1}
+                              onClick={() => selectVehicle(order, selectedLineIndex || 0)}
+                              className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white px-6 py-3"
                             >
-                              <FiTrash2 />
+                              Select
                             </Button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot className="bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
-                      <tr>
-                        <td className="px-2 py-2 font-semibold" colSpan={2}>
-                          Total Amount
-                        </td>
-                        <td className="px-2 py-2 font-bold">{totalAmount.toFixed(2)}</td>
-                        {hasAdditionalLines && (
-                          <>
-                            <td className="px-2 py-2"></td>
-                            <td className="px-2 py-2"></td>
-                          </>
-                        )}
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                      </tr>
-                      {hasAdditionalLines && (
-                        <tr>
-                          <td className="px-2 py-2 font-semibold" colSpan={2}>
-                            Total Amount Charges
-                          </td>
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2 font-bold">{totalAmountCharges.toFixed(2)}</td>
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2"></td>
-                        </tr>
-                      )}
-                      <tr>
-                        <td className="px-2 py-2 font-semibold" colSpan={2}>
-                          Combined Total
-                        </td>
-                        <td className="px-2 py-2 font-bold" colSpan={hasAdditionalLines ? 3 : 1}>
-                          {combinedTotal.toFixed(2)}
-                        </td>
-                        {hasAdditionalLines && (
-                          <>
-                            <td className="px-2 py-2"></td>
-                            <td className="px-2 py-2"></td>
-                          </>
-                        )}
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                      </tr>
-                      {munshayanaDeduction > 0 && (
-                        <tr>
-                          <td className="px-2 py-2 font-semibold" colSpan={2}>
-                            Munshayana Deduction
-                          </td>
-                          <td className="px-2 py-2 font-bold" colSpan={hasAdditionalLines ? 3 : 1}>
-                            {munshayanaDeduction.toFixed(2)}
-                          </td>
-                          {hasAdditionalLines && (
-                            <>
-                              <td className="px-2 py-2"></td>
-                              <td className="px-2 py-2"></td>
-                            </>
-                          )}
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2"></td>
-                          <td className="px-2 py-2"></td>
-                        </tr>
-                      )}
-                      <tr>
-                        <td className="px-2 py-2 font-semibold" colSpan={2}>
-                          Final Total
-                        </td>
-                        <td
-                          className="px-2 py-2 font-bold text-green-600 dark:text-green-400"
-                          colSpan={hasAdditionalLines ? 3 : 1}
-                        >
-                          {finalTotal.toFixed(2)}
-                        </td>
-                        {hasAdditionalLines && (
-                          <>
-                            <td className="px-2 py-2"></td>
-                            <td className="px-2 py-2"></td>
-                          </>
-                        )}
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                        <td className="px-2 py-2"></td>
-                      </tr>
-                    </tfoot>
                   </table>
-                </div>
-
-                {selectedBrokerDetails && selectedBrokerDetails.mobile && (
-                  <div className="mt-4 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-2 mb-3">
-                      <MdInfo className="text-gray-600 text-base" />
-                      <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Broker Details</h3>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Mobile</label>
-                      <p className="text-sm text-gray-800 dark:text-gray-200">{selectedBrokerDetails.mobile}</p>
-                    </div>
-                  </div>
                 )}
               </div>
             </div>
-
-            {showPopup && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-                <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-2xl max-w-md w-full mx-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">Select Vehicle</h3>
-                    <Button
-                      onClick={() => {
-                        setShowPopup(false);
-                        setSearchQuery('');
-                      }}
-                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1"
-                      variant="ghost"
-                    >
-                      <FiX className="text-lg" />
-                    </Button>
-                  </div>
-                  <div className="mb-3">
-                    <div className="relative">
-                      <MdSearch className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by Vehicle No, Order No, or Munshayana"
-                        className="w-full pl-8 pr-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-xs bg-white dark:bg-gray-900 dark:text-white"
-                      />
-                    </div>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md">
-                    <table className="w-full text-xs">
-                      <thead className="sticky top-0 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                        <tr className="border-b border-gray-200 dark:border-gray-700">
-                          <th className="px-3 py-2 text-left font-semibold">Vehicle No</th>
-                          <th className="px-3 py-2 text-left font-semibold">Order No</th>
-                          <th className="px-3 py-2 text-left font-semibold">Amount</th>
-                          <th className="px-3 py-2 text-left font-semibold">Munshayana</th>
-                          <th className="px-3 py-2 text-left font-semibold">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {filteredBookingOrders.length > 0 ? (
-                          filteredBookingOrders.map((order) => (
-                            <tr
-                              key={order.id}
-                              className="hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
-                              onClick={() => selectVehicle(order, selectedLineIndex || 0)}
-                              tabIndex={0}
-                            >
-                              <td className="px-3 py-2">{order.vehicleNo}</td>
-                              <td className="px-3 py-2">{order.orderNo}</td>
-                              <td className="px-3 py-2">{chargesMap[order.vehicleNo] || 0}</td>
-                              <td className="px-3 py-2">{getMunshayanaName(order.munshayana)}</td>
-                              <td className="px-3 py-2">
-                                <Button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    selectVehicle(order, selectedLineIndex || 0);
-                                  }}
-                                  className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-3 py-1 rounded-md shadow-sm"
-                                >
-                                  Select
-                                </Button>
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan={5} className="px-3 py-4 text-center text-gray-500 dark:text-gray-400">
-                              No results found
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="flex justify-end mt-3">
-                    <Button
-                      onClick={() => {
-                        setShowPopup(false);
-                        setSearchQuery('');
-                      }}
-                      className="bg-gray-500 hover:bg-gray-600 text-white rounded-md px-3 py-1 text-xs"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="text-base" />
-                      <span>{isEdit ? 'Update Bill Payment Invoice' : 'Create Bill Payment Invoice'}</span>
-                    </>
-                  )}
-                </div>
-              </Button>
-            </div>
-          </form>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
