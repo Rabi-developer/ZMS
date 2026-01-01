@@ -348,10 +348,15 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       // Save receipt
       if (isEdit) {
         await updateReceipt(payload);
+         router.push('/receipt');
         toast.success('Updated successfully');
+        
+
       } else {
         await createReceipt(payload);
+         router.push('/receipt');
         toast.success('Receipt created successfully');
+    
       }
 
       // Update consignment receivedAmount
@@ -370,11 +375,14 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       await Promise.all(updates);
 
       router.push('/receipt');
+      window.location.href = '/receipt';
     } catch (error) {
       console.error('Error saving receipt:', error);
       toast.error('An error occurred while saving the receipt');
+       router.push('/receipt');
     } finally {
       setIsSubmitting(false);
+       router.push('/receipt');
     }
   };
 
