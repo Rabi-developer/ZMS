@@ -82,9 +82,17 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
        // Try to fetch booking order to get ID if we only have orderNo
        const fetchId = async () => {
          try {
-            const res = await getAllBookingOrder(1, 1, { orderNo: String(orderNo) });
-            if (res?.data && res.data.length > 0) {
-                setBookingOrderId(res.data[0].id);
+            // Fetch more records to ensure we find the correct order if backend filtering is fuzzy or ignored
+            const res = await getAllBookingOrder(1, 100, { orderNo: String(orderNo) });
+            if (res?.data) {
+                const found = res.data.find((b: any) => String(b.orderNo) === String(orderNo));
+                if (found) {
+                    setBookingOrderId(found.id);
+                } else if (res.data.length > 0) {
+                    // Fallback: if exact match not found but we have data, maybe check if backend returned what we asked
+                    // But if backend ignores filter, we shouldn't just take the first one.
+                    console.warn(`OrderProgress: Could not find orderNo ${orderNo} in fetched results.`);
+                }
             }
          } catch (e) {
              console.error("Failed to fetch booking order ID", e);
