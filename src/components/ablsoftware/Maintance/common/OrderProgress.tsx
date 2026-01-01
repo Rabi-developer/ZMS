@@ -1,74 +1,36 @@
-"use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { FaCheck } from "react-icons/fa";
-import { getAllCharges } from "@/apis/charges";
-import { getAllPaymentABL } from "@/apis/paymentABL";
-import { getAllBookingOrder } from "@/apis/bookingorder";
-import { getAllReceipt } from "@/apis/receipt";
-import { getAllCustomers } from "@/apis/customer";
-import { getAllPartys } from "@/apis/party";
-import { getAllVendor } from "@/apis/vendors";
-import { getAllTransporter } from "@/apis/transporter";
-import { getAllBusinessAssociate } from "@/apis/businessassociate";
-import { getAllMunshyana } from "@/apis/munshyana";
+import { getOrderProgress, getAllBookingOrder } from "@/apis/bookingorder";
 
-interface Consignment {
-  consignmentNo: any;
-  id: string;
-  bookingOrderId?: string; // API returns bookingOrderId (GUID)
-  biltyNo: string;
-  receiptNo?: string | number;
-  consignor: string;
-  consignee: string;
-  items?: Array<{
-    desc?: string;
-    description?: string;
-    itemName?: string;
-    name?: string;
-    qty?: number;
-    quantity?: number;
-    qtyValue?: number;
-    qtyUnit?: string;
-    unit?: string;
-    qtyUnitName?: string;
-  }> | null;
-  totalAmount?: string | number;
-  receivedAmount?: string | number;
-  recvAmount?: string | number; // API returns recvAmount
-  deliveryDate?: string;
-  delDate?: string; // API returns delDate
-  status?: string;
-  orderNo?: string | number;
-  item?: string;
-  itemDesc?: string;
-  description?: string;
-  qty?: number;
-  quantity?: number;
-  qtyUnit?: string;
-  unit?: string;
-}
-
-interface BookingOrderInfo {
+export interface OrderProgressRes {
   id?: string;
-  orderNo: string;
-  orderDate: string;
-  vehicleNo: string;
-}
-
-interface Charge {
-  paidToPerson?: string;
-  charges?: string;
-  amount?: string | number;
   biltyNo?: string;
-  paidAmount?: number;
-  paymentNos?: string[];
+  receiptNo?: string;
+  paymentNo?: string;
+  orderNo?: string;
+  orderDate?: string;
+  vehicleNo?: string;
+  consignor?: string;
+  consignee?: string;
+  items?: string;      // comma-separated or you can split
+  qty?: string;
+  totalAmount?: string;
+  receivedAmount?: string;
+  paidAmount?: string;
+  deliveryDate?: string;
+  paidToPerson?: string;
+  charges?: string;    // comma-separated
+  amount?: string;
+  consignmentStatus?: string;
 }
 
 interface OrderProgressProps {
   orderNo?: string | number | null;
+  bookingOrderId?: string;
   bookingStatus?: string | null;
-  consignments?: Consignment[];
-  bookingOrder?: BookingOrderInfo | null;
+  // Legacy props - kept for compatibility but might be unused if using new API
+  consignments?: any[]; 
+  bookingOrder?: any | null;
   hideBookingOrderInfo?: boolean;
 }
 
@@ -78,11 +40,6 @@ interface Step {
   completed: boolean;
   active?: boolean;
   hint?: string;
-}
-
-interface PartyOption {
-  id: string;
-  name: string;
 }
 
 const formatNumber = (v: any): number => {
@@ -103,844 +60,103 @@ const formatDate = (dateStr: string | undefined | null): string => {
 
 const OrderProgress: React.FC<OrderProgressProps> = ({
   orderNo,
+  bookingOrderId: propBookingOrderId,
   bookingStatus,
   consignments: propConsignments = [],
   bookingOrder: propBookingOrder,
   hideBookingOrderInfo,
 }) => {
-  const [consignments, setConsignments] = useState<Consignment[]>(propConsignments);
-  const [bookingOrder, setBookingOrder] = useState<BookingOrderInfo | null>(propBookingOrder || null);
-  const [charges, setCharges] = useState<Charge[]>([]);
-  const [chargesCount, setChargesCount] = useState<number>(0);
-  const [chargesPaidCount, setChargesPaidCount] = useState<number>(0);
-  const [paymentsCompletedCount, setPaymentsCompletedCount] = useState<number>(0);
+  const [progressData, setProgressData] = useState<OrderProgressRes[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [receiptNos, setReceiptNos] = useState<string[]>([]);
-  const [receiptsTotalReceived, setReceiptsTotalReceived] = useState<number>(0);
-  const [paymentNos, setPaymentNos] = useState<string[]>([]);
-  const [paymentsTotalPaid, setPaymentsTotalPaid] = useState<number>(0);
+  const [bookingOrderId, setBookingOrderId] = useState<string | undefined>(propBookingOrderId);
 
-  const [customers, setCustomers] = useState<PartyOption[]>([]);
-  const [parties, setParties] = useState<PartyOption[]>([]);
-  const [vendors, setVendors] = useState<PartyOption[]>([]);
-  const [transporters, setTransporters] = useState<PartyOption[]>([]);
-  const [businessAssociates, setBusinessAssociates] = useState<PartyOption[]>([]);
-  const [chargeTypes, setChargeTypes] = useState<PartyOption[]>([]);
-
-  const selOrder = orderNo ? String(orderNo).trim() : "";
-
-  console.log("OrderProgress: Component props received:", {
-    orderNo: orderNo,
-    bookingOrderProp: bookingOrder,
-    selectedOrder: selOrder,
-    consignmentsLength: consignments.length,
-    timestamp: new Date().toISOString()
-  });
-
-  // Resolve party name from ID
-  const resolvePartyName = (id?: string): string => {
-    if (!id || id.trim() === "") return "-";
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-      return id;
+  // If bookingOrderId is not provided but orderNo is, we might need to fetch it.
+  // Or if consignments are provided, we might find it there.
+  
+  useEffect(() => {
+    if (propBookingOrderId) {
+      setBookingOrderId(propBookingOrderId);
+    } else if (propConsignments && propConsignments.length > 0 && propConsignments[0].bookingOrderId) {
+      setBookingOrderId(propConsignments[0].bookingOrderId);
+    } else if (orderNo) {
+       // Try to fetch booking order to get ID if we only have orderNo
+       const fetchId = async () => {
+         try {
+            const res = await getAllBookingOrder(1, 1, { orderNo: String(orderNo) });
+            if (res?.data && res.data.length > 0) {
+                setBookingOrderId(res.data[0].id);
+            }
+         } catch (e) {
+             console.error("Failed to fetch booking order ID", e);
+         }
+       }
+       fetchId();
     }
-    const found =
-      customers.find(c => c.id === id) ||
-      parties.find(p => p.id === id) ||
-      vendors.find(v => v.id === id) ||
-      transporters.find(t => t.id === id);
-    return found ? found.name : `ID: ${id.substring(0, 8)}...`;
-  };
+  }, [propBookingOrderId, propConsignments, orderNo]);
 
-  // Resolve Business Associate name from ID
-  const resolveBusinessAssociateName = (id?: string): string => {
-    if (!id || id.trim() === "") return "";
-    // If it's already a name (not a GUID), return it
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-      return id;
-    }
-    const found = businessAssociates.find(ba => ba.id === id);
-    if (found) return found.name;
-    // Fallback to general party resolution
-    const partyName = resolvePartyName(id);
-    return partyName !== `ID: ${id.substring(0, 8)}...` ? partyName : "";
-  };
-
-  // Resolve Charge Type name from ID
-  const resolveChargeTypeName = (id?: string): string => {
-    if (!id || id.trim() === "") return "";
-    // If it's already a name (not a GUID), return it
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-      return id;
-    }
-    const found = chargeTypes.find(ct => ct.id === id);
-    // If found, return name; otherwise return empty string to allow fallback to description
-    return found ? found.name : "";
-  };
-
-  // UPDATE CONSIGNMENTS WHEN PROP CHANGES
   useEffect(() => {
-    console.log("OrderProgress: Prop consignments received →", propConsignments);
-    if (Array.isArray(propConsignments)) {
-      console.log("OrderProgress: Setting consignments from props, count:", propConsignments.length);
-      setConsignments(propConsignments);
-    } else {
-      console.log("OrderProgress: PropConsignments is not an array, setting empty:", propConsignments);
-      setConsignments([]);
-    }
-  }, [propConsignments]);
-
-  // DEBUG: LOG CONSIGNMENTS WHEN UPDATED
-  useEffect(() => {
-    console.log("OrderProgress: Consignments state updated →", {
-      count: consignments.length,
-      data: consignments,
-      orderNo: selOrder
-    });
-  }, [consignments, selOrder]);
-
-  // FETCH BOOKING ORDER WHEN orderNo CHANGES OR FROM CONSIGNMENT bookingOrderId
-  useEffect(() => {
-    let mounted = true;
-    const fetchBookingOrder = async () => {
-      if (!selOrder && consignments.length === 0) {
-        setBookingOrder(null);
-        return;
-      }
-      if (propBookingOrder) {
-        setBookingOrder(propBookingOrder);
-        return;
-      }
-
-      try {
-        // First, try to get bookingOrderId from consignments
-        const bookingOrderId = consignments[0]?.bookingOrderId;
-        
-        if (bookingOrderId) {
-          // Fetch by ID if we have bookingOrderId
-          const res = await getAllBookingOrder(1, 200, {});
-          const found = (res?.data || []).find((b: any) => b.id === bookingOrderId);
-          if (mounted && found) {
-            setBookingOrder({
-              id: found.id,
-              orderNo: String(found.orderNo || selOrder),
-              orderDate: found.orderDate || "Not Set",
-              vehicleNo: found.vehicleNo || "-",
-            });
-            return;
-          }
-        }
-        
-        // Fallback: try to fetch by orderNo
-        if (selOrder) {
-          const res = await getAllBookingOrder(1, 200, { orderNo: selOrder });
-          const found = (res?.data || []).find((b: any) => String(b.orderNo) === selOrder);
-          if (mounted) {
-            setBookingOrder({
-              id: found?.id,
-              orderNo: selOrder,
-              orderDate: found?.orderDate || "Not Set",
-              vehicleNo: found?.vehicleNo || "-",
-            });
-          }
-        }
-      } catch (e) {
-        if (mounted) {
-          setBookingOrder({ orderNo: selOrder, orderDate: "Not Set", vehicleNo: "-" });
-        }
-      }
-    };
-    fetchBookingOrder();
-    return () => { mounted = false; };
-  }, [selOrder, propBookingOrder, consignments]);
-
-  const consignmentCount = consignments.length;
-
-  // Fetch party data
-  useEffect(() => {
-    let mounted = true;
-    const fetchPartyData = async () => {
-      try {
-        const [custRes, partyRes, vendorRes, transRes, baRes, chargesRes] = await Promise.all([
-          getAllCustomers(1, 1000).catch(() => ({ data: [] })),
-          getAllPartys(1, 1000).catch(() => ({ data: [] })),
-          getAllVendor(1, 1000).catch(() => ({ data: [] })),
-          getAllTransporter(1, 1000).catch(() => ({ data: [] })),
-          getAllBusinessAssociate(1, 1000).catch(() => ({ data: [] })),
-          getAllMunshyana(1, 1000).catch(() => ({ data: [] })),
-        ]);
-        if (mounted) {
-          setCustomers((custRes?.data || []).map((c: any) => ({ id: c.id, name: c.name || c.customerName || "" })));
-          setParties((partyRes?.data || []).map((p: any) => ({ id: p.id, name: p.name || p.partyName || "" })));
-          setVendors((vendorRes?.data || []).map((v: any) => ({ id: v.id, name: v.name || v.vendorName || "" })));
-          setTransporters((transRes?.data || []).map((t: any) => ({ id: t.id, name: t.name || t.transporterName || "" })));
-          setBusinessAssociates((baRes?.data || []).map((b: any) => ({ id: b.id, name: b.name || b.businessAssociateName || "" })));
-          setChargeTypes((chargesRes?.data || []).map((ch: any) => ({ id: ch.id, name: ch.name || ch.chargeName || ch.chargesName || "" })));
-        }
-      } catch (error) { }
-    };
-    fetchPartyData();
-    return () => { mounted = false; };
-  }, []);
-
-  // Fetch charges, payments, receipts
-  useEffect(() => {
-    let mounted = true;
-    const run = async () => {
-      if (!selOrder || consignments.length === 0) return;
+    const fetchData = async () => {
+      if (!bookingOrderId) return;
+      
       setLoading(true);
       try {
-        console.log("OrderProgress: Fetching charges for order:", selOrder);
-        const chargesRes = await getAllCharges(1, 100, { orderNo: selOrder });
-        console.log("OrderProgress: Raw charges response:", chargesRes);
-
-        const allChargesData = chargesRes?.data || [];
-        console.log("OrderProgress: All charges data:", allChargesData);
-
-        // Try multiple filtering approaches to catch charges
-        const exactMatch = allChargesData.filter((c: any) => String(c.orderNo) === String(selOrder));
-        const looseMatch = allChargesData.filter((c: any) =>
-          c.orderNo && String(c.orderNo).includes(String(selOrder))
-        );
-        const chargesData = exactMatch.length > 0 ? exactMatch : looseMatch;
-
-        console.log("OrderProgress: Filtered charges data:", {
-          selOrder,
-          exactMatch,
-          looseMatch,
-          finalChargesData: chargesData
-        });
-
-        const paid = chargesData.filter((x: any) => (x.status || "").toLowerCase() === "paid");
-        const normalized = chargesData.flatMap((c: any) => {
-          console.log("OrderProgress: Processing individual charge:", c);
-
-          // Calculate paid amount from payments array in charge object
-          const totalPaid = (c.payments || []).reduce((sum: number, p: any) => sum + (Number(p.paidAmount) || 0), 0);
-          const pNos = (c.payments || []).map((p: any) => p.payNo).filter(Boolean);
-
-          // Extract charge information - prioritize line data, fallback to parent charge data
-          const paidToResolved = resolveBusinessAssociateName(c.paidToPerson ?? c.paidTo);
-          const chargeResolved = resolveChargeTypeName(c.charges ?? c.chargeType ?? c.charge);
-          
-          const base = {
-            paidToPerson: paidToResolved || "-",
-            charges: chargeResolved || c.description || `Charge #${c.chargeNo}`,
-            amount: c.amount ?? c.chargeAmount ?? c.total ?? "-",
-            biltyNo: c.biltyNo ?? "",
-            paidAmount: totalPaid,
-            paymentNos: pNos
-          };
-
-          // If lines exist, map them but use parent data as fallback for empty fields
-          return Array.isArray(c.lines) && c.lines.length > 0
-            ? c.lines.map((l: any, idx: number) => {
-                // Use line data if available, otherwise use parent charge data
-                const linePaidToResolved = resolveBusinessAssociateName(l.paidTo || l.paidToPerson || c.paidTo || c.paidToPerson);
-                const linePaidTo = linePaidToResolved || paidToResolved || "-";
-                
-                // Backend uses 'charge' (singular) in lines
-                const lineChargeId = l.charge || l.charges || l.chargeType || c.charges || c.chargeType || c.charge;
-                const lineChargeResolved = resolveChargeTypeName(lineChargeId);
-                const lineCharges = lineChargeResolved || l.description || chargeResolved || `Charge #${c.chargeNo}`;
-                
-                const lineAmount = l.amount ?? c.amount ?? c.chargeAmount ?? 0;
-                const lineBiltyNo = l.biltyNo || c.biltyNo || "";
-                
-                return {
-                  paidToPerson: linePaidTo,
-                  charges: lineCharges,
-                  amount: lineAmount,
-                  biltyNo: lineBiltyNo,
-                  paidAmount: idx === 0 ? totalPaid : 0,
-                  paymentNos: idx === 0 ? pNos : []
-                };
-              })
-            : [base];
-        });
-
-        console.log("OrderProgress: Charges data processed:", {
-          rawChargesData: chargesData,
-          normalizedCharges: normalized,
-          chargesCount: normalized.length,
-          chargesPaidCount: paid.length
-        });
-
-        if (mounted) {
-          setChargesCount(normalized.length);
-          setChargesPaidCount(paid.length);
-          setCharges(normalized);
+        const res = await getOrderProgress(bookingOrderId);
+        if (res?.data) {
+            setProgressData(res.data);
         }
-
-        // Also try fetching charges without filters as fallback
-        if (normalized.length === 0) {
-          console.log("OrderProgress: No charges found with filters, trying without filters...");
-          const allChargesRes = await getAllCharges(1, 200, {});
-          const allCharges = allChargesRes?.data || [];
-          console.log("OrderProgress: All charges without filters:", allCharges);
-
-          const matchingCharges = allCharges.filter((c: any) => {
-            return c.orderNo && (
-              String(c.orderNo) === String(selOrder) ||
-              String(c.orderNo).includes(String(selOrder)) ||
-              String(selOrder).includes(String(c.orderNo))
-            );
-          });
-
-          console.log("OrderProgress: Matching charges found:", matchingCharges);
-
-          if (matchingCharges.length > 0 && mounted) {
-            const fallbackNormalized = matchingCharges.flatMap((c: any) => {
-              const totalPaid = (c.payments || []).reduce((sum: number, p: any) => sum + (Number(p.paidAmount) || 0), 0);
-              const pNos = (c.payments || []).map((p: any) => p.payNo).filter(Boolean);
-
-              const paidToResolved = resolveBusinessAssociateName(c.paidToPerson ?? c.paidTo);
-              const chargeResolved = resolveChargeTypeName(c.charges ?? c.chargeType ?? c.charge);
-
-              const base = {
-                paidToPerson: paidToResolved || "-",
-                charges: chargeResolved || c.description || `Charge #${c.chargeNo}`,
-                amount: c.amount ?? c.chargeAmount ?? c.total ?? "-",
-                biltyNo: c.biltyNo ?? "",
-                paidAmount: totalPaid,
-                paymentNos: pNos
-              };
-              return [base];
-            });
-
-            setChargesCount(fallbackNormalized.length);
-            setCharges(fallbackNormalized);
-            console.log("OrderProgress: Using fallback charges:", fallbackNormalized);
-          }
-        }
-
-        const payRes = await getAllPaymentABL(1, 200);
-        const allPayments = payRes?.data || [];
-        console.log("OrderProgress: All payments data:", allPayments);
-        console.log("OrderProgress: Looking for payments with orderNo:", selOrder);
-        
-        // Build lookup sets from consignments
-        const biltyKeys = new Set(consignments.flatMap(c => [c.biltyNo, c.id]).filter(Boolean));
-        
-        const payments = allPayments.filter((p: any) => {
-          // Check if payment has paymentABLItem array
-          const paymentItems = p.paymentABLItem || p.items || [];
-          
-          if (!Array.isArray(paymentItems) || paymentItems.length === 0) return false;
-          
-          // Match by orderNo in payment items (string comparison)
-          const matchOrder = paymentItems.some((item: any) => {
-            const itemOrderNo = String(item.orderNo || "").trim();
-            const searchOrderNo = String(selOrder || "").trim();
-            return itemOrderNo && searchOrderNo && itemOrderNo === searchOrderNo;
-          });
-          
-          // Match by vehicleNo in payment items (might contain biltyNo or consignment references)
-          const matchVehicle = paymentItems.some((item: any) => {
-            const itemVehicleNo = String(item.vehicleNo || "").trim();
-            return biltyKeys.has(itemVehicleNo) || 
-                   consignments.some(c => c.biltyNo?.toString() === itemVehicleNo);
-          });
-          
-          const matched = matchOrder || matchVehicle;
-          if (matched) {
-            console.log("OrderProgress: Payment matched:", {
-              paymentNo: p.paymentNo,
-              paymentItems,
-              matchOrder,
-              matchVehicle
-            });
-          }
-          
-          return matched;
-        });
-        
-        console.log("OrderProgress: Filtered payments:", {
-          selOrder,
-          allPaymentsCount: allPayments.length,
-          filteredPaymentsCount: payments.length,
-          payments
-        });
-        
-        const completed = payments.filter((p: any) => (p.status || "").toLowerCase() === "completed" || (p.status || "").toLowerCase() === "active");
-        const paymentNosList = payments.map((p: any) => p.paymentNo ?? "").filter(Boolean);
-        
-        // Calculate total paid from payment items that match this order
-        const totalPaid = payments.reduce((sum: number, p: any) => {
-          const paymentItems = p.paymentABLItem || p.items || [];
-          const matchingItemsTotal = paymentItems
-            .filter((item: any) => String(item.orderNo) === String(selOrder))
-            .reduce((itemSum: number, item: any) => {
-              return itemSum + (formatNumber(item.paidAmount) || formatNumber(item.expenseAmount) || 0);
-            }, 0);
-          return sum + matchingItemsTotal;
-        }, 0);
-        
-        console.log("OrderProgress: Payment totals:", {
-          paymentNosList,
-          totalPaid,
-          completedCount: completed.length
-        });
-        if (mounted) {
-          setPaymentsCompletedCount(completed.length);
-          setPaymentNos(paymentNosList);
-          setPaymentsTotalPaid(totalPaid);
-        }
-      } catch (err) {
-        console.error("OrderProgress: Error fetching charges:", err);
-        console.log("OrderProgress: Failed to fetch charges for order:", selOrder);
+      } catch (error) {
+        console.error("Error fetching order progress:", error);
       } finally {
-        if (mounted) setLoading(false);
+        setLoading(false);
       }
     };
-    run();
-    return () => { mounted = false; };
-  }, [selOrder, consignments]);
 
-  // Fetch receipts
-  useEffect(() => {
-    let mounted = true;
-    const run = async () => {
-      if (!selOrder || consignments.length === 0) return;
-      try {
-        const res = await getAllReceipt(1, 200);
-        const list = res?.data || [];
-        
-        console.log("OrderProgress: Fetching receipts for order:", selOrder);
-        console.log("OrderProgress: All receipts:", list);
-        console.log("OrderProgress: Consignments:", consignments);
-        
-        // Build lookup sets for matching
-        const biltyNos = new Set(consignments.map(c => c.biltyNo?.toString()).filter(Boolean));
-        const consignmentIds = new Set(consignments.map(c => c.id?.toString()).filter(Boolean));
-        
-        // Match receipts by items[].biltyNo or items[].vehicleNo matching consignment biltyNo or orderNo
-        const recs = list.filter((r: any) => {
-          // Check if receipt items match any consignment
-          if (Array.isArray(r.items) && r.items.length > 0) {
-            return r.items.some((item: any) => {
-              const itemBiltyNo = item.biltyNo?.toString();
-              const itemVehicleNo = item.vehicleNo?.toString();
-              
-              // Match by biltyNo
-              if (itemBiltyNo && biltyNos.has(itemBiltyNo)) return true;
-              
-              // Match by vehicleNo (which might be orderNo from booking order)
-              if (itemVehicleNo && String(itemVehicleNo) === String(selOrder)) return true;
-              
-              // Match consignments by their IDs
-              return consignments.some(c => 
-                (c.biltyNo && itemBiltyNo === c.biltyNo?.toString()) ||
-                (c.id && itemBiltyNo === c.id?.toString())
-              );
-            });
-          }
-          
-          return false;
-        });
-        
-        console.log("OrderProgress: Matched receipts:", recs);
-        
-        const nos = recs.map((r: any) => r.receiptNo ?? "").filter(Boolean);
-        const total = recs.reduce((sum: number, r: any) => sum + formatNumber(r.receiptAmount), 0);
-        if (mounted) {
-          setReceiptNos(nos);
-          setReceiptsTotalReceived(total);
-        }
-      } catch (e) {
-        console.error("OrderProgress: Error fetching receipts:", e);
-      }
-    };
-    run();
-    return () => { mounted = false; };
-  }, [selOrder, consignments]);
+    fetchData();
+  }, [bookingOrderId]);
 
-  // Progress steps - Updated to match Bill Payment Invoice flow
+  // Calculate steps based on progressData
   const steps: Step[] = useMemo(() => {
-    const hasReceipts = receiptNos.length > 0;
-    const hasPayments = paymentNos.length > 0;
+    const hasConsignments = progressData.some(p => p.biltyNo || p.consignmentStatus !== "No Consignment");
+    const hasCharges = progressData.some(p => p.charges && p.charges !== "-");
+    const hasReceipts = progressData.some(p => p.receiptNo && p.receiptNo !== "-");
+    const hasPayments = progressData.some(p => p.paymentNo && p.paymentNo !== "-");
     
     const list: Step[] = [
       { 
         key: "booking", 
         label: "Booking", 
         completed: true, 
-        hint: `Order: ${selOrder}` 
+        hint: `Order: ${orderNo || progressData[0]?.orderNo || ""}` 
       },
       { 
         key: "consignment", 
         label: "Consignment Issued", 
-        completed: consignmentCount > 0, 
-        hint: consignmentCount > 0 ? `${consignmentCount} created` : "None" 
+        completed: hasConsignments, 
+        hint: hasConsignments ? "Issued" : "None" 
       },
       { 
         key: "charges", 
         label: "Charges Note", 
-        completed: chargesCount > 0, 
-        hint: chargesCount > 0 ? `${chargesCount} charges` : "None" 
+        completed: hasCharges, 
+        hint: hasCharges ? "Charges added" : "None" 
       },
       { 
         key: "receipt", 
         label: "Receipt Note", 
         completed: hasReceipts, 
-        hint: hasReceipts ? `${receiptNos.length} receipt${receiptNos.length > 1 ? 's' : ''}` : "None" 
+        hint: hasReceipts ? "Receipts added" : "None" 
       },
       { 
         key: "payment", 
         label: "Payment Note", 
         completed: hasPayments, 
-        hint: hasPayments ? `${paymentNos.length} payment${paymentNos.length > 1 ? 's' : ''}` : "None" 
+        hint: hasPayments ? "Payments added" : "None" 
       },
     ];
     const firstNotDone = list.findIndex(s => !s.completed);
     if (firstNotDone >= 0) list[firstNotDone].active = true;
     return list;
-  }, [selOrder, consignmentCount, chargesCount, receiptNos, paymentNos]);
-
-  // TABLE DATA – FORCED RE-RENDER + DEBUG
-  const tableData = useMemo(() => {
-    console.log("OrderProgress: Rebuilding tableData with:", {
-      consignments: consignments,
-      consignmentsLength: consignments.length,
-      bookingOrder: bookingOrder,
-      orderNo: selOrder
-    });
-    const rows: any[] = [];
-    const bo = bookingOrder;
-
-    // Always show at least one row, even with no consignments
-    if (consignments.length === 0) {
-      console.log("OrderProgress: No consignments, showing default row with charges if available");
-
-      // Process charges even without consignments
-      const chargesInfo = (() => {
-        console.log("OrderProgress: Processing charges for no consignment case:", {
-          availableCharges: charges,
-          chargesLength: charges.length
-        });
-
-        if (charges.length === 0) {
-          return {
-            paidToPerson: "-",
-            charges: "-",
-            amount: "-",
-            paidAmount: "-",
-            hasCharges: false
-          };
-        }
-
-        const validCharges = charges.filter(ch =>
-          ch.charges && ch.charges !== "-" && ch.charges !== "" &&
-          ch.charges !== null && ch.charges !== undefined
-        );
-        const validAmounts = charges.filter(ch => {
-          const amount = ch.amount;
-          return amount && amount !== "-" && amount !== "" &&
-            amount !== null && amount !== undefined &&
-            !isNaN(Number(amount)) && Number(amount) > 0;
-        });
-        const validPaidTo = charges.filter(ch =>
-          ch.paidToPerson && ch.paidToPerson !== "-" &&
-          ch.paidToPerson !== "" && ch.paidToPerson !== null &&
-          ch.paidToPerson !== undefined
-        );
-
-        console.log("OrderProgress: Filtered charges for no consignment:", {
-          validCharges: validCharges,
-          validAmounts: validAmounts,
-          validPaidTo: validPaidTo
-        });
-
-        return {
-          paidToPerson: validPaidTo.map(ch => ch.paidToPerson).join(", ") || "-",
-          charges: validCharges.map(ch => ch.charges).join(", ") || "-",
-          amount: validAmounts.map(ch => {
-            const amt = formatNumber(ch.amount);
-            return amt > 0 ? amt.toLocaleString() : ch.amount;
-          }).join(", ") || "-",
-          paidAmount: "-",
-          hasCharges: validCharges.length > 0 || validAmounts.length > 0
-        };
-      })();
-
-      rows.push({
-        biltyNo: "No Bilty",
-        receiptNo: receiptNos.join(", ") || "-",
-        paymentNo: paymentNos.join(", ") || "-",
-        orderNo: bo?.orderNo || selOrder || "-",
-        orderDate: bo?.orderDate || "Not Set",
-        vehicleNo: bo?.vehicleNo || "-",
-        consignor: "-",
-        consignee: "-",
-        items: "-",
-        qty: "-",
-        totalAmount: "-",
-        receivedAmount: receiptsTotalReceived > 0 ? receiptsTotalReceived.toLocaleString() : "-",
-        deliveryDate: "-",
-        consignmentStatus: "No Consignment",
-        paidToPerson: chargesInfo.paidToPerson,
-        charges: chargesInfo.charges,
-        amount: chargesInfo.amount,
-        hasCharges: chargesInfo.hasCharges,
-        paidAmount: paymentsTotalPaid > 0 ? paymentsTotalPaid.toLocaleString() : "-",
-      });
-      return rows;
-    }
-
-    console.log("OrderProgress: Processing individual consignments...");
-    consignments.forEach((c, index) => {
-      console.log(`OrderProgress: Processing consignment ${index + 1}/${consignments.length}:`, c);
-      const consignorName = /^[0-9a-f]{8}-/.test(c.consignor) ? resolvePartyName(c.consignor) : c.consignor;
-      const consigneeName = /^[0-9a-f]{8}-/.test(c.consignee) ? resolvePartyName(c.consignee) : c.consignee;
-
-      // Enhanced items processing with multiple field variations
-      console.log(`OrderProgress: Processing items for consignment ${index + 1}:`, {
-        rawItems: c.items,
-        itemsIsArray: Array.isArray(c.items),
-        itemsLength: Array.isArray(c.items) ? c.items.length : 0,
-        singleItemFields: {
-          item: c.item,
-          itemDesc: c.itemDesc,
-          description: c.description,
-          qty: c.qty,
-          quantity: c.quantity
-        }
-      });
-
-      const itemsArray = Array.isArray(c.items) ? c.items : [];
-
-      // If no items array, try to construct from individual fields
-      if (itemsArray.length === 0) {
-        const singleItem = {
-          desc: c.item || c.itemDesc || c.description || '',
-          qty: c.qty || c.quantity || 0,
-          qtyUnit: c.qtyUnit || c.unit || 'pcs'
-        };
-        if (singleItem.desc) {
-          itemsArray.push(singleItem);
-        }
-      }
-
-      const validItems = itemsArray.filter((item: any) => {
-        const hasDesc = item?.desc || item?.description || item?.itemName || item?.name || item?.item;
-        console.log(`Item validation:`, { item, hasDesc });
-        return hasDesc;
-      });
-
-      let itemsDetail = "No Items";
-      let qtyDetail = "-";
-
-      if (validItems.length > 0) {
-        itemsDetail = validItems
-          .map((item: any) => item.desc || item.description || item.itemName || item.name || item.item || "Unnamed")
-          .join(", ");
-
-        qtyDetail = validItems
-          .map((item: any) => {
-            const qty = Number(item.qty || item.quantity || item.qtyValue || 0);
-            const unit = item.qtyUnit || item.unit || item.qtyUnitName || "pcs";
-            return qty > 0 ? `${qty} ${unit}` : null;
-          })
-          .filter(Boolean)
-          .join(", ") || "-";
-      }
-
-      console.log(`OrderProgress: Final items processing result:`, {
-        validItemsCount: validItems.length,
-        itemsDetail,
-        qtyDetail
-      });
-
-      const finalBiltyNo = (() => {
-        // Priority: actual biltyNo > consignmentNo > generate from receiptNo
-        const bilty = c.biltyNo?.toString().trim();
-        const consignmentNo = c.consignmentNo?.toString().trim();
-        const receiptNo = c.receiptNo?.toString().trim();
-        const id = c.id?.toString().trim();
-
-        if (bilty && bilty !== '' && bilty !== 'undefined' && bilty !== 'null') {
-          return bilty;
-        } else if (consignmentNo && consignmentNo !== '' && consignmentNo !== 'undefined' && consignmentNo !== 'null') {
-          return consignmentNo;
-        } else if (receiptNo && receiptNo !== '' && receiptNo !== 'undefined' && receiptNo !== 'null') {
-          // Use receipt number as bilty identifier if biltyNo is empty
-          return `B-${receiptNo}`;
-        } else if (id && id !== '' && id !== 'undefined' && id !== 'null') {
-          // Last resort: use shortened ID
-          return `B-${id.substring(0, 8)}`;
-        } else {
-          return "-";
-        }
-      })();
-
-      console.log(`OrderProgress: Consignment ${index + 1} biltyNo mapping:`, {
-        originalBiltyNo: c.biltyNo,
-        originalConsignmentNo: c.consignmentNo,
-        finalBiltyNo: finalBiltyNo,
-        consignmentId: c.id
-      });
-
-      // Enhanced charges processing
-      const chargesInfo = (() => {
-        console.log("OrderProgress: Processing charges for consignment:", {
-          consignmentIndex: index,
-          biltyNo: finalBiltyNo,
-          consignmentReceiptNo: c.receiptNo,
-          availableCharges: charges,
-          chargesLength: charges.length
-        });
-
-        if (charges.length === 0) {
-          return {
-            paidToPerson: "-",
-            charges: "-",
-            amount: "-",
-            paidAmount: "-",
-            paymentNos: "-",
-            hasCharges: false,
-            actualBiltyNo: finalBiltyNo
-          };
-        }
-
-        // Filter charges - more intelligent matching
-        const relevantCharges = charges.filter((ch: any) => {
-          // Match by biltyNo (string comparison)
-          const chargeBilty = String(ch.biltyNo || "").trim();
-          const consignmentBilty = String(finalBiltyNo || "").trim();
-          const consignmentReceiptNo = String(c.receiptNo || "").trim();
-
-          // 1. Direct biltyNo match
-          if (chargeBilty && consignmentBilty && chargeBilty === consignmentBilty) {
-            return true;
-          }
-
-          // 2. Match by receipt number (charges might use receipt-based bilty)
-          if (chargeBilty && consignmentReceiptNo && 
-              (chargeBilty.includes(consignmentReceiptNo) || consignmentReceiptNo === chargeBilty)) {
-            return true;
-          }
-
-          // 3. If charge has no bilty but matches consignment index (for single consignment orders)
-          if (!chargeBilty && consignments.length === 1) {
-            return true;
-          }
-
-          // 4. If consignment has no bilty and there's only one charge set, link them
-          if (!consignmentBilty || consignmentBilty === "-" || consignmentBilty.startsWith("B-")) {
-            // This consignment doesn't have a proper biltyNo, try to match by index
-            if (consignments.length === charges.length && charges[index]) {
-              return charges[index] === ch;
-            }
-            // For orders with few consignments, distribute charges
-            if (consignments.length <= 2) {
-              return true;
-            }
-          }
-
-          return false;
-        });
-
-        const validCharges = relevantCharges.filter(ch =>
-          ch.charges && ch.charges !== "-" && ch.charges !== "" &&
-          ch.charges !== null && ch.charges !== undefined
-        );
-        const validAmounts = relevantCharges.filter(ch => {
-          const amount = ch.amount;
-          return amount && amount !== "-" && amount !== "" &&
-            amount !== null && amount !== undefined &&
-            !isNaN(Number(amount)) && Number(amount) > 0;
-        });
-        const validPaidTo = relevantCharges.filter(ch =>
-          ch.paidToPerson && ch.paidToPerson !== "-" &&
-          ch.paidToPerson !== "" && ch.paidToPerson !== null &&
-          ch.paidToPerson !== undefined
-        );
-
-        // Sum paid amount from relevant charges
-        const totalPaidForConsignment = relevantCharges.reduce((sum, ch) => sum + (ch.paidAmount || 0), 0);
-
-        // Collect payment numbers from relevant charges
-        const relevantPaymentNos = relevantCharges.flatMap(ch => ch.paymentNos || []).filter(Boolean);
-        const uniquePaymentNos = Array.from(new Set(relevantPaymentNos));
-
-        // Get the actual biltyNo from charges if available
-        const actualBiltyNo = relevantCharges.length > 0 && relevantCharges[0].biltyNo 
-          ? relevantCharges[0].biltyNo 
-          : finalBiltyNo;
-
-        console.log("OrderProgress: Filtered charges data:", {
-          relevantCharges: relevantCharges,
-          validCharges: validCharges,
-          validAmounts: validAmounts,
-          validPaidTo: validPaidTo,
-          totalPaidForConsignment,
-          uniquePaymentNos,
-          actualBiltyNo
-        });
-
-        return {
-          paidToPerson: validPaidTo.map(ch => ch.paidToPerson).join(", ") || "-",
-          charges: validCharges.map(ch => ch.charges).join(", ") || "-",
-          amount: validAmounts.map(ch => {
-            const amt = formatNumber(ch.amount);
-            return amt > 0 ? amt.toLocaleString() : ch.amount;
-          }).join(", ") || "-",
-          paidAmount: totalPaidForConsignment > 0 ? totalPaidForConsignment.toLocaleString() : "-",
-          paymentNos: uniquePaymentNos.length > 0 ? uniquePaymentNos.join(", ") : "-",
-          hasCharges: validCharges.length > 0 || validAmounts.length > 0,
-          actualBiltyNo: actualBiltyNo
-        };
-      })();
-
-      // Map API response fields correctly
-      const receivedAmt = c.receivedAmount ?? c.recvAmount ?? 0;
-      const deliveryDt = c.deliveryDate ?? c.delDate ?? "";
-
-      // Use the actual biltyNo from charges if it's more specific than consignment biltyNo
-      const displayBiltyNo = chargesInfo.actualBiltyNo || finalBiltyNo;
-
-      rows.push({
-        biltyNo: displayBiltyNo,
-        // Show receiptNo from consignment if available, otherwise show matched receipt numbers
-        receiptNo: c.receiptNo != null && String(c.receiptNo).trim() !== "" 
-          ? String(c.receiptNo) 
-          : (receiptNos.length > 0 ? receiptNos.join(", ") : "-"),
-        // Use payment numbers from charges if available, otherwise fallback to global payment numbers
-        paymentNo: chargesInfo.paymentNos !== "-" ? chargesInfo.paymentNos : (paymentNos.join(", ") || "-"),
-        orderNo: bo?.orderNo || selOrder || "-",
-        orderDate: bo?.orderDate || "Not Set",
-        vehicleNo: bo?.vehicleNo || "-",
-        consignor: consignorName || "-",
-        consignee: consigneeName || "-",
-        items: itemsDetail,
-        qty: qtyDetail,
-        totalAmount: formatNumber(c.totalAmount).toLocaleString(),
-        receivedAmount: formatNumber(receivedAmt).toLocaleString(),
-        deliveryDate: formatDate(deliveryDt),
-        consignmentStatus: c.status ?? "Pending",
-        paidToPerson: chargesInfo.paidToPerson,
-        charges: chargesInfo.charges,
-        amount: chargesInfo.amount,
-        hasCharges: chargesInfo.hasCharges,
-        paidAmount: chargesInfo.paidAmount !== "-" ? chargesInfo.paidAmount : (paymentsTotalPaid > 0 ? paymentsTotalPaid.toLocaleString() : "-"),
-      });
-    });
-
-    return rows;
-  }, [
-    consignments,
-    bookingOrder,
-    charges,
-    receiptNos,
-    paymentNos,
-    receiptsTotalReceived,
-    paymentsTotalPaid,
-    selOrder,
-    resolvePartyName,
-    resolveBusinessAssociateName,
-    resolveChargeTypeName,
-    businessAssociates,
-    chargeTypes,
-  ]);
+  }, [progressData, orderNo]);
 
   const hideBookingCols = !!hideBookingOrderInfo;
 
@@ -949,16 +165,6 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
       <div className="p-4">
         <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
           Order Progress
-          {consignmentCount > 0 && (
-            <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-              {consignmentCount} Consignment{consignmentCount > 1 ? "s" : ""}
-            </span>
-          )}
-          {chargesCount > 0 && (
-            <span className="text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full">
-              {chargesCount} Charge{chargesCount > 1 ? "s" : ""} • {chargesPaidCount} Paid
-            </span>
-          )}
         </h4>
 
         <div className="overflow-x-auto">
@@ -991,43 +197,48 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {tableData.map((row, i) => (
+                {progressData.length === 0 ? (
+                    <tr><td colSpan={16} className="p-4 text-center text-gray-500">No data available</td></tr>
+                ) : (
+                progressData.map((row, i) => (
                   <tr key={i} className={`border-b ${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-gray-100`}>
-                    <td className="p-3 font-medium text-blue-700">{row.biltyNo}</td>
-                    <td className="p-3">{row.receiptNo}</td>
-                    <td className="p-3">{row.paymentNo}</td>
+                    <td className="p-3 font-medium text-blue-700">{row.biltyNo || "-"}</td>
+                    <td className="p-3">{row.receiptNo || "-"}</td>
+                    <td className="p-3">{row.paymentNo || "-"}</td>
                     {!hideBookingCols && (
                       <>
-                        <td className="p-3 font-medium">{row.orderNo}</td>
-                        <td className="p-3 text-orange-700 font-medium">{row.orderDate}</td>
-                        <td className="p-3 text-purple-700 font-medium">{row.vehicleNo}</td>
+                        <td className="p-3 font-medium">{row.orderNo || "-"}</td>
+                        <td className="p-3 text-orange-700 font-medium">{formatDate(row.orderDate)}</td>
+                        <td className="p-3 text-purple-700 font-medium">{row.vehicleNo || "-"}</td>
                       </>
                     )}
-                    <td className="p-3">{row.consignor}</td>
-                    <td className="p-3">{row.consignee}</td>
-                    <td className="p-3 truncate max-w-[200px]" title={row.items}>{row.items}</td>
-                    <td className="p-3 truncate max-w-[150px] font-medium" title={row.qty}>{row.qty}</td>
-                    <td className="p-3 text-green-700 font-medium">{row.totalAmount}</td>
-                    <td className="p-3 text-emerald-700 font-medium">{row.receivedAmount}</td>
-                    <td className="p-3 text-purple-700 font-medium">{row.paidAmount}</td>
-                    <td className="p-3 text-orange-700 font-medium">{row.deliveryDate}</td>
-                    <td className={`p-3 ${row.hasCharges ? 'text-blue-700 font-medium' : 'text-gray-500'}`}>
-                      {row.paidToPerson !== "-" ? (
+                    <td className="p-3">{row.consignor || "-"}</td>
+                    <td className="p-3">{row.consignee || "-"}</td>
+                    <td className="p-3 truncate max-w-[200px]" title={row.items}>{row.items || "-"}</td>
+                    <td className="p-3 truncate max-w-[150px] font-medium" title={row.qty}>{row.qty || "-"}</td>
+                    <td className="p-3 text-green-700 font-medium">{row.totalAmount ? Number(row.totalAmount).toLocaleString() : "-"}</td>
+                    <td className="p-3 text-emerald-700 font-medium">{row.receivedAmount ? Number(row.receivedAmount).toLocaleString() : "-"}</td>
+                    <td className="p-3 text-purple-700 font-medium">{row.paidAmount ? Number(row.paidAmount).toLocaleString() : "-"}</td>
+                    <td className="p-3 text-orange-700 font-medium">{formatDate(row.deliveryDate)}</td>
+                    <td className="p-3 text-blue-700 font-medium">
+                      {row.paidToPerson ? (
                         <span className="bg-blue-50 px-2 py-1 rounded text-xs">{row.paidToPerson}</span>
                       ) : (
-                        row.paidToPerson
+                        "-"
                       )}
                     </td>
-                    <td className={`p-3 min-w-[120px] ${row.hasCharges ? 'text-green-700 font-medium' : 'text-gray-500'}`}>
-                      {row.charges !== "-" ? (
+                    <td className="p-3 min-w-[120px] text-green-700 font-medium">
+                      {row.charges ? (
                         <span className="bg-green-100 px-3 py-1 rounded-md text-sm font-medium text-green-800">{row.charges}</span>
                       ) : (
                         <span className="text-gray-400 italic">No Charges</span>
                       )}
                     </td>
-                    <td className={`p-3 min-w-[100px] ${row.hasCharges ? 'text-emerald-700 font-semibold' : 'text-gray-500'}`}>
-                      {row.amount !== "-" ? (
-                        <span className="bg-emerald-100 px-3 py-1 rounded-md text-sm font-bold text-emerald-800">Rs.{row.amount}</span>
+                    <td className="p-3 min-w-[100px] text-emerald-700 font-semibold">
+                      {row.amount ? (
+                         <span className="bg-emerald-100 px-3 py-1 rounded-md text-sm font-bold text-emerald-800">
+                             Rs.{row.amount}
+                         </span>
                       ) : (
                         <span className="text-gray-400 italic">No Amount</span>
                       )}
@@ -1038,11 +249,11 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
                           row.consignmentStatus === "Pending" ? "bg-yellow-100 text-yellow-800" :
                             "bg-gray-100 text-gray-600"
                         }`}>
-                        {row.consignmentStatus}
+                        {row.consignmentStatus || "Pending"}
                       </span>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

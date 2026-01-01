@@ -1003,6 +1003,7 @@ const BookingOrderList = () => {
                 </div>
               </div>
               <OrderProgress
+                bookingOrderId={selectedRowId}
                 orderNo={bookingOrders.find((o) => o.id === selectedRowId)?.orderNo}
                 bookingStatus={bookingOrders.find((o) => o.id === selectedRowId)?.status}
                 consignments={(consignments[selectedRowId] || []).map(c => ({

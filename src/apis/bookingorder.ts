@@ -16,6 +16,19 @@ const createBookingOrder = async (BookingOrder : any) => {
   }
 };
 
+// get-order-progress
+const getOrderProgress = async (bookingOrderId: string) => {
+  try {
+    const response = await apiFetch(`BookingOrder/${bookingOrderId}/orderprogress`, {
+      method: 'GET',
+      headers: {},
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
 // BookingOrder-list
 const getAllBookingOrder  = async (pageIndex: any = 1, pageSize: any = 10, filters: any = {}) => {
   try {
@@ -252,6 +265,7 @@ const uploadAndUpdateBookingOrderFiles = async (bookingOrderId: string, files: F
 
 export {
   createBookingOrder,
+  getOrderProgress,
   getAllBookingOrder,
   getAllBookingOrderPositions,
   getSingleBookingOrder,
