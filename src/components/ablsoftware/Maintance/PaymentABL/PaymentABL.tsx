@@ -263,7 +263,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     const allCharges = charges.flatMap((charge) =>
       Array.isArray(charge.lines) && charge.lines.length > 0
         ? charge.lines
-          .filter((line) => charge.status === 'Approved' && charge.isActive)
+          .filter((line) => charge.status === 'Approved' )
           .map((line) => ({
             id: line.id,
             chargeNo: charge.chargeNo,
