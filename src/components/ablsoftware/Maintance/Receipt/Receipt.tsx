@@ -141,6 +141,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const [idFocused, setIdFocused] = useState(false);
   const [parties, setParties] = useState<DropdownOption[]>([]);
   const [saleTaxes, setSaleTaxes] = useState<DropdownOption[]>([]);
+  const [selectedSaleTaxes,setselectedSaleTaxes] = useState('');
+    const [selectedWHTTaxes,setselectedWHTTaxes] = useState('');
   const [consignments, setConsignments] = useState<Consignment[]>([]);
   const [showConsignmentPopup, setShowConsignmentPopup] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -206,7 +208,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           getAllConsignment(1, 1000),
         ]);
         setParties(partyRes.data.map((p: any) => ({ id: p.id, name: p.name })));
-        setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.taxName })));
+        setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.taxName, percentage: t.percentage })));
         setConsignments(
           consignmentRes.data.map((item: any) => ({
             id: item.id,
@@ -738,7 +740,13 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               label="Sales Tax Rate"
                               options={saleTaxes}
                               selectedOption={field.value || ''}
-                              onChange={field.onChange}
+                              onChange={(value) => {
+                                field.onChange(value);
+                                const selectedTax = saleTaxes.find(tax => tax.id === value);
+                                if (selectedTax && 'percentage' in selectedTax) {
+                                  setselectedSaleTaxes(selectedTax.percentage as string);
+                                }
+                              }}
                               error={errors.salesTaxRate?.message}
                             />
                           )}
@@ -755,7 +763,13 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                             label="WHT on SBR Amount"
                             options={saleTaxes}
                             selectedOption={field.value || ''}
-                            onChange={field.onChange}
+                          onChange={(value) => {
+                                field.onChange(value);
+                                const selectedTax = saleTaxes.find(tax => tax.id === value);
+                                if (selectedTax && 'percentage' in selectedTax) {
+                                  setselectedWHTTaxes(selectedTax.percentage as string);
+                                }
+                              }}
                             error={errors.whtOnSbr?.message}
                           />
                         )}
@@ -763,82 +777,118 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-600 pb-2">
-                      Amount Summary
-                    </h4>
+  <div className="space-y-4">
+  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-600 pb-2">
+    Amount Summary
+  </h4>
 
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
-                        <span className="font-medium text-sm text-blue-700 dark:text-blue-300">Receipt Amount Total</span>
-                        <span className="text-sm font-bold text-blue-800 dark:text-blue-200">
-                          {items.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
+  <div className="space-y-3">
+    {/* Receipt Amount Total */}
+    <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+      <span className="font-medium text-sm text-blue-700 dark:text-blue-300">Receipt Amount Total</span>
+      <span className="text-sm font-bold text-blue-800 dark:text-blue-200">
+        {items.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
+    </div>
 
-                      <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-lg border border-purple-200 dark:border-purple-700">
-                        <span className="font-medium text-sm text-purple-700 dark:text-purple-300">Total SBR Amount</span>
-                        <span className="text-sm font-bold text-purple-800 dark:text-purple-200">
-                          {items.reduce((sum, row) => sum + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
+    {/* Total SBR Amount */}
+    <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-lg border border-purple-200 dark:border-purple-700">
+      <span className="font-medium text-sm text-purple-700 dark:text-purple-300">Total SBR Amount</span>
+      <span className="text-sm font-bold text-purple-800 dark:text-purple-200">
+        {items.reduce((sum, row) => sum + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      </span>
+    </div>
 
-                      <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-lg border border-green-200 dark:border-green-700">
-                        <span className="font-medium text-sm text-green-700 dark:text-green-300">Subtotal Amount</span>
-                        <span className="text-sm font-bold text-green-800 dark:text-green-200">
-                          {items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
+    {/* Subtotal Amount */}
+    <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-lg border border-green-200 dark:border-green-700">
+      <span className="font-medium text-sm text-green-700 dark:text-green-300">Subtotal Amount</span>
+      <span className="text-sm font-bold text-green-800 dark:text-green-200">
+        {(() => {
+          const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
+          return subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        })()}
+      </span>
+    </div>
 
-                      <div className="flex items-center justify-between bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-4 rounded-lg shadow-md">
-                        <span className="font-semibold text-sm">Total After Sales Tax</span>
-                        <span className="text-lg font-bold">
-                          {(() => {
-                            const totalAmount = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
-                            if (salesTaxOption === 'with' && salesTaxRate) {
-                              const taxPercent = parseFloat(salesTaxRate.match(/\d+/)?.[0] || '0') / 100;
-                              return (totalAmount * (1 + taxPercent)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                            }
-                            return totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                          })()}
-                        </span>
-                      </div>
+    {/* Sales Tax Amount */}
+    <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 p-4 rounded-lg border border-indigo-200 dark:border-indigo-700">
+      <span className="font-medium text-sm text-indigo-700 dark:text-indigo-300">Sales Tax Amount</span>
+      <span className="text-sm font-bold text-indigo-800 dark:text-indigo-200">
+        {(() => {
+          const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
+          if (salesTaxOption === 'with' && salesTaxRate) {
+            const taxRate = parseFloat(selectedSaleTaxes);
+            console.log('Subtotal for tax calculation:', subtotal);
+            console.log('Using tax rate:', taxRate);
+            return (subtotal * (taxRate / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          }
+          return '0.00';
+        })()}
+      </span>
+    </div>
 
-                      <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-4 rounded-lg border border-orange-200 dark:border-orange-700">
-                        <span className="font-medium text-sm text-orange-700 dark:text-orange-300">WHT Deduction Amount</span>
-                        <span className="text-sm font-bold text-orange-800 dark:text-orange-200">
-                          {(() => {
-                            const totalSbrAmount = items.reduce((sum, row) => sum + (row.srbAmount || 0), 0);
-                            if (whtOnSbr) {
-                              const whtPercent = parseFloat(whtOnSbr.match(/\d+/)?.[0] || '0') / 100;
-                              return (totalSbrAmount * whtPercent).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                            }
-                            return '0.00';
-                          })()}
-                        </span>
-                      </div>
+    {/* Total After Sales Tax (Subtotal - Sales Tax) */}
+    <div className="flex items-center justify-between bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-4 rounded-lg shadow-md">
+      <span className="font-semibold text-sm">Total After Sales Tax</span>
+      <span className="text-lg font-bold">
+        {(() => {
+          const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
+          let totalAfterSalesTax = subtotal;
+          if (salesTaxOption === 'with' && salesTaxRate) {
+            const taxRate = parseFloat(selectedSaleTaxes);
+            const salesTaxAmount = subtotal * (taxRate / 100);
+            totalAfterSalesTax = subtotal - salesTaxAmount;
+          }
+          return totalAfterSalesTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        })()}
+      </span>
+    </div>
 
-                      <div className="flex items-center justify-between bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 p-4 rounded-lg border-2 border-gray-300 dark:border-gray-500">
-                        <span className="font-bold text-base text-gray-800 dark:text-gray-200">Final Cheque Amount</span>
-                        <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                          {(() => {
-                            const totalAmount = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
-                            let finalAmount = totalAmount;
-                            if (salesTaxOption === 'with' && salesTaxRate) {
-                              const taxPercent = parseFloat(salesTaxRate.match(/\d+/)?.[0] || '0') / 100;
-                              finalAmount = totalAmount * (1 + taxPercent);
-                            }
-                            if (whtOnSbr) {
-                              const totalSbrAmount = items.reduce((sum, row) => sum + (row.srbAmount || 0), 0);
-                              const whtPercent = parseFloat(whtOnSbr.match(/\d+/)?.[0] || '0') / 100;
-                              finalAmount -= totalSbrAmount * whtPercent;
-                            }
-                            return finalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                          })()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+    {/* WHT Deduction Amount */}
+    <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-4 rounded-lg border border-orange-200 dark:border-orange-700">
+      <span className="font-medium text-sm text-orange-700 dark:text-orange-300">WHT Deduction Amount</span>
+      <span className="text-sm font-bold text-orange-800 dark:text-orange-200">
+        {(() => {
+          const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
+          let totalAfterSalesTax = subtotal;
+          if (salesTaxOption === 'with' && salesTaxRate) {
+            const taxRate = parseFloat(selectedWHTTaxes);
+            const salesTaxAmount = subtotal * (taxRate / 100);
+            totalAfterSalesTax = subtotal - salesTaxAmount;
+          }
+          if (whtOnSbr) {
+            const whtRate = parseFloat(selectedWHTTaxes)
+            return (totalAfterSalesTax * (whtRate / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          }
+          return '0.00';
+        })()}
+      </span>
+    </div>
+
+    {/* Final Cheque Amount */}
+    <div className="flex items-center justify-between bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 p-4 rounded-lg border-2 border-gray-300 dark:border-gray-500">
+      <span className="font-bold text-base text-gray-800 dark:text-gray-200">Final Cheque Amount</span>
+      <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+        {(() => {
+          const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
+          let totalAfterSalesTax = subtotal;
+          if (salesTaxOption === 'with' && salesTaxRate) {
+            const taxRate = parseFloat(selectedSaleTaxes);
+            const salesTaxAmount = subtotal * (taxRate / 100);
+            totalAfterSalesTax = subtotal - salesTaxAmount;
+          }
+          let finalAmount = totalAfterSalesTax;
+          if (whtOnSbr) {
+            const whtRate = parseFloat(selectedWHTTaxes);
+            const whtAmount = totalAfterSalesTax * (whtRate / 100);
+            finalAmount = totalAfterSalesTax - whtAmount;
+          }
+          return finalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        })()}
+      </span>
+    </div>
+  </div>
+</div>
                 </div>
               </div>
             </div>
