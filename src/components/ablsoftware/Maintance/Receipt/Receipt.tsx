@@ -152,6 +152,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   ];
   const bankNames: DropdownOption[] = [
     { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
+    { id: 'HMB', name: 'Habib Metro Bank (HMB)' },
     { id: 'MCB', name: 'MCB Bank Limited' },
     { id: 'UBL', name: 'United Bank Limited (UBL)' },
     { id: 'ABL', name: 'Allied Bank Limited (ABL)' },
