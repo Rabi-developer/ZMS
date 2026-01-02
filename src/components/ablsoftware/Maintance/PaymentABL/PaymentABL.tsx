@@ -304,8 +304,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       setIsLoading(true);
       try {
         const [orderRes, chargeRes] = await Promise.all([
-          getAllBookingOrder(1, 1000),
-          getAllCharges(1, 1000),
+          getAllBookingOrder(1, 10000),
+          getAllCharges(1, 10000),
         ]);
         setBookingOrders(
           orderRes.data.map((item: any) => ({
