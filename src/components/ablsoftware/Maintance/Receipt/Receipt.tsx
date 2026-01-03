@@ -180,6 +180,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     { id: 'BankOfKhyber', name: 'The Bank of Khyber' },
     { id: 'BankOfAzadKashmir', name: 'Bank of Azad Kashmir' },
     { id: 'IndustrialDevelopment', name: 'Industrial Development Bank of Pakistan' },
+    { id: 'PettyCash', name: 'Petty Cash' },
     { id: 'Other', name: 'Other' },
   ];
   const salesTaxOptions: DropdownOption[] = [
