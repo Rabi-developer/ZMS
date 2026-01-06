@@ -43,7 +43,7 @@ interface Charge {
 
 // Zod Schema
 const billPaymentSchema = z.object({
-  invoiceNo: z.string().optional(),
+  receiptNo: z.string().optional(),
   paymentDate: z.string().min(1, 'Payment Date is required'),
   lines: z.array(
     z.discriminatedUnion('isAdditionalLine', [
@@ -86,7 +86,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   } = useForm<BillPaymentFormData>({
     resolver: zodResolver(billPaymentSchema),
     defaultValues: {
-      invoiceNo: '',
+      receiptNo: '',
       paymentDate: '',
       lines: [{ isAdditionalLine: false, vehicleNo: '', orderNo: '', amount: 0, munshayana: 0 }],
     },
@@ -166,7 +166,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   useEffect(() => {
     if (!isEdit) {
       const generated = `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      setValue('invoiceNo', generated);
+      setValue('receiptNo', generated);
     }
   }, [isEdit, setValue]);
 
@@ -174,7 +174,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   useEffect(() => {
     if (isEdit && initialData) {
       reset({
-        invoiceNo: initialData.invoiceNo || '',
+        receiptNo: String(initialData.receiptNo || ''),
         paymentDate: initialData.paymentDate || '',
         lines: initialData.lines?.length
           ? initialData.lines.map((line: any) =>
@@ -235,7 +235,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     try {
       const payload = {
         id: isEdit ? window.location.pathname.split('/').pop() : undefined,
-        invoiceNo: data.invoiceNo,
+        receiptNo: String(data.receiptNo),
         paymentDate: data.paymentDate,
         lines: data.lines.map((line) =>
           line.isAdditionalLine
@@ -324,11 +324,11 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="relative">
                 <ABLCustomInput
-                  label="Invoice No"
+                  label="Receipt No"
                   type="text"
                   register={register}
-                  error={errors.invoiceNo?.message}
-                  id="invoiceNo"
+                  error={errors.receiptNo?.message}
+                  id="receiptNo"
                   disabled
                   onFocus={() => setIdFocused(true)}
                   onBlur={() => setIdFocused(false)}

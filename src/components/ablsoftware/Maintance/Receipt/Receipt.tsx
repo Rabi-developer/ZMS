@@ -248,7 +248,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   useEffect(() => {
     if (isEdit && initialData) {
       reset({
-        receiptNo: initialData.receiptNo || '',
+        receiptNo: String(initialData.receiptNo || ''),
         receiptDate: initialData.receiptDate || '',
         paymentMode: initialData.paymentMode || '',
         bankName: initialData.bankName || '',
@@ -324,7 +324,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           : null,
         isActive: true,
         isDeleted: false,
-        receiptNo: data.receiptNo || `REC${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        receiptNo: String(data.receiptNo) || `REC${Date.now()}${Math.floor(Math.random() * 1000)}`,
         receiptDate: data.receiptDate,
         paymentMode: data.paymentMode,
         bankName: data.bankName || '',

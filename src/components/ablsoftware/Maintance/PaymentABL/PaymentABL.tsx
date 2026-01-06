@@ -431,7 +431,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       }];
 
       reset({
-        paymentNo: initialData.paymentNo || '',
+        paymentNo: String(initialData.paymentNo || ''),
         paymentDate: initialData.paymentDate || '',
         paymentMode: initialData.paymentMode || '',
         bankName: initialData.bankName || '',
@@ -541,7 +541,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         updatedBy: userId,
         updationDate: currentDateTime,
         status: initialData?.status || 'Active',
-        paymentNo: data.paymentNo || `PAY${Date.now()}${Math.floor(Math.random() * 1000)}`,
+        paymentNo: String(data.paymentNo) || `PAY${Date.now()}${Math.floor(Math.random() * 1000)}`,
         paymentDate: data.paymentDate,
         paymentMode: data.paymentMode,
         bankName: data.bankName || '',
