@@ -106,3 +106,4 @@ const updatePaymentStatus = async (PaymentStatus: { id: string; status: string }
   }
 };
 export { createPayment , getAllPayment , getAllPaymentPositions , getSinglePayment , updatePayment , deletePayment, updatePaymentStatus  };
+ 

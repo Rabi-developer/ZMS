@@ -129,4 +129,16 @@ const updateReceiptFiles = async ({ id, files }: { id: string; files: string }) 
     throw error;
   }
 };
-export { createReceipt , getAllReceipt , getAllReceiptPositions , getSingleReceipt , updateReceipt , deleteReceipt, updateReceiptStatus, updateReceiptFiles  };
+
+const getBiltyBalance = async (biltyNo: string) => {
+  try {
+    const response = await apiFetch(`Receipt/bilty-balance/${biltyNo}`, {
+      method: 'GET',
+      headers: {}, 
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+export { createReceipt , getAllReceipt , getAllReceiptPositions , getSingleReceipt , updateReceipt , deleteReceipt, updateReceiptStatus, updateReceiptFiles , getBiltyBalance};

@@ -9,7 +9,7 @@ import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { getAllPartys } from '@/apis/party';
 import { getAllSaleTexes } from '@/apis/salestexes';
 import { getAllConsignment, updateConsignment } from '@/apis/consignment';
-import { createReceipt, updateReceipt } from '@/apis/receipt';
+import { createReceipt, updateReceipt, getBiltyBalance } from '@/apis/receipt';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
@@ -42,6 +42,7 @@ interface TableRow {
   srbAmount: number;
   totalAmount: number;
   balance: number;
+  initialBalance?: number;
   receiptAmount: number;
 }
 
@@ -66,6 +67,7 @@ const receiptSchema = z.object({
       srbAmount: z.number().min(0, 'SRB Amount must be non-negative').optional(),
       totalAmount: z.number().min(0, 'Total Amount must be non-negative').optional(),
       balance: z.number().min(0, 'Balance must be non-negative').optional(),
+      initialBalance: z.number().optional(),
       receiptAmount: z.number().min(0, 'Receipt Amount must be non-negative').optional(),
     })
   ),
@@ -113,8 +115,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           receiptAmount: initialData.receiptAmount || 0,
           remarks: initialData.remarks || '',
           items: initialData.items?.length
-            ? initialData.items
-            : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
+            ? initialData.items.map(row => ({ ...row, initialBalance: row.initialBalance || row.balance || 0 }))
+            : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0 }],
           salesTaxOption: initialData.salesTaxOption || 'without',
           salesTaxRate: initialData.salesTaxRate || '',
           whtOnSbr: initialData.whtOnSbr || '',
@@ -129,7 +131,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           party: '',
           receiptAmount: 0,
           remarks: '',
-          items: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
+          items: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0 }],
           salesTaxOption: 'without',
           salesTaxRate: '',
           whtOnSbr: '',
@@ -146,6 +148,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const [consignments, setConsignments] = useState<Consignment[]>([]);
   const [showConsignmentPopup, setShowConsignmentPopup] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectingConsignment, setSelectingConsignment] = useState(false);
 
   const paymentModes: DropdownOption[] = [
     { id: 'Cash', name: 'Cash' },
@@ -267,9 +270,10 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               srbAmount: row.srbAmount || 0,
               totalAmount: row.totalAmount || 0,
               balance: row.balance || 0,
+              initialBalance: row.initialBalance || row.balance || 0,
               receiptAmount: row.receiptAmount || 0,
             }))
-          : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 }],
+          : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0 }],
         salesTaxOption: initialData.salesTaxOption || 'without',
         salesTaxRate: initialData.salesTaxRate || '',
         whtOnSbr: initialData.whtOnSbr || '',
@@ -281,7 +285,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   useEffect(() => {
     const updateditems = items.map((row) => {
       const totalAmount = (row.biltyAmount || 0) + (row.srbAmount || 0);
-      const balance = totalAmount - (row.receiptAmount || 0);
+      const balance = row.biltyNo ? (row.initialBalance || 0) - (row.receiptAmount || 0) : totalAmount - (row.receiptAmount || 0);
       return { ...row, totalAmount, balance };
     });
     setValue('items', updateditems);
@@ -290,21 +294,37 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     setValue('receiptAmount', totalReceiptAmount);
   }, [items, setValue]);
 
-  const selectConsignment = (index: number, consignment: Consignment) => {
-    setValue(`items.${index}.biltyNo`, consignment.biltyNo, { shouldValidate: true });
-    setValue(`items.${index}.consignmentId`, consignment.id, { shouldValidate: true });
-    setValue(`items.${index}.vehicleNo`, consignment.vehicleNo, { shouldValidate: true });
-    setValue(`items.${index}.biltyDate`, consignment.biltyDate, { shouldValidate: true });
-    setValue(`items.${index}.biltyAmount`, consignment.totalAmount, { shouldValidate: true }); // Use totalAmount
-    setValue(`items.${index}.srbAmount`, consignment.srbAmount, { shouldValidate: true }); // Use sprAmount
-    setShowConsignmentPopup(null);
-    setSearchQuery('');
+  const selectConsignment = async (index: number, consignment: Consignment) => {
+    setSelectingConsignment(true);
+    try {
+      const balanceData = await getBiltyBalance(consignment.biltyNo);
+      const remainingBalance = balanceData.balance || balanceData.remainingBalance || 0;
+      if (remainingBalance <= 0) {
+        toast.error('This bilty has no remaining balance. Cannot create receipt.');
+        return;
+      }
+      setValue(`items.${index}.biltyNo`, consignment.biltyNo, { shouldValidate: true });
+      setValue(`items.${index}.consignmentId`, consignment.id, { shouldValidate: true });
+      setValue(`items.${index}.vehicleNo`, consignment.vehicleNo, { shouldValidate: true });
+      setValue(`items.${index}.biltyDate`, consignment.biltyDate, { shouldValidate: true });
+      setValue(`items.${index}.biltyAmount`, consignment.totalAmount, { shouldValidate: true }); // Use totalAmount
+      setValue(`items.${index}.srbAmount`, consignment.srbAmount, { shouldValidate: true }); // Use sprAmount
+      setValue(`items.${index}.balance`, remainingBalance, { shouldValidate: true });
+      setValue(`items.${index}.initialBalance`, remainingBalance, { shouldValidate: true });
+      setShowConsignmentPopup(null);
+      setSearchQuery('');
+    } catch (error) {
+      toast.error('Failed to fetch bilty balance');
+      console.error('Error fetching balance:', error);
+    } finally {
+      setSelectingConsignment(false);
+    }
   };
 
   const addTableRow = () => {
     setValue('items', [
       ...items,
-      { biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, receiptAmount: 0 },
+      { biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0 },
     ]);
   };
 
@@ -316,6 +336,15 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   };
 
   const onSubmit = async (data: ReceiptFormData) => {
+    // Validate receipt amounts against balances
+    for (const row of data.items) {
+      if (row.biltyNo && (row.receiptAmount || 0) > (row.initialBalance || 0)) {
+        toast.error(`Receipt amount for bilty ${row.biltyNo} exceeds the remaining balance.`);
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       const payload = {
@@ -363,20 +392,20 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     
       }
 
-      // Update consignment receivedAmount
-      const updates = data.items
-        .filter(row => row.consignmentId && (row.receiptAmount ?? 0) > 0)
-        .map(async row => {
-          try {
-            await updateConsignment({
-              id: row.consignmentId,
-              receivedAmount: row.receiptAmount ?? 0,
-            });
-          } catch (error) {
-            console.error(`Failed to update consignment ${row.consignmentId}:`, error);
-          }
-        });
-      await Promise.all(updates);
+      // // Update consignment receivedAmount
+      // const updates = data.items
+      //   .filter(row => row.consignmentId && (row.receiptAmount ?? 0) > 0)
+      //   .map(async row => {
+      //     try {
+      //       await updateConsignment({
+      //         id: row.consignmentId,
+      //         receivedAmount: row.receiptAmount ?? 0,
+      //       });
+      //     } catch (error) {
+      //       console.error(`Failed to update consignment ${row.consignmentId}:`, error);
+      //     }
+      //   });
+      // await Promise.all(updates);
 
       router.push('/receipt');
       window.location.href = '/receipt';
@@ -956,7 +985,12 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 />
               </div>
               <div className="max-h-48 overflow-y-auto">
-                {filteredConsignments.length === 0 ? (
+                {selectingConsignment ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Fetching balance...</span>
+                  </div>
+                ) : filteredConsignments.length === 0 ? (
                   <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-4">No consignments found</p>
                 ) : (
                   <table className="w-full text-sm">
