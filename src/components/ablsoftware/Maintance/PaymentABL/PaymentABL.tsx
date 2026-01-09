@@ -489,7 +489,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const selectCharge = (index: number, charge: any) => {
     setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: true });
     setValue(`paymentABLItems.${index}.chargeNo`, String(charge.chargeNo || ''), { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.vehicleNo`, String(charge.vehicle || ''), { shouldValidate: true });
+    // Preserve an already-selected vehicle for this row — only set if empty
+    const currentVehicle = paymentABLItems?.[index]?.vehicleNo || '';
+    if (!currentVehicle) {
+      setValue(`paymentABLItems.${index}.vehicleNo`, String(charge.vehicle || ''), { shouldValidate: true });
+    }
     setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: true });
     setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: true });
     setValue(`paymentABLItems.${index}.expenseAmount`, charge.amount || null, { shouldValidate: true });
@@ -498,6 +502,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     setShowChargePopup(null);
     setChargeSearch('');
   };
+
+  // Set of vehicles selected in the table (used to mark charges)
+  const selectedVehiclesSet = new Set<string>(
+    paymentABLItems.map((row) => String(row.vehicleNo || '').trim()).filter(Boolean)
+  );
 
   const addTableRow = () => {
     setValue('paymentABLItems', [
@@ -1122,7 +1131,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                             {charge.chargeNo}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.vehicle}
+                            {charge.vehicle}{selectedVehiclesSet.has(String(charge.vehicle || '').trim()) ? ' (Selected)' : ''}
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
                             {charge.orderNo}
