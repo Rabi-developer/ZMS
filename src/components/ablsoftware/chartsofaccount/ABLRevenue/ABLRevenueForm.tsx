@@ -498,10 +498,27 @@ const AblRevenueForm = () => {
 
   const paginatedAccounts = filteredAccounts.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
 
+  const sortAccountsByListId = (accountsToSort: Account[]): Account[] => {
+    return [...accountsToSort].sort((a, b) => {
+      const aParts = (a.listid || '').split('.').map(part => parseInt(part) || 0);
+      const bParts = (b.listid || '').split('.').map(part => parseInt(part) || 0);
+      
+      for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+        const aPart = aParts[i] || 0;
+        const bPart = bParts[i] || 0;
+        if (aPart !== bPart) {
+          return aPart - bPart;
+        }
+      }
+      return 0;
+    });
+  };
+
   const renderAccounts = (accounts: Account[], level = 0) => {
+    const sortedAccounts = sortAccountsByListId(accounts);
     return (
       <ul className="list-none mt-4 bg-white dark:bg-[#1a2b21] z-0">
-        {accounts.map((account) => (
+        {sortedAccounts.map((account) => (
           <li key={`${account.id}-${account.listid}`} className="relative pl-4">
             {level > 0 && (
               <div
