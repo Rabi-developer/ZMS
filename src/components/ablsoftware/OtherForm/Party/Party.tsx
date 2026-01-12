@@ -19,7 +19,7 @@ import { FiSave, FiX, FiUser } from 'react-icons/fi';
 // Define the schema for party form validation
 const partySchema = z.object({
   partyNumber: z.string().optional(),
-  name: z.string().optional(),
+  name: z.string().optional(),    // Make name optional to allow empty submissions
   currency: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
