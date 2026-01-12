@@ -18,7 +18,7 @@ import { FiSave, FiX, FiUser } from 'react-icons/fi';
 
 // Define the schema for party form validation
 const partySchema = z.object({
-  partyNumber: z.string().min(1, 'Party number is required'),
+  partyNumber: z.string().optional(),
   name: z.string().optional(),
   currency: z.string().optional(),
   address: z.string().optional(),
@@ -68,7 +68,7 @@ const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
     resolver: zodResolver(partySchema),
     defaultValues: initialData
       ? {
-          partyNumber: initialData.partyNumber || '',
+          partyNumber: String(initialData.partyNumber || ''),
           name: initialData.name || '',
           currency: initialData.currency || '',
           address: initialData.address || '',
@@ -150,7 +150,7 @@ const PartyForm = ({ isEdit = false, initialData }: PartyFormProps) => {
 
   useEffect(() => {
     if (isEdit && initialData) {
-      setValue('partyNumber', initialData.partyNumber || '');
+      setValue('partyNumber', String(initialData.partyNumber || ''));
       setValue('name', initialData.name || '');
       setValue('currency', initialData.currency || '');
       setValue('address', initialData.address || '');
