@@ -9,6 +9,8 @@ export type BrookerType = {
   name: string;
   mobile: string;
   address: string;
+  cnic: string;
+  accountnumber: string;
 };
 
 export const columns = (
@@ -41,6 +43,14 @@ export const columns = (
     accessorKey: 'address',
     header: 'Address',
   },
+  {
+    accessorKey: 'cnic',
+    header: 'CNIC',
+  },
+  {
+    accessorKey: 'accountNumber',
+    header: 'Account Number',
+  },  
   {
     header: 'Actions',
     id: 'actions',

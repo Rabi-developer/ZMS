@@ -18,6 +18,8 @@ const brookerSchema = z.object({
   name: z.string().min(1, 'Brooker Name is required'),
   mobile: z.string().optional(),
   address: z.string().optional(),
+  cnic: z.string().optional(),
+  accountnumber: z.string().optional(),
 });
 
 type BrookerFormData = z.infer<typeof brookerSchema>;
@@ -52,12 +54,16 @@ const BrookerForm = ({ isEdit = false, initialData }: BrookerFormProps) => {
           name: initialData.name || '',
           mobile: initialData.mobile || '',
           address: initialData.address || '',
+          cnic : initialData.cnic || '',
+          accountnumber : initialData.accountnumber || '',
         }
       : {
           BrookerNumber: '',
           name: '',
           mobile: '',
           address: '',
+          cnic : '',
+          accountnumber : '',
         },
   });
 
@@ -97,6 +103,8 @@ const BrookerForm = ({ isEdit = false, initialData }: BrookerFormProps) => {
           name: data.name || '',
           mobile: data.mobile || '',
           address: data.address || '',
+          cnic: data.cnic || '',
+          accountnumber : data.accountnumber || '',
         };
         await updateBrooker(payload);
         toast.success('Brooker updated successfully!');
@@ -108,6 +116,8 @@ const BrookerForm = ({ isEdit = false, initialData }: BrookerFormProps) => {
           name: data.name || '',
           mobile: data.mobile || '',
           address: data.address || '',
+          cnic: data.cnic || '',
+          accountnumber : data.accountnumber || '',
         };
         await createBrooker(payload);
         toast.success('Brooker created successfully!');
@@ -213,6 +223,22 @@ const BrookerForm = ({ isEdit = false, initialData }: BrookerFormProps) => {
                     register={register}
                     error={errors.address?.message}
                     id="address"
+                  />
+                  <ABLCustomInput
+                    label="CNIC"
+                    type="text"
+                    placeholder="Enter complete CNIC"
+                    register={register}
+                    error={errors.cnic?.message}
+                    id="cnic"
+                  />
+                  <ABLCustomInput
+                    label="Account Number"
+                    type="text"
+                    placeholder="Enter complete Account Number"
+                    register={register}
+                    error={errors.accountnumber?.message}
+                    id="accountnumber"
                   />
                 </div>
               </div>
