@@ -30,21 +30,37 @@ const getOrderProgress = async (bookingOrderId: string) => {
 };
 
 // BookingOrder-list
-const getAllBookingOrder  = async (pageIndex: any = 1, pageSize: any = 10, filters: any = {}) => {
+const getAllBookingOrder = async (
+  pageIndex: any = 1,
+  pageSize: any = 10,
+  filters: any = {}
+) => {
   try {
     let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
+
     if (filters.orderNo) {
       queryParams += `&OrderNo=${filters.orderNo}`;
     }
-    const response = await apiFetch(`BookingOrder?${queryParams}`, {
-      method: 'GET',
-      headers: {}, 
-    }, true);
+
+    const response = await apiFetch(
+      `BookingOrder?${queryParams}`,
+      { method: 'GET', headers: {} },
+      true
+    );
+
+    // 🔽 Sort by OrderNo ASCENDING
+    if (response?.data) {
+      response.data = response.data.sort(
+        (a: any, b: any) => a.orderNo - b.orderNo
+      );
+    }
+
     return response;
   } catch (error: any) {
     throw error;
   }
 };
+
 
 const getAllBookingOrderPositions = async (pageIndex: any = 1, pageSize: any = 10) => {
   try {
