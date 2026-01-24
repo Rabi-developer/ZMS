@@ -1,5 +1,5 @@
 'use client';
-import { ColumnDef } from '@tanstack/react-table';
+import { ColumnDef, Row } from '@tanstack/react-table';
 import { ArrowUpDown, Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -40,11 +40,11 @@ export const columns = (
          Party Number
           <ArrowUpDown className='ml-2 h-4 w-4' />
         </Button>
-        cell: ({ row }: { row: Row<Party> }) => (
-        <span>{row.index + 1}</span>
-    ),
       );
     },
+    cell: ({ row }: { row: Row<PartyType> }) => (
+      <span>{row.index + 1}</span>
+    ),
   },
   {
     accessorKey: 'name',
