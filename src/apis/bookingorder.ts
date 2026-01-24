@@ -32,11 +32,11 @@ const getOrderProgress = async (bookingOrderId: string) => {
 // BookingOrder-list
 const getAllBookingOrder = async (
   pageIndex: any = 1,
-  pageSize: any = 10,
+  pageSize: any = 10000,
   filters: any = {}
 ) => {
   try {
-    let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
+    let queryParams = `PageIndex=${pageIndex}&PageSize=10000`;
 
     if (filters.orderNo) {
       queryParams += `&OrderNo=${filters.orderNo}`;

@@ -517,7 +517,7 @@ export function DataTable<TData extends { id: string }, TValue>({
                   }}
                   className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-1 text-sm cursor-pointer focus:ring-2 focus:ring-[#3a614c]/20 focus:border-[#3a614c] transition-all"
                 >
-                  {[10, 50, 500, 50000].map((pageSizeOption) => (
+                  {[1000, 5000, 50000, 500000].map((pageSizeOption) => (
                     <option key={pageSizeOption} value={pageSizeOption}>
                       {pageSizeOption}
                     </option>
