@@ -9,6 +9,8 @@ import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllCharges } from '@/apis/charges';
 import { createPaymentABL, updatePaymentABL } from '@/apis/paymentABL';
+import { getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
+import { getAllMunshyana } from '@/apis/munshyana';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
@@ -203,6 +205,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const [idFocused, setIdFocused] = useState(false);
   const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
+  const [billPaymentInvoices, setBillPaymentInvoices] = useState<any[]>([]);
+  const [munshyanaData, setMunshyanaData] = useState<any[]>([]);
   const [showOrderPopup, setShowOrderPopup] = useState<number | null>(null);
   const [showChargePopup, setShowChargePopup] = useState<number | null>(null);
   const [orderSearch, setOrderSearch] = useState('');
@@ -330,9 +334,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [orderRes, chargeRes] = await Promise.all([
+        const [orderRes, chargeRes, billPaymentRes, munshyanaRes] = await Promise.all([
           getAllBookingOrder(1, 10000),
           getAllCharges(1, 10000),
+          getAllBiltyPaymentInvoice(1, 10000),
+          getAllMunshyana(1, 10000),
         ]);
         setBookingOrders(
           orderRes.data.map((item: any) => ({
@@ -379,7 +385,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             isActive: item.isActive || false,
           }));
         setCharges(validCharges);
+        setBillPaymentInvoices(billPaymentRes.data || []);
+        setMunshyanaData(munshyanaRes.data || []);
         console.log('Processed charges:', validCharges);
+        console.log('Bill Payment Invoices:', billPaymentRes.data);
+        console.log('Munshyana Data:', munshyanaRes.data);
       } catch (error) {
         toast.error('Failed to load data');
         console.error('Error fetching data:', error);
@@ -487,6 +497,39 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   };
 
   const selectCharge = (index: number, charge: any) => {
+    // Initialize amount from charge
+    let finalAmount = charge.amount || null;
+
+    // Check if there's munshyana data in billpaymentinvoice for this charge
+    const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
+      if (!bill.lines || !Array.isArray(bill.lines)) return false;
+      return bill.lines.some((line: any) => 
+        (line.vehicleNo === charge.vehicle || line.chargeNo === charge.chargeNo) && 
+        line.munshayana
+      );
+    });
+
+    // If matching billpayment found with munshyana, check munshyana data
+    if (matchingBillPayment) {
+      const matchingMunshyana = matchingBillPayment.lines.find((line: any) => 
+        (line.vehicleNo === charge.vehicle || line.chargeNo === charge.chargeNo) && 
+        line.munshayana
+      );
+      
+      if (matchingMunshyana && matchingMunshyana.munshayana) {
+        // Search in munshyana data for amount
+        const munshyanaRecord = munshyanaData.find((m: any) => 
+          m.id === matchingMunshyana.munshayana || 
+          m.munshyanaNo === matchingMunshyana.munshayana
+        );
+        
+        if (munshyanaRecord && munshyanaRecord.amount) {
+          finalAmount = Number(munshyanaRecord.amount);
+          console.log('Munshyana amount found:', finalAmount);
+        }
+      }
+    }
+
     setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: true });
     setValue(`paymentABLItems.${index}.chargeNo`, String(charge.chargeNo || ''), { shouldValidate: true });
     // Preserve an already-selected vehicle for this row — only set if empty
@@ -496,8 +539,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     }
     setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: true });
     setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.expenseAmount`, charge.amount || null, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.balance`, charge.balance || null, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.expenseAmount`, finalAmount, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.balance`, finalAmount || null, { shouldValidate: true });
     setValue('paidTo', charge.paidTo || watch('paidTo'), { shouldValidate: true });
     setShowChargePopup(null);
     setChargeSearch('');
@@ -842,7 +885,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                               onClick={() => setShowChargePopup(index)}
                               className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
                             >
-                              {row.charges || 'Select Charges'}
+                              {row.chargeNo || 'Select Charges'}
                             </Button>
                             {errors.paymentABLItems?.[index]?.charges && (
                               <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].charges.message}</p>

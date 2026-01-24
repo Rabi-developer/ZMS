@@ -68,6 +68,9 @@ export const columns = (
   {
     header: 'Payment No',
     accessorKey: 'paymentNo',
+    cell: ({ row }: { row: Row<PaymentABL> }) => (
+      <span>{row.index + 1}</span>
+    ),
   },
   {
     header: 'Payment Date',

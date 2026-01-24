@@ -66,6 +66,9 @@ export const columns = (
   {
     header: 'Order No',
     accessorKey: 'orderNo',
+    cell: ({ row }: { row: Row<BookingOrder> }) => (
+      <span>{row.index + 1}</span>
+    ),
   },
   {
     header: 'Order Date',

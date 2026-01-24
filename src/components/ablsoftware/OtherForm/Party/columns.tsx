@@ -40,6 +40,9 @@ export const columns = (
          Party Number
           <ArrowUpDown className='ml-2 h-4 w-4' />
         </Button>
+        cell: ({ row }: { row: Row<Party> }) => (
+        <span>{row.index + 1}</span>
+    ),
       );
     },
   },
