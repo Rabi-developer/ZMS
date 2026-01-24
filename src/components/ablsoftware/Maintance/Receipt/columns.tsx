@@ -61,9 +61,9 @@ export const columns = (
   {
     header: 'Receipt No',
     accessorKey: 'receiptNo',
-    cell: ({ row }: { row: Row<Receipt> }) => (
-      <span>{row.index + 1}</span>
-    ),
+    // cell: ({ row }: { row: Row<Receipt> }) => (
+    //   <span>{row.index + 1}</span>
+    // ),
   },
   {
     header: 'Receipt Date',

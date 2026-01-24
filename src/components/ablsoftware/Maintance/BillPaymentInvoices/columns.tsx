@@ -58,9 +58,9 @@ export const columns = (
   {
     header: 'Invoice No',
     accessorKey: 'invoiceNo',
-    cell: ({ row }: { row: Row<BillPaymentInvoice> }) => (
-      <span>{row.index + 1}</span>
-    ),
+    // cell: ({ row }: { row: Row<BillPaymentInvoice> }) => (
+    //   <span>{row.index + 1}</span>
+    // ),
   },
   {
     header: 'Vehicle No',

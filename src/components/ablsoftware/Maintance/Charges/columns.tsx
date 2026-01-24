@@ -70,9 +70,9 @@ export const columns = (
   {
     header: 'Charge No',
     accessorKey: 'chargeNo',
-    cell: ({ row }: { row: Row<Charge> }) => (
-      <span>{row.index + 1}</span>
-    ),
+    // cell: ({ row }: { row: Row<Charge> }) => (
+    //   <span>{row.index + 1}</span>
+    // ),
     
   },
   {

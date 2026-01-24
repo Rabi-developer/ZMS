@@ -87,9 +87,9 @@ export const columns = (
   {
     header: 'Receipt No',
     accessorKey: 'receiptNo',
-    cell: ({ row }: { row: Row<Consignment> }) => (
-      <span>{row.index + 1}</span>
-    ),
+    // cell: ({ row }: { row: Row<Consignment> }) => (
+    //   <span>{row.index + 1}</span>
+    // ),
   },
   {
     header: 'Order No',

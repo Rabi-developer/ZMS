@@ -42,9 +42,6 @@ export const columns = (
         </Button>
       );
     },
-    cell: ({ row }: { row: Row<PartyType> }) => (
-      <span>{row.index + 1}</span>
-    ),
   },
   {
     accessorKey: 'name',
