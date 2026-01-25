@@ -15,13 +15,13 @@ const createCharges = async (Charges : any) => {
 };
 
 // Charges-list
-const getAllCharges  = async (pageIndex:any=1,pageSize:any=10, filters:any={}) => {
+const getAllCharges  = async (pageIndex:any=1,pageSize:any=10000, filters:any={}) => {
   try {
-    let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
+    let queryParams = `PageIndex=${pageIndex}&PageSize=10000`;
     
     // Add filters if provided
-    if (filters.orderNo) {
-      queryParams += `&OrderNo=${filters.orderNo}`;
+    if (filters.chargeNo) {
+      queryParams += `&chargeNo=${filters.chargeNo}`;
     }
     
     // Add parameter to include lines data in the response

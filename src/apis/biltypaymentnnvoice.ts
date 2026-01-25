@@ -15,9 +15,9 @@ const createBiltyPaymentInvoice = async (BiltyPaymentInvoice : any) => {
 };
 
 // BiltyPaymentInvoice-list
-const getAllBiltyPaymentInvoice  = async (pageIndex:any=1,pageSize:any=10) => {
+const getAllBiltyPaymentInvoice  = async (pageIndex:any=1,pageSize:any=10000) => {
   try {
-    const response = await apiFetch(`BiltyPaymentInvoice?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    const response = await apiFetch(`BiltyPaymentInvoice?PageIndex=${pageIndex}&PageSize=10000`, {
       method: 'GET',
       headers: {}, 
     }, true);

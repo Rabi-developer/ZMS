@@ -15,9 +15,9 @@ const createReceipt = async (Receipt : any) => {
 };
 
 // Receipt-list
-const getAllReceipt  = async (pageIndex: any = 1, pageSize: any = 10, p0?: { orderNo: string; }) => {
+const getAllReceipt  = async (pageIndex: any = 1, pageSize: any = 10000, p0?: { orderNo: string; }) => {
   try {
-    const response = await apiFetch(`Receipt?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    const response = await apiFetch(`Receipt?PageIndex=${pageIndex}&PageSize=10000`, {
       method: 'GET',
       headers: {}, 
     }, true);

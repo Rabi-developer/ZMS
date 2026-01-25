@@ -15,9 +15,9 @@ const createPaymentABL = async (PaymentABL : any) => {
 };
 
 // PaymentABL-list
-const getAllPaymentABL  = async (pageIndex:any=1,pageSize:any=10) => {
+const getAllPaymentABL  = async (pageIndex:any=1,pageSize:any=1000) => {
   try {
-    const response = await apiFetch(`PaymentABL?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
+    const response = await apiFetch(`PaymentABL?PageIndex=${pageIndex}&PageSize=10000`, {
       method: 'GET',
       headers: {}, 
     }, true);

@@ -18,8 +18,8 @@ const createConsignment = async (Consignment : any) => {
 const getAllConsignment  = async (pageIndex: any = 1, pageSize: any = 10000, filters: any = {}) => {
   try {
     let queryParams = `PageIndex=${pageIndex}&PageSize=10000`;
-    if (filters.orderNo) {
-      queryParams += `&OrderNo=${filters.orderNo}`;
+    if (filters.receiptNo) {
+      queryParams += `&receiptNo=${filters.receiptNo}`;
     }
     if (filters.status) {
       queryParams += `&Status=${filters.status}`;
