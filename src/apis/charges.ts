@@ -21,11 +21,11 @@ const getAllCharges  = async (pageIndex:any=1,pageSize:any=10000, filters:any={}
     
     // Add filters if provided
     if (filters.chargeNo) {
-      queryParams += `&chargeNo=${filters.chargeNo}`;
+      queryParams += `&ChargeNo=${filters.chargeNo}`;
     }
     
     // Add parameter to include lines data in the response
-    queryParams += `&IncludeLines=true`;
+    // queryParams += `&IncludeLines=true`;
     
     const response = await apiFetch(`Charges?${queryParams}`, {
       method: 'GET',
