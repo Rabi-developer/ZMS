@@ -19,7 +19,7 @@ const getAllConsignment  = async (pageIndex: any = 1, pageSize: any = 10000, fil
   try {
     let queryParams = `PageIndex=${pageIndex}&PageSize=10000`;
     if (filters.receiptNo) {
-      queryParams += `&receiptNo=${filters.receiptNo}`;
+      queryParams += `&ReceiptNo=${filters.receiptNo}`;
     }
     if (filters.status) {
       queryParams += `&Status=${filters.status}`;
