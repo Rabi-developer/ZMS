@@ -31,6 +31,9 @@ const getAllCharges  = async (pageIndex:any=1,pageSize:any=10000, filters:any={}
       method: 'GET',
       headers: {}, 
     }, true);
+     if(response?.data){
+      response.data.sort((a: any, b: any) => b.chargeNo.localeCompare(a.chargeNo ,undefined, {numeric: true} ) );
+    }
     return response;
   } catch (error: any) {
     throw error;

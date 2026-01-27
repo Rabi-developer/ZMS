@@ -1,5 +1,4 @@
 import apiFetch from "@/components/utils/fetchInstance";
-import { GrDescending } from "react-icons/gr";
 
 // Consignment-create
 const createConsignment = async (Consignment : any) => {
@@ -23,15 +22,12 @@ const getAllConsignment  = async (pageIndex: any = 1, pageSize: any = 10000, fil
       queryParams += `&ReceiptNo=${filters.receiptNo}`;
     }
     // if (filters.status) {
-    //   queryParams += `&Status=${filters.receiptNo}`;
+    //   queryParams += `&Status=${filters.status}`;
     // }
     const response = await apiFetch(`Consignment?${queryParams}`, {
       method: 'GET',
       headers: {}, 
     }, true);
-    if(response?.data){
-      response.data.sort((a: any, b: any) => b.receiptNo.localeCompare(a.receiptNo ,undefined, {numeric: true} ) );
-    }
     return response;
   } catch (error: any) {
     throw error;

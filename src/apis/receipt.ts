@@ -21,6 +21,15 @@ const getAllReceipt  = async (pageIndex: any = 1, pageSize: any = 10000, p0?: { 
       method: 'GET',
       headers: {}, 
     }, true);
+        if (Array.isArray(response?.data)) {
+      response.data.sort((a: any, b: any) =>
+        (b.receiptNo ?? "").toString().localeCompare(
+          (a.receiptNo ?? "").toString(),
+          undefined,
+          { numeric: true, sensitivity: "base" }
+        )
+      );
+    }
     return response;
   } catch (error: any) {
     throw error;
