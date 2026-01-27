@@ -28,6 +28,16 @@ const getAllConsignment  = async (pageIndex: any = 1, pageSize: any = 10000, fil
       method: 'GET',
       headers: {}, 
     }, true);
+    
+    // Sort by receiptNo on frontend
+    if (response?.data && Array.isArray(response.data)) {
+      response.data.sort((a: any, b: any) => {
+        const receiptA = a.receiptNo || 0;
+        const receiptB = b.receiptNo || 0;
+        return receiptA - receiptB;
+      });
+    }
+    
     return response;
   } catch (error: any) {
     throw error;
