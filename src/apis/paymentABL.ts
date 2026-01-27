@@ -87,15 +87,7 @@ const updatePaymentABLStatus = async (PaymentABLStatus: { id: string; status: st
       },
       body: JSON.stringify({ Id: PaymentABLStatus.id, Status: PaymentABLStatus.status }),
     }, true);
-       if (Array.isArray(response?.data)) {
-      response.data.sort((a: any, b: any) =>
-        (b.paymentNo ?? "").toString().localeCompare(
-          (a.paymentNo ?? "").toString(),
-          undefined,
-          { numeric: true, sensitivity: "base" }
-        )
-      );
-    }
+    
     return response;
   } catch (error: any) {
     throw error;
