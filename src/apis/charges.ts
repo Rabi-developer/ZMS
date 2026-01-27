@@ -31,7 +31,14 @@ const getAllCharges  = async (pageIndex:any=1,pageSize:any=10000, filters:any={}
       method: 'GET',
       headers: {}, 
     }, true);
-    
+    // Sort by receiptNo on frontend
+    if (response?.data && Array.isArray(response.data)) {
+      response.data.sort((a: any, b: any) => {
+        const ChargeNoA = a.ChargeNo || 0;
+        const ChargeNoB = b.ChargeNo || 0;
+        return ChargeNoA - ChargeNoB;
+      });
+    }
     return response;
   } catch (error: any) {
     throw error;
