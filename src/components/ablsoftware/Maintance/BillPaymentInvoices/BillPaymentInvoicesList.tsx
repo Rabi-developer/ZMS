@@ -171,9 +171,11 @@ const BillPaymentInvoicesList = () => {
   const handleDeleteClose = () => { setOpenDelete(false); setDeleteId(''); };
 
   const handleRowClick = async (billPaymentId: string) => {
-    if (selectedBillPaymentIds.includes(billPaymentId)) return;
-
-    setSelectedBillPaymentIds([billPaymentId]);
+    // Don't override existing selections - only add if not already selected
+    if (!selectedBillPaymentIds.includes(billPaymentId)) {
+      setSelectedBillPaymentIds(prev => [...prev, billPaymentId]);
+    }
+    
     setSelectedRowId(billPaymentId);
     setSelectedBillPaymentForFiles(billPaymentId);
 
@@ -206,7 +208,8 @@ const BillPaymentInvoicesList = () => {
 
   const handleCheckboxChange = async (billPaymentId: string, checked: boolean) => {
     if (checked) {
-      setSelectedBillPaymentIds([billPaymentId]);
+      // Add to selection (support multiple selection)
+      setSelectedBillPaymentIds(prev => [...prev, billPaymentId]);
       setSelectedRowId(billPaymentId);
       setSelectedBillPaymentForFiles(billPaymentId);
 
@@ -223,11 +226,17 @@ const BillPaymentInvoicesList = () => {
         }
       }
     } else {
-      setSelectedBillPaymentIds([]);
-      setSelectedRowId(null);
-      setConsignments([]);
-      setBookingStatus(null);
-      setSelectedBillPaymentForFiles(null);
+      // Remove from selection
+      const newSelection = selectedBillPaymentIds.filter(id => id !== billPaymentId);
+      setSelectedBillPaymentIds(newSelection);
+      
+      // Clear everything if no items are selected
+      if (newSelection.length === 0) {
+        setSelectedRowId(null);
+        setConsignments([]);
+        setBookingStatus(null);
+        setSelectedBillPaymentForFiles(null);
+      }
     }
     setSelectedBulkStatus(checked ? billPaymentInvoices.find(b => b.id === billPaymentId)?.status || null : null);
   };

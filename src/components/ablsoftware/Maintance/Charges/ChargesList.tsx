@@ -136,9 +136,11 @@ const ChargesList = () => {
   const handleDeleteClose = () => { setOpenDelete(false); setDeleteId(''); };
 
   const handleRowClick = async (chargeId: string) => {
-    if (selectedChargeIds.includes(chargeId)) return;
+    // Don't override existing selections - only add if not already selected
+    if (!selectedChargeIds.includes(chargeId)) {
+      setSelectedChargeIds(prev => [...prev, chargeId]);
+    }
 
-    setSelectedChargeIds([chargeId]);
     setSelectedRowId(chargeId);
     setSelectedChargeForFiles(chargeId);
 
@@ -174,7 +176,8 @@ const ChargesList = () => {
 
   const handleCheckboxChange = async (chargeId: string, checked: boolean) => {
     if (checked) {
-      setSelectedChargeIds([chargeId]);
+      // Add to selection (support multiple selection)
+      setSelectedChargeIds(prev => [...prev, chargeId]);
       setSelectedRowId(chargeId);
       setSelectedChargeForFiles(chargeId);
 
@@ -190,10 +193,16 @@ const ChargesList = () => {
         } catch (err) { console.error(err); }
       }
     } else {
-      setSelectedChargeIds([]);
-      setSelectedRowId(null);
-      setConsignments([]);
-      setSelectedChargeForFiles(null);
+      // Remove from selection
+      const newSelection = selectedChargeIds.filter(id => id !== chargeId);
+      setSelectedChargeIds(newSelection);
+      
+      // Clear everything if no items are selected
+      if (newSelection.length === 0) {
+        setSelectedRowId(null);
+        setConsignments([]);
+        setSelectedChargeForFiles(null);
+      }
     }
     setSelectedBulkStatus(checked ? charges.find(c => c.id === chargeId)?.status || null : null);
   };

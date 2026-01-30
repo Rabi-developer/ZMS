@@ -123,9 +123,11 @@ const PaymentABLList = () => {
   const handleDeleteClose = () => { setOpenDelete(false); setDeleteId(''); };
 
   const handleRowClick = async (paymentId: string) => {
-    if (selectedPaymentIds.includes(paymentId)) return;
+    // Don't override existing selections - only add if not already selected
+    if (!selectedPaymentIds.includes(paymentId)) {
+      setSelectedPaymentIds(prev => [...prev, paymentId]);
+    }
 
-    setSelectedPaymentIds([paymentId]);
     setSelectedRowId(paymentId);
     setSelectedPaymentForFiles(paymentId);
 
@@ -168,7 +170,8 @@ const PaymentABLList = () => {
 
   const handleCheckboxChange = async (paymentId: string, checked: boolean) => {
     if (checked) {
-      setSelectedPaymentIds([paymentId]);
+      // Add to selection (support multiple selection)
+      setSelectedPaymentIds(prev => [...prev, paymentId]);
       setSelectedRowId(paymentId);
       setSelectedPaymentForFiles(paymentId);
 
@@ -190,11 +193,17 @@ const PaymentABLList = () => {
         }
       }
     } else {
-      setSelectedPaymentIds([]);
-      setSelectedRowId(null);
-      setConsignments([]);
-      setBookingStatus(null);
-      setSelectedPaymentForFiles(null);
+      // Remove from selection
+      const newSelection = selectedPaymentIds.filter(id => id !== paymentId);
+      setSelectedPaymentIds(newSelection);
+      
+      // Clear everything if no items are selected
+      if (newSelection.length === 0) {
+        setSelectedRowId(null);
+        setConsignments([]);
+        setBookingStatus(null);
+        setSelectedPaymentForFiles(null);
+      }
     }
     setSelectedBulkStatus(checked ? payments.find(p => p.id === paymentId)?.status || null : null);
   };

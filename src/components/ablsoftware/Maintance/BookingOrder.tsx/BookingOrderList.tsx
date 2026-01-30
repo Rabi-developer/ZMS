@@ -476,12 +476,14 @@ const BookingOrderList = () => {
 
   const handleRowClick = async (orderId: string) => {
     console.log('handleRowClick called for orderId:', orderId);
-    if (selectedOrderIds.includes(orderId)) {
-      console.log('Order already selected, skipping...');
-      return;
+    // Don't override existing selections - only add if not already selected
+    if (!selectedOrderIds.includes(orderId)) {
+      console.log('Adding order to selection...');
+      setSelectedOrderIds(prev => [...prev, orderId]);
+    } else {
+      console.log('Order already selected');
     }
     console.log('Setting selected order and fetching consignments...');
-    setSelectedOrderIds([orderId]);
     setSelectedRowId(orderId);
     setSelectedOrderForFiles(orderId);
 
@@ -508,16 +510,23 @@ const BookingOrderList = () => {
       // Auto-refresh data when checkbox is selected
       await fetchBookingOrdersAndConsignments();
       
-      setSelectedOrderIds([orderId]);
+      // Add to selection (support multiple selection)
+      setSelectedOrderIds(prev => [...prev, orderId]);
       setSelectedRowId(orderId);
       setSelectedOrderForFiles(orderId);
       if (!consignments[orderId]) {
         await fetchConsignments(orderId);
       }
     } else {
-      setSelectedOrderIds([]);
-      setSelectedRowId(null);
-      setSelectedOrderForFiles(null);
+      // Remove from selection
+      const newSelection = selectedOrderIds.filter(id => id !== orderId);
+      setSelectedOrderIds(newSelection);
+      
+      // Clear everything if no items are selected
+      if (newSelection.length === 0) {
+        setSelectedRowId(null);
+        setSelectedOrderForFiles(null);
+      }
     }
     const selectedOrder = bookingOrders.find((order) => order.id === orderId);
     setSelectedBulkStatus(checked ? selectedOrder?.status || null : null);
