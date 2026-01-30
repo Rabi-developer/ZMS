@@ -299,10 +299,7 @@ const ChargesList = () => {
       setSelectedRowId(null);
       setConsignments([]);
       setSelectedChargeForFiles(null);
-      if (selectedStatusFilter !== newStatus) {
-        setSelectedStatusFilter(newStatus);
-        setPageIndex(0);
-      }
+      // Keep the current filter selection instead of auto-changing it
       toast('Status updated', { type: 'success' });
       await fetchCharges();
     } catch (err) {

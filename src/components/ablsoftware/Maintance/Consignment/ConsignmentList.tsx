@@ -361,10 +361,7 @@ const ConsignmentList = () => {
       setSelectedRowId(null);
       setBookingStatus(null);
       setSelectedConsignmentForFiles(null);
-      if (selectedStatusFilter !== newStatus) {
-        setSelectedStatusFilter(newStatus);
-        setPageIndex(0);
-      }
+      // Keep the current filter selection instead of auto-changing it
       toast('Status updated successfully', { type: 'success' });
       await fetchConsignments();
     } catch (err) {

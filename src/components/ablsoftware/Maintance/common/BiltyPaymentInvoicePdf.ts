@@ -15,6 +15,9 @@ export interface BiltyPaymentLineRow {
 export interface BrokerSnapshot {
   name?: string;
   mobile?: string;
+  cnic?: string;
+  accountNumber?: string;
+  address?: string;
 }
 
 export interface BiltyPaymentInvoicePdfPayload {
@@ -243,9 +246,10 @@ export const exportBiltyPaymentInvoicePdf = async (
   cursorY += totalsBoxHeight + 40;
 
   const brokerBoxWidth = pageWidth - marginX * 2;
+  const brokerBoxHeight = 110;
   doc.setDrawColor(229, 231, 235);
   doc.setFillColor(248, 250, 252);
-  doc.roundedRect(marginX, cursorY, brokerBoxWidth, 120, 10, 10, "FD");
+  doc.roundedRect(marginX, cursorY, brokerBoxWidth, brokerBoxHeight, 10, 10, "FD");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
@@ -253,20 +257,42 @@ export const exportBiltyPaymentInvoicePdf = async (
   doc.text("Broker Details", marginX + 18, cursorY + 24);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   doc.setTextColor(55, 65, 81);
-  doc.text(`Name: ${invoice.broker?.name || "-"}`, marginX + 18, cursorY + 44);
-  doc.text(`Mobile No: ${invoice.broker?.mobile || "-"}`, marginX + 18, cursorY + 64);
+  
+  // Build broker details - each on separate line
+  const brokerName = invoice.broker?.name || "-";
+  const brokerPhone = invoice.broker?.mobile || "-";
+  const brokerCnic = invoice.broker?.cnic || "-";
+  const brokerAccount = invoice.broker?.accountNumber || "-";
+  
+  let yPos = cursorY + 44;
+  const lineHeight = 14;
+  
+  // Name
+  doc.text(`Name: ${brokerName}`, marginX + 18, yPos);
+  yPos += lineHeight;
+  
+  // Phone no
+  doc.text(`Phone no: ${brokerPhone}`, marginX + 18, yPos);
+  yPos += lineHeight;
+  
+  // CNIC
+  doc.text(`CNIC: ${brokerCnic}`, marginX + 18, yPos);
+  yPos += lineHeight;
+  
+  // Account Detail
+  doc.text(`Account Detail: ${brokerAccount}`, marginX + 18, yPos);
 
-  // Move "Authorized Signature" and line further down
+  // Move "Authorized Signature" and line
   doc.setDrawColor(209, 213, 219);
-  doc.line(pageWidth - marginX - 220, cursorY + 90, pageWidth - marginX - 40, cursorY + 90);
+  doc.line(pageWidth - marginX - 220, cursorY + brokerBoxHeight - 16, pageWidth - marginX - 40, cursorY + brokerBoxHeight - 16);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(107, 114, 128);
-  doc.text("Authorized Signature", pageWidth - marginX - 130, cursorY + 106, { align: "center" });
+  doc.text("Authorized Signature", pageWidth - marginX - 130, cursorY + brokerBoxHeight - 2, { align: "center" });
 
-  cursorY += 120 + 20;
+  cursorY += brokerBoxHeight + 20;
 
   doc.setDrawColor(229, 231, 235);
   doc.line(marginX, cursorY, pageWidth - marginX, cursorY);

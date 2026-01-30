@@ -666,8 +666,7 @@ const BookingOrderList = () => {
       setSelectedOrderIds([]);
       setSelectedRowId(null);
       setSelectedOrderForFiles(null);
-      setSelectedStatusFilter(newStatus);
-      setPageIndex(0);
+      // Keep the current filter selection instead of auto-changing it
       toast(`Booking Order Status Updated to ${newStatus}`, { type: 'success' });
       await fetchBookingOrdersAndConsignments();
     } catch (error) {

@@ -298,10 +298,7 @@ const ReceiptList = () => {
       setConsignments([]);
       setBookingStatus(null);
       setSelectedReceiptForFiles(null);
-      if (selectedStatusFilter !== newStatus) {
-        setSelectedStatusFilter(newStatus);
-        setPageIndex(0);
-      }
+      // Keep the current filter selection instead of auto-changing it
       toast('Status updated', { type: 'success' });
       await fetchReceipts();
     } catch (err) {
