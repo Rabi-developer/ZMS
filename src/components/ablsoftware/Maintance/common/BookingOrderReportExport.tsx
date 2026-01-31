@@ -19,6 +19,7 @@ import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
 import { getAllPaymentABL } from '@/apis/paymentABL';
 import { getAllBrooker } from '@/apis/brooker';
+import { getAllVendor } from '@/apis/vendors';
 import { exportBookingOrderToExcel } from './BookingOrderExcel';
 import { exportBiltiesReceivableToPDF } from "@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf";
 import { exportGeneralBookingOrderToPDF } from './BookingOrderGeneralPdf';
@@ -157,12 +158,13 @@ const BookingOrderReportExport: React.FC = () => {
   const generateData = useCallback(async (isGeneral: boolean): Promise<RowData[]> => {
     setIsLoading(true);
     try {
-      const [boRes, consRes, chargesRes, partyRes, unitRes, billInvRes, payAblRes, brokerRes] = await Promise.all([
+      const [boRes, consRes, chargesRes, partyRes, unitRes, venRes, billInvRes, payAblRes, brokerRes] = await Promise.all([
         getAllBookingOrder(1, 2000),
         getAllConsignment(1, 4000),
         getAllCharges(1, 4000),
         getAllPartys(1, 4000),
         getAllUnitOfMeasures(1, 4000),
+        getAllVendor(1, 4000),
         getAllBiltyPaymentInvoice(1, 2000),
         getAllPaymentABL(1, 2000),
         getAllBrooker(1, 2000),
@@ -173,6 +175,7 @@ const BookingOrderReportExport: React.FC = () => {
       const charges: any[] = chargesRes?.data || [];
       const parties: any[] = partyRes?.data || [];
       const units: any[] = unitRes?.data || [];
+      const vendors: any[] = venRes?.data || [];
       
       setBillPaymentInvoices(billInvRes?.data || []);
       setPaymentABL(payAblRes?.data || []);
@@ -183,6 +186,9 @@ const BookingOrderReportExport: React.FC = () => {
       );
       const unitMap = new Map<string, string>(
         units.map((u: any) => [String(u?.id ?? u?.Id ?? ""), u?.name || u?.unitName || u?.description || ""]) as [string, string][]
+      );
+      const vendorMap = new Map<string, string>(
+        vendors.map((v: any) => [String(v?.id ?? v?.Id ?? v?.vendorId ?? ""), v?.name || v?.Name || v?.vendorName || ""]) as [string, string][]
       );
 
       const consByOrder = consignments.reduce((acc: Record<string, any[]>, c: any) => {
@@ -223,7 +229,8 @@ const BookingOrderReportExport: React.FC = () => {
         const vehicleNo = o.vehicleNo || o.vehicle || "-";
         const departure = o.fromLocation || o.from || "-";
         const destination = o.toLocation || o.to || "-";
-        const vendor = o.vendor || o.vendorName || "-";
+        const vendorVal = o.vendorId ?? o.vendor ?? o.VendorId ?? o.Vendor ?? "";
+        const vendor = vendorMap.get(String(vendorVal)) || o.vendorName || String(vendorVal) || "-";
         const carrier = o.transporter || o.carrier || "-";
         const consignorVal = o.consignor ?? o.Consignor ?? o.consignorId ?? o.ConsignorId ?? "";
         const consignor = partyMap.get(String(consignorVal)) || String(consignorVal) || "-";
