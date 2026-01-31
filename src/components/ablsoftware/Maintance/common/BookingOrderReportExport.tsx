@@ -16,10 +16,14 @@ import { getAllConsignment } from '@/apis/consignment';
 import { getAllCharges } from '@/apis/charges';
 import { getAllPartys } from '@/apis/party';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
+import { getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
+import { getAllPaymentABL } from '@/apis/paymentABL';
+import { getAllBrooker } from '@/apis/brooker';
 import { exportBookingOrderToExcel } from './BookingOrderExcel';
 import { exportBiltiesReceivableToPDF } from "@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf";
 import { exportGeneralBookingOrderToPDF } from './BookingOrderGeneralPdf';
 import { exportDetailBookingOrderToPDF } from './BookingOrderDetailPdf';
+import { exportBrokerBillStatusToPDF, BrokerBillRow } from './BrokerBillStatusPdf';
 import type { ColumnKey } from '@/components/ablsoftware/Maintance/common/BookingOrderTypes';
 
 
@@ -139,22 +143,29 @@ const BookingOrderReportExport: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [data, setData] = useState<RowData[]>([]);
+  const [billPaymentInvoices, setBillPaymentInvoices] = useState<any[]>([]);
+  const [paymentABL, setPaymentABL] = useState<any[]>([]);
+  const [brokers, setBrokers] = useState<any[]>([]);
+  const [selectedBroker, setSelectedBroker] = useState<string>("All");
   const [totalBookingAmount, setTotalBookingAmount] = useState<string | null>(null);
   const [totalBiltyAmount, setTotalBiltyAmount] = useState<string | null>(null);
   const [isGeneralView, setIsGeneralView] = useState(true);
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<'booking' | 'bilty'>('booking');
+  const [activeTab, setActiveTab] = useState<'booking' | 'bilty' | 'brokerBill'>('booking');
 
   const generateData = useCallback(async (isGeneral: boolean): Promise<RowData[]> => {
     setIsLoading(true);
     try {
-      const [boRes, consRes, chargesRes, partyRes, unitRes] = await Promise.all([
+      const [boRes, consRes, chargesRes, partyRes, unitRes, billInvRes, payAblRes, brokerRes] = await Promise.all([
         getAllBookingOrder(1, 2000),
         getAllConsignment(1, 4000),
         getAllCharges(1, 4000),
         getAllPartys(1, 4000),
         getAllUnitOfMeasures(1, 4000),
+        getAllBiltyPaymentInvoice(1, 2000),
+        getAllPaymentABL(1, 2000),
+        getAllBrooker(1, 2000),
       ]);
 
       const orders: any[] = boRes?.data || [];
@@ -162,6 +173,10 @@ const BookingOrderReportExport: React.FC = () => {
       const charges: any[] = chargesRes?.data || [];
       const parties: any[] = partyRes?.data || [];
       const units: any[] = unitRes?.data || [];
+      
+      setBillPaymentInvoices(billInvRes?.data || []);
+      setPaymentABL(payAblRes?.data || []);
+      setBrokers(brokerRes?.data || []);
 
       const partyMap = new Map<string, string>(
         parties.map((p: any) => [String(p?.id ?? p?.Id ?? ""), p?.name || p?.Name || ""]) as [string, string][]
@@ -456,6 +471,74 @@ const BookingOrderReportExport: React.FC = () => {
     toast.success("Bilties Receivable PDF generated");
   }, [data, fromDate, toDate]);
 
+  const exportBrokerBills = useCallback(async (type: 'Paid' | 'Unpaid') => {
+    if (!billPaymentInvoices.length) {
+      toast.error("No bill payment invoices found. Please generate report first.");
+      return;
+    }
+
+    // Filter invoices by date range if provided
+    const filteredInvoices = billPaymentInvoices.filter(inv => 
+      withinRange(inv.paymentDate, fromDate, toDate)
+    );
+
+    const brokerBillRows: BrokerBillRow[] = [];
+    let serial = 1;
+
+    filteredInvoices.forEach(inv => {
+      // Determine if this invoice is "Paid" or "Unpaid"
+      // Based on user description: PaymentABL entries with same order amount clear means it's paid
+      
+      (inv.lines || []).forEach((line: any) => {
+        if (line.isAdditionalLine) return;
+
+        const orderNo = line.orderNo;
+        const invoiceAmount = line.amount || 0;
+        const brokerName = line.broker || "-";
+
+        // Filter by broker if selected
+        if (selectedBroker !== "All" && brokerName !== selectedBroker) {
+          return;
+        }
+        
+        // Find matching payment in PaymentABL
+        const payments = paymentABL.filter(p => 
+          (p.paymentABLItems || p.paymentABLItem || []).some((item: any) => item.orderNo === orderNo)
+        );
+
+        const totalPaid = payments.reduce((sum, p) => {
+          const item = (p.paymentABLItems || p.paymentABLItem || []).find((i: any) => i.orderNo === orderNo);
+          return sum + (Number(item?.paidAmount) || 0);
+        }, 0);
+
+        const balance = invoiceAmount - totalPaid;
+        const isPaid = balance <= 0;
+
+        if ((type === 'Paid' && isPaid) || (type === 'Unpaid' && !isPaid)) {
+          brokerBillRows.push({
+            serial: serial++,
+            orderNo: orderNo,
+            orderDate: inv.paymentDate, // Using invoice date as a reference
+            vehicleNo: line.vehicleNo || "-",
+            brokerName: line.broker || "-",
+            amount: invoiceAmount,
+            paidAmount: totalPaid,
+            balance: balance,
+            status: isPaid ? "Paid" : "Unpaid"
+          });
+        }
+      });
+    });
+
+    if (brokerBillRows.length === 0) {
+      toast.info(`No ${type} bills found in this date range.`);
+      return;
+    }
+
+    exportBrokerBillStatusToPDF(brokerBillRows, type, fromDate, toDate);
+    toast.success(`${type} Broker Bills PDF generated`);
+  }, [billPaymentInvoices, paymentABL, fromDate, toDate, selectedBroker]);
+
   const columnsToDisplay = isGeneralView ? GENERAL_COLUMNS : DETAIL_COLUMNS;
   const { colOrder, headRows, drawSeparators } = buildStructure(columnsToDisplay, isGeneralView);
 
@@ -484,7 +567,7 @@ const BookingOrderReportExport: React.FC = () => {
     { label: "Freight", width: "w-24" },
     { label: "Bilty No", width: "w-24" },
     { label: "Bilty Amount", width: "w-24" },
-    { label: "Consignor", width: "w-40" }, // Increased width for more gap
+    { label: "Consignor", width: "w-40" },
     { label: "Consignee", width: "w-40" },
     { label: "Article", width: "w-40" },
     { label: "Qty", width: "w-20" },
@@ -525,71 +608,97 @@ const BookingOrderReportExport: React.FC = () => {
             >
               Bilties Receivable
             </button>
+            <button
+              className={`flex-1 py-3 px-4 text-sm font-semibold rounded-t-2xl transition-all 
+                ${activeTab === 'brokerBill' 
+                  ? 'text-orange-500 border-b-2 border-orange-500 rounded-2xl shadow' 
+                  : 'text-gray-700 hover:text-black hover:border-b-2 hover:border-gray-300'
+                }`}
+              onClick={() => setActiveTab('brokerBill')}
+            >
+              Broker Bills
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-6 bg-white p-6 rounded-2xl border mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
+            <div>
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Start Date</label>
+              <input
+                type="date"
+                id="startDate"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="mt-1 block w-full h-12 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">End Date</label>
+              <input
+                type="date"
+                id="endDate"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="mt-1 block w-full h-12 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            {activeTab === 'brokerBill' && (
+              <div>
+                <label htmlFor="broker" className="block text-sm font-medium text-gray-700">Broker Name</label>
+                <select
+                  id="broker"
+                  value={selectedBroker}
+                  onChange={(e) => setSelectedBroker(e.target.value)}
+                  className="mt-1 block w-full h-12 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 px-3"
+                >
+                  <option value="All">All Brokers</option>
+                  {brokers.map((b) => (
+                    <option key={b.id} value={b.name}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className={`flex items-end ${activeTab !== 'booking' ? 'hidden' : ''}`}>
+              <Button
+                className={`w-full h-12 flex items-center hover:bg-[#c282fe] justify-center gap-2 font-medium rounded-lg transition-all ${isGeneralView ? 'bg-[#c282fe] text-white' : 'bg-gray-200 text-gray-700'}`}
+                onClick={() => setIsGeneralView(true)}
+              >
+                General
+              </Button>
+            </div>
+            <div className={`flex items-end ${activeTab !== 'booking' ? 'hidden' : ''}`}>
+              <Button
+                className={`w-full h-12 flex items-center hover:bg-[#c282fe] justify-center gap-2 font-medium rounded-lg transition-all ${!isGeneralView ? 'bg-[#c282fe] text-white' : 'bg-gray-200 text-gray-700'}`}
+                onClick={() => setIsGeneralView(false)}
+              >
+                Detail
+              </Button>
+            </div>
+            <div className="flex items-end">
+              <Button
+                onClick={handleGenerate}
+                className="w-full h-12 flex items-center justify-center gap-2 text-white bg-[#181a26] hover:bg-[#181a26]/90 font-medium rounded-lg transition-all"
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <>
+                    <WiRefreshAlt className="h-5 w-5 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <LuRefreshCcw className="h-5 w-5" />
+                    Generate Report
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 
         {activeTab === "booking" && (
           <>
-            <div className="space-y-6 bg-white p-6 rounded-2xl border mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                <div>
-                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Start Date</label>
-                  <input
-                    type="date"
-                    id="startDate"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
-                    className="mt-1 block w-full h-12 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">End Date</label>
-                  <input
-                    type="date"
-                    id="endDate"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
-                    className="mt-1 block w-full h-12 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    className={`w-full h-12 flex items-center hover:bg-[#c282fe] justify-center gap-2 font-medium rounded-lg transition-all ${isGeneralView ? 'bg-[#c282fe] text-white' : 'bg-gray-200 text-gray-700'}`}
-                    onClick={() => setIsGeneralView(true)}
-                  >
-                    General
-                  </Button>
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    className={`w-full h-12 flex items-center hover:bg-[#c282fe] justify-center gap-2 font-medium rounded-lg transition-all ${!isGeneralView ? 'bg-[#c282fe] text-white' : 'bg-gray-200 text-gray-700'}`}
-                    onClick={() => setIsGeneralView(false)}
-                  >
-                    Detail
-                  </Button>
-                </div>
-                <div className="flex items-end">
-                  <Button
-                    onClick={handleGenerate}
-                    className="w-full h-12 flex items-center justify-center gap-2 text-white bg-[#181a26] hover:bg-[#181a26]/90 font-medium rounded-lg transition-all"
-                    disabled={isGenerating}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <WiRefreshAlt className="h-5 w-5 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <LuRefreshCcw className="h-5 w-5" />
-                        Generate Report
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
             <div className="mt-6 p-6 rounded-xl grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-900">Total Booking Amount</h3>
@@ -777,6 +886,42 @@ const BookingOrderReportExport: React.FC = () => {
                   className="w-full px-6 py-3 bg-rose-600 text-white text-sm font-bold rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50"
                 >
                   Export PDF
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "brokerBill" && (
+          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+              <div className="p-6 border-b border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900 text-green-600">Paid Bills</h3>
+                <p className="text-sm text-gray-500">Export report of brokers whose bills have been paid.</p>
+              </div>
+              <div className="p-6">
+                <Button
+                  onClick={() => exportBrokerBills('Paid')}
+                  disabled={isLoading}
+                  className="w-full px-6 py-3 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                >
+                  Paid Bills PDF
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+              <div className="p-6 border-b border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900 text-red-600">Unpaid Bills</h3>
+                <p className="text-sm text-gray-500">Export report of brokers whose bills are pending payment.</p>
+              </div>
+              <div className="p-6">
+                <Button
+                  onClick={() => exportBrokerBills('Unpaid')}
+                  disabled={isLoading}
+                  className="w-full px-6 py-3 bg-red-600 text-white text-sm font-bold rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                >
+                  Unpaid Bills PDF
                 </Button>
               </div>
             </div>
