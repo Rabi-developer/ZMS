@@ -124,9 +124,11 @@ const ReceiptList = () => {
   const handleDeleteClose = () => { setOpenDelete(false); setDeleteId(''); };
 
   const handleRowClick = async (receiptId: string) => {
-    if (selectedReceiptIds.includes(receiptId)) return;
+    // Don't override existing selections - only add if not already selected
+    if (!selectedReceiptIds.includes(receiptId)) {
+      setSelectedReceiptIds(prev => [...prev, receiptId]);
+    }
 
-    setSelectedReceiptIds([receiptId]);
     setSelectedRowId(receiptId);
     setSelectedReceiptForFiles(receiptId);
 
@@ -167,7 +169,8 @@ const ReceiptList = () => {
 
   const handleCheckboxChange = async (receiptId: string, checked: boolean) => {
     if (checked) {
-      setSelectedReceiptIds([receiptId]);
+      // Add to selection (support multiple selection)
+      setSelectedReceiptIds(prev => [...prev, receiptId]);
       setSelectedRowId(receiptId);
       setSelectedReceiptForFiles(receiptId);
 
@@ -187,11 +190,17 @@ const ReceiptList = () => {
         }
       }
     } else {
-      setSelectedReceiptIds([]);
-      setSelectedRowId(null);
-      setConsignments([]);
-      setBookingStatus(null);
-      setSelectedReceiptForFiles(null);
+      // Remove from selection
+      const newSelection = selectedReceiptIds.filter(id => id !== receiptId);
+      setSelectedReceiptIds(newSelection);
+      
+      // Clear everything if no items are selected
+      if (newSelection.length === 0) {
+        setSelectedRowId(null);
+        setConsignments([]);
+        setBookingStatus(null);
+        setSelectedReceiptForFiles(null);
+      }
     }
     setSelectedBulkStatus(checked ? receipts.find(r => r.id === receiptId)?.status || null : null);
   };
@@ -298,10 +307,7 @@ const ReceiptList = () => {
       setConsignments([]);
       setBookingStatus(null);
       setSelectedReceiptForFiles(null);
-      if (selectedStatusFilter !== newStatus) {
-        setSelectedStatusFilter(newStatus);
-        setPageIndex(0);
-      }
+      // Keep the current filter selection instead of auto-changing it
       toast('Status updated', { type: 'success' });
       await fetchReceipts();
     } catch (err) {

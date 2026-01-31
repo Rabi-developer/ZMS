@@ -15,6 +15,7 @@ import {
 } from '@/apis/biltypaymentnnvoice';
 import { getAllConsignment } from '@/apis/consignment';
 import { getAllBookingOrder } from '@/apis/bookingorder';
+import { getSingleBrooker, getAllBrooker } from '@/apis/brooker';
 import { columns, BillPaymentInvoice } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 import { exportBiltyPaymentInvoicePdf } from '@/components/ablsoftware/Maintance/common/BiltyPaymentInvoicePdf';
@@ -170,9 +171,11 @@ const BillPaymentInvoicesList = () => {
   const handleDeleteClose = () => { setOpenDelete(false); setDeleteId(''); };
 
   const handleRowClick = async (billPaymentId: string) => {
-    if (selectedBillPaymentIds.includes(billPaymentId)) return;
-
-    setSelectedBillPaymentIds([billPaymentId]);
+    // Don't override existing selections - only add if not already selected
+    if (!selectedBillPaymentIds.includes(billPaymentId)) {
+      setSelectedBillPaymentIds(prev => [...prev, billPaymentId]);
+    }
+    
     setSelectedRowId(billPaymentId);
     setSelectedBillPaymentForFiles(billPaymentId);
 
@@ -205,7 +208,8 @@ const BillPaymentInvoicesList = () => {
 
   const handleCheckboxChange = async (billPaymentId: string, checked: boolean) => {
     if (checked) {
-      setSelectedBillPaymentIds([billPaymentId]);
+      // Add to selection (support multiple selection)
+      setSelectedBillPaymentIds(prev => [...prev, billPaymentId]);
       setSelectedRowId(billPaymentId);
       setSelectedBillPaymentForFiles(billPaymentId);
 
@@ -222,11 +226,17 @@ const BillPaymentInvoicesList = () => {
         }
       }
     } else {
-      setSelectedBillPaymentIds([]);
-      setSelectedRowId(null);
-      setConsignments([]);
-      setBookingStatus(null);
-      setSelectedBillPaymentForFiles(null);
+      // Remove from selection
+      const newSelection = selectedBillPaymentIds.filter(id => id !== billPaymentId);
+      setSelectedBillPaymentIds(newSelection);
+      
+      // Clear everything if no items are selected
+      if (newSelection.length === 0) {
+        setSelectedRowId(null);
+        setConsignments([]);
+        setBookingStatus(null);
+        setSelectedBillPaymentForFiles(null);
+      }
     }
     setSelectedBulkStatus(checked ? billPaymentInvoices.find(b => b.id === billPaymentId)?.status || null : null);
   };
@@ -333,10 +343,7 @@ const BillPaymentInvoicesList = () => {
       setConsignments([]);
       setBookingStatus(null);
       setSelectedBillPaymentForFiles(null);
-      if (selectedStatusFilter !== newStatus) {
-        setSelectedStatusFilter(newStatus);
-        setPageIndex(0);
-      }
+      // Keep the current filter selection instead of auto-changing it
       toast('Status updated', { type: 'success' });
       await fetchBillPaymentInvoices();
     } catch (err) {
@@ -471,6 +478,127 @@ const BillPaymentInvoicesList = () => {
 
       const firstLine = detailedInvoice.lines.find((l: any) => !l.isAdditionalLine) || detailedInvoice.lines[0];
 
+      // Fetch broker details if broker exists
+      let brokerDetails = { name: '', mobile: '', cnic: '', accountNumber: '', address: '' };
+      
+      if (firstLine?.broker) {
+        try {
+          // Check if broker is an ID (UUID format)
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(firstLine.broker);
+          
+          if (isUUID) {
+            // Fetch broker details by ID
+            const brokerResponse = await getSingleBrooker(firstLine.broker);
+            const broker = brokerResponse?.data || brokerResponse;
+            
+            if (broker) {
+              // Parse the name field to extract name and CNIC
+              let parsedName = broker.name || '';
+              let parsedCnic = broker.cnic || '';
+              
+              // Check if CNIC is embedded in the name field
+              const nameCnicMatch = parsedName.match(/^(.+?)\s+(\d{5}-\d{7}-\d)$/);
+              if (nameCnicMatch) {
+                parsedName = nameCnicMatch[1].trim();
+                parsedCnic = nameCnicMatch[2];
+              }
+              
+              // Parse the mobile field to extract phone and account number
+              let parsedMobile = broker.mobile || '';
+              let parsedAccount = broker.accountNumber || '';
+              
+              // Check if account is embedded in mobile field (format: "phone /bank account")
+              const mobileAccountMatch = parsedMobile.match(/^(.+?)\s*\/\s*(.+)$/);
+              if (mobileAccountMatch) {
+                parsedMobile = mobileAccountMatch[1].trim();
+                parsedAccount = mobileAccountMatch[2].trim();
+              }
+              
+              brokerDetails = {
+                name: parsedName,
+                mobile: parsedMobile,
+                cnic: parsedCnic,
+                accountNumber: parsedAccount,
+                address: broker.address || '',
+              };
+            }
+          } else {
+            // Broker is stored as a string (e.g., "Atta Ullah 38302-1094268-5")
+            // Try to find broker by searching in the broker list
+            const brokerStr = firstLine.broker || '';
+            
+            // Extract name from the string (remove CNIC if present)
+            const cnicMatch = brokerStr.match(/(\d{5}-\d{7}-\d)/);
+            let searchName = brokerStr;
+            
+            if (cnicMatch) {
+              // Extract name (everything before CNIC)
+              searchName = brokerStr.substring(0, cnicMatch.index).trim();
+            }
+            
+            // Try to find broker in the database by name
+            try {
+              const brokersResponse = await getAllBrooker(1, 1000);
+              const brokers = brokersResponse?.data || [];
+              
+              // Search for broker by name (case-insensitive partial match)
+              const foundBroker = brokers.find((b: any) => 
+                b.name && searchName && b.name.toLowerCase().includes(searchName.toLowerCase())
+              );
+              
+              if (foundBroker) {
+                // Parse the found broker's fields
+                let parsedName = foundBroker.name || '';
+                let parsedCnic = foundBroker.cnic || '';
+                
+                // Check if CNIC is embedded in the name field
+                const nameCnicMatch = parsedName.match(/^(.+?)\s+(\d{5}-\d{7}-\d)$/);
+                if (nameCnicMatch) {
+                  parsedName = nameCnicMatch[1].trim();
+                  parsedCnic = nameCnicMatch[2];
+                }
+                
+                // Parse the mobile field to extract phone and account number
+                let parsedMobile = foundBroker.mobile || '';
+                let parsedAccount = foundBroker.accountNumber || '';
+                
+                // Check if account is embedded in mobile field (format: "phone /bank account")
+                const mobileAccountMatch = parsedMobile.match(/^(.+?)\s*\/\s*(.+)$/);
+                if (mobileAccountMatch) {
+                  parsedMobile = mobileAccountMatch[1].trim();
+                  parsedAccount = mobileAccountMatch[2].trim();
+                }
+                
+                brokerDetails = {
+                  name: parsedName,
+                  mobile: parsedMobile,
+                  cnic: parsedCnic,
+                  accountNumber: parsedAccount,
+                  address: foundBroker.address || '',
+                };
+              } else {
+                // Broker not found in database, parse the string
+                brokerDetails.name = searchName;
+                if (cnicMatch) {
+                  brokerDetails.cnic = cnicMatch[1];
+                }
+              }
+            } catch (searchError) {
+              console.warn('Failed to search brokers:', searchError);
+              // Fallback: parse the string manually
+              brokerDetails.name = searchName;
+              if (cnicMatch) {
+                brokerDetails.cnic = cnicMatch[1];
+              }
+            }
+          }
+        } catch (brokerError) {
+          console.warn('Failed to fetch broker details:', brokerError);
+          // Fallback to using the broker string as name
+          brokerDetails.name = firstLine.broker;
+        }
+      }
+
       return {
         invoiceNo: detailedInvoice.invoiceNo || '',
         paymentDate: detailedInvoice.paymentDate || '',
@@ -486,7 +614,7 @@ const BillPaymentInvoicesList = () => {
           nameCharges: line.nameCharges || '',
           amountCharges: Number(line.amountCharges) || 0,
         })),
-        broker: { name: firstLine?.broker || '' },
+        broker: brokerDetails,
       };
     } catch (error) {
       console.error('Failed to prepare PDF payload:', error);

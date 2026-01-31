@@ -214,8 +214,10 @@ const ConsignmentList = () => {
   const handleDeleteClose = () => { setOpenDelete(false); setDeleteId(''); };
 
   const handleRowClick = async (consignmentId: string) => {
-    if (selectedConsignmentIds.includes(consignmentId)) return;
-    setSelectedConsignmentIds([consignmentId]);
+    // Don't override existing selections - only add if not already selected
+    if (!selectedConsignmentIds.includes(consignmentId)) {
+      setSelectedConsignmentIds(prev => [...prev, consignmentId]);
+    }
     setSelectedRowId(consignmentId);
     setSelectedConsignmentForFiles(consignmentId);
     await fetchConsignmentDetails(consignmentId);
@@ -241,7 +243,8 @@ const ConsignmentList = () => {
 
   const handleCheckboxChange = async (consignmentId: string, checked: boolean) => {
     if (checked) {
-      setSelectedConsignmentIds([consignmentId]);
+      // Add to selection (support multiple selection)
+      setSelectedConsignmentIds(prev => [...prev, consignmentId]);
       setSelectedRowId(consignmentId);
       setSelectedConsignmentForFiles(consignmentId);
       const consignment = consignments.find(c => c.id === consignmentId);
@@ -253,10 +256,16 @@ const ConsignmentList = () => {
         } catch (err) { console.error(err); }
       }
     } else {
-      setSelectedConsignmentIds([]);
-      setSelectedRowId(null);
-      setBookingStatus(null);
-      setSelectedConsignmentForFiles(null);
+      // Remove from selection
+      const newSelection = selectedConsignmentIds.filter(id => id !== consignmentId);
+      setSelectedConsignmentIds(newSelection);
+      
+      // Clear everything if no items are selected
+      if (newSelection.length === 0) {
+        setSelectedRowId(null);
+        setBookingStatus(null);
+        setSelectedConsignmentForFiles(null);
+      }
     }
     setSelectedBulkStatus(checked ? consignments.find(c => c.id === consignmentId)?.status || null : null);
   };
@@ -361,10 +370,7 @@ const ConsignmentList = () => {
       setSelectedRowId(null);
       setBookingStatus(null);
       setSelectedConsignmentForFiles(null);
-      if (selectedStatusFilter !== newStatus) {
-        setSelectedStatusFilter(newStatus);
-        setPageIndex(0);
-      }
+      // Keep the current filter selection instead of auto-changing it
       toast('Status updated successfully', { type: 'success' });
       await fetchConsignments();
     } catch (err) {

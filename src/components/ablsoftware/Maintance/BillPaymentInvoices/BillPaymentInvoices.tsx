@@ -498,8 +498,21 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                   ))}
                 </tbody>
                 <tfoot className="bg-gray-200 dark:bg-gray-800 font-bold">
-                  <tr className="text-lg">
+                  <tr>
                     <td colSpan={2} className="px-4 py-3">Total Amount</td>
+                    <td className="px-4 py-3">{totalAmount.toLocaleString()}</td>
+                    {hasAdditionalLines && <td colSpan={2} className="px-4 py-3 text-right">{totalAdditional.toLocaleString()}</td>}
+                    <td colSpan={6}></td>
+                  </tr>
+                  {munshayanaDeduction > 0 && (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-3 text-red-600">Munshayana Deduction</td>
+                      <td className="px-4 py-3 text-red-600">-{munshayanaDeduction.toLocaleString()}</td>
+                      <td colSpan={6}></td>
+                    </tr>
+                  )}
+                  <tr className="text-lg">
+                    <td colSpan={2} className="px-4 py-3">Final Total</td>
                     <td colSpan={hasAdditionalLines ? 3 : 1} className="px-4 py-3 text-green-600">
                       {finalTotal.toLocaleString()}
                     </td>
