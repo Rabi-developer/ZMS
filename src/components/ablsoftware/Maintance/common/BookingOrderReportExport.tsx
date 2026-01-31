@@ -883,7 +883,7 @@ const BookingOrderReportExport: React.FC = () => {
                 <Button
                   onClick={exportBiltiesReceivable}
                   disabled={isLoading}
-                  className="w-full px-6 py-3 bg-rose-600 text-white text-sm font-bold rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50"
+                  className="w-full px-6 py-3 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-500 transition-colors disabled:opacity-50"
                 >
                   Export PDF
                 </Button>
