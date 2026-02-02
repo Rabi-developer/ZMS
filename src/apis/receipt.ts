@@ -21,14 +21,15 @@ const getAllReceipt  = async (pageIndex: any = 1, pageSize: any = 10000, p0?: { 
       method: 'GET',
       headers: {}, 
     }, true);
-        if (Array.isArray(response?.data)) {
-      response.data.sort((a: any, b: any) =>
-        (b.receiptNo ?? "").toString().localeCompare(
-          (a.receiptNo ?? "").toString(),
-          undefined,
-          { numeric: true, sensitivity: "base" }
-        )
-      );
+        if (response?.data && Array.isArray(response.data)) {
+      response.data.sort((a: any, b: any) => {
+        const aVal = a.receiptNo ?? a.ReceiptNo ?? 0;
+        const bVal = b.receiptNo ?? b.ReceiptNo ?? 0;
+        const aNum = typeof aVal === 'number' ? aVal : parseFloat(String(aVal).replace(/[^0-9.-]/g, '')) || 0;
+        const bNum = typeof bVal === 'number' ? bVal : parseFloat(String(bVal).replace(/[^0-9.-]/g, '')) || 0;
+        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        return String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+      });
     }
     return response;
   } catch (error: any) {

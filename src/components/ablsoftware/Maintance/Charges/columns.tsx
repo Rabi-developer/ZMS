@@ -27,6 +27,16 @@ export interface Charge {
   payNo: string;
   total: string;
   status: string;
+  lines?: {
+    charge?: string | number;
+    date?: string;
+    vehicle?: string;
+    amount?: number;
+    biltyNo?: string;
+    paidTo?: string;
+    contact?: string;
+    remarks?: string;
+  }[];
 }
 
 export const getStatusStyles = (status: string) => {

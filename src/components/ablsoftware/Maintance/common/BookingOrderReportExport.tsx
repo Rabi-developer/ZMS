@@ -450,34 +450,7 @@ const BookingOrderReportExport: React.FC = () => {
     toast.success("Excel generated");
   }, [data]);
 
-  const exportBiltiesReceivable = useCallback(async () => {
-    if (!data.length) {
-      toast.error("No data to export.");
-      return;
-    }
-    const receivableRows = data.filter(r => !r.isOrderRow && (!r.biltyNo || r.biltyNo === "-"));
-    if (!receivableRows.length) {
-      toast.info("No receivable entries.");
-      return;
-    }
-    const pdfRows = receivableRows.map(r => ({
-      serial: typeof r.serial === "number" ? r.serial : 0,
-      orderNo: r.orderNo,
-      orderDate: r.orderDate,
-      vehicleNo: r.vehicleNo,
-      consignor: r.consignor,
-      consignee: r.consignee,
-      carrier: r.carrier,
-      vendor: r.vendor,
-      departure: r.departure,
-      destination: r.destination,
-      vehicleType: "",
-      ablDate: r.ablDate || formatDate(r.orderDate) || "-",
-    }));
-    exportBiltiesReceivableToPDF({ rows: pdfRows, startDate: fromDate, endDate: toDate });
-    toast.success("Bilties Receivable PDF generated");
-  }, [data, fromDate, toDate]);
-
+  
   const exportBrokerBills = useCallback(async (type: 'Paid' | 'Unpaid') => {
     if (!billPaymentInvoices.length) {
       toast.error("No bill payment invoices found. Please generate report first.");
@@ -525,7 +498,7 @@ const BookingOrderReportExport: React.FC = () => {
           brokerBillRows.push({
             serial: serial++,
             orderNo: orderNo,
-            orderDate: inv.paymentDate, // Using invoice date as a reference
+            orderDate: inv.paymentDate,
             vehicleNo: line.vehicleNo || "-",
             brokerName: line.broker || "-",
             amount: invoiceAmount,
@@ -565,6 +538,81 @@ const BookingOrderReportExport: React.FC = () => {
     if (currentGroup) groups.push(currentGroup);
     return groups;
   }, [data, isGeneralView]);
+
+  // Build receivable and non-receivable order lists for Bilty tab
+  const { receivableOrders, nonReceivableOrders } = useMemo(() => {
+    if (!data.length) return { receivableOrders: [] as RowData[], nonReceivableOrders: [] as RowData[] };
+    const hasDetailRows = data.some(r => !r.isOrderRow);
+
+    if (hasDetailRows) {
+      // Group using same logic as detail
+      const groups: { order: RowData; consignments: RowData[] }[] = [];
+      let current: { order: RowData; consignments: RowData[] } | null = null;
+      data.forEach(r => {
+        if (r.isOrderRow) {
+          if (current) groups.push(current);
+          current = { order: r, consignments: [] };
+        } else if (current) {
+          current.consignments.push(r);
+        }
+      });
+      if (current) groups.push(current);
+      const receivable = groups.filter(g => g.consignments.length === 0).map(g => g.order);
+      const nonReceivable = groups.filter(g => g.consignments.length > 0).map(g => g.order);
+      return { receivableOrders: receivable, nonReceivableOrders: nonReceivable };
+    }
+
+    // General view rows: use qty as consignment count
+    const receivable = data.filter(r => r.isOrderRow && (Number.parseInt(String(r.qty || '0'), 10) || 0) === 0);
+    const nonReceivable = data.filter(r => r.isOrderRow && (Number.parseInt(String(r.qty || '0'), 10) || 0) > 0);
+    return { receivableOrders: receivable, nonReceivableOrders: nonReceivable };
+  }, [data]);
+
+  const exportReceivable = useCallback(async () => {
+    if (!receivableOrders.length) {
+      toast.info("No receivable orders in this date range.");
+      return;
+    }
+    const pdfRows = receivableOrders.map((o, idx) => ({
+      serial: idx + 1,
+      orderNo: o.orderNo,
+      orderDate: o.orderDate,
+      vehicleNo: o.vehicleNo,
+      consignor: o.consignor,
+      consignee: o.consignee,
+      carrier: o.carrier,
+      vendor: o.vendor,
+      departure: o.departure,
+      destination: o.destination,
+      vehicleType: "",
+      ablDate: o.ablDate || formatDate(o.orderDate) || "-",
+    }));
+    exportBiltiesReceivableToPDF({ rows: pdfRows, startDate: fromDate, endDate: toDate });
+    toast.success("Receivable PDF generated");
+  }, [receivableOrders, fromDate, toDate]);
+
+  const exportNonReceivable = useCallback(async () => {
+    if (!nonReceivableOrders.length) {
+      toast.info("No non-receivable orders in this date range.");
+      return;
+    }
+    const pdfRows = nonReceivableOrders.map((o, idx) => ({
+      serial: idx + 1,
+      orderNo: o.orderNo,
+      orderDate: o.orderDate,
+      vehicleNo: o.vehicleNo,
+      consignor: o.consignor,
+      consignee: o.consignee,
+      carrier: o.carrier,
+      vendor: o.vendor,
+      departure: o.departure,
+      destination: o.destination,
+      vehicleType: "",
+      ablDate: o.ablDate || formatDate(o.orderDate) || "-",
+    }));
+    exportBiltiesReceivableToPDF({ rows: pdfRows, startDate: fromDate, endDate: toDate });
+    toast.success("Non-Receivable PDF generated");
+  }, [nonReceivableOrders, fromDate, toDate]);
 
   const detailHeaderColumns = [
     { label: "SNo", width: "w-16" },
@@ -880,20 +928,104 @@ const BookingOrderReportExport: React.FC = () => {
         )}
 
         {activeTab === "bilty" && (
-          <div className="mb-8">
+          <div className="mb-8 space-y-8">
             <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-              <div className="p-6 border-b border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900">Bilties Receivable Report</h3>
-                <p className="text-sm text-gray-500">Export the Bilties Receivable report as PDF.</p>
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Non-Receivable Bilty</h3>
+                  <p className="text-sm text-gray-500">Orders without any consignment added.</p>
+                </div>
+                <div>
+                  <Button
+                    onClick={exportReceivable}
+                    disabled={isLoading}
+                    className="px-6 py-3 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    Receivable PDF
+                  </Button>
+                </div>
               </div>
               <div className="p-6">
-                <Button
-                  onClick={exportBiltiesReceivable}
-                  disabled={isLoading}
-                  className="w-full px-6 py-3 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-500 transition-colors disabled:opacity-50"
-                >
-                  Export PDF
-                </Button>
+                {receivableOrders.length ? (
+                  <div className="overflow-x-auto max-h-[400px]">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SNo</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Order No</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Order Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vehicle No</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vendor</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Route</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {receivableOrders.map((o, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 text-xs text-gray-900">{idx + 1}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.orderNo}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.orderDate}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.vehicleNo}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.vendor}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{`${o.departure} → ${o.destination}`}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">No receivable orders in this date range.</div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Receivable Bilty</h3>
+                  <p className="text-sm text-gray-500">Orders with at least one consignment added.</p>
+                </div>
+                <div>
+                  <Button
+                    onClick={exportNonReceivable}
+                    disabled={isLoading}
+                    className="px-6 py-3 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    Non-Receivable PDF
+                  </Button>
+                </div>
+              </div>
+              <div className="p-6">
+                {nonReceivableOrders.length ? (
+                  <div className="overflow-x-auto max-h-[400px]">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SNo</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Order No</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Order Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vehicle No</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vendor</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Route</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {nonReceivableOrders.map((o, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 text-xs text-gray-900">{idx + 1}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.orderNo}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.orderDate}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.vehicleNo}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.vendor}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{`${o.departure} → ${o.destination}`}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">No non-receivable orders in this date range.</div>
+                )}
               </div>
             </div>
           </div>

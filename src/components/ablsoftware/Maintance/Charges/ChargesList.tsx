@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash, FaFilePdf } from 'react-icons/fa';
@@ -10,11 +10,14 @@ import {
   getAllCharges,
   deleteCharges,
   updateChargesStatus,
-  updateChargesFiles, // ← Make sure this API exists
+  updateChargesFiles,
 } from '@/apis/charges';
 import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
+import { getAllMunshyana } from '@/apis/munshyana';
 import { columns, Charge } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
+import { exportChargesReportToPDF, ChargeReportRow } from '@/components/ablsoftware/Maintance/common/ChargesReportPdf';
+import { exportChargesReportToExcel } from '@/components/ablsoftware/Maintance/common/ChargesReportExcel';
 
 interface UploadedFile {
   id: string;
@@ -41,6 +44,21 @@ const ChargesList = () => {
   const [updating, setUpdating] = useState(false);
   const [consignments, setConsignments] = useState<any[]>([]);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [munshyanas, setMunshyanas] = useState<{ id: string; name: string }[]>([]);
+
+  const getChargeTypeName = useCallback((chargeId: string | number | undefined | null) => {
+    if (chargeId === undefined || chargeId === null) return '-';
+    const idStr = String(chargeId);
+    return munshyanas.find(m => m.id === idStr)?.name || idStr;
+  }, [munshyanas]);
+
+  // Reporting States
+  const [openReportModal, setOpenReportModal] = useState(false);
+  const [reportStartDate, setReportStartDate] = useState('');
+  const [reportEndDate, setReportEndDate] = useState('');
+  const [reportFilterType, setReportFilterType] = useState<'All' | 'ChargeType' | 'OrderNo'>('All');
+  const [reportSelectedChargeType, setReportSelectedChargeType] = useState('All');
+  const [reportSelectedOrderNo, setReportSelectedOrderNo] = useState('All');
 
   // File Upload States
   const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
@@ -72,7 +90,17 @@ const ChargesList = () => {
     try {
       setLoading(true);
       const apiPageIndex = pageIndex + 1;
-      const response = await getAllCharges(apiPageIndex, pageSize);
+      const [response, munRes] = await Promise.all([
+        getAllCharges(apiPageIndex, pageSize),
+        getAllMunshyana(1, 1000)
+      ]);
+
+      if (munRes?.data) {
+        setMunshyanas(munRes.data.map((m: any) => ({
+          id: String(m.id),
+          name: m.chargesDesc || m.name || '-'
+        })));
+      }
 
       const transformedCharges = (response?.data || []).map((charge: any) => {
         const lines = charge.lines || [];
@@ -295,6 +323,110 @@ const ChargesList = () => {
     }));
   };
 
+  // --- REPORTING LOGIC ---
+  const uniqueChargeTypes = useMemo(() => {
+    // Build unique list of charge type IDs and their display names
+    const typeMap = new Map<string, string>();
+    charges.forEach(c => {
+      (c.lines || []).forEach((l: any) => {
+        if (l.charge) {
+          const idStr = String(l.charge);
+          if (!typeMap.has(idStr)) {
+            typeMap.set(idStr, getChargeTypeName(idStr));
+          }
+        }
+      });
+    });
+    // Return array of { id, name } sorted by name
+    return Array.from(typeMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [charges, getChargeTypeName]);
+
+  const uniqueOrderNos = useMemo(() => {
+    const nos = new Set<string>();
+    charges.forEach(c => {
+      if (c.orderNo && c.orderNo !== '-') nos.add(c.orderNo);
+    });
+    return Array.from(nos).sort();
+  }, [charges]);
+
+  const handleExportReport = async (format: 'PDF' | 'EXCEL') => {
+    let filteredRows: ChargeReportRow[] = [];
+    const withinDate = (d: string) => {
+      if (!reportStartDate && !reportEndDate) return true;
+      const dt = new Date(d).getTime();
+      const start = reportStartDate ? new Date(reportStartDate).getTime() : 0;
+      const end = reportEndDate ? new Date(reportEndDate).getTime() : Infinity;
+      return dt >= start && dt <= end;
+    };
+
+    if (reportFilterType === 'ChargeType') {
+      charges.forEach(c => {
+        (c.lines || []).forEach((l: any) => {
+          if (withinDate(l.date) && (reportSelectedChargeType === 'All' || String(l.charge) === String(reportSelectedChargeType))) {
+            filteredRows.push({
+              chargeNo: c.chargeNo,
+              chargeName: getChargeTypeName(l.charge),
+              date: l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-',
+              orderNo: c.orderNo || '',
+              vehicleNo: l.vehicle || '-',
+              amount: Number(l.amount) || 0
+            });
+          }
+        });
+      });
+    } else if (reportFilterType === 'OrderNo') {
+      const orders = reportSelectedOrderNo === 'All' ? uniqueOrderNos : [reportSelectedOrderNo];
+      orders.forEach(ono => {
+        const orderCharges = charges.filter(c => c.orderNo === ono);
+        orderCharges.forEach(c => {
+          (c.lines || []).forEach((l: any, idx: number) => {
+            if (withinDate(l.date)) {
+              filteredRows.push({
+                chargeNo: idx === 0 ? c.chargeNo : '', // Only show chargeNo on first line for order
+                chargeName: getChargeTypeName(l.charge),
+                date: l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-',
+                orderNo: idx === 0 ? (c.orderNo || '') : '', // Only show orderNo on first line
+                vehicleNo: l.vehicle || '-',
+                amount: Number(l.amount) || 0
+              });
+            }
+          });
+        });
+      });
+    } else {
+      // All
+      charges.forEach(c => {
+        (c.lines || []).forEach((l: any) => {
+          if (withinDate(l.date)) {
+            filteredRows.push({
+              chargeNo: c.chargeNo,
+              chargeName: getChargeTypeName(l.charge),
+              date: l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-',
+              orderNo: c.orderNo || '',
+              vehicleNo: l.vehicle || '-',
+              amount: Number(l.amount) || 0
+            });
+          }
+        });
+      });
+    }
+
+    if (filteredRows.length === 0) {
+      toast.info('No data found for the selected criteria');
+      return;
+    }
+
+    const typeLabel = reportFilterType === 'ChargeType' ? `CHarge (${reportSelectedChargeType})` : reportFilterType === 'OrderNo' ? `Order (${reportSelectedOrderNo})` : 'CHARGES';
+    
+    if (format === 'PDF') {
+      await exportChargesReportToPDF(filteredRows, typeLabel, reportStartDate, reportEndDate);
+    } else {
+      await exportChargesReportToExcel(filteredRows, typeLabel, reportStartDate, reportEndDate);
+    }
+  };
+
   const handleBulkStatusUpdate = async (newStatus: string) => {
     if (!selectedChargeIds.length) {
       toast('Please select at least one charge', { type: 'warning' });
@@ -451,9 +583,14 @@ const ChargesList = () => {
             Refresh
           </button>
         </div>
-        <button onClick={exportToExcel} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
-          <FaFileExcel size={18} /> Download Excel
-        </button>
+        <div className="flex gap-4">
+          <button onClick={() => setOpenReportModal(true)} className="flex items-center gap-2 bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 rounded shadow-md transition-all">
+            <FaFilePdf size={18} /> Reports
+          </button>
+          <button onClick={exportToExcel} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow-md transition-all">
+            <FaFileExcel size={18} /> Download Excel
+          </button>
+        </div>
       </div>
 
       <DataTable
@@ -567,6 +704,87 @@ const ChargesList = () => {
               >
                 {loading ? 'Saving...' : 'Save to Charge'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REPORT MODAL */}
+      {openReportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4" onClick={(e) => e.target === e.currentTarget && setOpenReportModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <h3 className="text-2xl font-bold text-gray-800">Generate Charges Report</h3>
+              <button onClick={() => setOpenReportModal(false)} className="text-3xl text-gray-400 hover:text-gray-600 transition-colors">&times;</button>
+            </div>
+
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Start Date</label>
+                  <input type="date" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">End Date</label>
+                  <input type="date" value={reportEndDate} onChange={e => setReportEndDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Filter Type</label>
+                <select 
+                  value={reportFilterType} 
+                  onChange={e => setReportFilterType(e.target.value as any)}
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none appearance-none bg-no-repeat bg-[right_1rem_center] bg-[length:1em] transition-all"
+                >
+                  <option value="All">All Charges</option>
+                  <option value="ChargeType">By Charge Type</option>
+                  <option value="OrderNo">By Order Number</option>
+                </select>
+              </div>
+
+              {reportFilterType === 'ChargeType' && (
+                <div className="animate-in slide-in-from-top-2 duration-200">
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Charge</label>
+                  <select 
+                    value={reportSelectedChargeType} 
+                    onChange={e => setReportSelectedChargeType(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
+                  >
+                    <option value="All">All Types</option>
+                    {uniqueChargeTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {reportFilterType === 'OrderNo' && (
+                <div className="animate-in slide-in-from-top-2 duration-200">
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Order No</label>
+                  <select 
+                    value={reportSelectedOrderNo} 
+                    onChange={e => setReportSelectedOrderNo(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
+                  >
+                    <option value="All">All Orders</option>
+                    {uniqueOrderNos.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex gap-4 pt-4">
+                <button 
+                  onClick={() => handleExportReport('PDF')}
+                  className="flex-1 flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white p-4 rounded-xl font-bold shadow-lg hover:shadow-rose-500/30 transition-all"
+                >
+                  <FaFilePdf size={20} /> Export PDF
+                </button>
+                <button 
+                  onClick={() => handleExportReport('EXCEL')}
+                  className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all"
+                >
+                  <FaFileExcel size={20} /> Export Excel
+                </button>
+              </div>
             </div>
           </div>
         </div>
