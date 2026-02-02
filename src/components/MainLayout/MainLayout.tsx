@@ -21,6 +21,20 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
     }
   }, [router]);
 
+  // Add/remove abl-interface class to body based on active interface
+  useEffect(() => {
+    if (activeInterface === 'ABL') {
+      document.body.classList.add('abl-interface');
+    } else {
+      document.body.classList.remove('abl-interface');
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('abl-interface');
+    };
+  }, [activeInterface]);
+
   useEffect(() => {
     const handleScroll = () => {
       if (contentRef.current) {
@@ -71,7 +85,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#f6f6f6] flex flex-col md:flex-row overflow-hidden scrollbar-thin scrollbar-rounded dark:bg-black">
+    <div className={`min-h-[100dvh] bg-[#f6f6f6] flex flex-col md:flex-row overflow-hidden dark:bg-black ${activeInterface === 'ABL' ? 'scrollbar-abl' : 'scrollbar-zms'}`}>
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
@@ -84,8 +98,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
           ${isSidebarCollapsed ? 'md:w-[70px]' : 'md:w-[310px]'}
           ${isSidebarOpen ? 'w-[310px]' : 'w-0'}
           md:w-auto
-          scrollbar-custom
-          ${activeInterface === 'ABL' ? 'bg-white dark:bg-[#1a2a22]' : 'bg-white dark:bg-[#030630]'}`}
+          ${activeInterface === 'ABL' ? 'scrollbar-abl bg-white dark:bg-[#1a2a22]' : 'scrollbar-zms bg-white dark:bg-[#030630]'}`}
       >
         <Sidebar
           isCollapsed={isSidebarCollapsed}
@@ -107,7 +120,8 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
         </div>
         <div
           ref={contentRef}
-          className={`flex-1 pt-28 px-6 transition-all duration-300 overflow-y-auto scrollbar-thin scrollbar-rounded
+          className={`flex-1 pt-28 px-6 transition-all duration-300 overflow-y-auto
+            ${activeInterface === 'ABL' ? 'scrollbar-abl' : 'scrollbar-zms'}
             ${isSidebarCollapsed ? 'md:ml-[70px]' : 'md:ml-[320px]'}
             ml-0 min-h-[calc(100dvh-7rem)] md:min-h-[100dvh]`}
         >

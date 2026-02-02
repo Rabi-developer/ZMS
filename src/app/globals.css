@@ -48,11 +48,140 @@ body.dark {
   --foreground: var(--foreground-dark);
 }
 
+/* Apply GREEN scrollbar to html and body (default for all pages) */
+html,
+body {
+  scrollbar-width: thin;
+  scrollbar-color: #3a614c #e8f5e9;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: #e8f5e9;
+  border-radius: 10px;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #3a614c 0%, #2d4d3c 100%);
+  border-radius: 10px;
+  border: 2px solid #e8f5e9;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #2d4d3c 0%, #1f3329 100%);
+}
+
+/* ABL Interface - Green Scrollbar for all scrollable elements */
+body.abl-interface *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+body.abl-interface *::-webkit-scrollbar-track {
+  background: #e8f5e9;
+  border-radius: 10px;
+}
+
+body.abl-interface *::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #3a614c 0%, #2d4d3c 100%);
+  border-radius: 10px;
+  border: 2px solid #e8f5e9;
+}
+
+body.abl-interface *::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #2d4d3c 0%, #1f3329 100%);
+}
+
+body.abl-interface * {
+  scrollbar-width: thin;
+  scrollbar-color: #3a614c #e8f5e9;
+}
+
 .sidebar {
   background-color: #ededf0;
 }
 
 @layer utilities {
+  /* ========================================
+     ZMS SCROLLBAR STYLING (BLUE THEME)
+     ======================================== */
+  
+  /* Default ZMS Scrollbar - Blue Theme */
+  .scrollbar-zms {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #e0f2fe;
+  }
+
+  .scrollbar-zms::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .scrollbar-zms::-webkit-scrollbar-track {
+    background: #e0f2fe;
+    border-radius: 10px;
+  }
+
+  .scrollbar-zms::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    border-radius: 10px;
+    border: 2px solid #e0f2fe;
+  }
+
+  .scrollbar-zms::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  }
+
+  .scrollbar-zms::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+  }
+
+  /* ========================================
+     ABL SCROLLBAR STYLING (GREEN THEME)
+     ======================================== */
+  
+  /* ABL Scrollbar - Green Theme */
+  .scrollbar-abl {
+    scrollbar-width: thin;
+    scrollbar-color: #3a614c #e8f5e9 !important;
+  }
+
+  .scrollbar-abl::-webkit-scrollbar {
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  .scrollbar-abl::-webkit-scrollbar-track {
+    background: #e8f5e9 !important;
+    border-radius: 10px !important;
+  }
+
+  .scrollbar-abl::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #3a614c 0%, #2d4d3c 100%) !important;
+    border-radius: 10px !important;
+    border: 2px solid #e8f5e9 !important;
+  }
+
+  .scrollbar-abl::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #2d4d3c 0%, #1f3329 100%) !important;
+  }
+
+  .scrollbar-abl::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #1f3329 0%, #152419 100%) !important;
+  }
+
+  /* ========================================
+     LEGACY SCROLLBAR STYLES (KEEP FOR COMPATIBILITY)
+     ======================================== */
+  
   /* Scrollbar Styling */
   .scrollbar-thin {
     scrollbar-width: thin;
