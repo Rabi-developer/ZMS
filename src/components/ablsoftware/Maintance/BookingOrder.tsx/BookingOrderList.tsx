@@ -911,6 +911,9 @@ const BookingOrderList = () => {
     <WithTablePermission resource="BookingOrder">
       <div className="container mx-auto mt-4 max-w-screen p-6">
         <div className="h-full w-full flex flex-col">
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold text-gray-800">Booking Orders</h1>
+          </div>
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center">

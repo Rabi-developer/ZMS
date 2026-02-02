@@ -66,7 +66,7 @@ const transformBiltyPaymentInvoice = (apiData: ApiBiltyPaymentInvoice[]): BillPa
       invoiceNo: item.invoiceNo,
       paymentDate: item.paymentDate,
       totalAmount: firstLine.amount?.toString() || '0',
-      status: item.status || 'Unpaid',
+      status: item.status || 'Prepared',
       vehicleNo: firstLine.vehicleNo || '',
       orderNo: firstLine.orderNo || '',
       amount: firstLine.amount?.toString() || '0',
@@ -659,6 +659,15 @@ const BillPaymentInvoicesList = () => {
 
   return (
     <div className="container mx-auto mt-4 max-w-screen p-6">
+      <div className="mb-6">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-6 shadow-lg">
+          <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -bottom-12 -left-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold text-gray-800">Bilty Payment Invoice</h1>
+          </div>
+        </div>
+      </div>
       <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <div className="flex items-center">

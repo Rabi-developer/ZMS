@@ -32,6 +32,8 @@ const ChargesList = () => {
 
   const [charges, setCharges] = useState<Charge[]>([]);
   const [filteredCharges, setFilteredCharges] = useState<Charge[]>([]);
+  // Keep raw API charges (includes lines) to use in reporting without violating types
+  const [chargesRaw, setChargesRaw] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
   const [deleteId, setDeleteId] = useState('');
@@ -101,6 +103,9 @@ const ChargesList = () => {
           name: m.chargesDesc || m.name || '-'
         })));
       }
+
+      // Preserve raw data for reporting (lines etc.)
+      setChargesRaw(response?.data || []);
 
       const transformedCharges = (response?.data || []).map((charge: any) => {
         const lines = charge.lines || [];
@@ -325,9 +330,9 @@ const ChargesList = () => {
 
   // --- REPORTING LOGIC ---
   const uniqueChargeTypes = useMemo(() => {
-    // Build unique list of charge type IDs and their display names
+    // Build unique list of charge type IDs and their display names from raw data
     const typeMap = new Map<string, string>();
-    charges.forEach(c => {
+    chargesRaw.forEach((c: any) => {
       (c.lines || []).forEach((l: any) => {
         if (l.charge) {
           const idStr = String(l.charge);
@@ -341,7 +346,7 @@ const ChargesList = () => {
     return Array.from(typeMap.entries())
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [charges, getChargeTypeName]);
+  }, [chargesRaw, getChargeTypeName]);
 
   const uniqueOrderNos = useMemo(() => {
     const nos = new Set<string>();
@@ -362,14 +367,14 @@ const ChargesList = () => {
     };
 
     if (reportFilterType === 'ChargeType') {
-      charges.forEach(c => {
+      chargesRaw.forEach((c: any) => {
         (c.lines || []).forEach((l: any) => {
           if (withinDate(l.date) && (reportSelectedChargeType === 'All' || String(l.charge) === String(reportSelectedChargeType))) {
             filteredRows.push({
               chargeNo: c.chargeNo,
               chargeName: getChargeTypeName(l.charge),
               date: l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-',
-              orderNo: c.orderNo || '',
+              orderNo: c.orderNo,
               vehicleNo: l.vehicle || '-',
               amount: Number(l.amount) || 0
             });
@@ -379,15 +384,15 @@ const ChargesList = () => {
     } else if (reportFilterType === 'OrderNo') {
       const orders = reportSelectedOrderNo === 'All' ? uniqueOrderNos : [reportSelectedOrderNo];
       orders.forEach(ono => {
-        const orderCharges = charges.filter(c => c.orderNo === ono);
-        orderCharges.forEach(c => {
+        const orderCharges = chargesRaw.filter((c: any) => c.orderNo === ono);
+        orderCharges.forEach((c: any) => {
           (c.lines || []).forEach((l: any, idx: number) => {
             if (withinDate(l.date)) {
               filteredRows.push({
                 chargeNo: idx === 0 ? c.chargeNo : '', // Only show chargeNo on first line for order
                 chargeName: getChargeTypeName(l.charge),
                 date: l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-',
-                orderNo: idx === 0 ? (c.orderNo || '') : '', // Only show orderNo on first line
+                orderNo: idx === 0 ? c.orderNo : '', // Only show orderNo on first line
                 vehicleNo: l.vehicle || '-',
                 amount: Number(l.amount) || 0
               });
@@ -397,14 +402,14 @@ const ChargesList = () => {
       });
     } else {
       // All
-      charges.forEach(c => {
+      chargesRaw.forEach((c: any) => {
         (c.lines || []).forEach((l: any) => {
           if (withinDate(l.date)) {
             filteredRows.push({
               chargeNo: c.chargeNo,
               chargeName: getChargeTypeName(l.charge),
               date: l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-',
-              orderNo: c.orderNo || '',
+              orderNo: c.orderNo,
               vehicleNo: l.vehicle || '-',
               amount: Number(l.amount) || 0
             });
@@ -418,7 +423,8 @@ const ChargesList = () => {
       return;
     }
 
-    const typeLabel = reportFilterType === 'ChargeType' ? `CHarge (${reportSelectedChargeType})` : reportFilterType === 'OrderNo' ? `Order (${reportSelectedOrderNo})` : 'CHARGES';
+    const selectedTypeLabel = reportSelectedChargeType === 'All' ? 'All' : getChargeTypeName(reportSelectedChargeType);
+    const typeLabel = reportFilterType === 'ChargeType' ? `CHARGE (${selectedTypeLabel})` : reportFilterType === 'OrderNo' ? `Order (${reportSelectedOrderNo})` : 'CHARGES';
     
     if (format === 'PDF') {
       await exportChargesReportToPDF(filteredRows, typeLabel, reportStartDate, reportEndDate);
@@ -568,6 +574,9 @@ const ChargesList = () => {
   return (
     <div className="container mx-auto mt-4 max-w-screen p-6">
       <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
+         <div className="mb-4">
+            <h1 className="text-2xl font-bold text-gray-800">Charges</h1>
+          </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center">
             <label className="text-sm font-medium text-gray-700 mr-2">Filter by Status:</label>

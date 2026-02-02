@@ -374,6 +374,9 @@ const EntryVoucherList = () => {
 
   return (
     <div className="container mx-auto mt-4 p-6">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-gray-800">Entry Vouchers</h1>
+      </div>
       {/* Header */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">

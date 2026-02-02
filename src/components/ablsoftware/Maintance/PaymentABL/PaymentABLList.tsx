@@ -355,6 +355,9 @@ const PaymentABLList = () => {
 
   return (
     <div className="container mx-auto mt-4 max-w-screen p-6">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-gray-800">Payment ABL</h1>
+      </div>
       <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <div className="flex items-center">
