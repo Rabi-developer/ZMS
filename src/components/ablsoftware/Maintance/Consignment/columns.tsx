@@ -111,6 +111,10 @@ export const columns = (
     header: '',
     accessorKey: 'name',
   },
+   {
+    header: 'Vehicle No',
+    accessorKey: 'vehicleNo',
+  },
   {
     header: 'Status',
     accessorKey: 'status',
