@@ -614,7 +614,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const response = await getSingleEntryVoucher(id);
             const voucher = response.data;
 
-            setValue('voucherNo', voucher.voucherNo || '');
+            setValue('voucherNo', String(voucher.voucherNo || ''));
             setValue('voucherDate', voucher.voucherDate || '');
             setValue('referenceNo', voucher.referenceNo || '');
             setValue('chequeNo', voucher.chequeNo || '');
