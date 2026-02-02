@@ -150,12 +150,38 @@ interface HierarchicalDropdownProps {
   setValue: UseFormSetValue<VoucherFormData>;
   name: string;
   index?: number;
+  initialAccountId?: string;
 }
 
-const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, onSelect, setValue, name, index }) => {
+const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, onSelect, setValue, name, index, initialAccountId }) => {
   const [selectionPath, setSelectionPath] = useState<string[]>([]); // Tracks selected IDs at each level
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearchList, setShowSearchList] = useState(false);
+
+  // Build path to an account by ID
+  const buildPathToAccount = (targetId: string, nodes: Account[], currentPath: string[] = []): string[] | null => {
+    for (const node of nodes) {
+      const newPath = [...currentPath, node.id];
+      if (node.id === targetId) {
+        return newPath;
+      }
+      if (node.children && node.children.length > 0) {
+        const found = buildPathToAccount(targetId, node.children, newPath);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Initialize selection path when initialAccountId is provided
+  useEffect(() => {
+    if (initialAccountId && accounts.length > 0 && selectionPath.length === 0) {
+      const path = buildPathToAccount(initialAccountId, accounts);
+      if (path) {
+        setSelectionPath(path);
+      }
+    }
+  }, [initialAccountId, accounts]);
 
   // Build a flat list of leaf accounts for fast searching
   type FlatLeaf = { id: string; label: string; pathIds: string[]; pathLabels: string[] };
@@ -386,6 +412,20 @@ const findAccountById = (id: string, accounts: Account[]): Account | null => {
   return walk(accounts);
 };
 
+const findAccountByDescription = (description: string, accounts: Account[]): Account | null => {
+  const walk = (nodes: Account[]): Account | null => {
+    for (const node of nodes) {
+      if (node.description === description) return node;
+      if (node.children.length > 0) {
+        const found = walk(node.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return walk(accounts);
+};
+
 const getAccountType = (id: string, accounts: Account[]): string | null => {
   const walk = (nodes: Account[], parentType: string): string | null => {
     for (const node of nodes) {
@@ -605,7 +645,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   }, [setValue, isEdit]);
 
   useEffect(() => {
-    if (isEdit) {
+    if (isEdit && topLevelAccounts.length > 0) {
       const fetchVoucher = async () => {
         setIsLoading(true);
         const id = window.location.pathname.split('/').pop();
@@ -629,15 +669,24 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             const loadedTableData = (voucher.voucherDetails && voucher.voucherDetails.length
               ? voucher.voucherDetails
               : [{ account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 }]
-            ).map((d: any) => ({
-              account1: d.account1 || '',
-              debit1: Number(d.debit1 || 0),
-              credit1: Number(d.credit1 || 0),
-              narration: d.narration || '',
-              account2: d.account2 || '',
-              debit2: Number(d.debit2 || 0),
-              credit2: Number(d.credit2 || 0),
-            }));
+            ).map((d: any) => {
+              // Try to find account by description first, then by ID
+              const acc1 = findAccountByDescription(d.account1, topLevelAccounts) || findAccountById(d.account1, topLevelAccounts);
+              const acc2 = findAccountByDescription(d.account2, topLevelAccounts) || findAccountById(d.account2, topLevelAccounts);
+              
+              console.log('Loading account1:', d.account1, 'Found:', acc1);
+              console.log('Loading account2:', d.account2, 'Found:', acc2);
+              
+              return {
+                account1: acc1?.id || '',
+                debit1: Number(d.debit1 || 0),
+                credit1: Number(d.credit1 || 0),
+                narration: d.narration || '',
+                account2: acc2?.id || '',
+                debit2: Number(d.debit2 || 0),
+                credit2: Number(d.credit2 || 0),
+              };
+            });
             setValue('tableData', loadedTableData);
 
             const loadedSelected = loadedTableData.map((row: any) => ({
@@ -990,6 +1039,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               setValue={setValue}
                               name="account1"
                               index={index}
+                              initialAccountId={row.account1}
                             />
                             {errors.tableData?.[index]?.account1 && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account1?.message}</p>
@@ -1038,6 +1088,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               setValue={setValue}
                               name="account2"
                               index={index}
+                              initialAccountId={row.account2}
                             />
                             {errors.tableData?.[index]?.account2 && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account2?.message}</p>
