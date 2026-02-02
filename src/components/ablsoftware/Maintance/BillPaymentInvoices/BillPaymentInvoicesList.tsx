@@ -95,6 +95,7 @@ const BillPaymentInvoicesList = () => {
   const [consignments, setConsignments] = useState<any[]>([]);
   const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [selectedBroker, setSelectedBroker] = useState<{ name: string; cnic: string; mobile: string; accountNumber: string; address: string } | null>(null);
 
   // File Upload States
   const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
@@ -195,6 +196,24 @@ const BillPaymentInvoicesList = () => {
       setBookingStatus(null);
     }
     setSelectedBulkStatus(billPayment?.status || null);
+
+    // Resolve broker details and show them in a table
+    try {
+      const payload = await preparePdfPayload(billPaymentId);
+      if (payload?.broker) {
+        setSelectedBroker({
+          name: payload.broker.name || '',
+          cnic: payload.broker.cnic || '',
+          mobile: payload.broker.mobile || '',
+          accountNumber: payload.broker.accountNumber || '',
+          address: payload.broker.address || '',
+        });
+      } else {
+        setSelectedBroker(null);
+      }
+    } catch {
+      setSelectedBroker(null);
+    }
   };
 
   const handleRowDoubleClick = () => {
@@ -204,6 +223,7 @@ const BillPaymentInvoicesList = () => {
     setBookingStatus(null);
     setSelectedBulkStatus(null);
     setSelectedBillPaymentForFiles(null);
+    setSelectedBroker(null);
   };
 
   const handleCheckboxChange = async (billPaymentId: string, checked: boolean) => {
@@ -681,13 +701,31 @@ const BillPaymentInvoicesList = () => {
         onRowDoubleClick={handleRowDoubleClick}
       />
 
-      {selectedRowId && (
+      {selectedBroker && (
         <div className="mt-6">
-          <OrderProgress
-            orderNo={billPaymentInvoices.find(b => b.id === selectedRowId)?.orderNo}
-            bookingStatus={bookingStatus}
-            consignments={consignments}
-          />
+          <h3 className="text-lg font-semibold text-[#3a614c] mb-3">Broker Detail</h3>
+          <div className="overflow-x-auto rounded border">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Name</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">CNIC</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Mobile No</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Account No</th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold text-gray-700">Address</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                <tr>
+                  <td className="px-4 py-2 text-sm text-gray-800">{selectedBroker.name || '-'}</td>
+                  <td className="px-4 py-2 text-sm text-gray-800">{selectedBroker.cnic || '-'}</td>
+                  <td className="px-4 py-2 text-sm text-gray-800">{selectedBroker.mobile || '-'}</td>
+                  <td className="px-4 py-2 text-sm text-gray-800">{selectedBroker.accountNumber || '-'}</td>
+                  <td className="px-4 py-2 text-sm text-gray-800">{selectedBroker.address || '-'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
