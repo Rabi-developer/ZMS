@@ -68,6 +68,13 @@ const EntryVoucherList = () => {
   ];
 
   const displayAccount = (value: string) => accountIndex[value]?.description || value || '-';
+  const displayPaidTo = (val?: string) => {
+    if (!val) return '-';
+    const acc = accountIndex[val];
+    if (acc?.description) return acc.description;
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+    return isUUID ? '-' : val;
+  };
 
   const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
     setPageIndex(typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex);
@@ -354,7 +361,7 @@ const EntryVoucherList = () => {
     const rows = data.map(v => ({
       'Voucher No': v.voucherNo || '-',
       'Date': v.voucherDate || '-',
-      'Paid To': displayAccount(v.paidTo),
+      'Paid To': displayPaidTo(v.paidTo),
       'Debit': v.totalDebit || '-',
       'Credit': v.totalCredit || '-',
       'Status': v.status || '-',
@@ -436,27 +443,39 @@ const EntryVoucherList = () => {
                   <div><strong>Voucher No:</strong> {expandedVoucherDetails.voucherNo}</div>
                   <div><strong>Date:</strong> {expandedVoucherDetails.voucherDate}</div>
                   <div><strong>Mode:</strong> {expandedVoucherDetails.paymentMode}</div>
-                  <div><strong>Paid To:</strong> {displayAccount(expandedVoucherDetails.paidTo)}</div>
+                  <div><strong>Paid To:</strong> {displayPaidTo(expandedVoucherDetails.paidTo)}</div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm border">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="border px-3 py-2 text-left">Account</th>
+                        <th className="border px-3 py-2 text-left">Account 1</th>
+                        <th className="border px-3 py-2 text-right">Debit</th>
+                        <th className="border px-3 py-2 text-right">Credit</th>
+                        <th className="border px-3 py-2 text-left">Account 2</th>
                         <th className="border px-3 py-2 text-right">Debit</th>
                         <th className="border px-3 py-2 text-right">Credit</th>
                         <th className="border px-3 py-2 text-left">Narration</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(expandedVoucherDetails.voucherDetails || []).map((d: any, i: number) => (
-                        <tr key={i}>
-                          <td className="border px-3 py-2">{displayAccount(d.account1 || d.account2)}</td>
-                          <td className="border px-3 py-2 text-right">{Number(d.debit1 || d.debit2 || 0).toLocaleString()}</td>
-                          <td className="border px-3 py-2 text-right">{Number(d.credit1 || d.credit2 || 0).toLocaleString()}</td>
-                          <td className="border px-3 py-2">{d.narration || '-'}</td>
-                        </tr>
-                      ))}
+                      {(expandedVoucherDetails.voucherDetails || []).map((d: any, i: number) => {
+                        const debit1 = Number(d.debit1 || 0);
+                        const credit1 = Number(d.credit1 || 0);
+                        const debit2 = Number(d.debit2 || 0);
+                        const credit2 = Number(d.credit2 || 0);
+                        return (
+                          <tr key={i}>
+                            <td className="border px-3 py-2">{displayAccount(d.account1)}</td>
+                            <td className="border px-3 py-2 text-right">{debit1 ? debit1.toLocaleString() : ''}</td>
+                            <td className="border px-3 py-2 text-right">{credit1 ? credit1.toLocaleString() : ''}</td>
+                            <td className="border px-3 py-2">{displayAccount(d.account2)}</td>
+                            <td className="border px-3 py-2 text-right">{debit2 ? debit2.toLocaleString() : ''}</td>
+                            <td className="border px-3 py-2 text-right">{credit2 ? credit2.toLocaleString() : ''}</td>
+                            <td className="border px-3 py-2">{d.narration || '-'}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

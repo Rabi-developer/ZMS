@@ -58,9 +58,10 @@ const ChargesList = () => {
   const [openReportModal, setOpenReportModal] = useState(false);
   const [reportStartDate, setReportStartDate] = useState('');
   const [reportEndDate, setReportEndDate] = useState('');
-  const [reportFilterType, setReportFilterType] = useState<'All' | 'ChargeType' | 'OrderNo'>('All');
-  const [reportSelectedChargeType, setReportSelectedChargeType] = useState('All');
-  const [reportSelectedOrderNo, setReportSelectedOrderNo] = useState('All');
+  const [reportFilterType, setReportFilterType] = useState<'All' | 'ChargeType' | 'OrderNo' | 'PaidTo'>('All');
+  const [reportSelectedChargeTypes, setReportSelectedChargeTypes] = useState<string[]>([]);
+  const [reportSelectedOrderNos, setReportSelectedOrderNos] = useState<string[]>([]);
+  const [reportSelectedPaidTo, setReportSelectedPaidTo] = useState('All');
 
   // File Upload States
   const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
@@ -356,6 +357,15 @@ const ChargesList = () => {
     return Array.from(nos).sort();
   }, [charges]);
 
+  const uniquePaidToPersons = useMemo(() => {
+    const set = new Set<string>();
+    charges.forEach(c => {
+      const val = (c as any).paidToPerson || c.paidToPerson;
+      if (val && val !== '-') set.add(String(val));
+    });
+    return Array.from(set).sort((a,b)=>a.localeCompare(b));
+  }, [charges]);
+
   const handleExportReport = async (format: 'PDF' | 'EXCEL') => {
     let filteredRows: ChargeReportRow[] = [];
     const withinDate = (d: string) => {
@@ -365,11 +375,14 @@ const ChargesList = () => {
       const end = reportEndDate ? new Date(reportEndDate).getTime() : Infinity;
       return dt >= start && dt <= end;
     };
+    const paidToMatches = (c: any) => reportSelectedPaidTo === 'All' || String(c.paidTo || c.paidToPerson || c.paidTo_person || '') === String(reportSelectedPaidTo);
 
     if (reportFilterType === 'ChargeType') {
+      const selectedChargeIds = reportSelectedChargeTypes.map(String);
       chargesRaw.forEach((c: any) => {
         (c.lines || []).forEach((l: any) => {
-          if (withinDate(l.date) && (reportSelectedChargeType === 'All' || String(l.charge) === String(reportSelectedChargeType))) {
+          const matchesType = selectedChargeIds.length === 0 || selectedChargeIds.includes(String(l.charge));
+          if (withinDate(l.date) && matchesType && paidToMatches(c)) {
             filteredRows.push({
               chargeNo: c.chargeNo,
               chargeName: getChargeTypeName(l.charge),
@@ -382,17 +395,17 @@ const ChargesList = () => {
         });
       });
     } else if (reportFilterType === 'OrderNo') {
-      const orders = reportSelectedOrderNo === 'All' ? uniqueOrderNos : [reportSelectedOrderNo];
+      const orders = reportSelectedOrderNos.length > 0 ? reportSelectedOrderNos : uniqueOrderNos;
       orders.forEach(ono => {
-        const orderCharges = chargesRaw.filter((c: any) => c.orderNo === ono);
+        const orderCharges = chargesRaw.filter((c: any) => c.orderNo === ono && paidToMatches(c));
         orderCharges.forEach((c: any) => {
           (c.lines || []).forEach((l: any, idx: number) => {
             if (withinDate(l.date)) {
               filteredRows.push({
-                chargeNo: idx === 0 ? c.chargeNo : '', // Only show chargeNo on first line for order
+                chargeNo: idx === 0 ? c.chargeNo : '',
                 chargeName: getChargeTypeName(l.charge),
                 date: l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-',
-                orderNo: idx === 0 ? c.orderNo : '', // Only show orderNo on first line
+                orderNo: idx === 0 ? c.orderNo : '',
                 vehicleNo: l.vehicle || '-',
                 amount: Number(l.amount) || 0
               });
@@ -404,7 +417,7 @@ const ChargesList = () => {
       // All
       chargesRaw.forEach((c: any) => {
         (c.lines || []).forEach((l: any) => {
-          if (withinDate(l.date)) {
+          if (withinDate(l.date) && paidToMatches(c)) {
             filteredRows.push({
               chargeNo: c.chargeNo,
               chargeName: getChargeTypeName(l.charge),
@@ -423,8 +436,23 @@ const ChargesList = () => {
       return;
     }
 
-    const selectedTypeLabel = reportSelectedChargeType === 'All' ? 'All' : getChargeTypeName(reportSelectedChargeType);
-    const typeLabel = reportFilterType === 'ChargeType' ? `CHARGE (${selectedTypeLabel})` : reportFilterType === 'OrderNo' ? `Order (${reportSelectedOrderNo})` : 'CHARGES';
+    const selectedTypeLabel = reportSelectedChargeTypes.length === 0
+      ? 'All'
+      : reportSelectedChargeTypes.length === 1
+        ? getChargeTypeName(reportSelectedChargeTypes[0])
+        : `Multiple (${reportSelectedChargeTypes.length})`;
+    const selectedOrderLabel = reportSelectedOrderNos.length === 0
+      ? 'All'
+      : reportSelectedOrderNos.length === 1
+        ? reportSelectedOrderNos[0]
+        : `Multiple (${reportSelectedOrderNos.length})`;
+    const typeLabel = reportFilterType === 'ChargeType'
+      ? `CHARGE (${selectedTypeLabel})`
+      : reportFilterType === 'OrderNo'
+        ? `Order (${selectedOrderLabel})`
+        : reportFilterType === 'PaidTo'
+          ? `Paid To (${reportSelectedPaidTo})`
+          : 'CHARGES';
     
     if (format === 'PDF') {
       await exportChargesReportToPDF(filteredRows, typeLabel, reportStartDate, reportEndDate);
@@ -749,33 +777,50 @@ const ChargesList = () => {
                   <option value="All">All Charges</option>
                   <option value="ChargeType">By Charge Type</option>
                   <option value="OrderNo">By Order Number</option>
+                  <option value="PaidTo">By Paid To Person</option>
                 </select>
               </div>
 
               {reportFilterType === 'ChargeType' && (
                 <div className="animate-in slide-in-from-top-2 duration-200">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Charge</label>
-                  <select 
-                    value={reportSelectedChargeType} 
-                    onChange={e => setReportSelectedChargeType(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Charge Type(s)</label>
+                  <select
+                    multiple
+                    value={reportSelectedChargeTypes}
+                    onChange={e => setReportSelectedChargeTypes(Array.from(e.target.selectedOptions).map(o => o.value))}
+                    className="w-full p-3 h-40 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
                   >
-                    <option value="All">All Types</option>
                     {uniqueChargeTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
+                  <p className="mt-1 text-xs text-gray-500">Leave empty to include all types.</p>
                 </div>
               )}
 
               {reportFilterType === 'OrderNo' && (
                 <div className="animate-in slide-in-from-top-2 duration-200">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Order No</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Order No(s)</label>
+                  <select
+                    multiple
+                    value={reportSelectedOrderNos}
+                    onChange={e => setReportSelectedOrderNos(Array.from(e.target.selectedOptions).map(o => o.value))}
+                    className="w-full p-3 h-40 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
+                  >
+                    {uniqueOrderNos.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">Leave empty to include all orders.</p>
+                </div>
+              )}
+
+              {reportFilterType === 'PaidTo' && (
+                <div className="animate-in slide-in-from-top-2 duration-200">
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Select Paid To Person</label>
                   <select 
-                    value={reportSelectedOrderNo} 
-                    onChange={e => setReportSelectedOrderNo(e.target.value)}
+                    value={reportSelectedPaidTo} 
+                    onChange={e => setReportSelectedPaidTo(e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
                   >
-                    <option value="All">All Orders</option>
-                    {uniqueOrderNos.map(o => <option key={o} value={o}>{o}</option>)}
+                    <option value="All">All</option>
+                    {uniquePaidToPersons.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
               )}
