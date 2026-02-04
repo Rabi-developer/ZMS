@@ -43,13 +43,16 @@ const formatDisplayDate = (d?: string): string => {
 export interface BrokerBillRow {
   serial: number;
   orderNo: string;
-  orderDate: string;
+  biltyNo?: string;
   vehicleNo: string;
-  brokerName: string;
   amount: number;
+  dueDate?: string;
   paidAmount: number;
   balance: number;
-  status: string;
+  brokerName: string;
+  brokerMobile?: string;
+  remarks?: string;
+  status?: string;
 }
 
 export const exportBrokerBillStatusToPDF = async (
@@ -104,56 +107,96 @@ export const exportBrokerBillStatusToPDF = async (
   await addHeader();
 
   doc.setFont("times", "bold");
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.setTextColor(0, 0, 0);
   doc.text(`BROKER ${reportType.toUpperCase()} BILLS REPORT`, pageWidth / 2, 98, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.setTextColor(80, 80, 80);
+  doc.setTextColor(0, 0, 0);
   const dateLineY = 125;
   const startText = `Start From: ${startDate ? formatDisplayDate(startDate) : "-"}`;
   const toText = `To Date: ${endDate ? formatDisplayDate(endDate) : "-"}`;
   doc.text(startText, 40, dateLineY, { align: "left" });
   doc.text(toText, pageWidth / 2, dateLineY, { align: "center" });
 
+  // Calculate totals for footer
+  const totalAmount = data.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const totalPaid = data.reduce((s, r) => s + (Number(r.paidAmount) || 0), 0);
+  const totalBalance = data.reduce((s, r) => s + (Number(r.balance) || 0), 0);
+
   const head = [
-    ["SNo", "Order No", "Order Date", "Vehicle No", "Broker Name", "Bill Amount", "Paid Amount", "Balance", "Status"]
+    [
+      "SNo",
+      "Order No",
+      "Bilty No",
+      "Vehicle No",
+      "Amount",
+      "Due Date",
+      "Paid Amount",
+      "Balance",
+      "Broker (Name / Mobile)",
+      "Remarks",
+    ],
   ];
 
-  const body = data.map(row => [
+  const body = data.map((row) => [
     row.serial,
-    row.orderNo,
-    row.orderDate,
-    row.vehicleNo,
-    row.brokerName,
-    row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-    row.paidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-    row.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-    row.status
+    row.orderNo || "-",
+    row.biltyNo || "-",
+    row.vehicleNo || "-",
+    (Number(row.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    row.dueDate ? formatDisplayDate(row.dueDate) : "-",
+    (Number(row.paidAmount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    (Number(row.balance) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    `${row.brokerName || '-'}` + (row.brokerMobile ? `\n${row.brokerMobile}` : ''),
+    row.remarks || "",
   ]);
 
   autoTable(doc, {
     startY: dateLineY + 20,
     head: head,
     body: body,
+    foot: [[
+      "",
+      "",
+      "",
+      "Totals",
+      totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      "",
+      totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      "",
+      "",
+    ]],
     styles: {
       font: "times",
-      fontSize: 8,
-      cellPadding: 4,
-      lineColor: [150, 150, 150],
-      lineWidth: 0.2,
-      textColor: [30, 30, 30],
+      fontSize: 9,
+      cellPadding: 5,
+      lineColor: [180, 180, 180],
+      lineWidth: 0.25,
+      textColor: [0, 0, 0],
     },
     headStyles: {
-      fillColor: [220, 220, 220],
-      textColor: [50, 50, 50],
+      fillColor: [240, 240, 240],
+      textColor: [0, 0, 0],
       fontStyle: "bold",
-      fontSize: 9,
+      fontSize: 10,
       halign: "center",
     },
+    footStyles: {
+      fillColor: [250, 250, 250],
+      textColor: [0, 0, 0],
+      fontStyle: "bold",
+    },
+    columnStyles: {
+      4: { halign: 'right' },
+      6: { halign: 'right' },
+      7: { halign: 'right' },
+      8: { cellWidth: 120 },
+    },
     alternateRowStyles: {
-      fillColor: [245, 245, 245],
+      fillColor: [250, 250, 250],
     },
     margin: { top: 110, left: 40, right: 40, bottom: 60 },
     theme: "grid",
@@ -163,6 +206,40 @@ export const exportBrokerBillStatusToPDF = async (
         d.settings.startY = 40;
       }
     },
+  });
+
+  // Broker Wise Summary (moved near top look by keeping styling consistent)
+  const groupMap = new Map<string, { brokerLabel: string; amount: number; paid: number; balance: number }>();
+  data.forEach((r) => {
+    const label = `${r.brokerName || '-'}${r.brokerMobile ? ` / ${r.brokerMobile}` : ''}`;
+    const entry = groupMap.get(label) || { brokerLabel: label, amount: 0, paid: 0, balance: 0 };
+    entry.amount += Number(r.amount) || 0;
+    entry.paid += Number(r.paidAmount) || 0;
+    entry.balance += Number(r.balance) || 0;
+    groupMap.set(label, entry);
+  });
+  const summary = Array.from(groupMap.values());
+
+  let nextY = (doc as any).lastAutoTable?.finalY ? (doc as any).lastAutoTable.finalY + 24 : dateLineY + 44;
+  doc.setFont("times", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Broker Wise Summary", pageWidth / 5, nextY, { align: 'right' });
+
+  autoTable(doc, {
+    startY: nextY + 12,
+    head: [["Broker (Name / Mobile)", "Amount", "Paid", "Balance"]],
+    body: summary.map(s => [
+      s.brokerLabel,
+      s.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      s.paid.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      s.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    ]),
+    styles: { font: 'times', fontSize: 9, cellPadding: 3, textColor: [0,0,0] },
+    headStyles: { fillColor: [240,240,240], fontStyle: 'bold', textColor: [0,0,0] },
+    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, },
+    theme: 'grid',
+    margin: { left: 40, right: 100 },
   });
 
   const filename = `Broker_${reportType}_Bills_Report_${new Date().getTime()}.pdf`;

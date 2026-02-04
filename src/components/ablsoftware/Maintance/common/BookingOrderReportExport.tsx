@@ -458,53 +458,62 @@ const BookingOrderReportExport: React.FC = () => {
     }
 
     // Filter invoices by date range if provided
-    const filteredInvoices = billPaymentInvoices.filter(inv => 
-      withinRange(inv.paymentDate, fromDate, toDate)
-    );
+    const filteredInvoices = billPaymentInvoices.filter((inv) => withinRange(inv.paymentDate, fromDate, toDate));
 
     const brokerBillRows: BrokerBillRow[] = [];
     let serial = 1;
 
-    filteredInvoices.forEach(inv => {
-      // Determine if this invoice is "Paid" or "Unpaid"
-      // Based on user description: PaymentABL entries with same order amount clear means it's paid
-      
+    const findBrokerMobile = (brokerField: any): string => {
+      if (!brokerField) return '-';
+      // Try by exact id
+      let found = brokers.find((b: any) => b.id === brokerField);
+      if (found?.mobile) return found.mobile;
+      // Try by name contains
+      found = brokers.find((b: any) => typeof brokerField === 'string' && b.name && brokerField.toLowerCase().includes(b.name.toLowerCase()));
+      return found?.mobile || '-';
+    };
+
+    filteredInvoices.forEach((inv) => {
       (inv.lines || []).forEach((line: any) => {
         if (line.isAdditionalLine) return;
 
         const orderNo = line.orderNo;
-        const invoiceAmount = line.amount || 0;
-        const brokerName = line.broker || "-";
+        const invoiceAmount = Number(line.amount) || 0;
+        const brokerField = line.broker || '-';
+        const brokerName = typeof brokerField === 'string' ? brokerField : (brokers.find((b:any)=>b.id===brokerField)?.name || '-');
+        const brokerMobile = findBrokerMobile(brokerField);
+        const dueDate = line.dueDate || inv.dueDate || undefined;
+        const biltyNo = line.biltyNo || '-';
 
         // Filter by broker if selected
-        if (selectedBroker !== "All" && brokerName !== selectedBroker) {
-          return;
-        }
-        
+        if (selectedBroker !== 'All' && brokerName !== selectedBroker) return;
+
         // Find matching payment in PaymentABL
-        const payments = paymentABL.filter(p => 
+        const payments = paymentABL.filter((p) =>
           (p.paymentABLItems || p.paymentABLItem || []).some((item: any) => item.orderNo === orderNo)
         );
-
         const totalPaid = payments.reduce((sum, p) => {
           const item = (p.paymentABLItems || p.paymentABLItem || []).find((i: any) => i.orderNo === orderNo);
           return sum + (Number(item?.paidAmount) || 0);
         }, 0);
 
         const balance = invoiceAmount - totalPaid;
-        const isPaid = balance <= 0;
+        const includeInPaid = totalPaid > 0; // include partial payments in Paid
+        const includeInUnpaid = totalPaid === 0; // unpaid means no payment at all
 
-        if ((type === 'Paid' && isPaid) || (type === 'Unpaid' && !isPaid)) {
+        if ((type === 'Paid' && includeInPaid) || (type === 'Unpaid' && includeInUnpaid)) {
           brokerBillRows.push({
             serial: serial++,
             orderNo: orderNo,
-            orderDate: inv.paymentDate,
-            vehicleNo: line.vehicleNo || "-",
-            brokerName: line.broker || "-",
+            biltyNo: biltyNo,
+            vehicleNo: line.vehicleNo || '-',
             amount: invoiceAmount,
+            dueDate: dueDate,
             paidAmount: totalPaid,
             balance: balance,
-            status: isPaid ? "Paid" : "Unpaid"
+            brokerName: brokerName || '-',
+            brokerMobile: brokerMobile,
+            remarks: line.remarks || '',
           });
         }
       });
@@ -517,7 +526,7 @@ const BookingOrderReportExport: React.FC = () => {
 
     exportBrokerBillStatusToPDF(brokerBillRows, type, fromDate, toDate);
     toast.success(`${type} Broker Bills PDF generated`);
-  }, [billPaymentInvoices, paymentABL, fromDate, toDate, selectedBroker]);
+  }, [billPaymentInvoices, paymentABL, fromDate, toDate, selectedBroker, brokers]);
 
   const columnsToDisplay = isGeneralView ? GENERAL_COLUMNS : DETAIL_COLUMNS;
   const { colOrder, headRows, drawSeparators } = buildStructure(columnsToDisplay, isGeneralView);
