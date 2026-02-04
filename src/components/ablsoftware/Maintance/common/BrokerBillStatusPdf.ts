@@ -62,6 +62,8 @@ export const exportBrokerBillStatusToPDF = async (
   reportType: "Paid" | "Unpaid",
   startDate?: string,
   endDate?: string,
+  billPaymentInvoices?: any[],
+  munshyanaData?: any[],
 ) => {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "A4" });
 
@@ -122,14 +124,52 @@ export const exportBrokerBillStatusToPDF = async (
   doc.text(startText, 40, dateLineY, { align: "left" });
   doc.text(toText, pageWidth / 2, dateLineY, { align: "center" });
 
-  // Calculate totals for footer
-  const totalAmount = data.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const totalMunshyana = data.reduce((s, r) => s + (Number(r.munshyana) || 0), 0);
-  const totalOtherCharges = data.reduce((s, r) => s + (Number(r.otherCharges) || 0), 0);
-  const totalPaid = data.reduce((s, r) => s + (Number(r.paidAmount) || 0), 0);
-  const totalBalance = data.reduce((s, r) => s + (Number(r.balance) || 0), 0);
-  const totalAdjustedPaid = totalPaid - totalMunshyana + totalOtherCharges;
-  const totalAdjustedBalance = totalBalance - totalMunshyana + totalOtherCharges;
+  // Preprocess rows: detect munshyana and additional charges from provided bill payment invoices
+  const processed = data.map((r) => {
+    let munshyana = Number(r.munshyana) || 0;
+    let otherCharges = Number(r.otherCharges) || 0;
+
+    if ((munshyana === 0 && otherCharges === 0) && Array.isArray(billPaymentInvoices) && billPaymentInvoices.length) {
+      // try to find a matching bill payment invoice by vehicle/order/bill
+      const match = billPaymentInvoices.find((bill: any) => {
+        if (!bill.lines || !Array.isArray(bill.lines)) return false;
+        return bill.lines.some((line: any) => {
+          const vehicleMatch = line.vehicleNo && String(line.vehicleNo) === String(r.vehicleNo);
+          const orderMatch = line.orderNo && String(line.orderNo) === String(r.orderNo);
+          const billMatch = line.biltyNo && String(line.biltyNo) === String(r.invoiceNo);
+          return vehicleMatch || orderMatch || billMatch;
+        });
+      });
+
+      if (match) {
+        // sum additional charges (lines flagged as additional)
+        try {
+          const totalAdditional = match.lines.reduce((sum: number, l: any) => sum + (l.isAdditionalLine ? (Number(l.amountCharges ?? l.amount) || 0) : 0), 0);
+          const munshyanaDeduction = match.lines.reduce((sum: number, l: any) => sum + (!l.isAdditionalLine ? (Number(l.munshyana || 0) || 0) : 0), 0);
+          otherCharges = otherCharges || totalAdditional;
+          munshyana = munshyana || munshyanaDeduction;
+        } catch (e) {
+          // ignore and keep existing values
+        }
+      }
+    }
+
+    const paid = Number(r.paidAmount) || 0;
+    const balance = Number(r.balance) || 0;
+    const adjustedPaid = paid - munshyana + otherCharges;
+    const adjustedBalance = balance - munshyana + otherCharges;
+
+    return { original: r, munshyana, otherCharges, adjustedPaid, adjustedBalance };
+  });
+
+  // Calculate totals for footer using processed values
+  const totalAmount = processed.reduce((s, p) => s + (Number(p.original.amount) || 0), 0);
+  const totalMunshyana = processed.reduce((s, p) => s + (Number(p.munshyana) || 0), 0);
+  const totalOtherCharges = processed.reduce((s, p) => s + (Number(p.otherCharges) || 0), 0);
+  const totalPaid = processed.reduce((s, p) => s + (Number(p.original.paidAmount) || 0), 0);
+  const totalBalance = processed.reduce((s, p) => s + (Number(p.original.balance) || 0), 0);
+  const totalAdjustedPaid = processed.reduce((s, p) => s + (Number(p.adjustedPaid) || 0), 0);
+  const totalAdjustedBalance = processed.reduce((s, p) => s + (Number(p.adjustedBalance) || 0), 0);
 
   const head = [
     [
@@ -146,12 +186,8 @@ export const exportBrokerBillStatusToPDF = async (
     ],
   ];
 
-  const body = data.map((row) => {
-    const munshyana = Number(row.munshyana) || 0;
-    const otherCharges = Number(row.otherCharges) || 0;
-    const adjustedPaidAmount = (Number(row.paidAmount) || 0) - munshyana + otherCharges;
-    const adjustedBalance = (Number(row.balance) || 0) - munshyana + otherCharges;
-    
+  const body = processed.map((p) => {
+    const row = p.original;
     return [
       row.serial,
       row.orderNo || "-",
@@ -159,8 +195,8 @@ export const exportBrokerBillStatusToPDF = async (
       row.vehicleNo || "-",
       (Number(row.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
       row.dueDate ? formatDisplayDate(row.dueDate) : "-",
-      adjustedPaidAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
-      adjustedBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      (Number(p.adjustedPaid) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      (Number(p.adjustedBalance) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
       `${row.brokerName || '-'}` + (row.brokerMobile ? `\n${row.brokerMobile}` : ''),
       row.remarks || "",
     ];
@@ -223,14 +259,13 @@ export const exportBrokerBillStatusToPDF = async (
 
   // Broker Wise Summary (moved near top look by keeping styling consistent)
   const groupMap = new Map<string, { brokerLabel: string; amount: number; paid: number; balance: number }>();
-  data.forEach((r) => {
+  processed.forEach((p) => {
+    const r = p.original;
     const label = `${r.brokerName || '-'}${r.brokerMobile ? ` / ${r.brokerMobile}` : ''}`;
-    const munshyana = Number(r.munshyana) || 0;
-    const otherCharges = Number(r.otherCharges) || 0;
     const entry = groupMap.get(label) || { brokerLabel: label, amount: 0, paid: 0, balance: 0 };
     entry.amount += Number(r.amount) || 0;
-    entry.paid += (Number(r.paidAmount) || 0) - munshyana + otherCharges;
-    entry.balance += (Number(r.balance) || 0) - munshyana + otherCharges;
+    entry.paid += Number(p.adjustedPaid) || 0;
+    entry.balance += Number(p.adjustedBalance) || 0;
     groupMap.set(label, entry);
   });
   const summary = Array.from(groupMap.values());
