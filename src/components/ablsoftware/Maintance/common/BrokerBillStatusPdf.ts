@@ -43,7 +43,7 @@ const formatDisplayDate = (d?: string): string => {
 export interface BrokerBillRow {
   serial: number;
   orderNo: string;
-  biltyNo?: string;
+  invoiceNo?: string;
   vehicleNo: string;
   amount: number;
   dueDate?: string;
@@ -53,6 +53,8 @@ export interface BrokerBillRow {
   brokerMobile?: string;
   remarks?: string;
   status?: string;
+  munshyana?: number;
+  otherCharges?: number;
 }
 
 export const exportBrokerBillStatusToPDF = async (
@@ -122,6 +124,9 @@ export const exportBrokerBillStatusToPDF = async (
 
   // Calculate totals for footer
   const totalAmount = data.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const totalMunshyana = data.reduce((s, r) => s + (Number(r.munshyana) || 0), 0);
+  const totalOtherCharges = data.reduce((s, r) => s + (Number(r.otherCharges) || 0), 0);
+  const totalAdjustedAmount = totalAmount - totalMunshyana + totalOtherCharges;
   const totalPaid = data.reduce((s, r) => s + (Number(r.paidAmount) || 0), 0);
   const totalBalance = data.reduce((s, r) => s + (Number(r.balance) || 0), 0);
 
@@ -129,9 +134,12 @@ export const exportBrokerBillStatusToPDF = async (
     [
       "SNo",
       "Order No",
-      "Bilty No",
+      "Bill No",
       "Vehicle No",
       "Amount",
+      "Munshyana",
+      "Other Charges",
+      "Adjusted Amount",
       "Due Date",
       "Paid Amount",
       "Balance",
@@ -140,18 +148,27 @@ export const exportBrokerBillStatusToPDF = async (
     ],
   ];
 
-  const body = data.map((row) => [
-    row.serial,
-    row.orderNo || "-",
-    row.biltyNo || "-",
-    row.vehicleNo || "-",
-    (Number(row.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
-    row.dueDate ? formatDisplayDate(row.dueDate) : "-",
-    (Number(row.paidAmount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
-    (Number(row.balance) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
-    `${row.brokerName || '-'}` + (row.brokerMobile ? `\n${row.brokerMobile}` : ''),
-    row.remarks || "",
-  ]);
+  const body = data.map((row) => {
+    const munshyana = Number(row.munshyana) || 0;
+    const otherCharges = Number(row.otherCharges) || 0;
+    const adjustedAmount = (Number(row.amount) || 0) - munshyana + otherCharges;
+    
+    return [
+      row.serial,
+      row.orderNo || "-",
+      row.invoiceNo || "-",
+      row.vehicleNo || "-",
+      (Number(row.amount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      munshyana.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      otherCharges.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      adjustedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      row.dueDate ? formatDisplayDate(row.dueDate) : "-",
+      (Number(row.paidAmount) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      (Number(row.balance) || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      `${row.brokerName || '-'}` + (row.brokerMobile ? `\n${row.brokerMobile}` : ''),
+      row.remarks || "",
+    ];
+  });
 
   autoTable(doc, {
     startY: dateLineY + 20,
@@ -163,6 +180,9 @@ export const exportBrokerBillStatusToPDF = async (
       "",
       "Totals",
       totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      totalMunshyana.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      totalOtherCharges.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      totalAdjustedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
       "",
       totalPaid.toLocaleString(undefined, { minimumFractionDigits: 2 }),
       totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }),
@@ -191,9 +211,12 @@ export const exportBrokerBillStatusToPDF = async (
     },
     columnStyles: {
       4: { halign: 'right' },
+      5: { halign: 'right' },
       6: { halign: 'right' },
       7: { halign: 'right' },
-      8: { cellWidth: 120 },
+      9: { halign: 'right' },
+      10: { halign: 'right' },
+      11: { cellWidth: 120 },
     },
     alternateRowStyles: {
       fillColor: [250, 250, 250],
@@ -209,11 +232,18 @@ export const exportBrokerBillStatusToPDF = async (
   });
 
   // Broker Wise Summary (moved near top look by keeping styling consistent)
-  const groupMap = new Map<string, { brokerLabel: string; amount: number; paid: number; balance: number }>();
+  const groupMap = new Map<string, { brokerLabel: string; amount: number; munshyana: number; otherCharges: number; adjustedAmount: number; paid: number; balance: number }>();
   data.forEach((r) => {
     const label = `${r.brokerName || '-'}${r.brokerMobile ? ` / ${r.brokerMobile}` : ''}`;
-    const entry = groupMap.get(label) || { brokerLabel: label, amount: 0, paid: 0, balance: 0 };
-    entry.amount += Number(r.amount) || 0;
+    const munshyana = Number(r.munshyana) || 0;
+    const otherCharges = Number(r.otherCharges) || 0;
+    const amount = Number(r.amount) || 0;
+    const adjustedAmount = amount - munshyana + otherCharges;
+    const entry = groupMap.get(label) || { brokerLabel: label, amount: 0, munshyana: 0, otherCharges: 0, adjustedAmount: 0, paid: 0, balance: 0 };
+    entry.amount += amount;
+    entry.munshyana += munshyana;
+    entry.otherCharges += otherCharges;
+    entry.adjustedAmount += adjustedAmount;
     entry.paid += Number(r.paidAmount) || 0;
     entry.balance += Number(r.balance) || 0;
     groupMap.set(label, entry);
@@ -228,16 +258,19 @@ export const exportBrokerBillStatusToPDF = async (
 
   autoTable(doc, {
     startY: nextY + 12,
-    head: [["Broker (Name / Mobile)", "Amount", "Paid", "Balance"]],
+    head: [["Broker (Name / Mobile)", "Amount", "Munshyana", "Other Charges", "Adjusted Amount", "Paid", "Balance"]],
     body: summary.map(s => [
       s.brokerLabel,
       s.amount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      s.munshyana.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      s.otherCharges.toLocaleString(undefined, { minimumFractionDigits: 2 }),
+      s.adjustedAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }),
       s.paid.toLocaleString(undefined, { minimumFractionDigits: 2 }),
       s.balance.toLocaleString(undefined, { minimumFractionDigits: 2 }),
     ]),
     styles: { font: 'times', fontSize: 9, cellPadding: 3, textColor: [0,0,0] },
     headStyles: { fillColor: [240,240,240], fontStyle: 'bold', textColor: [0,0,0] },
-    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, },
+    columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' }, 5: { halign: 'right' }, 6: { halign: 'right' } },
     theme: 'grid',
     margin: { left: 40, right: 100 },
   });

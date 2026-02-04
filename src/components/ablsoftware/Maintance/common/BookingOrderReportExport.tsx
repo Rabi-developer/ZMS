@@ -505,7 +505,7 @@ const BookingOrderReportExport: React.FC = () => {
           brokerBillRows.push({
             serial: serial++,
             orderNo: orderNo,
-            biltyNo: biltyNo,
+            invoiceNo: inv.invoiceNo|| '-',
             vehicleNo: line.vehicleNo || '-',
             amount: invoiceAmount,
             dueDate: dueDate,
