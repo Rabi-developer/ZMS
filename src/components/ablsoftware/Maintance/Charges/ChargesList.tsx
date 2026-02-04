@@ -474,6 +474,13 @@ const ChargesList = () => {
   }, [uniquePaidToPersons, fetchingBAIds]);
 
   const handleExportReport = async (format: 'PDF' | 'EXCEL') => {
+    // Check if any data is still loading
+    const hasLoadingData = uniquePaidToPersons.some(p => p.name === 'Loading...');
+    if (hasLoadingData) {
+      toast.warning('Please wait, loading business associate names...');
+      return;
+    }
+
     let filteredRows: ChargeReportRow[] = [];
     
     // Date filter
@@ -1139,15 +1146,22 @@ const ChargesList = () => {
 
             {/* Footer - Fixed */}
             <div className="flex gap-4 p-6 border-t flex-shrink-0 bg-gray-50">
+              {uniquePaidToPersons.some(p => p.name === 'Loading...') && (
+                <div className="w-full text-center text-sm text-orange-600 mb-2">
+                  ⏳ Loading business associate names... Please wait before exporting.
+                </div>
+              )}
               <button 
                 onClick={() => handleExportReport('PDF')}
-                className="flex-1 flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white p-4 rounded-xl font-bold shadow-lg hover:shadow-rose-500/30 transition-all"
+                disabled={uniquePaidToPersons.some(p => p.name === 'Loading...')}
+                className="flex-1 flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white p-4 rounded-xl font-bold shadow-lg hover:shadow-rose-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FaFilePdf size={20} /> Export PDF
               </button>
               <button 
                 onClick={() => handleExportReport('EXCEL')}
-                className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all"
+                disabled={uniquePaidToPersons.some(p => p.name === 'Loading...')}
+                className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-bold shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FaFileExcel size={20} /> Export Excel
               </button>
