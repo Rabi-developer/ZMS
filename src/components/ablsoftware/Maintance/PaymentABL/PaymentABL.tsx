@@ -500,33 +500,42 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     // Initialize amount from charge
     let finalAmount = charge.amount || null;
 
-    // Check if there's munshyana data in billpaymentinvoice for this charge
+    // Check if there's a matching billpaymentinvoice for this order/vehicle
     const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
       if (!bill.lines || !Array.isArray(bill.lines)) return false;
       return bill.lines.some((line: any) => 
-        (line.vehicleNo === charge.vehicle || line.chargeNo === charge.chargeNo) && 
-        line.munshayana
+        !line.isAdditionalLine && 
+        (line.vehicleNo === charge.vehicle || line.orderNo === charge.orderNo)
       );
     });
 
-    // If matching billpayment found with munshyana, check munshyana data
-    if (matchingBillPayment) {
-      const matchingMunshyana = matchingBillPayment.lines.find((line: any) => 
-        (line.vehicleNo === charge.vehicle || line.chargeNo === charge.chargeNo) && 
-        line.munshayana
-      );
+    // If matching billpayment found, calculate the total amount (with munshyana and charges)
+    if (matchingBillPayment && matchingBillPayment.lines) {
+      const mainLine = matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
       
-      if (matchingMunshyana && matchingMunshyana.munshayana) {
-        // Search in munshyana data for amount
-        const munshyanaRecord = munshyanaData.find((m: any) => 
-          m.id === matchingMunshyana.munshayana || 
-          m.munshyanaNo === matchingMunshyana.munshayana
+      if (mainLine) {
+        // Start with base amount
+        const totalAmount = Number(mainLine.amount) || 0;
+        
+        // Add all additional charges
+        const totalAdditional = matchingBillPayment.lines.reduce((sum: number, l: any) => 
+          sum + (l.isAdditionalLine ? (Number(l.amountCharges) || 0) : 0), 0
         );
         
-        if (munshyanaRecord && munshyanaRecord.amount) {
-          finalAmount = Number(munshyanaRecord.amount);
-          console.log('Munshyana amount found:', finalAmount);
-        }
+        // Subtract munshyana deduction
+        const munshayanaDeduction = matchingBillPayment.lines.reduce((sum: number, l: any) => 
+          sum + (!l.isAdditionalLine ? (Number(l.munshayana) || 0) : 0), 0
+        );
+        
+        // Calculate final total (same as shown in BillPaymentInvoice)
+        finalAmount = totalAmount + totalAdditional - munshayanaDeduction;
+        
+        console.log('Bill Payment Invoice Total Amount:', {
+          baseAmount: totalAmount,
+          additionalCharges: totalAdditional,
+          munshayanaDeduction: munshayanaDeduction,
+          finalTotal: finalAmount
+        });
       }
     }
 
