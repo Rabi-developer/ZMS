@@ -156,8 +156,10 @@ export const exportBrokerBillStatusToPDF = async (
 
     const paid = Number(r.paidAmount) || 0;
     const balance = Number(r.balance) || 0;
-    const adjustedPaid = paid - munshyana + otherCharges;
-    const adjustedBalance = balance - munshyana + otherCharges;
+    // Don't adjust paid amount - munshyana only affects the total amount, not what was paid
+    const adjustedPaid = paid;
+    // Balance is already calculated correctly in the export function (amount - paid)
+    const adjustedBalance = balance;
 
     return { original: r, munshyana, otherCharges, adjustedPaid, adjustedBalance };
   });

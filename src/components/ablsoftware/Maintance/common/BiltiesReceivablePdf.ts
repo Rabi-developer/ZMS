@@ -39,6 +39,7 @@ export interface BiltiesReceivablePdfParams {
   sorting?: string;
   quickActions?: string;
   exportType?: 'bilty' | 'party';
+  partyType?: 'consignor' | 'consignee'; // New: to determine which party column to use
 }
 
 const formatDisplayDate = (d?: string) => {
@@ -56,7 +57,7 @@ const formatDisplayDate = (d?: string) => {
   }
 };
 
-export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate, dateFilter, columns, valueFilter, sorting, quickActions, exportType = 'bilty' }: BiltiesReceivablePdfParams) => {
+export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate, dateFilter, columns, valueFilter, sorting, quickActions, exportType = 'bilty', partyType = 'consignor' }: BiltiesReceivablePdfParams) => {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "A4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -66,10 +67,11 @@ export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate, dateFil
   doc.setTextColor(0, 0, 0);
   doc.text(COMPANY_NAME, pageWidth / 2, 42, { align: "center" });
 
-  // Title
+  // Title - Updated to show party type
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  const title = exportType === 'party' ? "Party Wise Bilty Report" : "Bilty Wise Receivable Report";
+  const partyLabel = partyType === 'consignor' ? 'Consignor' : 'Consignee';
+  const title = exportType === 'party' ? `Party Wise Bilty Report (${partyLabel})` : `Bilty Wise Receivable Report (${partyLabel})`;
   doc.text(title, pageWidth / 2, 70, { align: "center" });
 
   // Date line
@@ -102,15 +104,16 @@ export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate, dateFil
   };
 
   if (exportType === 'party') {
-    // Group by Consignee
+    // Group by selected party type (Consignor or Consignee)
     const grouped: Record<string, BiltiesReceivableRow[]> = {};
     rows.forEach(r => {
-      const party = r.consignee || "Unknown Party";
+      const party = partyType === 'consignor' ? (r.consignor || "Unknown Party") : (r.consignee || "Unknown Party");
       if (!grouped[party]) grouped[party] = [];
       grouped[party].push(r);
     });
 
     let headerShownOnPage = false;
+    const partyLabel = partyType === 'consignor' ? 'Consignor' : 'Consignee';
     const head = [[
       "Vehicle No",
       "Bilty No",
@@ -146,11 +149,11 @@ export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate, dateFil
         headerShownOnPage = true;
       }
 
-      // Party name
+      // Party name with label
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(50, 50, 50);
-      doc.text(`${partyName}`, 40, currentY);
+      doc.text(`${partyLabel}: ${partyName}`, 40, currentY);
       currentY += 10;
 
       const body = partyRows.map(r => [
@@ -194,12 +197,13 @@ export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate, dateFil
     });
 
   } else {
-    // Bilty Wise
+    // Bilty Wise - Show selected party type column
+    const partyLabel = partyType === 'consignor' ? 'Consignor' : 'Consignee';
     const head = [[
       "Vehicle No",
       "Bilty No",
       "Bilty Date",
-      "From [Consignee]",
+      partyLabel, // Dynamic column header
       "Item Desc",
       "Qty",
       "Bilty Amount",
@@ -211,7 +215,7 @@ export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate, dateFil
       r.vehicleNo || "-",
       r.biltyNo || "-",
       formatDisplayDate(r.biltyDate || r.orderDate),
-      r.consignee || "-",
+      partyType === 'consignor' ? (r.consignor || "-") : (r.consignee || "-"), // Dynamic data
       r.article || "-",
       r.qty || "-",
       formatCurrency(r.biltyAmount),
