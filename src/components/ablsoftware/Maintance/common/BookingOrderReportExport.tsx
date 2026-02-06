@@ -526,7 +526,7 @@ const BookingOrderReportExport: React.FC = () => {
             serial: "",
             orderNo: "",
             orderDate: "",
-            vehicleNo: "",
+            vehicleNo: vehicleNo, // Use parent order's vehicle number
             bookingAmount: 0,
             biltyNo,
             biltyAmount: consignmentFreight,
@@ -535,8 +535,8 @@ const BookingOrderReportExport: React.FC = () => {
             consignee,
             article,
             qty,
-            departure: "",
-            destination: "",
+            departure: departure, // Use parent order's departure
+            destination: destination, // Use parent order's destination
             vendor: "",
             carrier: "",
             isOrderRow: false,
@@ -840,7 +840,11 @@ const BookingOrderReportExport: React.FC = () => {
       toast.info("No receivable orders in this date range.");
       return;
     }
-    const pdfRows = receivableOrders.map((o, idx) => ({
+    
+    // Filter out order rows - only send consignment rows to PDF
+    const consignmentRows = receivableOrders.filter(o => !o.isOrderRow);
+    
+    const pdfRows = consignmentRows.map((o, idx) => ({
       serial: idx + 1,
       orderNo: o.orderNo,
       orderDate: o.orderDate,
@@ -860,12 +864,17 @@ const BookingOrderReportExport: React.FC = () => {
       pendingAmount: o.pendingAmount,
       ablDate: o.ablDate || formatDate(o.orderDate) || "-",
     }));
+    
+    console.log('Export Type:', receivableExportType); // Debug log
+    console.log('Party Type:', partyType); // Debug log
+    console.log('Total Rows:', pdfRows.length); // Debug log
+    
     exportBiltiesReceivableToPDF({ 
       rows: pdfRows, 
       startDate: fromDate, 
       endDate: toDate,
       exportType: receivableExportType,
-      partyType: partyType // Pass party type to PDF generator
+      partyType: partyType
     });
     toast.success("Receivable PDF generated");
   }, [receivableOrders, fromDate, toDate, receivableExportType, partyType]);
