@@ -1306,21 +1306,19 @@ const BookingOrderReportExport: React.FC = () => {
                   <div className="flex items-center gap-4 mb-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
                       <input 
-                        type="radio" 
-                        name="receivableType"
+                        type="checkbox" 
                         checked={receivableExportType === 'bilty'} 
                         onChange={() => setReceivableExportType('bilty')}
-                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
                       Bilty No wise
                     </label>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
                       <input 
-                        type="radio" 
-                        name="receivableType"
+                        type="checkbox" 
                         checked={receivableExportType === 'party'} 
                         onChange={() => setReceivableExportType('party')}
-                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
                       Party Wise
                     </label>
@@ -1336,117 +1334,36 @@ const BookingOrderReportExport: React.FC = () => {
               </div>
               <div className="p-6">
                 {receivableOrders.length ? (
-                  receivableExportType === 'party' ? (
-                    // Party Wise View - Group by selected party type
-                    <div className="space-y-6">
-                      {(() => {
-                        // Group data by party
-                        const grouped: Record<string, typeof receivableOrders> = {};
-                        receivableOrders.forEach(row => {
-                          if (row.isOrderRow) return; // Skip order rows in party view
-                          const partyName = partyType === 'consignor' ? (row.consignor || 'Unknown') : (row.consignee || 'Unknown');
-                          if (!grouped[partyName]) grouped[partyName] = [];
-                          grouped[partyName].push(row);
-                        });
-
-                        return Object.entries(grouped).map(([partyName, rows]) => (
-                          <div key={partyName} className="border border-gray-200 rounded-lg overflow-hidden">
-                            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-200">
-                              <h4 className="font-bold text-gray-900">
-                                {partyType === 'consignor' ? 'Consignor' : 'Consignee'}: {partyName}
-                              </h4>
-                            </div>
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-100">
-                                  <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Vehicle No</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty No</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Date</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Destination</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Article</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Qty</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Amount</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Received</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Pending</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                  {rows.map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-gray-50">
-                                      <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || '-'}</td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">{row.biltyDate || '-'}</td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">{row.destination || '-'}</td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">{row.qty || '-'}</td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.biltyAmount)}</td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.receivedAmount)}</td>
-                                      <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(row.pendingAmount)}</td>
-                                    </tr>
-                                  ))}
-                                  <tr className="bg-gray-50 font-bold">
-                                    <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
-                                    <td className="px-4 py-2 text-xs text-gray-900">
-                                      {formatNumber(rows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
-                                    </td>
-                                    <td className="px-4 py-2 text-xs text-gray-900">
-                                      {formatNumber(rows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
-                                    </td>
-                                    <td className="px-4 py-2 text-xs text-red-600">
-                                      {formatNumber(rows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
-                                    </td>
-                                  </tr>
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                  ) : (
-                    // Bilty Wise View - Simple table
-                    <div className="overflow-x-auto max-h-[400px]">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-100 sticky top-0 z-10">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SNo</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vehicle No</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty No</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Date</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                              {partyType === 'consignor' ? 'Consignor' : 'Consignee'}
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Destination</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Article</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Qty</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Amount</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Received</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Pending</th>
+                  <div className="overflow-x-auto max-h-[400px]">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SNo</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty No</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vehicle No</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Consignee</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Amount</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Received</th>
+                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Pending</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {receivableOrders.map((o, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 text-xs text-gray-900">{idx + 1}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.biltyNo}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.biltyDate}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.vehicleNo}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{o.consignee}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(o.biltyAmount)}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(o.receivedAmount)}</td>
+                            <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(o.pendingAmount)}</td>
                           </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {receivableOrders.filter(o => !o.isOrderRow).map((o, idx) => (
-                            <tr key={idx} className="hover:bg-gray-50">
-                              <td className="px-4 py-2 text-xs text-gray-900">{idx + 1}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">{o.vehicleNo || '-'}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">{o.biltyNo || '-'}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">{o.biltyDate || '-'}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">
-                                {partyType === 'consignor' ? (o.consignor || '-') : (o.consignee || '-')}
-                              </td>
-                              <td className="px-4 py-2 text-xs text-gray-900">{o.destination || '-'}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">{o.article || '-'}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">{o.qty || '-'}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(o.biltyAmount)}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(o.receivedAmount)}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(o.pendingAmount)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 ) : (
                   <div className="text-sm text-gray-500">No receivable orders in this date range.</div>
                 )}
