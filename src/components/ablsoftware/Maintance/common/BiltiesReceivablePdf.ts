@@ -286,6 +286,7 @@ export const exportBiltiesReceivableToPDF = ({
           "Vehicle No",
           "Bilty No",
           "Bilty Date",
+          "Destination",
           "Item Description",
           "Quantity",
           "Bilty Amount (PKR)",
@@ -298,6 +299,7 @@ export const exportBiltiesReceivableToPDF = ({
         r.vehicleNo || "-",
         r.biltyNo || "-",
         formatDisplayDate(r.biltyDate || r.orderDate),
+        r.destination || "-",
         r.article || "-",
         r.qty || "-",
         formatCurrency(r.biltyAmount),
@@ -315,7 +317,7 @@ export const exportBiltiesReceivableToPDF = ({
       );
 
       body.push([
-        { content: "Total", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } },
+        { content: "SUBTOTAL", colSpan: 6, styles: { halign: "right", fontStyle: "bold" } },
         { content: formatCurrency(subtotal.bilty), styles: { fontStyle: "bold" } },
         { content: formatCurrency(subtotal.received), styles: { fontStyle: "bold" } },
         { content: formatCurrency(subtotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
@@ -334,18 +336,19 @@ export const exportBiltiesReceivableToPDF = ({
           halign: "center",
         },
         columnStyles: {
-          0: { cellWidth: 85 },
-          1: { cellWidth: 85 },
-          2: { cellWidth: 85 },
-          3: { cellWidth: 170 },
-          4: { cellWidth: 100 },
-          5: { halign: "right", cellWidth: 80 },
+          0: { cellWidth: 70 },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 70 },
+          3: { cellWidth: 90 },
+          4: { cellWidth: 120 },
+          5: { cellWidth: 80 },
           6: { halign: "right", cellWidth: 80 },
-          7: { halign: "right", cellWidth: 80, textColor: [220, 53, 69] },
+          7: { halign: "right", cellWidth: 70 },
+          8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] },
         },
         margin: { left: 40, right: 40 },
         didParseCell: (data) => {
-          if (data.row.index === body.length - 1 && data.column.index >= 5) {
+          if (data.row.index === body.length - 1 && data.column.index >= 6) {
             data.cell.styles.fillColor = [245, 247, 250];
           }
         },

@@ -303,10 +303,6 @@ const BookingOrderReportExport: React.FC = () => {
             const receivedAmount = receiptByBilty[biltyNo] || 0;
             const pendingAmount = consignmentFreight - receivedAmount;
 
-            // pick vehicle from consignment if present, fallback to order vehicle
-            const consignmentVehicleNo = c.vehicleNo || c.vehicle || c.regNo || vehicleNo || "-";
-            const biltyDate = formatDate(c.consignmentDate || c.date || c.biltyDate || odate);
-
             let article = "-";
             let qty = "-";
             if (Array.isArray(c.items) && c.items.length > 0) {
@@ -330,7 +326,7 @@ const BookingOrderReportExport: React.FC = () => {
               serial: "",
               orderNo: "",
               orderDate: "",
-              vehicleNo: consignmentVehicleNo || "-",
+              vehicleNo: "",
               bookingAmount: 0,
               biltyNo,
               biltyAmount: consignmentFreight,
@@ -347,7 +343,7 @@ const BookingOrderReportExport: React.FC = () => {
               ablDate: formatDate(odate),
               receivedAmount,
               pendingAmount,
-              biltyDate,
+              biltyDate: formatDate(c.consignmentDate || c.date || odate),
             };
           }) : [{
             serial: "",
@@ -507,10 +503,6 @@ const BookingOrderReportExport: React.FC = () => {
           const receivedAmount = receiptByBilty[biltyNo] || 0;
           const pendingAmount = consignmentFreight - receivedAmount;
 
-          // pick vehicle from consignment if present, fallback to order vehicle
-          const consignmentVehicleNo = c.vehicleNo || c.vehicle || c.regNo || vehicleNo || "-";
-          const biltyDate = formatDate(c.consignmentDate || c.date || c.biltyDate || odate);
-
           let article = "-";
           let qty = "-";
           if (Array.isArray(c.items) && c.items.length > 0) {
@@ -534,7 +526,7 @@ const BookingOrderReportExport: React.FC = () => {
             serial: "",
             orderNo: "",
             orderDate: "",
-            vehicleNo: vehicleNo || "-",
+            vehicleNo: "",
             bookingAmount: 0,
             biltyNo,
             biltyAmount: consignmentFreight,
@@ -551,35 +543,14 @@ const BookingOrderReportExport: React.FC = () => {
             ablDate: formatDate(odate),
             receivedAmount,
             pendingAmount,
-            biltyDate,
+            biltyDate: formatDate(c.consignmentDate || c.date || odate),
           };
-        }) : [{
-          serial: "",
-          orderNo: "",
-          orderDate: "",
-          vehicleNo: "",
-          bookingAmount: 0,
-          biltyNo: "-",
-          biltyAmount: 0,
-          consignmentFreight: 0,
-          consignor: "",
-          consignee: "",
-          article: "-",
-          qty: "-",
-          departure: "",
-          destination: "",
-          vendor: "",
-          carrier: "",
-          isOrderRow: false,
-          ablDate: formatDate(odate),
-          receivedAmount: 0,
-          pendingAmount: 0,
-        }];
+        }) : [];
 
         return [orderRow, ...consignmentRows];
       });
 
-      return rows;
+      setReceivableData(rows);
     } catch (err) {
       console.error("Failed to load receivable data", err);
       toast.error("Failed to load bilty receivable data");
@@ -814,8 +785,8 @@ const BookingOrderReportExport: React.FC = () => {
   // Build receivable and non-receivable order lists for Bilty tab
   const { receivableOrders, nonReceivableOrders } = useMemo(() => {
     if (!receivableData.length) return { receivableOrders: [] as RowData[], nonReceivableOrders: [] as RowData[] };
-
-    // Re-group into orders + raw consignments (original objects in receivableData are order & consignment rows).
+    
+    // Group using same logic as detail
     const groups: { order: RowData; consignments: RowData[] }[] = [];
     let current: { order: RowData; consignments: RowData[] } | null = null;
     receivableData.forEach(r => {
@@ -828,55 +799,40 @@ const BookingOrderReportExport: React.FC = () => {
     });
     if (current) groups.push(current);
 
-    // Build flat list of bilty rows (one per consignment with a valid biltyNo).
-    const biltyRows: RowData[] = [];
-    groups.forEach(g => {
-      g.consignments.forEach(c => {
-        if (c.biltyNo && c.biltyNo !== "-" && c.biltyNo !== "") {
-          // allow filtering by selected bilty no
-          if (selectedBiltyNo && c.biltyNo !== selectedBiltyNo) return;
-
-          biltyRows.push({
-            // preserve fields useful for PDF/table
-            serial: "", // PDF will assign sequential serials
-            orderNo: g.order.orderNo || "",
-            orderDate: g.order.orderDate || "",
-            vehicleNo: c.vehicleNo || g.order.vehicleNo || "-",
-            bookingAmount: 0,
-            biltyNo: c.biltyNo,
-            biltyAmount: c.biltyAmount || c.consignmentFreight || 0,
-            consignmentFreight: c.consignmentFreight || 0,
-            consignor: c.consignor || g.order.consignor || "-",
-            consignee: c.consignee || g.order.consignee || "-",
-            article: c.article || "-",
-            qty: c.qty || "-",
-            departure: g.order.departure || "",
-            destination: g.order.destination || "",
-            vendor: g.order.vendor || "",
-            carrier: c.carrier || g.order.carrier || "",
-            isOrderRow: false,
-            ablDate: c.ablDate || g.order.ablDate || "-",
-            receivedAmount: c.receivedAmount || 0,
-            pendingAmount: c.pendingAmount || (numberOr0(c.consignmentFreight) - numberOr0(c.receivedAmount)),
-            biltyDate: c.biltyDate || c.ablDate || "-",
-          });
+    // Receivable = orders with at least one consignment that has a bilty no
+    // Non-Receivable = orders without any consignment with a bilty no
+    // Filter by bilty no only
+    const filterByBiltyNo = (rows: RowData[]) => {
+      return rows.filter(r => {
+        // Filter by bilty no
+        if (selectedBiltyNo && r.biltyNo !== selectedBiltyNo) {
+          return false;
         }
+        return true;
       });
-    });
+    };
 
-    // sort by consignor then biltyNo to make party-wise grouping predictable
-    biltyRows.sort((a, b) => {
-      const consignorCmp = (a.consignor || "").localeCompare(b.consignor || "");
-      if (consignorCmp !== 0) return consignorCmp;
-      return String(a.biltyNo || "").localeCompare(String(b.biltyNo || ""));
-    });
+    // Receivable: orders that have at least one consignment with bilty no, displayed like Detail Report
+    const receivable: RowData[] = [];
+    groups
+      .filter(g => g.consignments.some(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-"))
+      .forEach(g => {
+        // Add order row
+        receivable.push(g.order);
+        // Add all consignments with bilty numbers
+        const consignmentsWithBilty = g.consignments.filter(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-");
+        receivable.push(...consignmentsWithBilty);
+      });
+    
+    const receivableFiltered = filterByBiltyNo(receivable);
+    
+    // Non-Receivable: orders without any consignment with bilty no
+    const nonReceivable = filterByBiltyNo(groups
+      .filter(g => !g.consignments.some(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-"))
+      .map(g => g.order)
+    );
 
-    // Non-receivable: orders without any consignment having a biltyNo
-    const nonRec = groups
-      .filter(g => !g.consignments.some(c => c.biltyNo && c.biltyNo !== "-" && c.biltyNo !== ""))
-      .map(g => g.order);
-
-    return { receivableOrders: biltyRows, nonReceivableOrders: nonRec };
+    return { receivableOrders: receivableFiltered, nonReceivableOrders: nonReceivable };
   }, [receivableData, selectedBiltyNo]);
 
   const exportReceivable = useCallback(async () => {
@@ -1350,19 +1306,21 @@ const BookingOrderReportExport: React.FC = () => {
                   <div className="flex items-center gap-4 mb-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
                       <input 
-                        type="checkbox" 
+                        type="radio" 
+                        name="receivableType"
                         checked={receivableExportType === 'bilty'} 
                         onChange={() => setReceivableExportType('bilty')}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
                       Bilty No wise
                     </label>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
                       <input 
-                        type="checkbox" 
+                        type="radio" 
+                        name="receivableType"
                         checked={receivableExportType === 'party'} 
                         onChange={() => setReceivableExportType('party')}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
                       Party Wise
                     </label>
@@ -1378,36 +1336,117 @@ const BookingOrderReportExport: React.FC = () => {
               </div>
               <div className="p-6">
                 {receivableOrders.length ? (
-                  <div className="overflow-x-auto max-h-[400px]">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-100 sticky top-0 z-10">
-                        <tr>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SNo</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty No</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Date</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vehicle No</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Consignee</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Amount</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Received</th>
-                          <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Pending</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {receivableOrders.map((o, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50">
-                            <td className="px-4 py-2 text-xs text-gray-900">{idx + 1}</td>
-                            <td className="px-4 py-2 text-xs text-gray-900">{o.biltyNo}</td>
-                            <td className="px-4 py-2 text-xs text-gray-900">{o.biltyDate}</td>
-                            <td className="px-4 py-2 text-xs text-gray-900">{o.vehicleNo}</td>
-                            <td className="px-4 py-2 text-xs text-gray-900">{o.consignee}</td>
-                            <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(o.biltyAmount)}</td>
-                            <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(o.receivedAmount)}</td>
-                            <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(o.pendingAmount)}</td>
+                  receivableExportType === 'party' ? (
+                    // Party Wise View - Group by selected party type
+                    <div className="space-y-6">
+                      {(() => {
+                        // Group data by party
+                        const grouped: Record<string, typeof receivableOrders> = {};
+                        receivableOrders.forEach(row => {
+                          if (row.isOrderRow) return; // Skip order rows in party view
+                          const partyName = partyType === 'consignor' ? (row.consignor || 'Unknown') : (row.consignee || 'Unknown');
+                          if (!grouped[partyName]) grouped[partyName] = [];
+                          grouped[partyName].push(row);
+                        });
+
+                        return Object.entries(grouped).map(([partyName, rows]) => (
+                          <div key={partyName} className="border border-gray-200 rounded-lg overflow-hidden">
+                            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-200">
+                              <h4 className="font-bold text-gray-900">
+                                {partyType === 'consignor' ? 'Consignor' : 'Consignee'}: {partyName}
+                              </h4>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-100">
+                                  <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Vehicle No</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty No</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Date</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Destination</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Article</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Qty</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Amount</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Received</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Pending</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {rows.map((row, idx) => (
+                                    <tr key={idx} className="hover:bg-gray-50">
+                                      <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || '-'}</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">{row.biltyDate || '-'}</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">{row.destination || '-'}</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">{row.qty || '-'}</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.biltyAmount)}</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.receivedAmount)}</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(row.pendingAmount)}</td>
+                                    </tr>
+                                  ))}
+                                  <tr className="bg-gray-50 font-bold">
+                                    <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
+                                    <td className="px-4 py-2 text-xs text-gray-900">
+                                      {formatNumber(rows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
+                                    </td>
+                                    <td className="px-4 py-2 text-xs text-gray-900">
+                                      {formatNumber(rows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
+                                    </td>
+                                    <td className="px-4 py-2 text-xs text-red-600">
+                                      {formatNumber(rows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
+                                    </td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  ) : (
+                    // Bilty Wise View - Simple table
+                    <div className="overflow-x-auto max-h-[400px]">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-100 sticky top-0 z-10">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">SNo</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vehicle No</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty No</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              {partyType === 'consignor' ? 'Consignor' : 'Consignee'}
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Destination</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Article</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Qty</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Amount</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Received</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Pending</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {receivableOrders.filter(o => !o.isOrderRow).map((o, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="px-4 py-2 text-xs text-gray-900">{idx + 1}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900">{o.vehicleNo || '-'}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900">{o.biltyNo || '-'}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900">{o.biltyDate || '-'}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900">
+                                {partyType === 'consignor' ? (o.consignor || '-') : (o.consignee || '-')}
+                              </td>
+                              <td className="px-4 py-2 text-xs text-gray-900">{o.destination || '-'}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900">{o.article || '-'}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900">{o.qty || '-'}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(o.biltyAmount)}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(o.receivedAmount)}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(o.pendingAmount)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
                 ) : (
                   <div className="text-sm text-gray-500">No receivable orders in this date range.</div>
                 )}
@@ -1424,7 +1463,6 @@ const BookingOrderReportExport: React.FC = () => {
                   <Button
                     onClick={exportNonReceivable}
                     disabled={receivableLoading}
-                   
                     className="px-6 py-3 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
                     Non-Receivable PDF
