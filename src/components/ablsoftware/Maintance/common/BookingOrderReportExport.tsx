@@ -1306,19 +1306,21 @@ const BookingOrderReportExport: React.FC = () => {
                   <div className="flex items-center gap-4 mb-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
                       <input 
-                        type="checkbox" 
+                        type="radio" 
+                        name="receivableType"
                         checked={receivableExportType === 'bilty'} 
                         onChange={() => setReceivableExportType('bilty')}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
                       Bilty No wise
                     </label>
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
                       <input 
-                        type="checkbox" 
+                        type="radio" 
+                        name="receivableType"
                         checked={receivableExportType === 'party'} 
                         onChange={() => setReceivableExportType('party')}
-                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
                       />
                       Party Wise
                     </label>
