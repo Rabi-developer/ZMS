@@ -8,7 +8,7 @@ import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllCharges } from '@/apis/charges';
-import { createPaymentABL, updatePaymentABL } from '@/apis/paymentABL';
+import { createPaymentABL, updatePaymentABL, getPaymentABLHistory } from '@/apis/paymentABL';
 import { getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { toast } from 'react-toastify';
@@ -460,30 +460,41 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     }
   }, [isEdit, initialData, reset]);
 
-  // Update table calculations
+  // Update table calculations - recalculate balance when paid amount changes
   useEffect(() => {
+    let hasChanges = false;
     const updatedPaymentABLItems = paymentABLItems.map((row) => {
-      const balance = (row.expenseAmount ?? 0) - (row.paidAmount ?? 0);
-      return { ...row, balance: balance >= 0 ? balance : null };
+      // Calculate balance: Expense Amount - Paid Amount
+      const expenseAmount = Number(row.expenseAmount) || 0;
+      const paidAmount = Number(row.paidAmount) || 0;
+      const calculatedBalance = expenseAmount - paidAmount;
+      const newBalance = calculatedBalance >= 0 ? calculatedBalance : 0;
+      
+      // Check if balance needs updating
+      if (row.balance !== newBalance) {
+        hasChanges = true;
+        return { ...row, balance: newBalance };
+      }
+      return row;
     });
 
-    // Use isEqual from lodash or areItemsEqual
-    if (!isEqual(paymentABLItems, updatedPaymentABLItems)) { // Replace with !areItemsEqual(paymentABLItems, updatedPaymentABLItems) if not using lodash
-      setValue('paymentABLItems', updatedPaymentABLItems, { shouldValidate: true });
+    // Only update if there are actual changes to balance
+    if (hasChanges) {
+      setValue('paymentABLItems', updatedPaymentABLItems, { shouldValidate: false });
     }
 
-    const totalPaidAmount = updatedPaymentABLItems.reduce((sum, row) => sum + (row.paidAmount ?? 0), 0);
-    const currentPaidAmount = watch('paidAmount') ?? 0;
-    if (totalPaidAmount !== currentPaidAmount) {
-      setValue('paidAmount', totalPaidAmount || null, { shouldValidate: true });
+    const totalPaidAmount = updatedPaymentABLItems.reduce((sum, row) => sum + (Number(row.paidAmount) || 0), 0);
+    const currentPaidAmount = Number(watch('paidAmount')) || 0;
+    if (Math.abs(totalPaidAmount - currentPaidAmount) > 0.01) {
+      setValue('paidAmount', totalPaidAmount || null, { shouldValidate: false });
     }
 
     const advanced = parseFloat(watch('advanced')?.toString() || '0') || 0;
     const pdc = parseFloat(watch('pdc')?.toString() || '0') || 0;
     const paymentAmount = totalPaidAmount + advanced + pdc;
-    const currentPaymentAmount = watch('paymentAmount') ?? 0;
-    if (paymentAmount !== currentPaymentAmount) {
-      setValue('paymentAmount', paymentAmount || null, { shouldValidate: true });
+    const currentPaymentAmount = Number(watch('paymentAmount')) || 0;
+    if (Math.abs(paymentAmount - currentPaymentAmount) > 0.01) {
+      setValue('paymentAmount', paymentAmount || null, { shouldValidate: false });
     }
   }, [paymentABLItems, watch, setValue]);
 
@@ -496,63 +507,172 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     setOrderSearch('');
   };
 
-  const selectCharge = (index: number, charge: any) => {
-    // Initialize amount from charge
-    let finalAmount = charge.amount || null;
+  const selectCharge = async (index: number, charge: any) => {
+    try {
+      // Get vehicle number from the selected booking order (already in the row)
+      const vehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
+      const orderNo = charge.orderNo || '';
+      const chargeNo = charge.chargeNo || '';
 
-    // Check if there's a matching billpaymentinvoice for this order/vehicle
-    const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
-      if (!bill.lines || !Array.isArray(bill.lines)) return false;
-      return bill.lines.some((line: any) => 
-        !line.isAdditionalLine && 
-        (line.vehicleNo === charge.vehicle || line.orderNo === charge.orderNo)
-      );
-    });
+      // Only check history if all required fields are present
+      if (vehicleNo && orderNo && chargeNo) {
+        try {
+          // Check payment history for this specific vehicle/charge
+          const historyRes = await getPaymentABLHistory({
+            vehicleNo: vehicleNo,
+            orderNo: orderNo,
+            charges: chargeNo
+          });
+          
+          console.log('History API Response:', {
+            vehicleNo,
+            orderNo,
+            chargeNo,
+            fullResponse: historyRes,
+            dataArray: historyRes?.data,
+            isArray: Array.isArray(historyRes?.data)
+          });
+          
+          // History API returns data directly, not wrapped in .data
+          const historyData = Array.isArray(historyRes) ? historyRes : (historyRes?.data && Array.isArray(historyRes.data) ? historyRes.data : (historyRes ? [historyRes] : []));
+          console.log('Processed History Data:', historyData);
+          
+          const historyRecord = historyData.find((h: any) => {
+            console.log('Comparing:', {
+              historyVehicle: h.vehicleNo,
+              searchVehicle: vehicleNo,
+              vehicleMatch: h.vehicleNo === vehicleNo,
+              historyCharges: h.charges,
+              searchCharges: chargeNo,
+              chargesMatch: h.charges === chargeNo || h.charges === String(chargeNo),
+              historyOrder: h.orderNo,
+              searchOrder: orderNo,
+              orderMatch: h.orderNo === orderNo || h.orderNo === String(orderNo)
+            });
+            return (h.vehicleNo === vehicleNo || h.charges === chargeNo || h.charges === String(chargeNo)) && 
+                   (h.orderNo === orderNo || h.orderNo === String(orderNo));
+          });
 
-    // If matching billpayment found, calculate the total amount (with munshyana and charges)
-    if (matchingBillPayment && matchingBillPayment.lines) {
-      const mainLine = matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
-      
-      if (mainLine) {
-        // Start with base amount
-        const totalAmount = Number(mainLine.amount) || 0;
-        
-        // Add all additional charges
-        const totalAdditional = matchingBillPayment.lines.reduce((sum: number, l: any) => 
-          sum + (l.isAdditionalLine ? (Number(l.amountCharges) || 0) : 0), 0
-        );
-        
-        // Subtract munshyana deduction
-        const munshayanaDeduction = matchingBillPayment.lines.reduce((sum: number, l: any) => 
-          sum + (!l.isAdditionalLine ? (Number(l.munshayana) || 0) : 0), 0
-        );
-        
-        // Calculate final total (same as shown in BillPaymentInvoice)
-        finalAmount = totalAmount + totalAdditional - munshayanaDeduction;
-        
-        console.log('Bill Payment Invoice Total Amount:', {
-          baseAmount: totalAmount,
-          additionalCharges: totalAdditional,
-          munshayanaDeduction: munshayanaDeduction,
-          finalTotal: finalAmount
-        });
+          console.log('History Record Found:', historyRecord);
+
+          // If history exists and balance is 0, show error
+          if (historyRecord && Number(historyRecord.balance) === 0) {
+            toast.error(`Payment already completed for Vehicle ${vehicleNo}. Balance is clear (0).`);
+            return; // Don't allow selection
+          }
+
+          // If history exists with balance > 0, use that balance
+          if (historyRecord && Number(historyRecord.balance) > 0) {
+            const remainingBalance = Number(historyRecord.balance);
+            console.log('✓ History found:', {
+              vehicleNo,
+              orderNo,
+              chargeNo,
+              historyBalance: remainingBalance,
+              historyPaidAmount: historyRecord.paidAmount
+            });
+            toast.info(`Previous balance found: ${remainingBalance.toLocaleString()}. Showing remaining balance.`);
+            
+            setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: false });
+            setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
+            setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
+            setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
+            // Set expense amount to the remaining balance from history
+            setValue(`paymentABLItems.${index}.expenseAmount`, remainingBalance, { shouldValidate: false });
+            // Set initial balance to the same as expense amount (will update when user enters paid amount)
+            setValue(`paymentABLItems.${index}.balance`, remainingBalance, { shouldValidate: false });
+            // Reset paid amount to null for new payment entry
+            setValue(`paymentABLItems.${index}.paidAmount`, null, { shouldValidate: false });
+            setValue('paidTo', charge.paidTo || watch('paidTo'), { shouldValidate: false });
+            setShowChargePopup(null);
+            setChargeSearch('');
+            return;
+          }
+        } catch (historyError) {
+          console.warn('History check failed, continuing with normal flow:', historyError);
+          // Continue with normal flow if history check fails
+        }
+      } else {
+        console.warn('Skipping history check - missing required fields:', { vehicleNo, orderNo, chargeNo });
       }
-    }
 
-    setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.chargeNo`, String(charge.chargeNo || ''), { shouldValidate: true });
-    // Preserve an already-selected vehicle for this row — only set if empty
-    const currentVehicle = paymentABLItems?.[index]?.vehicleNo || '';
-    if (!currentVehicle) {
-      setValue(`paymentABLItems.${index}.vehicleNo`, String(charge.vehicle || ''), { shouldValidate: true });
+      // No history or history check skipped - calculate amount normally
+      console.log('No history found or history check skipped - using BillPaymentInvoice amount');
+      let finalAmount = charge.amount || null;
+
+      // Use vehicle number from the already selected booking order
+      const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
+
+      // Check if there's a matching billpaymentinvoice for this order/vehicle
+      const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
+        if (!bill.lines || !Array.isArray(bill.lines)) return false;
+        return bill.lines.some((line: any) => 
+          !line.isAdditionalLine && 
+          (line.vehicleNo === selectedVehicleNo || line.orderNo === orderNo)
+        );
+      });
+
+      // If matching billpayment found, calculate the total amount (with munshyana and charges)
+      if (matchingBillPayment && matchingBillPayment.lines) {
+        const mainLine = matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
+        
+        if (mainLine) {
+          // Start with base amount
+          const totalAmount = Number(mainLine.amount) || 0;
+          
+          // Add all additional charges
+          const totalAdditional = matchingBillPayment.lines.reduce((sum: number, l: any) => 
+            sum + (l.isAdditionalLine ? (Number(l.amountCharges) || 0) : 0), 0
+          );
+          
+          // Subtract munshyana deduction
+          const munshayanaDeduction = matchingBillPayment.lines.reduce((sum: number, l: any) => 
+            sum + (!l.isAdditionalLine ? (Number(l.munshayana) || 0) : 0), 0
+          );
+          
+          // Calculate final total (same as shown in BillPaymentInvoice)
+          finalAmount = totalAmount + totalAdditional - munshayanaDeduction;
+          
+          console.log('Bill Payment Invoice Total Amount:', {
+            baseAmount: totalAmount,
+            additionalCharges: totalAdditional,
+            munshayanaDeduction: munshayanaDeduction,
+            finalTotal: finalAmount
+          });
+        }
+      }
+
+      setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.expenseAmount`, finalAmount, { shouldValidate: false });
+      // Balance will be calculated automatically by useEffect (expenseAmount - paidAmount)
+      setValue(`paymentABLItems.${index}.balance`, finalAmount || null, { shouldValidate: false });
+      // Reset paid amount to 0 for new entry
+      setValue(`paymentABLItems.${index}.paidAmount`, null, { shouldValidate: false });
+      setValue('paidTo', charge.paidTo || watch('paidTo'), { shouldValidate: false });
+      setShowChargePopup(null);
+      setChargeSearch('');
+    } catch (error) {
+      console.error('Error checking payment history:', error);
+      // Continue with normal flow if history check fails
+      toast.warning('Could not check payment history. Proceeding with charge selection.');
+      
+      const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
+      let finalAmount = charge.amount || null;
+      setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.chargeNo`, String(charge.chargeNo || ''), { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.expenseAmount`, finalAmount, { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.balance`, finalAmount || null, { shouldValidate: false });
+      // Reset paid amount to 0 for new entry
+      setValue(`paymentABLItems.${index}.paidAmount`, null, { shouldValidate: false });
+      setValue('paidTo', charge.paidTo || watch('paidTo'), { shouldValidate: false });
+      setShowChargePopup(null);
+      setChargeSearch('');
     }
-    setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.expenseAmount`, finalAmount, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.balance`, finalAmount || null, { shouldValidate: true });
-    setValue('paidTo', charge.paidTo || watch('paidTo'), { shouldValidate: true });
-    setShowChargePopup(null);
-    setChargeSearch('');
   };
 
   // Set of vehicles selected in the table (used to mark charges)
@@ -616,17 +736,25 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         pdc: data.pdc !== null && data.pdc !== undefined ? String(data.pdc) : null,
         pdcDate: data.pdcDate || '',
         paymentAmount: data.paymentAmount !== null && data.paymentAmount !== undefined ? String(data.paymentAmount) : null,
-        paymentABLItem: data.paymentABLItems.map(row => ({
-          id: row.id ?? null,
-          vehicleNo: row.vehicleNo || '',
-          orderNo: row.orderNo || '',
-          charges: row.chargeNo || '',
-          orderDate: row.orderDate || '',
-          dueDate: row.dueDate || '',
-          expenseAmount: row.expenseAmount !== null && row.expenseAmount !== undefined ? String(row.expenseAmount) : null,
-          balance: row.balance !== null && row.balance !== undefined ? String(row.balance) : null,
-          paidAmount: row.paidAmount !== null && row.paidAmount !== undefined ? String(row.paidAmount) : null,
-        })),
+        paymentABLItem: data.paymentABLItems.map(row => {
+          // Calculate the correct balance: expenseAmount - paidAmount
+          const expenseAmount = Number(row.expenseAmount) || 0;
+          const paidAmount = Number(row.paidAmount) || 0;
+          const calculatedBalance = expenseAmount - paidAmount;
+          const finalBalance = calculatedBalance >= 0 ? calculatedBalance : 0;
+          
+          return {
+            id: row.id ?? null,
+            vehicleNo: row.vehicleNo || '',
+            orderNo: row.orderNo || '',
+            charges: row.chargeNo || '',
+            orderDate: row.orderDate || '',
+            dueDate: row.dueDate || '',
+            expenseAmount: row.expenseAmount !== null && row.expenseAmount !== undefined ? String(row.expenseAmount) : null,
+            balance: String(finalBalance),
+            paidAmount: row.paidAmount !== null && row.paidAmount !== undefined ? String(row.paidAmount) : null,
+          };
+        }),
       };
 
       if (isEdit) {
@@ -926,7 +1054,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           </td>
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                             <input
-                              {...register(`paymentABLItems.${index}.balance`, { valueAsNumber: true })}
+                              value={(() => {
+                                const expenseAmount = Number(row.expenseAmount) || 0;
+                                const paidAmount = Number(row.paidAmount) || 0;
+                                const balance = expenseAmount - paidAmount;
+                                return balance >= 0 ? balance.toFixed(2) : '0.00';
+                              })()}
                               disabled
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none font-medium"
                               placeholder="0.00"
@@ -964,13 +1097,18 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                           TOTALS:
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {paymentABLItems.reduce((sum, row) => sum + (row.expenseAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {paymentABLItems.reduce((sum, row) => sum + (Number(row.expenseAmount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {paymentABLItems.reduce((sum, row) => sum + (row.balance ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {paymentABLItems.reduce((sum, row) => {
+                            const expenseAmount = Number(row.expenseAmount) || 0;
+                            const paidAmount = Number(row.paidAmount) || 0;
+                            const balance = expenseAmount - paidAmount;
+                            return sum + (balance >= 0 ? balance : 0);
+                          }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base">
-                          {paymentABLItems.reduce((sum, row) => sum + (row.paidAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {paymentABLItems.reduce((sum, row) => sum + (Number(row.paidAmount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3"></td>
                       </tr>

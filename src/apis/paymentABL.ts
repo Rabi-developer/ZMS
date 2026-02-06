@@ -1,5 +1,30 @@
 import apiFetch from "@/components/utils/fetchInstance";
 
+// PaymentABL History - Get payment history for a vehicle/charge
+const getPaymentABLHistory = async (params?: { vehicleNo?: string; orderNo?: string; charges?: string }) => {
+  try {
+    // Build query string if params provided
+    let queryString = '';
+    if (params) {
+      const queryParams = new URLSearchParams();
+      if (params.vehicleNo) queryParams.append('VehicleNo', params.vehicleNo);
+      if (params.orderNo) queryParams.append('OrderNo', params.orderNo);
+      if (params.charges) queryParams.append('Charges', params.charges);
+      queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+    }
+    
+    const response = await apiFetch(`PaymentABL/History${queryString}`, {
+      method: 'GET',
+      headers: {}, 
+    }, true);
+    return response;
+  } catch (error: any) {
+    console.warn('Payment history fetch failed:', error);
+    // Return empty data instead of throwing to prevent blocking the form
+    return { data: [] };
+  }
+};
+
 // PaymentABL-create
 const createPaymentABL = async (PaymentABL : any) => {
   try {
@@ -145,4 +170,4 @@ const updatePaymentABLFiles = async ({ id, files }: { id: string; files: string 
   }
 };
 
-export { createPaymentABL , getAllPaymentABL , getAllPaymentABLPositions , getSinglePaymentABL , updatePaymentABL , deletePaymentABL, updatePaymentABLStatus , updatePaymentABLFiles  };
+export { getPaymentABLHistory, createPaymentABL , getAllPaymentABL , getAllPaymentABLPositions , getSinglePaymentABL , updatePaymentABL , deletePaymentABL, updatePaymentABLStatus , updatePaymentABLFiles  };
