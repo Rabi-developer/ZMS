@@ -23,6 +23,7 @@ import { getAllVendor } from '@/apis/vendors';
 import { getAllReceipt } from '@/apis/receipt';
 import { exportBookingOrderToExcel } from './BookingOrderExcel';
 import { exportBiltiesReceivableToPDF, BiltiesReceivablePdfParams } from "@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf";
+import { exportNonReceivableToPDF, NonReceivablePdfParams } from "@/components/ablsoftware/Maintance/common/NonReceivablePdf";
 import { exportGeneralBookingOrderToPDF } from './BookingOrderGeneralPdf';
 import { exportDetailBookingOrderToPDF } from './BookingOrderDetailPdf';
 import { exportBrokerBillStatusToPDF, BrokerBillRow } from './BrokerBillStatusPdf';
@@ -889,27 +890,83 @@ const BookingOrderReportExport: React.FC = () => {
       orderNo: o.orderNo,
       orderDate: o.orderDate,
       vehicleNo: o.vehicleNo,
-      consignor: o.consignor,
-      consignee: o.consignee,
-      carrier: o.carrier,
       vendor: o.vendor,
       departure: o.departure,
       destination: o.destination,
-      vehicleType: "",
-      ablDate: o.ablDate || formatDate(o.orderDate) || "-",
-      biltyNo: "-",
-      biltyDate: "-",
-      biltyAmount: 0,
-      receivedAmount: 0,
-      pendingAmount: 0,
+      consignor: o.consignor,
+      consignee: o.consignee,
     }));
-    exportBiltiesReceivableToPDF({ 
+    exportNonReceivableToPDF({ 
       rows: pdfRows, 
       startDate: fromDate, 
       endDate: toDate,
-      exportType: 'bilty' // default for non-receivable
     });
     toast.success("Non-Receivable PDF generated");
+  }, [nonReceivableOrders, fromDate, toDate]);
+
+  const exportNonReceivableExcel = useCallback(async () => {
+    if (!nonReceivableOrders.length) {
+      toast.info("No non-receivable orders in this date range.");
+      return;
+    }
+
+    try {
+      const XLSX = (await import('xlsx')).default;
+      
+      // Prepare worksheet data
+      const wsData: any[][] = [];
+      wsData.push([COMPANY_NAME]);
+      wsData.push(["Non-Receivable Orders Report"]);
+      wsData.push([`Date Range: ${fromDate || "N/A"} to ${toDate || "N/A"}`]);
+      wsData.push([]); // spacer
+
+      // Headers
+      wsData.push(["SNo", "Order No", "Order Date", "Vehicle No", "Vendor", "Route (From → To)"]);
+
+      // Data rows
+      nonReceivableOrders.forEach((o, idx) => {
+        wsData.push([
+          idx + 1,
+          o.orderNo || "-",
+          o.orderDate || "-",
+          o.vehicleNo || "-",
+          o.vendor || "-",
+          `${o.departure || "-"} → ${o.destination || "-"}`,
+        ]);
+      });
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      
+      // Merge header cells
+      const merges: any[] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }, // Company name
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }, // Title
+        { s: { r: 2, c: 0 }, e: { r: 2, c: 5 } }, // Date range
+      ];
+      (ws as any)["!merges"] = merges;
+
+      // Set column widths
+      (ws as any)["!cols"] = [
+        { wch: 8 },   // SNo
+        { wch: 20 },  // Order No
+        { wch: 16 },  // Order Date
+        { wch: 16 },  // Vehicle No
+        { wch: 20 },  // Vendor
+        { wch: 35 },  // Route
+      ];
+
+      // Create and download workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Non-Receivable");
+      const fileName = `Non-Receivable-Orders-${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      
+      toast.success("Non-Receivable Excel exported successfully");
+    } catch (err) {
+      console.error("Export error:", err);
+      toast.error("Failed to export Non-Receivable data");
+    }
   }, [nonReceivableOrders, fromDate, toDate]);
 
   const detailHeaderColumns = [
@@ -1468,13 +1525,22 @@ const BookingOrderReportExport: React.FC = () => {
                   <h3 className="text-lg font-bold text-gray-900">Non-Receivable Bilty</h3>
                   <p className="text-sm text-gray-500">Orders without any consignment added.</p>
                 </div>
-                <div>
+                <div className="flex gap-3">
                   <Button
                     onClick={exportNonReceivable}
                     disabled={receivableLoading}
-                    className="px-6 py-3 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                    className="px-6 py-3 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
-                    Non-Receivable PDF
+                    <AiOutlineDownload className="h-5 w-5" />
+                    PDF
+                  </Button>
+                  <Button
+                    onClick={exportNonReceivableExcel}
+                    disabled={receivableLoading}
+                    className="px-6 py-3 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <AiOutlineDownload className="h-5 w-5" />
+                    Excel
                   </Button>
                 </div>
               </div>
