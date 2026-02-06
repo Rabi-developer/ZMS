@@ -3,7 +3,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-// Company constants (reuse style from BookingOrderPdf)
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
 const REPORT_TITLE = "Bilties Receivable";
 
@@ -16,10 +15,10 @@ export interface BiltiesReceivableRow {
   biltyDate?: string;
   consignor?: string;
   consignee?: string;
-  carrier?: string; // transporter
+  carrier?: string;
   vendor?: string;
-  departure?: string; // fromLocation
-  destination?: string; // toLocation
+  departure?: string;
+  destination?: string;
   vehicleType?: string;
   article?: string;
   qty?: string;
@@ -31,20 +30,14 @@ export interface BiltiesReceivableRow {
 
 export interface BiltiesReceivablePdfParams {
   rows: BiltiesReceivableRow[];
-  startDate?: string; // yyyy-mm-dd
-  endDate?: string; // yyyy-mm-dd
-  dateFilter?: string;
-  columns?: string;
-  valueFilter?: string;
-  sorting?: string;
-  quickActions?: string;
+  startDate?: string;
+  endDate?: string;
   exportType?: 'bilty' | 'party';
-  partyType?: 'consignor' | 'consignee'; // New: to determine which party column to use
+  partyType?: 'consignor' | 'consignee';
 }
 
 const formatDisplayDate = (d?: string) => {
   if (!d) return "-";
-  // Expect yyyy-mm-dd or ISO
   try {
     const dt = new Date(d);
     if (Number.isNaN(dt.getTime())) return d;
@@ -57,280 +50,314 @@ const formatDisplayDate = (d?: string) => {
   }
 };
 
-export const exportBiltiesReceivableToPDF = ({ rows, startDate, endDate, dateFilter, columns, valueFilter, sorting, quickActions, exportType = 'bilty', partyType = 'consignor' }: BiltiesReceivablePdfParams) => {
+const numberOr0 = (v: any) => {
+  const n = typeof v === "string" ? parseFloat(v) : v;
+  return isNaN(n) || !isFinite(n) ? 0 : n;
+};
+
+const formatCurrency = (num: any) =>
+  numberOr0(num).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+export const exportBiltiesReceivableToPDF = ({
+  rows,
+  startDate,
+  endDate,
+  exportType = "bilty",
+  partyType = "consignor",
+}: BiltiesReceivablePdfParams) => {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "A4" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Add page number function
-  const addPageNumber = (pageNum: number, totalPages: number) => {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - 40, pageHeight - 20, { align: "right" });
-  };
+  let headerShown = false;
 
-  // Header styling
-  const addHeader = () => {
-    // Company name with better styling
-    doc.setFillColor(41, 128, 185); // Professional blue
-    doc.rect(0, 0, pageWidth, 60, 'F');
+  const addCompanyHeader = () => {
+    doc.setFillColor(41, 128, 185);
+    doc.rect(0, 0, pageWidth, 55, "F");
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
+    doc.setFontSize(19);
     doc.setTextColor(255, 255, 255);
-    doc.text(COMPANY_NAME, pageWidth / 2, 35, { align: "center" });
+    doc.text(COMPANY_NAME, pageWidth / 2, 32, { align: "center" });
 
-    // Subtitle
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setTextColor(240, 240, 240);
-    doc.text("Transport & Logistics Solutions", pageWidth / 2, 50, { align: "center" });
+    doc.text("Transport & Logistics Solutions", pageWidth / 2, 48, { align: "center" });
   };
 
-  // Footer
-  const addFooter = () => {
-    doc.setFillColor(240, 240, 240);
-    doc.rect(0, pageHeight - 40, pageWidth, 40, 'F');
+  const addReportTitleAndDate = () => {
+    const partyLabel = partyType === "consignor" ? "Consignor" : "Consignee";
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(41, 128, 185);
+    const title =
+      exportType === "party"
+        ? `Party Wise Receivable Report (${partyLabel})`
+        : `Bilty Wise Receivable Report (${partyLabel})`;
+    doc.text(title, pageWidth / 2, 80, { align: "center" });
 
     doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(80, 80, 80);
+
+    doc.text(
+      `From: ${startDate ? formatDisplayDate(startDate) : "All Dates"}`,
+      40,
+      100,
+      { align: "left" }
+    );
+    doc.text(
+      `To: ${endDate ? formatDisplayDate(endDate) : "All Dates"}`,
+      pageWidth / 2,
+      100,
+      { align: "center" }
+    );
+    doc.text(
+      `Generated: ${formatDisplayDate(new Date().toISOString())} at ${new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`,
+      pageWidth - 40,
+      100,
+      { align: "right" }
+    );
+
+    doc.setDrawColor(41, 128, 185);
+    doc.setLineWidth(1.2);
+    doc.line(40, 110, pageWidth - 40, 110);
+  };
+
+  const addFooter = (pageNum: number, totalPages: number) => {
     doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    doc.text("Generated by ZMS - Al Nasar Basheer Logistics Management System", 40, pageHeight - 25);
-    doc.text(`Report Date: ${formatDisplayDate(new Date().toISOString())}`, 40, pageHeight - 15);
+    doc.setTextColor(100);
+    doc.text(
+      `Generated by ZMS - Al Nasar Basheer Logistics Management System`,
+      40,
+      doc.internal.pageSize.height - 18
+    );
+    doc.text(
+      `Page ${pageNum} of ${totalPages}`,
+      pageWidth - 40,
+      doc.internal.pageSize.height - 18,
+      { align: "right" }
+    );
   };
 
-  addHeader();
-  addFooter();
+  // ────────────────────────────────────────────────
+  //  BILTY WISE – Flat table
+  // ────────────────────────────────────────────────
+  if (exportType === "bilty") {
+    addCompanyHeader();
+    addReportTitleAndDate();
 
-  // Title - Updated to show party type
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(41, 128, 185);
-  const partyLabel = partyType === 'consignor' ? 'Consignor' : 'Consignee';
-  const title = exportType === 'party' ? `Party Wise Receivable Report (${partyLabel})` : `Bilty Wise Receivable Report (${partyLabel})`;
-  doc.text(title, pageWidth / 2, 85, { align: "center" });
+    const head = [
+      [
+        "Vehicle No",
+        "Bilty No",
+        "Bilty Date",
+        partyType === "consignor" ? "Consignor" : "Consignee",
+        "Item Description",
+        "Quantity",
+        "Bilty Amount (PKR)",
+        "Received (PKR)",
+        "Pending (PKR)",
+      ],
+    ];
 
-  // Date information with better styling
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(80, 80, 80);
-
-  const startText = `From: ${startDate ? formatDisplayDate(startDate) : "All Dates"}`;
-  const toText = `To: ${endDate ? formatDisplayDate(endDate) : "All Dates"}`;
-  const nowText = `Generated: ${formatDisplayDate(new Date().toISOString())} at ${new Date().toLocaleTimeString()}`;
-
-  doc.text(startText, 40, 105, { align: "left" });
-  doc.text(toText, pageWidth / 2, 105, { align: "center" });
-  doc.text(nowText, pageWidth - 40, 105, { align: "right" });
-
-  // Separator line
-  doc.setDrawColor(41, 128, 185);
-  doc.setLineWidth(2);
-  doc.line(40, 115, pageWidth - 40, 115);
-
-  let currentY = 135;
-  let pageNum = 1;
-  const totalPages = 1; // Will be updated if multiple pages
-
-  addPageNumber(pageNum, totalPages);
-
-  const numberOr0 = (v: any) => {
-    const n = typeof v === "string" ? parseFloat(v) : v;
-    return isNaN(n) || !isFinite(n) ? 0 : n;
-  };
-
-  const formatCurrency = (num: any) => {
-    return numberOr0(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  if (exportType === 'party') {
-    // Group by selected party type (Consignor or Consignee)
-    const grouped: Record<string, BiltiesReceivableRow[]> = {};
-    rows.forEach(r => {
-      const party = partyType === 'consignor' ? (r.consignor || "Unknown Party") : (r.consignee || "Unknown Party");
-      if (!grouped[party]) grouped[party] = [];
-      grouped[party].push(r);
-    });
-
-    let headerShownOnPage = false;
-    const partyLabel = partyType === 'consignor' ? 'Consignor' : 'Consignee';
-    const head = [[
-      "Vehicle No",
-      "Bilty No",
-      "Bilty Date",
-      "Destination",
-      "Item Description",
-      "Quantity",
-      "Bilty Amount (PKR)",
-      "Received (PKR)",
-      "Pending (PKR)"
-    ]];
-
-    Object.entries(grouped).forEach(([partyName, partyRows], index) => {
-      // Check if we need a new page
-      if (currentY + 100 > pageHeight - 60) {
-        addFooter();
-        addPageNumber(pageNum, totalPages);
-        doc.addPage();
-        pageNum++;
-        addHeader();
-        addFooter();
-        currentY = 135;
-        headerShownOnPage = false;
-      }
-
-      // Party name with professional styling
-      doc.setFillColor(240, 248, 255); // Light blue background
-      doc.rect(40, currentY - 5, pageWidth - 80, 20, 'F');
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(41, 128, 185);
-      doc.text(`${partyLabel}: ${partyName}`, 50, currentY + 8);
-      currentY += 25;
-
-      const body = partyRows.map(r => [
-        r.vehicleNo || "-",
-        r.biltyNo || "-",
-        formatDisplayDate(r.biltyDate || r.orderDate),
-        r.destination || "-",
-        r.article || "-",
-        r.qty || "-",
-        formatCurrency(r.biltyAmount),
-        formatCurrency(r.receivedAmount),
-        formatCurrency(r.pendingAmount)
-      ]);
-
-      // Calculate totals for this party
-      const partytotals = partyRows.reduce((acc, r) => {
-        acc.bilty += numberOr0(r.biltyAmount);
-        acc.received += numberOr0(r.receivedAmount);
-        acc.pending += numberOr0(r.pendingAmount);
-        return acc;
-      }, { bilty: 0, received: 0, pending: 0 });
-
-      body.push([
-        { content: "SUBTOTAL", colSpan: 6, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 248, 255] } },
-        { content: formatCurrency(partytotals.bilty), styles: { fontStyle: 'bold', fillColor: [240, 248, 255] } },
-        { content: formatCurrency(partytotals.received), styles: { fontStyle: 'bold', fillColor: [240, 248, 255] } },
-        { content: formatCurrency(partytotals.pending), styles: { fontStyle: 'bold', fillColor: [240, 248, 255], textColor: [220, 53, 69] } }
-      ]);
-
-      autoTable(doc, {
-        startY: currentY,
-        head: headerShownOnPage ? [] : head,
-        body,
-        styles: {
-          fontSize: 8,
-          cellPadding: 5,
-          lineColor: [200, 200, 200],
-          lineWidth: 0.5
-        },
-        headStyles: {
-          fillColor: [41, 128, 185],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          halign: 'center'
-        },
-        bodyStyles: {
-          textColor: [50, 50, 50]
-        },
-        alternateRowStyles: {
-          fillColor: [248, 249, 250]
-        },
-        columnStyles: {
-          6: { halign: 'right' },
-          7: { halign: 'right' },
-          8: { halign: 'right', textColor: [220, 53, 69], fontStyle: 'bold' }
-        },
-        theme: 'grid',
-        margin: { left: 40, right: 40 },
-        didDrawPage: () => {
-          headerShownOnPage = true;
-        }
-      });
-
-      currentY = (doc as any).lastAutoTable.finalY + 20;
-    });
-
-  } else {
-    // Bilty Wise - Show selected party type column
-    const partyLabel = partyType === 'consignor' ? 'Consignor' : 'Consignee';
-    const head = [[
-      "Vehicle No",
-      "Bilty No",
-      "Bilty Date",
-      partyLabel,
-      "Item Description",
-      "Quantity",
-      "Bilty Amount (PKR)",
-      "Received (PKR)",
-      "Pending (PKR)"
-    ]];
-
-    const body = rows.map(r => [
+    const body = rows.map((r) => [
       r.vehicleNo || "-",
       r.biltyNo || "-",
       formatDisplayDate(r.biltyDate || r.orderDate),
-      partyType === 'consignor' ? (r.consignor || "-") : (r.consignee || "-"),
+      (partyType === "consignor" ? r.consignor : r.consignee) || "-",
       r.article || "-",
       r.qty || "-",
       formatCurrency(r.biltyAmount),
       formatCurrency(r.receivedAmount),
-      formatCurrency(r.pendingAmount)
+      formatCurrency(r.pendingAmount),
     ]);
 
-    // Calculate totals
-    const totals = rows.reduce((acc, r) => {
-      acc.bilty += numberOr0(r.biltyAmount);
-      acc.received += numberOr0(r.receivedAmount);
-      acc.pending += numberOr0(r.pendingAmount);
-      return acc;
-    }, { bilty: 0, received: 0, pending: 0 });
+    // Grand total
+    const grandTotal = rows.reduce(
+      (acc, r) => ({
+        bilty: acc.bilty + numberOr0(r.biltyAmount),
+        received: acc.received + numberOr0(r.receivedAmount),
+        pending: acc.pending + numberOr0(r.pendingAmount),
+      }),
+      { bilty: 0, received: 0, pending: 0 }
+    );
 
     body.push([
-      { content: "GRAND TOTAL", colSpan: 6, styles: { halign: 'right', fontStyle: 'bold', fillColor: [41, 128, 185], textColor: [255, 255, 255] } },
-      { content: formatCurrency(totals.bilty), styles: { fontStyle: 'bold', fillColor: [41, 128, 185], textColor: [255, 255, 255] } },
-      { content: formatCurrency(totals.received), styles: { fontStyle: 'bold', fillColor: [41, 128, 185], textColor: [255, 255, 255] } },
-      { content: formatCurrency(totals.pending), styles: { fontStyle: 'bold', fillColor: [41, 128, 185], textColor: [255, 193, 193] } }
+      { content: "GRAND TOTAL", colSpan: 6, styles: { halign: "right", fontStyle: "bold" } },
+      { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" } },
+      { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" } },
+      { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
     ]);
 
     autoTable(doc, {
-      startY: currentY,
+      startY: 125,
       head,
       body,
-      styles: {
-        fontSize: 8,
-        cellPadding: 5,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.5
-      },
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 5, lineWidth: 0.4, lineColor: [180, 180, 180] },
       headStyles: {
         fillColor: [41, 128, 185],
         textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      bodyStyles: {
-        textColor: [50, 50, 50]
-      },
-      alternateRowStyles: {
-        fillColor: [248, 249, 250]
+        fontStyle: "bold",
+        halign: "center",
       },
       columnStyles: {
-        6: { halign: 'right' },
-        7: { halign: 'right' },
-        8: { halign: 'right', textColor: [220, 53, 69], fontStyle: 'bold' }
+        0: { cellWidth: 70 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 70 },
+        3: { cellWidth: 140 },
+        4: { cellWidth: 140 },
+        5: { cellWidth: 70 },
+        6: { halign: "right", cellWidth: 80 },
+        7: { halign: "right", cellWidth: 70 },
+        8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] },
       },
-      theme: 'grid',
       margin: { left: 40, right: 40 },
+      didDrawPage: () => {
+        if (!headerShown) {
+          headerShown = true;
+        }
+      },
+      willDrawPage: (data) => {
+        if (data.pageNumber > 1 && !headerShown) {
+          addCompanyHeader();
+          addReportTitleAndDate();
+        }
+      },
     });
+
+    const finalY = (doc as any).lastAutoTable.finalY;
+    addFooter(1, 1); // will be updated later if needed
   }
 
-  // Add final page number
-  addPageNumber(pageNum, pageNum);
+  // ────────────────────────────────────────────────
+  //  PARTY WISE – Grouped + subtotals
+  // ────────────────────────────────────────────────
+  else {
+    const grouped: Record<string, BiltiesReceivableRow[]> = {};
 
-  const filename = `${COMPANY_NAME.replace(/\s+/g, "_")}_Receivable_Report_${exportType === 'party' ? 'Party_Wise' : 'Bilty_Wise'}.pdf`;
+    rows.forEach((r) => {
+      const partyKey = partyType === "consignor" ? r.consignor : r.consignee;
+      const key = partyKey && partyKey.trim() ? partyKey.trim() : "Unknown Party";
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(r);
+    });
+
+    let pageNum = 1;
+    let totalPagesEstimate = 1; // will be approximate
+
+    addCompanyHeader();
+    addReportTitleAndDate();
+
+    let currentY = 125;
+
+    Object.entries(grouped).forEach(([partyName, partyRows], groupIndex) => {
+      // Page break check
+      if (currentY > doc.internal.pageSize.height - 140) {
+        addFooter(pageNum, totalPagesEstimate);
+        doc.addPage();
+        pageNum++;
+        addCompanyHeader();
+        addReportTitleAndDate();
+        currentY = 125;
+      }
+
+      // Party name header
+      doc.setFillColor(230, 243, 255);
+      doc.rect(40, currentY - 12, pageWidth - 80, 24, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(41, 128, 185);
+      doc.text(`Consignor: ${partyName}`, 50, currentY + 3);
+
+      currentY += 28;
+
+      const head = [
+        [
+          "Vehicle No",
+          "Bilty No",
+          "Bilty Date",
+          "Item Description",
+          "Quantity",
+          "Bilty Amount (PKR)",
+          "Received (PKR)",
+          "Pending (PKR)",
+        ],
+      ];
+
+      const body = partyRows.map((r) => [
+        r.vehicleNo || "-",
+        r.biltyNo || "-",
+        formatDisplayDate(r.biltyDate || r.orderDate),
+        r.article || "-",
+        r.qty || "-",
+        formatCurrency(r.biltyAmount),
+        formatCurrency(r.receivedAmount),
+        formatCurrency(r.pendingAmount),
+      ]);
+
+      const subtotal = partyRows.reduce(
+        (acc, r) => ({
+          bilty: acc.bilty + numberOr0(r.biltyAmount),
+          received: acc.received + numberOr0(r.receivedAmount),
+          pending: acc.pending + numberOr0(r.pendingAmount),
+        }),
+        { bilty: 0, received: 0, pending: 0 }
+      );
+
+      body.push([
+        { content: "Total", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } },
+        { content: formatCurrency(subtotal.bilty), styles: { fontStyle: "bold" } },
+        { content: formatCurrency(subtotal.received), styles: { fontStyle: "bold" } },
+        { content: formatCurrency(subtotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: groupIndex === 0 ? head : [],
+        body,
+        theme: "grid",
+        styles: { fontSize: 8, cellPadding: 5, lineWidth: 0.4, lineColor: [190, 190, 190] },
+        headStyles: {
+          fillColor: [41, 128, 185],
+          textColor: 255,
+          fontStyle: "bold",
+          halign: "center",
+        },
+        columnStyles: {
+          0: { cellWidth: 85 },
+          1: { cellWidth: 85 },
+          2: { cellWidth: 85 },
+          3: { cellWidth: 170 },
+          4: { cellWidth: 100 },
+          5: { halign: "right", cellWidth: 80 },
+          6: { halign: "right", cellWidth: 80 },
+          7: { halign: "right", cellWidth: 80, textColor: [220, 53, 69] },
+        },
+        margin: { left: 40, right: 40 },
+        didParseCell: (data) => {
+          if (data.row.index === body.length - 1 && data.column.index >= 5) {
+            data.cell.styles.fillColor = [245, 247, 250];
+          }
+        },
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 18;
+    });
+
+    addFooter(pageNum, pageNum);
+  }
+
+  const filename = `Al_Nasar_Basheer_Logistics_Receivable_${exportType === "party" ? "PartyWise" : "BiltyWise"}_${new Date().toISOString().slice(0, 10)}.pdf`;
+
   doc.save(filename);
 };

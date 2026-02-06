@@ -303,6 +303,10 @@ const BookingOrderReportExport: React.FC = () => {
             const receivedAmount = receiptByBilty[biltyNo] || 0;
             const pendingAmount = consignmentFreight - receivedAmount;
 
+            // pick vehicle from consignment if present, fallback to order vehicle
+            const consignmentVehicleNo = c.vehicleNo || c.vehicle || c.regNo || vehicleNo || "-";
+            const biltyDate = formatDate(c.consignmentDate || c.date || c.biltyDate || odate);
+
             let article = "-";
             let qty = "-";
             if (Array.isArray(c.items) && c.items.length > 0) {
@@ -326,7 +330,7 @@ const BookingOrderReportExport: React.FC = () => {
               serial: "",
               orderNo: "",
               orderDate: "",
-              vehicleNo: "",
+              vehicleNo: consignmentVehicleNo || "-",
               bookingAmount: 0,
               biltyNo,
               biltyAmount: consignmentFreight,
@@ -343,7 +347,7 @@ const BookingOrderReportExport: React.FC = () => {
               ablDate: formatDate(odate),
               receivedAmount,
               pendingAmount,
-              biltyDate: formatDate(c.consignmentDate || c.date || odate),
+              biltyDate,
             };
           }) : [{
             serial: "",
@@ -503,6 +507,10 @@ const BookingOrderReportExport: React.FC = () => {
           const receivedAmount = receiptByBilty[biltyNo] || 0;
           const pendingAmount = consignmentFreight - receivedAmount;
 
+          // pick vehicle from consignment if present, fallback to order vehicle
+          const consignmentVehicleNo = c.vehicleNo || c.vehicle || c.regNo || vehicleNo || "-";
+          const biltyDate = formatDate(c.consignmentDate || c.date || c.biltyDate || odate);
+
           let article = "-";
           let qty = "-";
           if (Array.isArray(c.items) && c.items.length > 0) {
@@ -526,7 +534,7 @@ const BookingOrderReportExport: React.FC = () => {
             serial: "",
             orderNo: "",
             orderDate: "",
-            vehicleNo: "",
+            vehicleNo: vehicleNo || "-",
             bookingAmount: 0,
             biltyNo,
             biltyAmount: consignmentFreight,
@@ -543,14 +551,35 @@ const BookingOrderReportExport: React.FC = () => {
             ablDate: formatDate(odate),
             receivedAmount,
             pendingAmount,
-            biltyDate: formatDate(c.consignmentDate || c.date || odate),
+            biltyDate,
           };
-        }) : [];
+        }) : [{
+          serial: "",
+          orderNo: "",
+          orderDate: "",
+          vehicleNo: "",
+          bookingAmount: 0,
+          biltyNo: "-",
+          biltyAmount: 0,
+          consignmentFreight: 0,
+          consignor: "",
+          consignee: "",
+          article: "-",
+          qty: "-",
+          departure: "",
+          destination: "",
+          vendor: "",
+          carrier: "",
+          isOrderRow: false,
+          ablDate: formatDate(odate),
+          receivedAmount: 0,
+          pendingAmount: 0,
+        }];
 
         return [orderRow, ...consignmentRows];
       });
 
-      setReceivableData(rows);
+      return rows;
     } catch (err) {
       console.error("Failed to load receivable data", err);
       toast.error("Failed to load bilty receivable data");
@@ -785,8 +814,8 @@ const BookingOrderReportExport: React.FC = () => {
   // Build receivable and non-receivable order lists for Bilty tab
   const { receivableOrders, nonReceivableOrders } = useMemo(() => {
     if (!receivableData.length) return { receivableOrders: [] as RowData[], nonReceivableOrders: [] as RowData[] };
-    
-    // Group using same logic as detail
+
+    // Re-group into orders + raw consignments (original objects in receivableData are order & consignment rows).
     const groups: { order: RowData; consignments: RowData[] }[] = [];
     let current: { order: RowData; consignments: RowData[] } | null = null;
     receivableData.forEach(r => {
@@ -799,40 +828,55 @@ const BookingOrderReportExport: React.FC = () => {
     });
     if (current) groups.push(current);
 
-    // Receivable = orders with at least one consignment that has a bilty no
-    // Non-Receivable = orders without any consignment with a bilty no
-    // Filter by bilty no only
-    const filterByBiltyNo = (rows: RowData[]) => {
-      return rows.filter(r => {
-        // Filter by bilty no
-        if (selectedBiltyNo && r.biltyNo !== selectedBiltyNo) {
-          return false;
+    // Build flat list of bilty rows (one per consignment with a valid biltyNo).
+    const biltyRows: RowData[] = [];
+    groups.forEach(g => {
+      g.consignments.forEach(c => {
+        if (c.biltyNo && c.biltyNo !== "-" && c.biltyNo !== "") {
+          // allow filtering by selected bilty no
+          if (selectedBiltyNo && c.biltyNo !== selectedBiltyNo) return;
+
+          biltyRows.push({
+            // preserve fields useful for PDF/table
+            serial: "", // PDF will assign sequential serials
+            orderNo: g.order.orderNo || "",
+            orderDate: g.order.orderDate || "",
+            vehicleNo: c.vehicleNo || g.order.vehicleNo || "-",
+            bookingAmount: 0,
+            biltyNo: c.biltyNo,
+            biltyAmount: c.biltyAmount || c.consignmentFreight || 0,
+            consignmentFreight: c.consignmentFreight || 0,
+            consignor: c.consignor || g.order.consignor || "-",
+            consignee: c.consignee || g.order.consignee || "-",
+            article: c.article || "-",
+            qty: c.qty || "-",
+            departure: g.order.departure || "",
+            destination: g.order.destination || "",
+            vendor: g.order.vendor || "",
+            carrier: c.carrier || g.order.carrier || "",
+            isOrderRow: false,
+            ablDate: c.ablDate || g.order.ablDate || "-",
+            receivedAmount: c.receivedAmount || 0,
+            pendingAmount: c.pendingAmount || (numberOr0(c.consignmentFreight) - numberOr0(c.receivedAmount)),
+            biltyDate: c.biltyDate || c.ablDate || "-",
+          });
         }
-        return true;
       });
-    };
+    });
 
-    // Receivable: orders that have at least one consignment with bilty no, displayed like Detail Report
-    const receivable: RowData[] = [];
-    groups
-      .filter(g => g.consignments.some(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-"))
-      .forEach(g => {
-        // Add order row
-        receivable.push(g.order);
-        // Add all consignments with bilty numbers
-        const consignmentsWithBilty = g.consignments.filter(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-");
-        receivable.push(...consignmentsWithBilty);
-      });
-    
-    const receivableFiltered = filterByBiltyNo(receivable);
-    
-    // Non-Receivable: orders without any consignment with bilty no
-    const nonReceivable = filterByBiltyNo(groups
-      .filter(g => !g.consignments.some(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-"))
-      .map(g => g.order)
-    );
+    // sort by consignor then biltyNo to make party-wise grouping predictable
+    biltyRows.sort((a, b) => {
+      const consignorCmp = (a.consignor || "").localeCompare(b.consignor || "");
+      if (consignorCmp !== 0) return consignorCmp;
+      return String(a.biltyNo || "").localeCompare(String(b.biltyNo || ""));
+    });
 
-    return { receivableOrders: receivableFiltered, nonReceivableOrders: nonReceivable };
+    // Non-receivable: orders without any consignment having a biltyNo
+    const nonRec = groups
+      .filter(g => !g.consignments.some(c => c.biltyNo && c.biltyNo !== "-" && c.biltyNo !== ""))
+      .map(g => g.order);
+
+    return { receivableOrders: biltyRows, nonReceivableOrders: nonRec };
   }, [receivableData, selectedBiltyNo]);
 
   const exportReceivable = useCallback(async () => {
@@ -1380,6 +1424,7 @@ const BookingOrderReportExport: React.FC = () => {
                   <Button
                     onClick={exportNonReceivable}
                     disabled={receivableLoading}
+                   
                     className="px-6 py-3 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                   >
                     Non-Receivable PDF
