@@ -252,8 +252,10 @@ export const exportBiltiesReceivableToPDF = ({
     });
 
     let pageNum = 1;
-    let totalPagesEstimate = 1; // will be approximate
+    let totalPagesEstimate = 1;
+    let isFirstPage = true; // Track if it's the first page
 
+    // Add header only on first page
     addCompanyHeader();
     addReportTitleAndDate();
 
@@ -265,9 +267,9 @@ export const exportBiltiesReceivableToPDF = ({
         addFooter(pageNum, totalPagesEstimate);
         doc.addPage();
         pageNum++;
-        addCompanyHeader();
-        addReportTitleAndDate();
-        currentY = 125;
+        isFirstPage = false; // Not first page anymore
+        // Don't add company header on new pages
+        currentY = 40; // Start from top on new pages
       }
 
       // Party name header
@@ -277,7 +279,8 @@ export const exportBiltiesReceivableToPDF = ({
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(41, 128, 185);
-      doc.text(`Consignor: ${partyName}`, 50, currentY + 3);
+      const partyLabel = partyType === "consignor" ? "Consignor" : "Consignee";
+      doc.text(`${partyLabel}: ${partyName}`, 50, currentY + 3);
 
       currentY += 28;
 
@@ -325,7 +328,7 @@ export const exportBiltiesReceivableToPDF = ({
 
       autoTable(doc, {
         startY: currentY,
-        head: groupIndex === 0 ? head : [],
+        head: head, // Always show header for each party table
         body,
         theme: "grid",
         styles: { fontSize: 8, cellPadding: 5, lineWidth: 0.4, lineColor: [190, 190, 190] },
