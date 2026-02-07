@@ -48,7 +48,7 @@ export const exportNonReceivableToPDF = ({
   let headerShown = false;
 
   const addCompanyHeader = () => {
-    doc.setFillColor(220, 53, 69); // Red for non-receivable
+    doc.setFillColor(25, 135, 84);
     doc.rect(0, 0, pageWidth, 55, "F");
 
     doc.setFont("helvetica", "bold");
@@ -65,7 +65,7 @@ export const exportNonReceivableToPDF = ({
   const addReportTitleAndDate = () => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.setTextColor(220, 53, 69);
+    doc.setTextColor(25, 135, 84);
     doc.text(REPORT_TITLE, pageWidth / 2, 80, { align: "center" });
 
     doc.setFont("helvetica", "normal");
@@ -94,7 +94,7 @@ export const exportNonReceivableToPDF = ({
       { align: "right" }
     );
 
-    doc.setDrawColor(220, 53, 69);
+    doc.setDrawColor(25, 135, 84);
     doc.setLineWidth(1.2);
     doc.line(40, 110, pageWidth - 40, 110);
   };
@@ -161,7 +161,7 @@ export const exportNonReceivableToPDF = ({
     theme: "grid",
     styles: { fontSize: 9, cellPadding: 6, lineWidth: 0.4, lineColor: [180, 180, 180] },
     headStyles: {
-      fillColor: [220, 53, 69],
+      fillColor: [25, 135, 84],
       textColor: [255, 255, 255],
       fontStyle: "bold",
       halign: "center",
