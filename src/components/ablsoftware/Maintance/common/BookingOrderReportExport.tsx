@@ -1626,6 +1626,7 @@ const BookingOrderReportExport: React.FC = () => {
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Received</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Pending</th>
                           </tr>
+                          {/*  */}
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {receivableOrders.filter(o => !o.isOrderRow).map((o, idx) => (
