@@ -80,7 +80,7 @@ interface Transporter {
 const consignmentSchema = z.object({
   consignmentMode: z.string().optional(),
   receiptNo: z.string().optional(),
-  orderNo: z.string().optional(),
+  orderNo: z.string().min(1, 'Select Order Number'),
   biltyNo: z.string().optional(),
   date: z.string().optional(),
   consignmentNo: z.string().optional(),
@@ -93,6 +93,7 @@ const consignmentSchema = z.object({
   containerNo: z.string().optional(),
   port: z.string().optional(),
   destination: z.string().optional(),
+  // Make freightFrom optional in schema; validate at submit-time depending on navigation source
   freightFrom: z.string().optional(),
   items: z.array(
     z.object({
@@ -304,7 +305,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
         
         // Create comprehensive party options including all party types
         const allPartyOptions: DropdownOption[] = [
-          // Parties
+          // Parties  
           ...partRes.data.map((p: Party) => ({ id: p.id, name: p.name })),
           // Customers
           ...(custRes.data || []).map((c: any) => ({ id: c.id, name: c.name })),
@@ -530,6 +531,14 @@ const ConsignmentForm = ({ isEdit = false }) => {
 
   const onSubmit = async (data: ConsignmentFormData) => {
     setIsSubmitting(true);
+
+    // Require freightFrom when accessed directly (not from booking)
+    if (!fromBooking && (!data.freightFrom || String(data.freightFrom).trim() === '')) {
+      toast.error('Select Which Party is Paying Freight');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const payload = {
         ...data,
@@ -660,20 +669,20 @@ const ConsignmentForm = ({ isEdit = false }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4">
+    <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4">
       <div className="w-full">
         {isLoading && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl">
               <div className="flex items-center gap-3">
-                <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-6 h-6 border-3 border-emerald-600 0border-t-transparent rounded-full animate-spin"></div>
                 <span className="text-gray-700 dark:text-gray-300 font-medium">Loading consignment data...</span>
               </div>
             </div>
           </div>
         )}
 
-        <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="max-w-1xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -785,7 +794,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                         <AblNewCustomDrpdown
                           label="Consignor"
                           options={parties}
-                          selectedOption={resolvePartyName(field.value || '')}
+                          selectedOption={field.value || ''}
                           onChange={(value) => setValue('consignor', value, { shouldValidate: true })}
                           error={errors.consignor?.message}
                           disabled={isFieldDisabled('consignor')}
@@ -799,7 +808,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                         <AblNewCustomDrpdown
                           label="Consignee"
                           options={parties}
-                          selectedOption={resolvePartyName(field.value || '')}
+                          selectedOption={field.value || ''}
                           onChange={(value) => setValue('consignee', value, { shouldValidate: true })}
                           error={errors.consignee?.message}
                           disabled={isFieldDisabled('consignee')}
