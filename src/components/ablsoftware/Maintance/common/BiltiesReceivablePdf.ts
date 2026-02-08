@@ -293,7 +293,7 @@ export const exportBiltiesReceivableToPDF = ({
     const grouped: Record<string, BiltiesReceivableRow[]> = {};
 
     if (partyType === 'all') {
-      // When 'all' requested, build two sets: consignor groups then consignee groups, both sorted alphabetically
+      // When 'all' requested, build combined list of consignors and consignees, sorted alphabetically together
       const consignorGrouped: Record<string, BiltiesReceivableRow[]> = {};
       const consigneeGrouped: Record<string, BiltiesReceivableRow[]> = {};
       rows.forEach((r) => {
@@ -304,9 +304,19 @@ export const exportBiltiesReceivableToPDF = ({
         consignorGrouped[cKey].push(r);
         consigneeGrouped[eKey].push(r);
       });
-      // merge into grouped with prefix to preserve order (consignor first), sorted alphabetically
-      Object.entries(consignorGrouped).sort(([a], [b]) => a.localeCompare(b)).forEach(([k, v]) => (grouped[`Consignor: ${k}`] = v));
-      Object.entries(consigneeGrouped).sort(([a], [b]) => a.localeCompare(b)).forEach(([k, v]) => (grouped[`Consignee: ${k}`] = v));
+      
+      // Create array of all parties (both consignor and consignee) with their type
+      const allParties: Array<[string, 'consignor' | 'consignee', BiltiesReceivableRow[]]> = [];
+      Object.entries(consignorGrouped).forEach(([k, v]) => allParties.push([k, 'consignor', v]));
+      Object.entries(consigneeGrouped).forEach(([k, v]) => allParties.push([k, 'consignee', v]));
+      
+      // Sort by party name alphabetically, mixing consignors and consignees together
+      allParties.sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
+      
+      // Add to grouped with prefixes in alphabetical order
+      allParties.forEach(([name, type, partyRows]) => {
+        grouped[`${type === 'consignor' ? 'Consignor' : 'Consignee'}: ${name}`] = partyRows;
+      });
     } else {
       rows.forEach((r) => {
         const partyKey = partyType === "consignor" ? r.consignor : r.consignee;
