@@ -33,7 +33,7 @@ export interface BiltiesReceivablePdfParams {
   startDate?: string;
   endDate?: string;
   exportType?: 'bilty' | 'party';
-  partyType?: 'consignor' | 'consignee';
+  partyType?: 'consignor' | 'consignee' | 'all';
 }
 
 const formatDisplayDate = (d?: string) => {
@@ -89,7 +89,7 @@ export const exportBiltiesReceivableToPDF = ({
   };
 
   const addReportTitleAndDate = () => {
-    const partyLabel = partyType === "consignor" ? "Consignor" : "Consignee";
+      const partyLabel = partyType === "consignor" ? "Consignor" : (partyType === 'consignee' ? 'Consignee' : 'Consignor / Consignee');
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
@@ -159,7 +159,7 @@ export const exportBiltiesReceivableToPDF = ({
         "Vehicle No",
         "Bilty No",
         "Bilty Date",
-        partyType === "consignor" ? "Consignor" : "Consignee",
+        partyType === "consignor" ? "Consignor" : (partyType === 'consignee' ? 'Consignee' : 'Consignor / Consignee'),
         "Item Description",
         "Quantity",
         "Bilty Amount (PKR)",
@@ -172,7 +172,7 @@ export const exportBiltiesReceivableToPDF = ({
       r.vehicleNo || "-",
       r.biltyNo || "-",
       formatDisplayDate(r.biltyDate || r.orderDate),
-      (partyType === "consignor" ? r.consignor : r.consignee) || "-",
+      (partyType === "consignor" ? r.consignor : (partyType === 'consignee' ? r.consignee : `${r.consignor || '-'} / ${r.consignee || '-'}`)) || "-",
       r.article || "-",
       r.qty || "-",
       formatCurrency(r.biltyAmount),
@@ -244,12 +244,29 @@ export const exportBiltiesReceivableToPDF = ({
   else {
     const grouped: Record<string, BiltiesReceivableRow[]> = {};
 
-    rows.forEach((r) => {
-      const partyKey = partyType === "consignor" ? r.consignor : r.consignee;
-      const key = partyKey && partyKey.trim() ? partyKey.trim() : "Unknown Party";
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(r);
-    });
+    if (partyType === 'all') {
+      // When 'all' requested, build two sets: consignor groups then consignee groups
+      const consignorGrouped: Record<string, BiltiesReceivableRow[]> = {};
+      const consigneeGrouped: Record<string, BiltiesReceivableRow[]> = {};
+      rows.forEach((r) => {
+        const cKey = r.consignor && r.consignor.trim() ? r.consignor.trim() : 'Unknown Party';
+        const eKey = r.consignee && r.consignee.trim() ? r.consignee.trim() : 'Unknown Party';
+        if (!consignorGrouped[cKey]) consignorGrouped[cKey] = [];
+        if (!consigneeGrouped[eKey]) consigneeGrouped[eKey] = [];
+        consignorGrouped[cKey].push(r);
+        consigneeGrouped[eKey].push(r);
+      });
+      // merge into grouped with prefix to preserve order (consignor first)
+      Object.entries(consignorGrouped).forEach(([k, v]) => (grouped[`Consignor: ${k}`] = v));
+      Object.entries(consigneeGrouped).forEach(([k, v]) => (grouped[`Consignee: ${k}`] = v));
+    } else {
+      rows.forEach((r) => {
+        const partyKey = partyType === "consignor" ? r.consignor : r.consignee;
+        const key = partyKey && partyKey.trim() ? partyKey.trim() : "Unknown Party";
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(r);
+      });
+    }
 
     let pageNum = 1;
     let totalPagesEstimate = 1;

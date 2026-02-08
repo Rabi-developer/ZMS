@@ -163,7 +163,7 @@ const BookingOrderReportExport: React.FC = () => {
   const [toDate, setToDate] = useState<string>("");
   const [activeTab, setActiveTab] = useState<'booking' | 'bilty' | 'brokerBill'>('booking');
   const [receivableExportType, setReceivableExportType] = useState<'bilty' | 'party'>('bilty');
-  const [partyType, setPartyType] = useState<'consignor' | 'consignee'>('consignor'); // New: Single dropdown for party type
+  const [partyType, setPartyType] = useState<'consignor' | 'consignee' | 'all'>('consignor'); // New: supports 'all'
   const [selectedBiltyNo, setSelectedBiltyNo] = useState<string>("");
   const [allParties, setAllParties] = useState<{ id: string; name: string }[]>([]);
 
@@ -347,6 +347,7 @@ const BookingOrderReportExport: React.FC = () => {
               receivedAmount,
               pendingAmount,
               biltyDate: formatDate(c.consignmentDate || c.date || odate),
+              freightFrom: (c.freightFrom || c.FreightFrom || c.freight_from || "") as string,
             };
           }) : [{
             serial: "",
@@ -1332,9 +1333,10 @@ const BookingOrderReportExport: React.FC = () => {
                     </label>
                     <select
                       value={partyType}
-                      onChange={(e) => setPartyType(e.target.value as 'consignor' | 'consignee')}
+                      onChange={(e) => setPartyType(e.target.value as 'consignor' | 'consignee' | 'all')}
                       className="w-full h-12 px-4 border-2 border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-white hover:border-indigo-400 group-hover:shadow-md"
                     >
+                      <option value="all">All</option>
                       <option value="consignor">Consignor</option>
                       <option value="consignee">Consignee</option>
                     </select>
@@ -1409,7 +1411,128 @@ const BookingOrderReportExport: React.FC = () => {
                     // Party Wise View - Group by selected party type
                     <div className="space-y-6">
                       {(() => {
-                        // Group data by party
+                        if (partyType === 'all') {
+                          // Build consignor groups and consignee groups separately and render both
+                          const groupedConsignor: Record<string, typeof receivableOrders> = {};
+                          const groupedConsignee: Record<string, typeof receivableOrders> = {};
+                          receivableOrders.forEach(row => {
+                            if (row.isOrderRow) return;
+                            const cName = row.consignor || 'Unknown';
+                            const eName = row.consignee || 'Unknown';
+                            if (!groupedConsignor[cName]) groupedConsignor[cName] = [];
+                            if (!groupedConsignee[eName]) groupedConsignee[eName] = [];
+                            groupedConsignor[cName].push(row);
+                            groupedConsignee[eName].push(row);
+                          });
+
+                          const consignorSections = Object.entries(groupedConsignor).map(([partyName, rows]) => (
+                            <div key={`consignor-${partyName}`} className="border border-gray-200 rounded-lg overflow-hidden">
+                              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-200">
+                                <h4 className="font-bold text-gray-900">Consignor: {partyName}</h4>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  <thead className="bg-gray-100">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Vehicle No</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty No</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Date</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Destination</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Article</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Qty</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Amount</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Received</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Pending</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {rows.map((row, idx) => (
+                                      <tr key={idx} className="hover:bg-gray-50">
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyDate || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.destination || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.qty || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.biltyAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.receivedAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(row.pendingAmount)}</td>
+                                      </tr>
+                                    ))}
+                                    <tr className="bg-gray-50 font-bold">
+                                      <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">
+                                        {formatNumber(rows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
+                                      </td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">
+                                        {formatNumber(rows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
+                                      </td>
+                                      <td className="px-4 py-2 text-xs text-red-600">
+                                        {formatNumber(rows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ));
+
+                          const consigneeSections = Object.entries(groupedConsignee).map(([partyName, rows]) => (
+                            <div key={`consignee-${partyName}`} className="border border-gray-200 rounded-lg overflow-hidden">
+                              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-200">
+                                <h4 className="font-bold text-gray-900">Consignee: {partyName}</h4>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  <thead className="bg-gray-100">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Vehicle No</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty No</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Date</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Destination</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Article</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Qty</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Amount</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Received</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Pending</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {rows.map((row, idx) => (
+                                      <tr key={idx} className="hover:bg-gray-50">
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyDate || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.destination || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.qty || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.biltyAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.receivedAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(row.pendingAmount)}</td>
+                                      </tr>
+                                    ))}
+                                    <tr className="bg-gray-50 font-bold">
+                                      <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">
+                                        {formatNumber(rows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
+                                      </td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">
+                                        {formatNumber(rows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
+                                      </td>
+                                      <td className="px-4 py-2 text-xs text-red-600">
+                                        {formatNumber(rows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ));
+
+                          return [...consignorSections, ...consigneeSections];
+                        }
+
+                        // Default single-type grouping
                         const grouped: Record<string, typeof receivableOrders> = {};
                         receivableOrders.forEach(row => {
                           if (row.isOrderRow) return; // Skip order rows in party view
@@ -1483,9 +1606,9 @@ const BookingOrderReportExport: React.FC = () => {
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vehicle No</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty No</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Date</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                              {partyType === 'consignor' ? 'Consignor' : 'Consignee'}
-                            </th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                      {partyType === 'consignor' ? 'Consignor' : (partyType === 'consignee' ? 'Consignee' : 'Consignor / Consignee')}
+                                    </th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Destination</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Article</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Qty</th>
@@ -1502,7 +1625,7 @@ const BookingOrderReportExport: React.FC = () => {
                               <td className="px-4 py-2 text-xs text-gray-900">{o.biltyNo || '-'}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.biltyDate || '-'}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">
-                                {partyType === 'consignor' ? (o.consignor || '-') : (o.consignee || '-')}
+                                {partyType === 'all' ? `${o.consignor || '-'} / ${o.consignee || '-'}` : (partyType === 'consignor' ? (o.consignor || '-') : (o.consignee || '-'))}
                               </td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.destination || '-'}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.article || '-'}</td>
