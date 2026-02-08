@@ -32,6 +32,17 @@ import type { ColumnKey } from '@/components/ablsoftware/Maintance/common/Bookin
 // Company constant
 const COMPANY_NAME = "AL NASAR BASHEER LOGISTICS";
 
+// Helper functions - must be declared before use
+const formatDate = (dateStr?: string): string => {
+  if (!dateStr || dateStr === "string" || dateStr === "") return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "-";
+  const day = d.getDate().toString().padStart(2, '0');
+  const month = (d.getMonth() + 1).toString().padStart(2, '0');
+  const year = d.getFullYear() % 100;
+  return `${day}-${month}-${year}`;
+};
+
 // Use the imported ColumnKey type directly
 
 interface RowData {
@@ -56,6 +67,7 @@ interface RowData {
   receivedAmount: number;
   pendingAmount: number;
   biltyDate?: string;
+  freightFrom?: string;
 }
 
 const ALL_COLUMNS: { key: ColumnKey; label: string; tooltip: string }[] = [
@@ -106,16 +118,6 @@ const DETAIL_COLUMNS: ColumnKey[] = [
 
 const labelFor = (key: ColumnKey): string => ALL_COLUMNS.find(c => c.key === key)?.label || key;
 const tooltipFor = (key: ColumnKey): string => ALL_COLUMNS.find(c => c.key === key)?.tooltip || "";
-
-const formatDate = (dateStr?: string): string => {
-  if (!dateStr || dateStr === "string" || dateStr === "") return "-";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return "-";
-  const day = d.getDate().toString().padStart(2, '0');
-  const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const year = d.getFullYear() % 100;
-  return `${day}-${month}-${year}`;
-};
 
 const formatOrderNo = (orderNo: string, dateStr?: string): string => {
   if (!dateStr || dateStr === "string" || dateStr === "") return `ABL/${orderNo}/-/--`;
@@ -545,6 +547,7 @@ const BookingOrderReportExport: React.FC = () => {
             receivedAmount,
             pendingAmount,
             biltyDate: formatDate(c.consignmentDate || c.date || odate),
+            freightFrom: (c.freightFrom || c.FreightFrom || c.freight_from || "") as string,
           };
         }) : [];
 
@@ -813,17 +816,17 @@ const BookingOrderReportExport: React.FC = () => {
       });
     };
 
-    // Receivable: orders that have at least one consignment with bilty no, displayed like Detail Report
+    // Receivable: orders that have at least one consignment with bilty no AND matching freightFrom (partyType)
     const receivable: RowData[] = [];
-    groups
-      .filter(g => g.consignments.some(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-"))
-      .forEach(g => {
-        // Add order row
+    groups.forEach(g => {
+      const consignmentsWithBilty = g.consignments
+        .filter(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-")
+        .filter(c => String(c.freightFrom || "").trim().toLowerCase() === partyType.toLowerCase());
+      if (consignmentsWithBilty.length > 0) {
         receivable.push(g.order);
-        // Add all consignments with bilty numbers
-        const consignmentsWithBilty = g.consignments.filter(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-");
         receivable.push(...consignmentsWithBilty);
-      });
+      }
+    });
     
     const receivableFiltered = filterByBiltyNo(receivable);
     
@@ -834,7 +837,7 @@ const BookingOrderReportExport: React.FC = () => {
     );
 
     return { receivableOrders: receivableFiltered, nonReceivableOrders: nonReceivable };
-  }, [receivableData, selectedBiltyNo]);
+  }, [receivableData, selectedBiltyNo, partyType]);
 
   const exportReceivable = useCallback(async () => {
     if (!receivableOrders.length) {
