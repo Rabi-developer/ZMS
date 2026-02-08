@@ -155,30 +155,58 @@ export const exportBiltiesReceivableToPDF = ({
     addReportTitleAndDate();
 
     const head = [
-      [
-        "Vehicle No",
-        "Bilty No",
-        "Bilty Date",
-        partyType === "consignor" ? "Consignor" : (partyType === 'consignee' ? 'Consignee' : 'Consignor / Consignee'),
-        "Item Description",
-        "Quantity",
-        "Bilty Amount (PKR)",
-        "Received (PKR)",
-        "Pending (PKR)",
-      ],
+      partyType === 'all'
+        ? [
+            "Vehicle No",
+            "Bilty No",
+            "Bilty Date",
+            "Consignor",
+            "Consignee",
+            "Item Description",
+            "Quantity",
+            "Bilty Amount (PKR)",
+            "Received (PKR)",
+            "Pending (PKR)",
+          ]
+        : [
+            "Vehicle No",
+            "Bilty No",
+            "Bilty Date",
+            partyType === "consignor" ? "Consignor" : "Consignee",
+            "Item Description",
+            "Quantity",
+            "Bilty Amount (PKR)",
+            "Received (PKR)",
+            "Pending (PKR)",
+          ],
     ];
 
-    const body = rows.map((r) => [
-      r.vehicleNo || "-",
-      r.biltyNo || "-",
-      formatDisplayDate(r.biltyDate || r.orderDate),
-      (partyType === "consignor" ? r.consignor : (partyType === 'consignee' ? r.consignee : `${r.consignor || '-'} / ${r.consignee || '-'}`)) || "-",
-      r.article || "-",
-      r.qty || "-",
-      formatCurrency(r.biltyAmount),
-      formatCurrency(r.receivedAmount),
-      formatCurrency(r.pendingAmount),
-    ]);
+    const body = rows.map((r) => 
+      partyType === 'all'
+        ? [
+            r.vehicleNo || "-",
+            r.biltyNo || "-",
+            formatDisplayDate(r.biltyDate || r.orderDate),
+            r.consignor || "-",
+            r.consignee || "-",
+            r.article || "-",
+            r.qty || "-",
+            formatCurrency(r.biltyAmount),
+            formatCurrency(r.receivedAmount),
+            formatCurrency(r.pendingAmount),
+          ]
+        : [
+            r.vehicleNo || "-",
+            r.biltyNo || "-",
+            formatDisplayDate(r.biltyDate || r.orderDate),
+            (partyType === "consignor" ? r.consignor : r.consignee) || "-",
+            r.article || "-",
+            r.qty || "-",
+            formatCurrency(r.biltyAmount),
+            formatCurrency(r.receivedAmount),
+            formatCurrency(r.pendingAmount),
+          ]
+    );
 
     // Grand total
     const grandTotal = rows.reduce(
@@ -190,12 +218,21 @@ export const exportBiltiesReceivableToPDF = ({
       { bilty: 0, received: 0, pending: 0 }
     );
 
-    body.push([
-      { content: "GRAND TOTAL", colSpan: 6, styles: { halign: "right", fontStyle: "bold" } },
-      { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" } },
-      { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" } },
-      { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
-    ]);
+    body.push(
+      partyType === 'all'
+        ? [
+            { content: "GRAND TOTAL", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } },
+            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" } },
+            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" } },
+            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
+          ]
+        : [
+            { content: "GRAND TOTAL", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
+            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" } },
+            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" } },
+            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
+          ]
+    );
 
     autoTable(doc, {
       startY: 125,
@@ -209,7 +246,18 @@ export const exportBiltiesReceivableToPDF = ({
         fontStyle: "bold",
         halign: "center",
       },
-      columnStyles: {
+      columnStyles: partyType === 'all' ? {
+        0: { cellWidth: 70 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 70 },
+        3: { cellWidth: 100 },
+        4: { cellWidth: 100 },
+        5: { cellWidth: 130 },
+        6: { cellWidth: 70 },
+        7: { halign: "right", cellWidth: 75 },
+        8: { halign: "right", cellWidth: 70 },
+        9: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] },
+      } : {
         0: { cellWidth: 70 },
         1: { cellWidth: 70 },
         2: { cellWidth: 70 },
@@ -245,7 +293,7 @@ export const exportBiltiesReceivableToPDF = ({
     const grouped: Record<string, BiltiesReceivableRow[]> = {};
 
     if (partyType === 'all') {
-      // When 'all' requested, build two sets: consignor groups then consignee groups
+      // When 'all' requested, build two sets: consignor groups then consignee groups, both sorted alphabetically
       const consignorGrouped: Record<string, BiltiesReceivableRow[]> = {};
       const consigneeGrouped: Record<string, BiltiesReceivableRow[]> = {};
       rows.forEach((r) => {
@@ -256,9 +304,9 @@ export const exportBiltiesReceivableToPDF = ({
         consignorGrouped[cKey].push(r);
         consigneeGrouped[eKey].push(r);
       });
-      // merge into grouped with prefix to preserve order (consignor first)
-      Object.entries(consignorGrouped).forEach(([k, v]) => (grouped[`Consignor: ${k}`] = v));
-      Object.entries(consigneeGrouped).forEach(([k, v]) => (grouped[`Consignee: ${k}`] = v));
+      // merge into grouped with prefix to preserve order (consignor first), sorted alphabetically
+      Object.entries(consignorGrouped).sort(([a], [b]) => a.localeCompare(b)).forEach(([k, v]) => (grouped[`Consignor: ${k}`] = v));
+      Object.entries(consigneeGrouped).sort(([a], [b]) => a.localeCompare(b)).forEach(([k, v]) => (grouped[`Consignee: ${k}`] = v));
     } else {
       rows.forEach((r) => {
         const partyKey = partyType === "consignor" ? r.consignor : r.consignee;
@@ -296,8 +344,9 @@ export const exportBiltiesReceivableToPDF = ({
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(41, 128, 185);
-      const partyLabel = partyType === "consignor" ? "Consignor" : "Consignee";
-      doc.text(`${partyLabel}: ${partyName}`, 50, currentY + 3);
+      // When partyType is 'all', partyName already contains "Consignor: " or "Consignee: " prefix
+      const displayPartyName = partyType === 'all' ? partyName : `${partyType === "consignor" ? "Consignor" : "Consignee"}: ${partyName}`;
+      doc.text(displayPartyName, 50, currentY + 3);
 
       currentY += 28;
 

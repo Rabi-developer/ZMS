@@ -1609,9 +1609,16 @@ const BookingOrderReportExport: React.FC = () => {
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Vehicle No</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty No</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Date</th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                      {partyType === 'consignor' ? 'Consignor' : (partyType === 'consignee' ? 'Consignee' : 'Consignor / Consignee')}
-                                    </th>
+                            {partyType === 'all' ? (
+                              <>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Consignor</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Consignee</th>
+                              </>
+                            ) : (
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                {partyType === 'consignor' ? 'Consignor' : 'Consignee'}
+                              </th>
+                            )}
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Destination</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Article</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Qty</th>
@@ -1627,9 +1634,16 @@ const BookingOrderReportExport: React.FC = () => {
                               <td className="px-4 py-2 text-xs text-gray-900">{o.vehicleNo || '-'}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.biltyNo || '-'}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.biltyDate || '-'}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">
-                                {partyType === 'all' ? `${o.consignor || '-'} / ${o.consignee || '-'}` : (partyType === 'consignor' ? (o.consignor || '-') : (o.consignee || '-'))}
-                              </td>
+                              {partyType === 'all' ? (
+                                <>
+                                  <td className="px-4 py-2 text-xs text-gray-900">{o.consignor || '-'}</td>
+                                  <td className="px-4 py-2 text-xs text-gray-900">{o.consignee || '-'}</td>
+                                </>
+                              ) : (
+                                <td className="px-4 py-2 text-xs text-gray-900">
+                                  {partyType === 'consignor' ? (o.consignor || '-') : (o.consignee || '-')}
+                                </td>
+                              )}
                               <td className="px-4 py-2 text-xs text-gray-900">{o.destination || '-'}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.article || '-'}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.qty || '-'}</td>
