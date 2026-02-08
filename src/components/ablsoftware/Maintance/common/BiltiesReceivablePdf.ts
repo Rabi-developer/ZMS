@@ -436,6 +436,58 @@ export const exportBiltiesReceivableToPDF = ({
       currentY = (doc as any).lastAutoTable.finalY + 18;
     });
 
+    // Add Grand Total at the end for party-wise view
+    if (currentY > doc.internal.pageSize.height - 100) {
+      addFooter(pageNum, totalPagesEstimate);
+      doc.addPage();
+      pageNum++;
+      currentY = 40;
+    }
+
+    const grandTotal = rows.reduce(
+      (acc, r) => ({
+        bilty: acc.bilty + numberOr0(r.biltyAmount),
+        received: acc.received + numberOr0(r.receivedAmount),
+        pending: acc.pending + numberOr0(r.pendingAmount),
+      }),
+      { bilty: 0, received: 0, pending: 0 }
+    );
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setFillColor(220, 220, 220);
+    doc.rect(40, currentY, pageWidth - 80, 24, "F");
+    doc.setTextColor(0, 0, 0);
+    doc.text("GRAND TOTAL (ALL PARTIES)", 50, currentY + 15);
+
+    // Create grand total table
+    const grandTotalBody = [
+      [
+        { content: "Bilty Amount (PKR)", styles: { fontStyle: "bold", halign: "right" } },
+        { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold", halign: "right" } },
+      ],
+      [
+        { content: "Received (PKR)", styles: { fontStyle: "bold", halign: "right" } },
+        { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold", halign: "right" } },
+      ],
+      [
+        { content: "Pending (PKR)", styles: { fontStyle: "bold", halign: "right", textColor: [220, 53, 69] } },
+        { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", halign: "right", textColor: [220, 53, 69] } },
+      ],
+    ];
+
+    autoTable(doc, {
+      startY: currentY + 28,
+      body: grandTotalBody,
+      theme: "grid",
+      styles: { fontSize: 10, cellPadding: 8, lineWidth: 0.4, lineColor: [190, 190, 190] },
+      columnStyles: {
+        0: { cellWidth: 200, halign: "right" },
+        1: { cellWidth: 100, halign: "right" },
+      },
+      margin: { left: 40, right: 40 },
+    });
+
     addFooter(pageNum, pageNum);
   }
 
