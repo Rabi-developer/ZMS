@@ -221,16 +221,16 @@ export const exportBiltiesReceivableToPDF = ({
     body.push(
       partyType === 'all'
         ? [
-            { content: "GRAND TOTAL", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
+            { content: "GRAND TOTAL", colSpan: 5, styles: { halign: "right", fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold" as const, textColor: [220, 53, 69] } },
           ]
         : [
-            { content: "GRAND TOTAL", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
+            { content: "GRAND TOTAL", colSpan: 4, styles: { halign: "right", fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold" as const, textColor: [220, 53, 69] } },
           ]
     );
 
@@ -243,7 +243,7 @@ export const exportBiltiesReceivableToPDF = ({
       headStyles: {
         fillColor: [41, 128, 185],
         textColor: [255, 255, 255],
-        fontStyle: "bold",
+        fontStyle: "bold" as const,
         halign: "center",
       },
       columnStyles: partyType === 'all' ? {
@@ -396,10 +396,10 @@ export const exportBiltiesReceivableToPDF = ({
       );
 
       body.push([
-        { content: "SUBTOTAL", colSpan: 6, styles: { halign: "right", fontStyle: "bold" } },
-        { content: formatCurrency(subtotal.bilty), styles: { fontStyle: "bold" } },
-        { content: formatCurrency(subtotal.received), styles: { fontStyle: "bold" } },
-        { content: formatCurrency(subtotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
+        { content: "SUBTOTAL", colSpan: 6, styles: { halign: "right", fontStyle: "bold" as const } },
+        { content: formatCurrency(subtotal.bilty), styles: { fontStyle: "bold" as const } },
+        { content: formatCurrency(subtotal.received), styles: { fontStyle: "bold" as const } },
+        { content: formatCurrency(subtotal.pending), styles: { fontStyle: "bold" as const, textColor: [220, 53, 69] } },
       ]);
 
       autoTable(doc, {
@@ -411,7 +411,7 @@ export const exportBiltiesReceivableToPDF = ({
         headStyles: {
           fillColor: [41, 128, 185],
           textColor: 255,
-          fontStyle: "bold",
+          fontStyle: "bold" as const,
           halign: "center",
         },
         columnStyles: {
@@ -463,16 +463,16 @@ export const exportBiltiesReceivableToPDF = ({
     // Create grand total table
     const grandTotalBody = [
       [
-        { content: "Bilty Amount (PKR)", styles: { fontStyle: "bold", halign: "right" } },
-        { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold", halign: "right" } },
+        { content: "Bilty Amount (PKR)", styles: { fontStyle: "bold" as const, halign: "right" as const } },
+        { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" as const, halign: "right" as const } },
       ],
       [
-        { content: "Received (PKR)", styles: { fontStyle: "bold", halign: "right" } },
-        { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold", halign: "right" } },
+        { content: "Received (PKR)", styles: { fontStyle: "bold" as const, halign: "right" as const } },
+        { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" as const, halign: "right" as const } },
       ],
       [
-        { content: "Pending (PKR)", styles: { fontStyle: "bold", halign: "right", textColor: [220, 53, 69] } },
-        { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", halign: "right", textColor: [220, 53, 69] } },
+        { content: "Pending (PKR)", styles: { fontStyle: "bold" as const, halign: "right" as const, textColor: [220, 53, 69] as [number, number, number] } },
+        { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold" as const, halign: "right" as const, textColor: [220, 53, 69] as [number, number, number] } },
       ],
     ];
 
