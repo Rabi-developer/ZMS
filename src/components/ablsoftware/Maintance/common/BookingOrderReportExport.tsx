@@ -820,9 +820,11 @@ const BookingOrderReportExport: React.FC = () => {
     // Receivable: orders that have at least one consignment with bilty no AND matching freightFrom (partyType)
     const receivable: RowData[] = [];
     groups.forEach(g => {
-      const consignmentsWithBilty = g.consignments
-        .filter(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-")
-        .filter(c => String(c.freightFrom || "").trim().toLowerCase() === partyType.toLowerCase());
+      const consignmentsWithBilty = g.consignments.filter(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-")
+        .filter(c => {
+          if (partyType === 'all') return true;
+          return String(c.freightFrom || "").trim().toLowerCase() === partyType.toLowerCase();
+        });
       if (consignmentsWithBilty.length > 0) {
         receivable.push(g.order);
         receivable.push(...consignmentsWithBilty);
@@ -874,12 +876,13 @@ const BookingOrderReportExport: React.FC = () => {
     console.log('Party Type:', partyType); // Debug log
     console.log('Total Rows:', pdfRows.length); // Debug log
     
+    // Single PDF generation; if partyType === 'all', PDF will include both consignor and consignee sections
     exportBiltiesReceivableToPDF({ 
       rows: pdfRows, 
       startDate: fromDate, 
       endDate: toDate,
       exportType: receivableExportType,
-      partyType: partyType
+      partyType: partyType as any,
     });
     toast.success("Receivable PDF generated");
   }, [receivableOrders, fromDate, toDate, receivableExportType, partyType]);
