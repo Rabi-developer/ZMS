@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -142,7 +142,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
     resolver: zodResolver(chargesSchema),
     defaultValues: initialData
       ? {
-          chargeNo: initialData.chargeNo || '',
+          chargeNo: initialData.chargeNo != null ? String(initialData.chargeNo) : '',
           chargeDate: initialData.chargeDate || new Date().toISOString().split('T')[0],
           orderNo: initialData.orderNo || '',
           createdBy: initialData.createdBy || '',
@@ -302,7 +302,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           if (!initKeyRef.current || initKeyRef.current !== initKey) {
             initKeyRef.current = initKey;
             reset({
-              chargeNo: initialData.chargeNo || '',
+              chargeNo: initialData.chargeNo != null ? String(initialData.chargeNo) : '',
               chargeDate: initialData.chargeDate || new Date().toISOString().split('T')[0],
               orderNo: initialData.orderNo || '',
               createdBy: initialData.createdBy || '',
