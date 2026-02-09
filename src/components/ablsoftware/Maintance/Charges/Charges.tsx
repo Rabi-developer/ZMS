@@ -137,6 +137,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
     formState: { errors },
     setValue,
     watch,
+    reset,
   } = useForm<ChargesFormData>({
     resolver: zodResolver(chargesSchema),
     defaultValues: initialData
@@ -180,6 +181,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const [selectedLineIndex, setSelectedLineIndex] = useState(0);
   const [orderSearch, setOrderSearch] = useState('');
   const [biltySearch, setBiltySearch] = useState('');
+  const initKeyRef = useRef<string>('');
 
   const lines = watch('lines');
   const payments = watch('payments');
@@ -296,20 +298,31 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
         }
 
         if (isEdit && initialData) {
-          setValue('chargeNo', String(initialData.chargeNo || ''));
-          setValue('chargeDate', String(initialData.chargeDate || ''));
-          setValue('orderNo', String(initialData.orderNo || ''));
-          setValue(
-            'lines',
-            Array.isArray(initialData.lines)
-              ? initialData.lines.map((ln: any) => ({
-                  ...ln,
-                  biltyNo: ln?.biltyNo != null ? String(ln.biltyNo) : '',
-                  vehicle: ln?.vehicle != null ? String(ln.vehicle) : '',
-                  charge: ln?.charge != null ? String(ln.charge) : '',
-                }))
-              : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }]
-          );
+          const initKey = String((initialData as any)?.id ?? initialData.chargeNo ?? '');
+          if (!initKeyRef.current || initKeyRef.current !== initKey) {
+            initKeyRef.current = initKey;
+            reset({
+              chargeNo: initialData.chargeNo || '',
+              chargeDate: initialData.chargeDate || new Date().toISOString().split('T')[0],
+              orderNo: initialData.orderNo || '',
+              createdBy: initialData.createdBy || '',
+              creationDate: initialData.creationDate || '',
+              updatedBy: initialData.updatedBy || '',
+              updationDate: initialData.updationDate || '',
+              status: initialData.status || '',
+              lines: Array.isArray(initialData.lines)
+                ? initialData.lines.map((ln: any) => ({
+                    ...ln,
+                    biltyNo: ln?.biltyNo != null ? String(ln.biltyNo) : '',
+                    vehicle: ln?.vehicle != null ? String(ln.vehicle) : '',
+                    charge: ln?.charge != null ? String(ln.charge) : '',
+                  }))
+                : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
+              payments: Array.isArray(initialData.payments)
+                ? initialData.payments
+                : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '', orderNo: '', vehicleNo: '' }],
+            });
+          }
           try {
             const consRes = await getAllConsignment(1, 10, { chargeNo: initialData.chargeNo });
             setConsignments([...consRes.data]);
