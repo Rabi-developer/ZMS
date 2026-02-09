@@ -860,6 +860,7 @@ const BookingOrderReportExport: React.FC = () => {
       biltyDate: o.biltyDate,
       consignor: o.consignor,
       consignee: o.consignee,
+      freightFrom: o.freightFrom,
       carrier: o.carrier,
       vendor: o.vendor,
       departure: o.departure,
@@ -1415,17 +1416,28 @@ const BookingOrderReportExport: React.FC = () => {
                     <div className="space-y-6">
                       {(() => {
                         if (partyType === 'all') {
-                          // Build consignor groups and consignee groups separately and render both
+                          // Build groups based on freightFrom so each bilty appears only under its freight party
                           const groupedConsignor: Record<string, typeof receivableOrders> = {};
                           const groupedConsignee: Record<string, typeof receivableOrders> = {};
+                          const groupedUnknown: Record<string, typeof receivableOrders> = {};
                           receivableOrders.forEach(row => {
                             if (row.isOrderRow) return;
-                            const cName = row.consignor || 'Unknown';
-                            const eName = row.consignee || 'Unknown';
-                            if (!groupedConsignor[cName]) groupedConsignor[cName] = [];
-                            if (!groupedConsignee[eName]) groupedConsignee[eName] = [];
-                            groupedConsignor[cName].push(row);
-                            groupedConsignee[eName].push(row);
+                            const ff = String(row.freightFrom || "").trim().toLowerCase();
+                            if (ff === "consignor") {
+                              const cName = row.consignor || 'Unknown';
+                              if (!groupedConsignor[cName]) groupedConsignor[cName] = [];
+                              groupedConsignor[cName].push(row);
+                              return;
+                            }
+                            if (ff === "consignee") {
+                              const eName = row.consignee || 'Unknown';
+                              if (!groupedConsignee[eName]) groupedConsignee[eName] = [];
+                              groupedConsignee[eName].push(row);
+                              return;
+                            }
+                            const uName = row.consignor || row.consignee || 'Unknown';
+                            if (!groupedUnknown[uName]) groupedUnknown[uName] = [];
+                            groupedUnknown[uName].push(row);
                           });
 
                           const consignorSections = Object.entries(groupedConsignor).map(([partyName, rows]) => (
@@ -1532,7 +1544,59 @@ const BookingOrderReportExport: React.FC = () => {
                             </div>
                           ));
 
-                          return [...consignorSections, ...consigneeSections];
+                          const unknownSections = Object.entries(groupedUnknown).map(([partyName, rows]) => (
+                            <div key={`unknown-${partyName}`} className="border border-gray-200 rounded-lg overflow-hidden">
+                              <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 border-b border-gray-200">
+                                <h4 className="font-bold text-gray-900">Un-Select Fright: {partyName}</h4>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  <thead className="bg-gray-100">
+                                    <tr>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Vehicle No</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty No</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Date</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Destination</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Article</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Qty</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Amount</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Received</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Pending</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {rows.map((row, idx) => (
+                                      <tr key={idx} className="hover:bg-gray-50">
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyDate || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.destination || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.qty || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.biltyAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.receivedAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(row.pendingAmount)}</td>
+                                      </tr>
+                                    ))}
+                                    <tr className="bg-gray-50 font-bold">
+                                      <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">
+                                        {formatNumber(rows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
+                                      </td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">
+                                        {formatNumber(rows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
+                                      </td>
+                                      <td className="px-4 py-2 text-xs text-red-600">
+                                        {formatNumber(rows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ));
+
+                          return [...consignorSections, ...consigneeSections, ...unknownSections];
                         }
 
                         // Default single-type grouping
@@ -1610,10 +1674,7 @@ const BookingOrderReportExport: React.FC = () => {
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty No</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Bilty Date</th>
                             {partyType === 'all' ? (
-                              <>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Consignor</th>
-                                <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Consignee</th>
-                              </>
+                              <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Party</th>
                             ) : (
                               <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
                                 {partyType === 'consignor' ? 'Consignor' : 'Consignee'}
@@ -1636,10 +1697,13 @@ const BookingOrderReportExport: React.FC = () => {
                               <td className="px-4 py-2 text-xs text-gray-900">{o.biltyNo || '-'}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.biltyDate || '-'}</td>
                               {partyType === 'all' ? (
-                                <>
-                                  <td className="px-4 py-2 text-xs text-gray-900">{o.consignor || '-'}</td>
-                                  <td className="px-4 py-2 text-xs text-gray-900">{o.consignee || '-'}</td>
-                                </>
+                                <td className="px-4 py-2 text-xs text-gray-900">
+                                  {String(o.freightFrom || "").trim().toLowerCase() === "consignor"
+                                    ? `Consignor: ${o.consignor || '-'}`
+                                    : String(o.freightFrom || "").trim().toLowerCase() === "consignee"
+                                    ? `Consignee: ${o.consignee || '-'}`
+                                    : "Un-Select Fright"}
+                                </td>
                               ) : (
                                 <td className="px-4 py-2 text-xs text-gray-900">
                                   {partyType === 'consignor' ? (o.consignor || '-') : (o.consignee || '-')}

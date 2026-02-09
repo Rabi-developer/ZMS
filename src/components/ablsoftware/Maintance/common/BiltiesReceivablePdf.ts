@@ -15,6 +15,7 @@ export interface BiltiesReceivableRow {
   biltyDate?: string;
   consignor?: string;
   consignee?: string;
+  freightFrom?: string;
   carrier?: string;
   vendor?: string;
   departure?: string;
@@ -35,6 +36,13 @@ export interface BiltiesReceivablePdfParams {
   exportType?: 'bilty' | 'party';
   partyType?: 'consignor' | 'consignee' | 'all';
 }
+
+const formatPartyDisplay = (row: BiltiesReceivableRow) => {
+  const ff = String(row.freightFrom || "").trim().toLowerCase();
+  if (ff === "consignor") return `Consignor: ${row.consignor || "-"}`;
+  if (ff === "consignee") return `Consignee: ${row.consignee || "-"}`;
+  return "Un-Select Fright";
+};
 
 const formatDisplayDate = (d?: string) => {
   if (!d) return "-";
@@ -160,8 +168,7 @@ export const exportBiltiesReceivableToPDF = ({
             "Vehicle No",
             "Bilty No",
             "Bilty Date",
-            "Consignor",
-            "Consignee",
+            "Party",
             "Item Description",
             "Quantity",
             "Bilty Amount (PKR)",
@@ -187,8 +194,7 @@ export const exportBiltiesReceivableToPDF = ({
             r.vehicleNo || "-",
             r.biltyNo || "-",
             formatDisplayDate(r.biltyDate || r.orderDate),
-            r.consignor || "-",
-            r.consignee || "-",
+            formatPartyDisplay(r),
             r.article || "-",
             r.qty || "-",
             formatCurrency(r.biltyAmount),
@@ -221,16 +227,16 @@ export const exportBiltiesReceivableToPDF = ({
     body.push(
       partyType === 'all'
         ? [
-            { content: "GRAND TOTAL", colSpan: 5, styles: { halign: "right", fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
+            { content: "GRAND TOTAL", colSpan: 4, styles: { halign: "right" as const, fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold" as const, textColor: [220, 53, 69] as [number, number, number] } },
           ]
         : [
-            { content: "GRAND TOTAL", colSpan: 4, styles: { halign: "right", fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" } },
-            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
+            { content: "GRAND TOTAL", colSpan: 4, styles: { halign: "right" as const, fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" as const } },
+            { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold" as const, textColor: [220, 53, 69] as [number, number, number] } },
           ]
     );
 
@@ -242,7 +248,7 @@ export const exportBiltiesReceivableToPDF = ({
       styles: { fontSize: 8, cellPadding: 5, lineWidth: 0.4, lineColor: [180, 180, 180] },
       headStyles: {
         fillColor: [41, 128, 185],
-        textColor: [255, 255, 255],
+        textColor: [255, 255, 255] as [number, number, number],
         fontStyle: "bold",
         halign: "center",
       },
@@ -250,13 +256,12 @@ export const exportBiltiesReceivableToPDF = ({
         0: { cellWidth: 70 },
         1: { cellWidth: 70 },
         2: { cellWidth: 70 },
-        3: { cellWidth: 100 },
-        4: { cellWidth: 100 },
-        5: { cellWidth: 130 },
-        6: { cellWidth: 70 },
-        7: { halign: "right", cellWidth: 75 },
-        8: { halign: "right", cellWidth: 70 },
-        9: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] },
+        3: { cellWidth: 160 },
+        4: { cellWidth: 140 },
+        5: { cellWidth: 70 },
+        6: { halign: "right", cellWidth: 80 },
+        7: { halign: "right", cellWidth: 70 },
+        8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] as [number, number, number] },
       } : {
         0: { cellWidth: 70 },
         1: { cellWidth: 70 },
@@ -266,7 +271,7 @@ export const exportBiltiesReceivableToPDF = ({
         5: { cellWidth: 70 },
         6: { halign: "right", cellWidth: 80 },
         7: { halign: "right", cellWidth: 70 },
-        8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] },
+        8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] as [number, number, number] },
       },
       margin: { left: 40, right: 40 },
       didDrawPage: () => {
@@ -293,29 +298,45 @@ export const exportBiltiesReceivableToPDF = ({
     const grouped: Record<string, BiltiesReceivableRow[]> = {};
 
     if (partyType === 'all') {
-      // When 'all' requested, build combined list of consignors and consignees, sorted alphabetically together
+      // When 'all' requested, group rows by freightFrom so each bilty appears only under its freight party
       const consignorGrouped: Record<string, BiltiesReceivableRow[]> = {};
       const consigneeGrouped: Record<string, BiltiesReceivableRow[]> = {};
+      const unknownGrouped: Record<string, BiltiesReceivableRow[]> = {};
       rows.forEach((r) => {
-        const cKey = r.consignor && r.consignor.trim() ? r.consignor.trim() : 'Unknown Party';
-        const eKey = r.consignee && r.consignee.trim() ? r.consignee.trim() : 'Unknown Party';
-        if (!consignorGrouped[cKey]) consignorGrouped[cKey] = [];
-        if (!consigneeGrouped[eKey]) consigneeGrouped[eKey] = [];
-        consignorGrouped[cKey].push(r);
-        consigneeGrouped[eKey].push(r);
+        const ff = String(r.freightFrom || "").trim().toLowerCase();
+        if (ff === "consignor") {
+          const cKey = r.consignor && r.consignor.trim() ? r.consignor.trim() : "Unknown Party";
+          if (!consignorGrouped[cKey]) consignorGrouped[cKey] = [];
+          consignorGrouped[cKey].push(r);
+          return;
+        }
+        if (ff === "consignee") {
+          const eKey = r.consignee && r.consignee.trim() ? r.consignee.trim() : "Unknown Party";
+          if (!consigneeGrouped[eKey]) consigneeGrouped[eKey] = [];
+          consigneeGrouped[eKey].push(r);
+          return;
+        }
+        const uKey =
+          (r.consignor && r.consignor.trim()) ||
+          (r.consignee && r.consignee.trim()) ||
+          "Unknown Party";
+        if (!unknownGrouped[uKey]) unknownGrouped[uKey] = [];
+        unknownGrouped[uKey].push(r);
       });
       
       // Create array of all parties (both consignor and consignee) with their type
-      const allParties: Array<[string, 'consignor' | 'consignee', BiltiesReceivableRow[]]> = [];
+      const allParties: Array<[string, 'consignor' | 'consignee' | 'unknown', BiltiesReceivableRow[]]> = [];
       Object.entries(consignorGrouped).forEach(([k, v]) => allParties.push([k, 'consignor', v]));
       Object.entries(consigneeGrouped).forEach(([k, v]) => allParties.push([k, 'consignee', v]));
+      Object.entries(unknownGrouped).forEach(([k, v]) => allParties.push([k, 'unknown', v]));
       
       // Sort by party name alphabetically, mixing consignors and consignees together
       allParties.sort(([nameA], [nameB]) => nameA.localeCompare(nameB));
       
       // Add to grouped with prefixes in alphabetical order
       allParties.forEach(([name, type, partyRows]) => {
-        grouped[`${type === 'consignor' ? 'Consignor' : 'Consignee'}: ${name}`] = partyRows;
+        const prefix = type === 'consignor' ? 'Consignor' : (type === 'consignee' ? 'Consignee' : 'Un-Select Fright');
+        grouped[`${prefix}: ${name}`] = partyRows;
       });
     } else {
       rows.forEach((r) => {
@@ -396,10 +417,10 @@ export const exportBiltiesReceivableToPDF = ({
       );
 
       body.push([
-        { content: "SUBTOTAL", colSpan: 6, styles: { halign: "right", fontStyle: "bold" } },
-        { content: formatCurrency(subtotal.bilty), styles: { fontStyle: "bold" } },
-        { content: formatCurrency(subtotal.received), styles: { fontStyle: "bold" } },
-        { content: formatCurrency(subtotal.pending), styles: { fontStyle: "bold", textColor: [220, 53, 69] } },
+        { content: "SUBTOTAL", colSpan: 6, styles: { halign: "right" as const, fontStyle: "bold" as const } },
+        { content: formatCurrency(subtotal.bilty), styles: { fontStyle: "bold" as const } },
+        { content: formatCurrency(subtotal.received), styles: { fontStyle: "bold" as const } },
+        { content: formatCurrency(subtotal.pending), styles: { fontStyle: "bold" as const, textColor: [220, 53, 69] as [number, number, number] } },
       ]);
 
       autoTable(doc, {
@@ -423,7 +444,7 @@ export const exportBiltiesReceivableToPDF = ({
           5: { cellWidth: 80 },
           6: { halign: "right", cellWidth: 80 },
           7: { halign: "right", cellWidth: 70 },
-          8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] },
+          8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] as [number, number, number] },
         },
         margin: { left: 40, right: 40 },
         didParseCell: (data) => {
@@ -463,16 +484,16 @@ export const exportBiltiesReceivableToPDF = ({
     // Create grand total table
     const grandTotalBody = [
       [
-        { content: "Bilty Amount (PKR)", styles: { fontStyle: "bold", halign: "right" } },
-        { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold", halign: "right" } },
+        { content: "Bilty Amount (PKR)", styles: { fontStyle: "bold" as const, halign: "right" as const } },
+        { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" as const, halign: "right" as const } },
       ],
       [
-        { content: "Received (PKR)", styles: { fontStyle: "bold", halign: "right" } },
-        { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold", halign: "right" } },
+        { content: "Received (PKR)", styles: { fontStyle: "bold" as const, halign: "right" as const } },
+        { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" as const, halign: "right" as const } },
       ],
       [
-        { content: "Pending (PKR)", styles: { fontStyle: "bold", halign: "right", textColor: [220, 53, 69] } },
-        { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold", halign: "right", textColor: [220, 53, 69] } },
+        { content: "Pending (PKR)", styles: { fontStyle: "bold" as const, halign: "right" as const, textColor: [220, 53, 69] as [number, number, number] } },
+        { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold" as const, halign: "right" as const, textColor: [220, 53, 69] as [number, number, number] } },
       ],
     ];
 
