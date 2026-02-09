@@ -192,7 +192,7 @@ export const exportBiltiesReceivableToPDF = ({
       partyType === 'all'
         ? [
             r.vehicleNo || "-",
-            r.biltyNo || "-",
+            r.biltyNo || "",
             formatDisplayDate(r.biltyDate || r.orderDate),
             formatPartyDisplay(r),
             r.article || "-",
@@ -203,7 +203,7 @@ export const exportBiltiesReceivableToPDF = ({
           ]
         : [
             r.vehicleNo || "-",
-            r.biltyNo || "-",
+            r.biltyNo || "",
             formatDisplayDate(r.biltyDate || r.orderDate),
             (partyType === "consignor" ? r.consignor : r.consignee) || "-",
             r.article || "-",
@@ -397,7 +397,7 @@ export const exportBiltiesReceivableToPDF = ({
 
       const body = partyRows.map((r) => [
         r.vehicleNo || "-",
-        r.biltyNo || "-",
+        r.biltyNo || "",
         formatDisplayDate(r.biltyDate || r.orderDate),
         r.destination || "-",
         r.article || "-",

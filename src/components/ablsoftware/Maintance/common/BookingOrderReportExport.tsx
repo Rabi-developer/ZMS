@@ -164,7 +164,8 @@ const BookingOrderReportExport: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'booking' | 'bilty' | 'brokerBill'>('booking');
   const [receivableExportType, setReceivableExportType] = useState<'bilty' | 'party'>('bilty');
   const [partyType, setPartyType] = useState<'consignor' | 'consignee' | 'all'>('consignor'); // New: supports 'all'
-  const [selectedBiltyNo, setSelectedBiltyNo] = useState<string>("");
+  const [selectedBiltyNo, setSelectedBiltyNo] = useState<string[]>([]);
+  const [selectedPartyFilter, setSelectedPartyFilter] = useState<string[]>([]);
   const [allParties, setAllParties] = useState<{ id: string; name: string }[]>([]);
 
   const generateData = useCallback(async (isGeneral: boolean): Promise<RowData[]> => {
@@ -269,7 +270,7 @@ const BookingOrderReportExport: React.FC = () => {
           orderDate: formatDate(odate),
           vehicleNo,
           bookingAmount,
-          biltyNo: cons.length > 0 ? cons[0].biltyNo || cons[0].BiltyNo || cons[0].consignmentNo || cons[0].ConsignmentNo || "-" : "-",
+          biltyNo: cons.length > 0 ? (cons[0].biltyNo || cons[0].BiltyNo || "") : "",
           biltyAmount: 0,
           consignmentFreight: 0,
           consignor,
@@ -301,7 +302,7 @@ const BookingOrderReportExport: React.FC = () => {
             const consignor = partyMap.get(String(consignorVal)) || String(consignorVal) || "-";
             const consigneeVal = c.consignee ?? c.Consignee ?? c.consigneeId ?? c.ConsigneeId ?? "";
             const consignee = partyMap.get(String(consigneeVal)) || String(consigneeVal) || "-";
-            const biltyNo = c.biltyNo || c.BiltyNo || c.consignmentNo || c.ConsignmentNo || "-";
+            const biltyNo = c.biltyNo || c.BiltyNo || "";
             const consignmentFreight = numberOr0(c.freight);
             const receivedAmount = receiptByBilty[biltyNo] || 0;
             const pendingAmount = consignmentFreight - receivedAmount;
@@ -355,7 +356,7 @@ const BookingOrderReportExport: React.FC = () => {
             orderDate: "",
             vehicleNo: "",
             bookingAmount: 0,
-            biltyNo: "-",
+            biltyNo: "",
             biltyAmount: 0,
             consignmentFreight: 0,
             consignor: "",
@@ -480,7 +481,7 @@ const BookingOrderReportExport: React.FC = () => {
           orderDate: formatDate(odate),
           vehicleNo,
           bookingAmount,
-          biltyNo: cons.length > 0 ? cons[0].biltyNo || cons[0].BiltyNo || cons[0].consignmentNo || cons[0].ConsignmentNo || "-" : "-",
+          biltyNo: cons.length > 0 ? (cons[0].biltyNo || cons[0].BiltyNo || "") : "",
           biltyAmount: 0,
           consignmentFreight: 0,
           consignor,
@@ -502,7 +503,7 @@ const BookingOrderReportExport: React.FC = () => {
           const consignor = partyMap.get(String(consignorVal)) || String(consignorVal) || "-";
           const consigneeVal = c.consignee ?? c.Consignee ?? c.consigneeId ?? c.ConsigneeId ?? "";
           const consignee = partyMap.get(String(consigneeVal)) || String(consigneeVal) || "-";
-          const biltyNo = c.biltyNo || c.BiltyNo || c.consignmentNo || c.ConsignmentNo || "-";
+          const biltyNo = c.biltyNo || c.BiltyNo || "";
           const consignmentFreight = numberOr0(c.freight);
           const receivedAmount = receiptByBilty[biltyNo] || 0;
           const pendingAmount = consignmentFreight - receivedAmount;
@@ -808,13 +809,27 @@ const BookingOrderReportExport: React.FC = () => {
     // Non-Receivable = orders without any consignment with a bilty no
     // Filter by bilty no only
     const filterByBiltyNo = (rows: RowData[]) => {
-      return rows.filter(r => {
-        // Filter by bilty no
-        if (selectedBiltyNo && r.biltyNo !== selectedBiltyNo) {
+      if (!selectedBiltyNo.length) return rows;
+      return rows.filter(r => r.biltyNo && selectedBiltyNo.includes(r.biltyNo));
+    };
+
+    const matchesPartyFilter = (row: RowData) => {
+      if (!selectedPartyFilter.length) return true;
+      if (partyType === 'all') {
+        const ff = String(row.freightFrom || "").trim().toLowerCase();
+        return selectedPartyFilter.some((val) => {
+          const [t, n = ""] = val.split("::");
+          if (t === "consignor") return ff === "consignor" && (row.consignor || "") === n;
+          if (t === "consignee") return ff === "consignee" && (row.consignee || "") === n;
+          if (t === "unknown") {
+            const uName = row.consignor || row.consignee || "Unknown";
+            return ff !== "consignor" && ff !== "consignee" && uName === n;
+          }
           return false;
-        }
-        return true;
-      });
+        });
+      }
+      const partyName = partyType === 'consignor' ? (row.consignor || "") : (row.consignee || "");
+      return selectedPartyFilter.includes(partyName);
     };
 
     // Receivable: orders that have at least one consignment with bilty no AND matching freightFrom (partyType)
@@ -824,7 +839,8 @@ const BookingOrderReportExport: React.FC = () => {
         .filter(c => {
           if (partyType === 'all') return true;
           return String(c.freightFrom || "").trim().toLowerCase() === partyType.toLowerCase();
-        });
+        })
+        .filter(matchesPartyFilter);
       if (consignmentsWithBilty.length > 0) {
         receivable.push(g.order);
         receivable.push(...consignmentsWithBilty);
@@ -840,7 +856,46 @@ const BookingOrderReportExport: React.FC = () => {
     );
 
     return { receivableOrders: receivableFiltered, nonReceivableOrders: nonReceivable };
-  }, [receivableData, selectedBiltyNo, partyType]);
+  }, [receivableData, selectedBiltyNo, partyType, selectedPartyFilter]);
+
+  useEffect(() => {
+    setSelectedPartyFilter([]);
+  }, [partyType]);
+
+  const partyFilterOptions = useMemo(() => {
+    const rows = receivableData.filter(r => !r.isOrderRow && r.biltyNo);
+    if (partyType === 'all') {
+      const opts = new Map<string, string>();
+      rows.forEach(r => {
+        const ff = String(r.freightFrom || "").trim().toLowerCase();
+        if (ff === "consignor") {
+          const name = r.consignor || "Unknown";
+          const value = `consignor::${name}`;
+          if (!opts.has(value)) opts.set(value, `Consignor: ${name}`);
+          return;
+        }
+        if (ff === "consignee") {
+          const name = r.consignee || "Unknown";
+          const value = `consignee::${name}`;
+          if (!opts.has(value)) opts.set(value, `Consignee: ${name}`);
+          return;
+        }
+        const name = r.consignor || r.consignee || "Unknown";
+        const value = `unknown::${name}`;
+        if (!opts.has(value)) opts.set(value, `Un-Select Fright: ${name}`);
+      });
+      return Array.from(opts.entries()).map(([value, label]) => ({ value, label }));
+    }
+
+    const names = new Set<string>();
+    rows.forEach(r => {
+      const ff = String(r.freightFrom || "").trim().toLowerCase();
+      if (ff !== partyType) return;
+      const name = partyType === 'consignor' ? (r.consignor || "Unknown") : (r.consignee || "Unknown");
+      names.add(name);
+    });
+    return Array.from(names).map(name => ({ value: name, label: name }));
+  }, [receivableData, partyType]);
 
   const exportReceivable = useCallback(async () => {
     if (!receivableOrders.length) {
@@ -1304,7 +1359,7 @@ const BookingOrderReportExport: React.FC = () => {
                       </svg>
                       Filters
                     </h3>
-                    <p className="text-sm text-gray-600 mt-1">Select party type and bilty number to filter results</p>
+                    <p className="text-sm text-gray-600 mt-1">Select party type, party names, and bilty numbers to filter results</p>
                   </div>
                   <Button
                     onClick={loadReceivableData}
@@ -1326,7 +1381,7 @@ const BookingOrderReportExport: React.FC = () => {
                 </div>
               </div>
               <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Party Type Dropdown - Consignor/Consignee */}
                   <div className="group">
                     <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
@@ -1348,24 +1403,58 @@ const BookingOrderReportExport: React.FC = () => {
 
                   {/* Bilty No Dropdown */}
                   <div className="group">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
                       <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       Bilty No
-                    </label>
+                      </label>
+                      <span className="text-xs text-gray-500">{selectedBiltyNo.length} selected</span>
+                    </div>
                     <select
+                      multiple
                       value={selectedBiltyNo}
-                      onChange={(e) => setSelectedBiltyNo(e.target.value)}
-                      className="w-full h-12 px-4 border-2 border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white hover:border-purple-400 group-hover:shadow-md"
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions).map(o => o.value);
+                        setSelectedBiltyNo(selected);
+                      }}
+                      className="w-full min-h-[7.5rem] px-4 py-2 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-gradient-to-b from-white to-gray-50 hover:border-purple-300 group-hover:shadow-md"
                     >
-                      <option value="">-- All Bilty Nos --</option>
-                      {Array.from(new Set(receivableData.filter(d => d.biltyNo && d.biltyNo !== "-").map(d => d.biltyNo)))
+                      {Array.from(new Set(receivableData.filter(d => d.biltyNo).map(d => d.biltyNo)))
                         .sort()
                         .map((b, idx) => (
                           <option key={idx} value={b}>{b}</option>
                         ))}
                     </select>
+                    <div className="mt-2 text-xs text-gray-500">Tip: Hold Ctrl/Cmd to select multiple.</div>
+                  </div>
+
+                  {/* Party Name Dropdown */}
+                  <div className="group">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 15c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Party Name
+                      </label>
+                      <span className="text-xs text-gray-500">{selectedPartyFilter.length} selected</span>
+                    </div>
+                    <select
+                      multiple
+                      value={selectedPartyFilter}
+                      onChange={(e) => {
+                        const selected = Array.from(e.target.selectedOptions).map(o => o.value);
+                        setSelectedPartyFilter(selected);
+                      }}
+                      className="w-full min-h-[7.5rem] px-4 py-2 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-gradient-to-b from-white to-gray-50 hover:border-indigo-300 group-hover:shadow-md"
+                    >
+                      {partyFilterOptions.map((opt, idx) => (
+                        <option key={idx} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <div className="mt-2 text-xs text-gray-500">Tip: Hold Ctrl/Cmd to select multiple.</div>
                   </div>
                 </div>
               </div>
@@ -1464,7 +1553,7 @@ const BookingOrderReportExport: React.FC = () => {
                                     {rows.map((row, idx) => (
                                       <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
-                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.biltyDate || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.destination || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
@@ -1516,7 +1605,7 @@ const BookingOrderReportExport: React.FC = () => {
                                     {rows.map((row, idx) => (
                                       <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
-                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.biltyDate || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.destination || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
@@ -1568,7 +1657,7 @@ const BookingOrderReportExport: React.FC = () => {
                                     {rows.map((row, idx) => (
                                       <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
-                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || '-'}</td>
+                                        <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.biltyDate || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.destination || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
@@ -1634,7 +1723,7 @@ const BookingOrderReportExport: React.FC = () => {
                                   {rows.map((row, idx) => (
                                     <tr key={idx} className="hover:bg-gray-50">
                                       <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || '-'}</td>
+                                      <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
                                       <td className="px-4 py-2 text-xs text-gray-900">{row.biltyDate || '-'}</td>
                                       <td className="px-4 py-2 text-xs text-gray-900">{row.destination || '-'}</td>
                                       <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
@@ -1694,7 +1783,7 @@ const BookingOrderReportExport: React.FC = () => {
                             <tr key={idx} className="hover:bg-gray-50">
                               <td className="px-4 py-2 text-xs text-gray-900">{idx + 1}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.vehicleNo || '-'}</td>
-                              <td className="px-4 py-2 text-xs text-gray-900">{o.biltyNo || '-'}</td>
+                              <td className="px-4 py-2 text-xs text-gray-900">{o.biltyNo || ''}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.biltyDate || '-'}</td>
                               {partyType === 'all' ? (
                                 <td className="px-4 py-2 text-xs text-gray-900">
