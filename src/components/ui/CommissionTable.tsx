@@ -196,8 +196,6 @@ export function DataTable<TData extends { id: string }, TValue>({
     manualPagination: true,
   });
 
-  const searchColumn = table.getColumn(searchName);
-
   const handleColumnSearch = (columnId: string, value: string) => {
     setColumnSearches((prev) => ({ ...prev, [columnId]: value }));
     table.getColumn(columnId)?.setFilterValue(value);
