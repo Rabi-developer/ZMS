@@ -679,6 +679,15 @@ const BookingOrderReportExport: React.FC = () => {
       return;
     }
 
+    // Load charges to map chargeNo -> orderNo for paid detection
+    let chargesData: any[] = [];
+    try {
+      const chargesRes = await getAllCharges(1, 10000);
+      chargesData = chargesRes?.data || [];
+    } catch {
+      chargesData = [];
+    }
+
     // For Paid report, include all invoices (paid is determined from payments).
     // For Unpaid report, keep date range filter.
     const filteredInvoices = type === 'Paid'
@@ -713,6 +722,31 @@ const BookingOrderReportExport: React.FC = () => {
         const amt = Number(item?.paidAmount ?? item?.PaidAmount ?? p?.paidAmount ?? p?.PaidAmount) || 0;
         acc[key] = (acc[key] || 0) + amt;
       });
+      return acc;
+    }, {});
+
+    const paidByChargeNo = paymentABL.reduce((acc: Record<string, number>, p: any) => {
+      const items = p?.paymentABLItems || p?.paymentABLItem || [];
+      if (!Array.isArray(items) || items.length === 0) {
+        const key = String(p?.charges ?? p?.chargeNo ?? p?.ChargeNo ?? "").trim();
+        if (key) acc[key] = (acc[key] || 0) + (Number(p?.paidAmount ?? p?.PaidAmount) || 0);
+        return acc;
+      }
+      items.forEach((item: any) => {
+        const key = String(item?.charges ?? item?.chargeNo ?? item?.ChargeNo ?? item?.charge_no ?? "").trim();
+        if (!key) return;
+        const amt = Number(item?.paidAmount ?? item?.PaidAmount ?? p?.paidAmount ?? p?.PaidAmount) || 0;
+        acc[key] = (acc[key] || 0) + amt;
+      });
+      return acc;
+    }, {});
+
+    const chargeNosByOrder = chargesData.reduce((acc: Record<string, string[]>, c: any) => {
+      const orderKey = String(c?.orderNo ?? c?.OrderNo ?? "").trim();
+      const chargeKey = String(c?.chargeNo ?? c?.ChargeNo ?? "").trim();
+      if (!orderKey || !chargeKey) return acc;
+      if (!acc[orderKey]) acc[orderKey] = [];
+      acc[orderKey].push(chargeKey);
       return acc;
     }, {});
 
@@ -766,7 +800,11 @@ const BookingOrderReportExport: React.FC = () => {
         // Find matching payment in PaymentABL
         const totalPaidByOrder = orderNo ? (paidByOrderNo[orderNo] || 0) : 0;
         const totalPaidByBilty = biltyNo ? (paidByBiltyNo[biltyNo] || 0) : 0;
-        const totalPaid = orderNo && biltyNo ? Math.max(totalPaidByOrder, totalPaidByBilty) : (totalPaidByOrder || totalPaidByBilty);
+        const chargeNos = orderNo ? (chargeNosByOrder[orderNo] || []) : [];
+        const totalPaidByCharges = chargeNos.reduce((sum, ch) => sum + (paidByChargeNo[ch] || 0), 0);
+        const totalPaid = totalPaidByCharges > 0
+          ? totalPaidByCharges
+          : Math.max(totalPaidByOrder, totalPaidByBilty);
 
         const balance = invoiceAmount - totalPaid;
         const includeInPaid = totalPaid > 0; // include partial payments in Paid
