@@ -22,12 +22,15 @@ export interface OrderProgressRes {
   charges?: string;    // comma-separated
   amount?: string;
   consignmentStatus?: string;
+  freight?: string;    // Freight from consignment
+  freightFrom?: string; // Freight From from consignment
 }
 
 interface OrderProgressProps {
   orderNo?: string | number | null;
   bookingOrderId?: string;
   bookingStatus?: string | null;
+  biltyNo?: string | null; // NEW: Filter by specific bilty number
   // Legacy props - kept for compatibility but might be unused if using new API
   consignments?: any[]; 
   bookingOrder?: any | null;
@@ -62,6 +65,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
   orderNo,
   bookingOrderId: propBookingOrderId,
   bookingStatus,
+  biltyNo, // NEW: biltyNo filter
   consignments: propConsignments = [],
   bookingOrder: propBookingOrder,
   hideBookingOrderInfo,
@@ -110,7 +114,14 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
       try {
         const res = await getOrderProgress(bookingOrderId);
         if (res?.data) {
-            setProgressData(res.data);
+            // Filter by biltyNo if provided
+            let filteredData = res.data;
+            if (biltyNo && biltyNo.trim() !== '') {
+              filteredData = res.data.filter((item: OrderProgressRes) => 
+                item.biltyNo === biltyNo || item.biltyNo === biltyNo.trim()
+              );
+            }
+            setProgressData(filteredData);
         }
       } catch (error) {
         console.error("Error fetching order progress:", error);
@@ -120,7 +131,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
     };
 
     fetchData();
-  }, [bookingOrderId]);
+  }, [bookingOrderId, biltyNo]);
 
   // Calculate steps based on progressData
   const steps: Step[] = useMemo(() => {
@@ -192,6 +203,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
                   )}
                   <th className="p-3 font-semibold">Consignor</th>
                   <th className="p-3 font-semibold">Consignee</th>
+                  <th className="p-3 font-semibold">Freight</th>
+                  <th className="p-3 font-semibold">Freight From</th>
                   <th className="p-3 font-semibold">Items</th>
                   <th className="p-3 font-semibold">Qty</th>
                   <th className="p-3 font-semibold">Total</th>
@@ -206,7 +219,7 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
               </thead>
               <tbody>
                 {progressData.length === 0 ? (
-                    <tr><td colSpan={16} className="p-4 text-center text-gray-500">No data available</td></tr>
+                    <tr><td colSpan={18} className="p-4 text-center text-gray-500">No data available</td></tr>
                 ) : (
                 progressData.map((row, i) => (
                   <tr key={i} className={`border-b ${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-gray-100`}>
@@ -222,6 +235,8 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
                     )}
                     <td className="p-3">{row.consignor || "-"}</td>
                     <td className="p-3">{row.consignee || "-"}</td>
+                    <td className="p-3 text-indigo-700 font-medium">{row.freight || "-"}</td>
+                    <td className="p-3 text-teal-700 font-medium">{row.freightFrom || "-"}</td>
                     <td className="p-3 truncate max-w-[200px]" title={row.items}>{row.items || "-"}</td>
                     <td className="p-3 truncate max-w-[150px] font-medium" title={row.qty}>{row.qty || "-"}</td>
                     <td className="p-3 text-green-700 font-medium">{row.totalAmount ? Number(row.totalAmount).toLocaleString() : "-"}</td>
