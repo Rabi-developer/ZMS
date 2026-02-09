@@ -71,8 +71,15 @@ export const exportBrokerBillStatusToPDF = async (
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
 
-  // Header function
-  const addHeader = async () => {
+  let logoData: string | null = null;
+  try {
+    logoData = await loadImage(LOGO_PATH);
+  } catch {
+    logoData = null;
+  }
+
+  // Header function (sync)
+  const addHeader = () => {
     doc.setFillColor(220, 220, 220);
     doc.rect(0, 0, pageWidth, 80, "F");
 
@@ -86,10 +93,9 @@ export const exportBrokerBillStatusToPDF = async (
     doc.text(COMPANY_ADDRESS, 40, 45);
     doc.text(COMPANY_PHONE, 40, 55);
 
-    try {
-      const logoData = await loadImage(LOGO_PATH);
+    if (logoData) {
       doc.addImage(logoData, 'PNG', pageWidth - 52, 30, 38, 26);
-    } catch (error) {
+    } else {
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
       doc.text('[ABL Logo]', pageWidth - 40, 50, { align: "right" });
@@ -108,7 +114,7 @@ export const exportBrokerBillStatusToPDF = async (
     doc.text(`Page ${pageNumber}`, pageWidth - 40, footerY, { align: "right" });
   };
 
-  await addHeader();
+  addHeader();
 
   doc.setFont("times", "bold");
   doc.setFontSize(16);
@@ -251,11 +257,11 @@ export const exportBrokerBillStatusToPDF = async (
     },
     margin: { top: 110, left: 40, right: 40, bottom: 60 },
     theme: "grid",
+    willDrawPage: () => {
+      addHeader();
+    },
     didDrawPage: (d) => {
       addFooter(d.pageNumber);
-      if (d.pageNumber > 1) {
-        d.settings.startY = 40;
-      }
     },
   });
 
