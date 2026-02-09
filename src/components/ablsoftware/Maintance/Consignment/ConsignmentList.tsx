@@ -613,6 +613,7 @@ const ConsignmentList = () => {
         <div className="mt-6">
           <OrderProgress
             orderNo={consignments.find(c => c.id === selectedRowId)?.orderNo}
+            biltyNo={consignments.find(c => c.id === selectedRowId)?.biltyNo}
             bookingStatus={bookingStatus}
             consignments={consignments
               .filter(c => c.id === selectedRowId)
