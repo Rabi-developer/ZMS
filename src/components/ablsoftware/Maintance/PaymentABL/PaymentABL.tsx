@@ -211,6 +211,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const [showChargePopup, setShowChargePopup] = useState<number | null>(null);
   const [orderSearch, setOrderSearch] = useState('');
   const [chargeSearch, setChargeSearch] = useState('');
+  const [billInvoiceAlert, setBillInvoiceAlert] = useState<{ open: boolean; vehicleNo?: string; orderNo?: string }>({ open: false });
 
   const paymentModes: DropdownOption[] = [
     { id: 'Cash', name: 'Cash' },
@@ -614,7 +615,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
       // If no matching billpaymentinvoice found, block selection and guide user
       if (!matchingBillPayment) {
-        toast.error("This vehicle/order is not added in Bill Payment Invoice. Please go to Bill Payment Invoice and add bilty.");
+        setBillInvoiceAlert({ open: true, vehicleNo: selectedVehicleNo, orderNo });
         setShowChargePopup(null);
         setChargeSearch('');
         return;
@@ -678,7 +679,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       });
 
       if (!matchingBillPayment) {
-        toast.error("This vehicle/order is not added in Bill Payment Invoice. Please go to Bill Payment Invoice and add bilty.");
+        setBillInvoiceAlert({ open: true, vehicleNo: selectedVehicleNo, orderNo });
         setShowChargePopup(null);
         setChargeSearch('');
         return;
@@ -804,6 +805,46 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
                 <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">Loading...</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {billInvoiceAlert.open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 bg-gradient-to-r from-rose-600 to-rose-500 text-white">
+                <h3 className="text-lg font-semibold">Bill Payment Invoice Missing</h3>
+                <p className="text-sm text-white/90">Please add bilty in Bill Payment Invoice first.</p>
+              </div>
+              <div className="px-6 py-5 text-sm text-gray-700">
+                <div className="mb-3">
+                  {billInvoiceAlert.vehicleNo ? (
+                    <div className="font-medium">Vehicle No: <span className="font-normal">{billInvoiceAlert.vehicleNo}</span></div>
+                  ) : null}
+                  {billInvoiceAlert.orderNo ? (
+                    <div className="font-medium">Order No: <span className="font-normal">{billInvoiceAlert.orderNo}</span></div>
+                  ) : null}
+                </div>
+                <p>
+                  This vehicle/order is not added in Bill Payment Invoice. Please go to Bill Payment Invoice and add bilty to continue payment.
+                </p>
+              </div>
+              <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setBillInvoiceAlert({ open: false })}
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100"
+                >
+                  Close
+                </button>
+                <Link
+                  href="/billpaymentinvoices/create"
+                  className="px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700"
+                  onClick={() => setBillInvoiceAlert({ open: false })}
+                >
+                  Go to Bill Payment Invoice
+                </Link>
               </div>
             </div>
           </div>
