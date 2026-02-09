@@ -112,13 +112,21 @@ export const columns = (
   {
     header: 'Actions',
     accessorKey: 'actions',
-    cell: ({ row }: { row: Row<PaymentABL> }) => (
+    cell: ({ row }: { row: Row<PaymentABL> }) => {
+      const isApproved = String(row.original.status || '').toLowerCase() === 'approved';
+      return (
       <div className="flex space-x-2">
-        <Link href={`/paymentABL/edit/${row.original.id}`}>
-          <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600">
+        {isApproved ? (
+          <Button size="sm" className="bg-gray-300 text-gray-600 cursor-not-allowed" disabled title="Approved records can't be edited">
             <Edit size={16} />
           </Button>
-        </Link>
+        ) : (
+          <Link href={`/paymentABL/edit/${row.original.id}`}>
+            <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600">
+              <Edit size={16} />
+            </Button>
+          </Link>
+        )}
         <Button
           size="sm"
           className="bg-red-500 hover:bg-red-600"
@@ -130,6 +138,7 @@ export const columns = (
           <Trash size={16} />
         </Button>
       </div>
-    ),
+      );
+    },
   },
 ];

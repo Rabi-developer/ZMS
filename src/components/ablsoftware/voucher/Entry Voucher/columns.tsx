@@ -90,13 +90,21 @@ handleDeleteOpen: (id: string) => void, handlePdf: (id: string) => void, selecte
   {
     header: 'Actions',
     id: 'actions',
-    cell: ({ row }: { row: Row<Voucher> }) => (
+    cell: ({ row }: { row: Row<Voucher> }) => {
+      const isApproved = String(row.original.status || '').toLowerCase() === 'approved';
+      return (
       <div className="flex items-center gap-2">
-        <Link href={`/entryvoucher/edit/${row.original.id}`}>
-          <Button size="sm" variant="outline" className="hover:bg-yellow-50">
+        {isApproved ? (
+          <Button size="sm" variant="outline" className="text-gray-500 cursor-not-allowed" disabled title="Approved records can't be edited">
             <Edit size={16} />
           </Button>
-        </Link>
+        ) : (
+          <Link href={`/entryvoucher/edit/${row.original.id}`}>
+            <Button size="sm" variant="outline" className="hover:bg-yellow-50">
+              <Edit size={16} />
+            </Button>
+          </Link>
+        )}
 
         <Button
           size="sm"
@@ -124,6 +132,7 @@ handleDeleteOpen: (id: string) => void, handlePdf: (id: string) => void, selecte
           <Trash size={16} />
         </Button>
       </div>
-    ),
+      );
+    },
   },
 ];

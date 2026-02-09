@@ -669,6 +669,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       toast.warning('Could not check payment history. Proceeding with charge selection.');
       
       const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
+      const orderNo = paymentABLItems?.[index]?.orderNo || '';
       let finalAmount = charge.amount || null;
       const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
         if (!bill.lines || !Array.isArray(bill.lines)) return false;
