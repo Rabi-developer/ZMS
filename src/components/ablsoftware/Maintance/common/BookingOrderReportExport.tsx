@@ -172,16 +172,16 @@ const BookingOrderReportExport: React.FC = () => {
     setIsLoading(true);
     try {
       const [boRes, consRes, chargesRes, partyRes, unitRes, venRes, billInvRes, payAblRes, brokerRes, receiptRes] = await Promise.all([
-        getAllBookingOrder(1, 2000),
-        getAllConsignment(1, 4000),
-        getAllCharges(1, 4000),
-        getAllPartys(1, 4000),
-        getAllUnitOfMeasures(1, 4000),
-        getAllVendor(1, 4000),
-        getAllBiltyPaymentInvoice(1, 2000),
-        getAllPaymentABL(1, 2000),
-        getAllBrooker(1, 2000),
-        getAllReceipt(1, 10000),
+        getAllBookingOrder(1, 20000),
+        getAllConsignment(1, 40000),
+        getAllCharges(1, 40000),
+        getAllPartys(1, 40000),
+        getAllUnitOfMeasures(1, 40000),
+        getAllVendor(1, 40000),
+        getAllBiltyPaymentInvoice(1, 20000),
+        getAllPaymentABL(1, 20000),
+        getAllBrooker(1, 20000),
+        getAllReceipt(1, 100000),
       ]);
 
       const orders: any[] = boRes?.data || [];
@@ -391,13 +391,13 @@ const BookingOrderReportExport: React.FC = () => {
     setReceivableLoading(true);
     try {
       const [boRes, consRes, chargesRes, partyRes, unitRes, venRes, receiptRes] = await Promise.all([
-        getAllBookingOrder(1, 2000),
-        getAllConsignment(1, 4000),
-        getAllCharges(1, 4000),
-        getAllPartys(1, 4000),
-        getAllUnitOfMeasures(1, 4000),
-        getAllVendor(1, 4000),
-        getAllReceipt(1, 10000),
+        getAllBookingOrder(1, 20000),
+        getAllConsignment(1, 40000),
+        getAllCharges(1, 40000),
+        getAllPartys(1, 40000),
+        getAllUnitOfMeasures(1, 40000),
+        getAllVendor(1, 40000),
+        getAllReceipt(1, 100000),
       ]);
 
       const orders: any[] = boRes?.data || [];
@@ -679,8 +679,13 @@ const BookingOrderReportExport: React.FC = () => {
       return;
     }
 
-    // Filter invoices by date range if provided
-    const filteredInvoices = billPaymentInvoices.filter((inv) => withinRange(inv.paymentDate, fromDate, toDate));
+    // For Paid report, include all invoices (paid is determined from payments).
+    // For Unpaid report, keep date range filter.
+    const filteredInvoices = type === 'Paid'
+      ? billPaymentInvoices
+      : billPaymentInvoices.filter((inv) =>
+          withinRange(inv.paymentDate || inv.date || inv.createdAt, fromDate, toDate)
+        );
 
     const brokerBillRows: BrokerBillRow[] = [];
     let serial = 1;
@@ -695,11 +700,43 @@ const BookingOrderReportExport: React.FC = () => {
       return found?.mobile || '-';
     };
 
+    const paidByOrderNo = paymentABL.reduce((acc: Record<string, number>, p: any) => {
+      const items = p?.paymentABLItems || p?.paymentABLItem || [];
+      if (!Array.isArray(items) || items.length === 0) {
+        const key = String(p?.orderNo ?? p?.OrderNo ?? "").trim();
+        if (key) acc[key] = (acc[key] || 0) + (Number(p?.paidAmount ?? p?.PaidAmount) || 0);
+        return acc;
+      }
+      items.forEach((item: any) => {
+        const key = String(item?.orderNo ?? item?.OrderNo ?? item?.order_no ?? item?.order ?? "").trim();
+        if (!key) return;
+        const amt = Number(item?.paidAmount ?? item?.PaidAmount ?? p?.paidAmount ?? p?.PaidAmount) || 0;
+        acc[key] = (acc[key] || 0) + amt;
+      });
+      return acc;
+    }, {});
+
+    const paidByBiltyNo = paymentABL.reduce((acc: Record<string, number>, p: any) => {
+      const items = p?.paymentABLItems || p?.paymentABLItem || [];
+      if (!Array.isArray(items) || items.length === 0) {
+        const key = String(p?.biltyNo ?? p?.BiltyNo ?? "").trim();
+        if (key) acc[key] = (acc[key] || 0) + (Number(p?.paidAmount ?? p?.PaidAmount) || 0);
+        return acc;
+      }
+      items.forEach((item: any) => {
+        const key = String(item?.biltyNo ?? item?.BiltyNo ?? item?.bilty_no ?? item?.bilty ?? "").trim();
+        if (!key) return;
+        const amt = Number(item?.paidAmount ?? item?.PaidAmount ?? p?.paidAmount ?? p?.PaidAmount) || 0;
+        acc[key] = (acc[key] || 0) + amt;
+      });
+      return acc;
+    }, {});
+
     filteredInvoices.forEach((inv) => {
       (inv.lines || []).forEach((line: any) => {
         if (line.isAdditionalLine) return;
 
-        const orderNo = line.orderNo;
+        const orderNo = String(line.orderNo ?? line.OrderNo ?? inv.orderNo ?? inv.OrderNo ?? "").trim();
         
         // Calculate total amount including munshyana and additional charges
         const baseAmount = Number(line.amount) || 0;
@@ -721,19 +758,15 @@ const BookingOrderReportExport: React.FC = () => {
         const brokerName = typeof brokerField === 'string' ? brokerField : (brokers.find((b:any)=>b.id===brokerField)?.name || '-');
         const brokerMobile = findBrokerMobile(brokerField);
         const dueDate = line.dueDate || inv.dueDate || undefined;
-        const biltyNo = line.biltyNo || '-';
+        const biltyNo = String(line.biltyNo ?? line.BiltyNo ?? "").trim();
 
         // Filter by broker if selected
         if (selectedBroker !== 'All' && brokerName !== selectedBroker) return;
 
         // Find matching payment in PaymentABL
-        const payments = paymentABL.filter((p) =>
-          (p.paymentABLItems || p.paymentABLItem || []).some((item: any) => item.orderNo === orderNo)
-        );
-        const totalPaid = payments.reduce((sum, p) => {
-          const item = (p.paymentABLItems || p.paymentABLItem || []).find((i: any) => i.orderNo === orderNo);
-          return sum + (Number(item?.paidAmount) || 0);
-        }, 0);
+        const totalPaidByOrder = orderNo ? (paidByOrderNo[orderNo] || 0) : 0;
+        const totalPaidByBilty = biltyNo ? (paidByBiltyNo[biltyNo] || 0) : 0;
+        const totalPaid = orderNo && biltyNo ? Math.max(totalPaidByOrder, totalPaidByBilty) : (totalPaidByOrder || totalPaidByBilty);
 
         const balance = invoiceAmount - totalPaid;
         const includeInPaid = totalPaid > 0; // include partial payments in Paid
