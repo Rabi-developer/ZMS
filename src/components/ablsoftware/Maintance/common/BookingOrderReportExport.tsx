@@ -643,7 +643,7 @@ const BookingOrderReportExport: React.FC = () => {
     exportGeneralBookingOrderToPDF(data, columnsToUse, `${reportTypeLabel} | ${filterLine}`, colOrder, headRows, fromDate, toDate);
     toast.success("PDF generated");
   }, [data, fromDate, toDate]);
-
+// 
   const exportDetailPDF = useCallback(async () => {
     if (!data.length) {
       toast.error("No data to export.");
