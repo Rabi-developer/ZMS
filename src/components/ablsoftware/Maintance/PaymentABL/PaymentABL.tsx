@@ -612,8 +612,16 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         );
       });
 
+      // If no matching billpaymentinvoice found, block selection and guide user
+      if (!matchingBillPayment) {
+        toast.error("This vehicle/order is not added in Bill Payment Invoice. Please go to Bill Payment Invoice and add bilty.");
+        setShowChargePopup(null);
+        setChargeSearch('');
+        return;
+      }
+
       // If matching billpayment found, calculate the total amount (with munshyana and charges)
-      if (matchingBillPayment && matchingBillPayment.lines) {
+      if (matchingBillPayment.lines) {
         const mainLine = matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
         
         if (mainLine) {
@@ -661,6 +669,20 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       
       const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
       let finalAmount = charge.amount || null;
+      const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
+        if (!bill.lines || !Array.isArray(bill.lines)) return false;
+        return bill.lines.some((line: any) => 
+          !line.isAdditionalLine && 
+          (line.vehicleNo === selectedVehicleNo || line.orderNo === orderNo)
+        );
+      });
+
+      if (!matchingBillPayment) {
+        toast.error("This vehicle/order is not added in Bill Payment Invoice. Please go to Bill Payment Invoice and add bilty.");
+        setShowChargePopup(null);
+        setChargeSearch('');
+        return;
+      }
       setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.chargeNo`, String(charge.chargeNo || ''), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
