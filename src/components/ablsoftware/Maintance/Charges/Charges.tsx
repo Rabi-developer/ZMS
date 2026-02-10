@@ -97,6 +97,7 @@ const chargesSchema = z.object({
   updationDate: z.string().optional().nullable(),
   status: z.string().optional().nullable(),
   lines: z.array(z.object({
+    id: z.string().optional().nullable(),
     charge: z.string().optional(),
     biltyNo: z.string().optional().nullable(),
     date: z.string().optional().nullable(),
@@ -151,8 +152,14 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           updationDate: initialData.updationDate || '',
           status: initialData.status || '',
           lines: Array.isArray(initialData.lines)
-            ? initialData.lines
-            : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
+            ? initialData.lines.map((ln: any) => {
+                console.log('Loading line into form:', ln);
+                return {
+                  ...ln,
+                  id: ln?.id || null, // Explicitly preserve line ID (must come AFTER spread)
+                };
+              })
+            : [{ id: null, charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
           payments: Array.isArray(initialData.payments)
             ? initialData.payments
             : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '', orderNo: '', vehicleNo: '' }],
@@ -166,7 +173,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           updatedBy: '',
           updationDate: '',
           status: '',
-          lines: [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
+          lines: [{ id: null, charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
           payments: [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '', orderNo: '', vehicleNo: '' }],
         },
   });
@@ -311,13 +318,17 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
               updationDate: initialData.updationDate || '',
               status: initialData.status || '',
               lines: Array.isArray(initialData.lines)
-                ? initialData.lines.map((ln: any) => ({
-                    ...ln,
-                    biltyNo: ln?.biltyNo != null ? String(ln.biltyNo) : '',
-                    vehicle: ln?.vehicle != null ? String(ln.vehicle) : '',
-                    charge: ln?.charge != null ? String(ln.charge) : '',
-                  }))
-                : [{ charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
+                ? initialData.lines.map((ln: any) => {
+                    console.log('Resetting line in form:', ln);
+                    return {
+                      ...ln,
+                      id: ln?.id || null, // Explicitly preserve line ID (must come AFTER spread)
+                      biltyNo: ln?.biltyNo != null ? String(ln.biltyNo) : '',
+                      vehicle: ln?.vehicle != null ? String(ln.vehicle) : '',
+                      charge: ln?.charge != null ? String(ln.charge) : '',
+                    };
+                  })
+                : [{ id: null, charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 }],
               payments: Array.isArray(initialData.payments)
                 ? initialData.payments
                 : [{ paidAmount: 0, bankCash: '', chqNo: '', chqDate: '', payNo: '', orderNo: '', vehicleNo: '' }],
@@ -367,7 +378,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const addLine = () => {
     setValue('lines', [
       ...lines,
-      { charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 },
+      { id: null, charge: '', biltyNo: '', date: '', vehicle: '', paidTo: '', contact: '', remarks: '', amount: 0 },
     ]);
   };
 
@@ -419,6 +430,11 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
           </div>
 
           <form onSubmit={handleSubmit(async (data) => {
+            console.log('Form data on submit:', data);
+            console.log('Lines data:', data.lines);
+            data.lines.forEach((line, idx) => {
+              console.log(`Line ${idx} ID:`, line.id, 'Type:', typeof line.id);
+            });
             setIsSubmitting(true);
             try {
               const payload: any = {
@@ -427,16 +443,22 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                 creationDate: String(data.creationDate || ''),
                 updationDate: String(data.updationDate || ''),
                 status: String(data.status || ''),
-                lines: (data.lines || []).map((line) => ({
-                  charge: line.charge != null ? String(line.charge) : '',
-                  biltyNo: line.biltyNo != null ? String(line.biltyNo) : '',
-                  date: String(line.date || ''),
-                  vehicle: line.vehicle != null ? String(line.vehicle) : '',
-                  paidTo: line.paidTo != null ? String(line.paidTo) : '',
-                  contact: line.contact != null ? String(line.contact) : '',
-                  remarks: line.remarks != null ? String(line.remarks) : '',
-                  amount: Number(line.amount || 0),
-                })),
+                lines: (data.lines || []).map((line, idx) => {
+                  console.log(`Mapping line ${idx}:`, line);
+                  const mappedLine = {
+                    id: line.id || null, // Preserve line ID for updates
+                    charge: line.charge != null ? String(line.charge) : '',
+                    biltyNo: line.biltyNo != null ? String(line.biltyNo) : '',
+                    date: String(line.date || ''),
+                    vehicle: line.vehicle != null ? String(line.vehicle) : '',
+                    paidTo: line.paidTo != null ? String(line.paidTo) : '',
+                    contact: line.contact != null ? String(line.contact) : '',
+                    remarks: line.remarks != null ? String(line.remarks) : '',
+                    amount: Number(line.amount || 0),
+                  };
+                  console.log(`Mapped line ${idx}:`, mappedLine);
+                  return mappedLine;
+                }),
                 payments: (data.payments || []).map((payment) => ({
                   paidAmount: Number(payment.paidAmount || 0),
                   bankCash: payment.bankCash != null ? String(payment.bankCash) : '',
@@ -641,6 +663,20 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                           >
                             {/* Charges Cells */}
                             <td className="px-3 py-2">
+                              {/* Hidden field to preserve line ID */}
+                              {hasLine && (
+                                <Controller
+                                  name={`lines.${index}.id`}
+                                  control={control}
+                                  render={({ field }) => (
+                                    <input
+                                      type="hidden"
+                                      {...field}
+                                      value={field.value ?? ''}
+                                    />
+                                  )}
+                                />
+                              )}
                               {hasLine ? (
                                 <Controller
                                   name={`lines.${index}.charge`}
