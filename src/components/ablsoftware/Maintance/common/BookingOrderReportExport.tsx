@@ -750,6 +750,15 @@ const BookingOrderReportExport: React.FC = () => {
       return acc;
     }, {});
 
+    const chargeAmountByChargeNo = chargesData.reduce((acc: Record<string, number>, c: any) => {
+      const chargeKey = String(c?.chargeNo ?? c?.ChargeNo ?? "").trim();
+      if (!chargeKey) return acc;
+      const lines = Array.isArray(c?.lines) ? c.lines : [];
+      const total = lines.reduce((sum: number, l: any) => sum + numberOr0(l?.amount), 0);
+      acc[chargeKey] = (acc[chargeKey] || 0) + total;
+      return acc;
+    }, {});
+
     const paidByBiltyNo = paymentABL.reduce((acc: Record<string, number>, p: any) => {
       const items = p?.paymentABLItems || p?.paymentABLItem || [];
       if (!Array.isArray(items) || items.length === 0) {
@@ -829,6 +838,104 @@ const BookingOrderReportExport: React.FC = () => {
         }
       });
     });
+
+    if (type === 'Paid') {
+      const invoiceOrderNos = new Set<string>();
+      const invoiceBiltyNos = new Set<string>();
+      const invoiceOrderVehicle = new Set<string>();
+
+      filteredInvoices.forEach((inv) => {
+        (inv.lines || []).forEach((line: any) => {
+          if (line.isAdditionalLine) return;
+          const orderNo = String(line.orderNo ?? line.OrderNo ?? inv.orderNo ?? inv.OrderNo ?? "").trim();
+          const vehicleNo = String(line.vehicleNo ?? inv.vehicleNo ?? "").trim();
+          const biltyNo = String(line.biltyNo ?? line.BiltyNo ?? "").trim();
+          if (orderNo) invoiceOrderNos.add(orderNo);
+          if (biltyNo) invoiceBiltyNos.add(biltyNo);
+          if (orderNo && vehicleNo) invoiceOrderVehicle.add(`${orderNo}__${vehicleNo}`);
+        });
+      });
+
+      const paymentOnlyRows = new Set<string>();
+
+      paymentABL.forEach((p: any) => {
+        const items = p?.paymentABLItems || p?.paymentABLItem || [];
+        const basePaid = Number(p?.paidAmount ?? p?.PaidAmount) || 0;
+        const basePaidTo = p?.paidTo ?? p?.PaidTo ?? '';
+        if (!Array.isArray(items) || items.length === 0) {
+          const orderNo = String(p?.orderNo ?? p?.OrderNo ?? "").trim();
+          const vehicleNo = String(p?.vehicleNo ?? p?.VehicleNo ?? "").trim();
+          const biltyNo = String(p?.biltyNo ?? p?.BiltyNo ?? "").trim();
+          const chargeNo = String(p?.chargeNo ?? p?.ChargeNo ?? p?.charges ?? "").trim();
+          if (basePaid <= 0) return;
+          if (
+            (orderNo && invoiceOrderNos.has(orderNo)) ||
+            (biltyNo && invoiceBiltyNos.has(biltyNo)) ||
+            (orderNo && vehicleNo && invoiceOrderVehicle.has(`${orderNo}__${vehicleNo}`))
+          ) {
+            return;
+          }
+          const brokerName = String(basePaidTo || '-');
+          if (selectedBroker !== 'All' && brokerName !== selectedBroker) return;
+          const amount = chargeNo && chargeAmountByChargeNo[chargeNo] ? chargeAmountByChargeNo[chargeNo] : basePaid;
+          const key = `${orderNo}__${vehicleNo}__${chargeNo}__${brokerName}__${amount}__${basePaid}`;
+          if (paymentOnlyRows.has(key)) return;
+          paymentOnlyRows.add(key);
+          brokerBillRows.push({
+            serial: serial++,
+            orderNo: orderNo || '-',
+            invoiceNo: '-',
+            vehicleNo: vehicleNo || '-',
+            amount: amount,
+            dueDate: p?.dueDate ?? p?.DueDate ?? undefined,
+            paidAmount: basePaid,
+            balance: Math.max(amount - basePaid, 0),
+            brokerName: brokerName,
+            brokerMobile: findBrokerMobile(brokerName),
+            remarks: p?.remarks ?? p?.Remarks ?? '',
+            munshyana: 0,
+            otherCharges: 0,
+          });
+          return;
+        }
+        items.forEach((item: any) => {
+          const orderNo = String(item?.orderNo ?? item?.OrderNo ?? item?.order_no ?? item?.order ?? "").trim();
+          const vehicleNo = String(item?.vehicleNo ?? item?.VehicleNo ?? "").trim();
+          const biltyNo = String(item?.biltyNo ?? item?.BiltyNo ?? item?.bilty_no ?? item?.bilty ?? "").trim();
+          const chargeNo = String(item?.chargeNo ?? item?.ChargeNo ?? item?.charges ?? item?.charge_no ?? "").trim();
+          const paidAmount = Number(item?.paidAmount ?? item?.PaidAmount ?? basePaid) || 0;
+          if (paidAmount <= 0) return;
+          if (
+            (orderNo && invoiceOrderNos.has(orderNo)) ||
+            (biltyNo && invoiceBiltyNos.has(biltyNo)) ||
+            (orderNo && vehicleNo && invoiceOrderVehicle.has(`${orderNo}__${vehicleNo}`))
+          ) {
+            return;
+          }
+          const brokerName = String(item?.paidTo ?? basePaidTo ?? '-');
+          if (selectedBroker !== 'All' && brokerName !== selectedBroker) return;
+          const amount = chargeNo && chargeAmountByChargeNo[chargeNo] ? chargeAmountByChargeNo[chargeNo] : paidAmount;
+          const key = `${orderNo}__${vehicleNo}__${chargeNo}__${brokerName}__${amount}__${paidAmount}`;
+          if (paymentOnlyRows.has(key)) return;
+          paymentOnlyRows.add(key);
+          brokerBillRows.push({
+            serial: serial++,
+            orderNo: orderNo || '-',
+            invoiceNo: '-',
+            vehicleNo: vehicleNo || '-',
+            amount: amount,
+            dueDate: item?.dueDate ?? item?.DueDate ?? undefined,
+            paidAmount: paidAmount,
+            balance: Math.max(amount - paidAmount, 0),
+            brokerName: brokerName,
+            brokerMobile: findBrokerMobile(brokerName),
+            remarks: item?.remarks ?? item?.Remarks ?? p?.remarks ?? p?.Remarks ?? '',
+            munshyana: 0,
+            otherCharges: 0,
+          });
+        });
+      });
+    }
 
     if (brokerBillRows.length === 0) {
       toast.info(`No ${type} bills found in this date range.`);
