@@ -867,14 +867,9 @@ const BookingOrderReportExport: React.FC = () => {
           const vehicleNo = String(p?.vehicleNo ?? p?.VehicleNo ?? "").trim();
           const biltyNo = String(p?.biltyNo ?? p?.BiltyNo ?? "").trim();
           const chargeNo = String(p?.chargeNo ?? p?.ChargeNo ?? p?.charges ?? "").trim();
-          if (basePaid <= 0) return;
-          if (
-            (orderNo && invoiceOrderNos.has(orderNo)) ||
-            (biltyNo && invoiceBiltyNos.has(biltyNo)) ||
-            (orderNo && vehicleNo && invoiceOrderVehicle.has(`${orderNo}__${vehicleNo}`))
-          ) {
-            return;
-          }
+        if (basePaid <= 0) return;
+          // REMOVED: Skip filter that was here - now show ALL payments in Paid report
+          // This ensures payments without invoice but with charge also show in Paid
           const brokerName = String(basePaidTo || '-');
           if (selectedBroker !== 'All' && brokerName !== selectedBroker) return;
           const amount = chargeNo && chargeAmountByChargeNo[chargeNo] ? chargeAmountByChargeNo[chargeNo] : basePaid;
