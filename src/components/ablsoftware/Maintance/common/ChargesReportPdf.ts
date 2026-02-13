@@ -68,7 +68,9 @@ export const exportChargesReportToPDF = async (
     row.orderNo,
     row.vehicleNo,
     row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })
-  ]);
+  ]);''
+  const totalAmount = data.reduce((sum, row) => sum + (row.amount || 0), 0);
+  body.push(["", "", "", "", "Total", totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })]);
 
   autoTable(doc, {
     startY: 135,
