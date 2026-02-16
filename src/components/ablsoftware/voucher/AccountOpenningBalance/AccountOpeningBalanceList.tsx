@@ -10,18 +10,19 @@ import {
   getAllOpeningBalance,
   deleteOpeningBalance,
 } from '@/apis/openingbalance';
-import { columns, OpeningBalance } from './column';
+import { columns, AccountOpeningBalance } from './columns';
 import { getAllAblAssests } from '@/apis/ablAssests';
 import { getAllAblRevenue } from '@/apis/ablRevenue';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
 import { getAllAblExpense } from '@/apis/ablExpense';
 import { getAllEquality } from '@/apis/equality';
 
-const OpeningBalanceList = () => {
+const AccountOpeningBalanceList = () => {
   const router = useRouter();
-  const [data, setData] = useState<OpeningBalance[]>([]);
+
+  const [data, setData] = useState<AccountOpeningBalance[]>([]);
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   const [deleteId, setDeleteId] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -36,6 +37,7 @@ const OpeningBalanceList = () => {
       setTotalRows(response.misc?.total || 0);
     } catch (error) {
       toast.error('Failed to fetch opening balances');
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -54,35 +56,45 @@ const OpeningBalanceList = () => {
           getAllAblLiabilities(1, 10000),
           getAllAblExpense(1, 10000),
           getAllEquality(1, 10000),
-        ].map(p => p.catch(() => ({ data: [] }))));
+        ].map((p) => p.catch(() => ({ data: [] }))));
 
         const idx: Record<string, any> = {};
-        [...a.data, ...r.data, ...l.data, ...e.data, ...eq.data].forEach(item => {
-          if (item?.id) idx[item.id] = item;
-        });
+        [...(a.data || []), ...(r.data || []), ...(l.data || []), ...(e.data || []), ...(eq.data || [])].forEach(
+          (item) => {
+            if (item?.id) idx[item.id] = item;
+          }
+        );
         setAccountIndex(idx);
       } catch (err) {
         console.error('Error loading account index:', err);
       }
     };
+
     loadAccountIndex();
   }, []);
 
- const handleDelete = async () => {
-
+  const handleDelete = async () => {
+    if (!deleteId) return;
     try {
       await deleteOpeningBalance(deleteId);
-      setOpen(false)
-      toast("Deleted Successfully", {
-        type: "success",
-    });
+      toast.success('Deleted successfully');
+      setOpen(false);
       fetchOpeningBalances();
     } catch (error) {
-      console.error('Failed to delete branchs:', error);
+      toast.error('Failed to delete opening balance');
+      console.error(error);
     }
   };
 
+  const handleDeleteOpen = (id: string) => {
+    setDeleteId(id);
+    setOpen(true);
+  };
 
+  const handleDeleteClose = () => {
+    setOpen(false);
+    setDeleteId('');
+  };
 
   const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
     setPageIndex(typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex);
@@ -92,22 +104,15 @@ const OpeningBalanceList = () => {
     setPageSize(typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize);
     setPageIndex(0);
   }, [pageSize]);
-  const handleDeleteOpen = async (id:any) => {
-   setOpen(true)
-   setDeleteId(id)
-  };
-  const handleDeleteclose = async () => {
-    setOpen(false)
-  };
 
   return (
     <div className="container mx-auto p-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-        <DataTable 
+        <DataTable
           columns={columns(handleDeleteOpen, accountIndex)}
           data={data}
           loading={loading}
-          link="/openingbalance/create"
+          link="/AccountOpeningBalance/create"
           searchName="accountName"
           setPageIndex={handlePageIndexChange}
           pageIndex={pageIndex}
@@ -116,17 +121,14 @@ const OpeningBalanceList = () => {
           totalRows={totalRows}
         />
       </div>
-      {
-        open && 
-        <DeleteConfirmModel
-        handleDeleteclose={handleDeleteclose}
-        handleDelete={handleDelete}
+
+      <DeleteConfirmModel
         isOpen={open}
-        />
-      }
-      
+        handleDeleteclose={handleDeleteClose}
+        handleDelete={handleDelete}
+      />
     </div>
   );
 };
 
-export default OpeningBalanceList;
+export default AccountOpeningBalanceList;

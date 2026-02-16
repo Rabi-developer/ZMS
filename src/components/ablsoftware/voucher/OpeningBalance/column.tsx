@@ -1,69 +1,102 @@
-// import { ColumnDef } from '@tanstack/react-table';
-// import { Button } from '@/components/ui/button';
-// import { Edit, Trash2 } from 'lucide-react';
-// import Link from 'next/link';
+import { Edit, Trash } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { Row, ColumnDef } from '@tanstack/react-table';
 
-// export interface OpeningBalanceEntry {
-//   id: string;
-//   description: string;
-//   entryDate: string;       // or use the date from first entry
-//   totalDebit: number;
-//   totalCredit: number;
-//   status?: string;
-//   createdAt?: string;
-// }
+export interface OpeningBalance {
+  id: string;
+  accountId: string;
+  debit: number;
+  credit: number;
+  vehicleNo: string;
+  vehicleDate: string;
+  narration: string;
+  status: string;
+}
 
-// export const columns: ColumnDef<OpeningBalanceEntry>[] = [
-//   {
-//     accessorKey: 'description',
-//     header: 'Description',
-//   },
-//   {
-//     accessorKey: 'entryDate',
-//     header: 'Date',
-//     cell: ({ row }) => row.original.entryDate || '-',
-//   },
-//   {
-//     accessorKey: 'totalDebit',
-//     header: 'Total Debit',
-//     cell: ({ row }) => row.original.totalDebit?.toLocaleString() || '0.00',
-//   },
-//   {
-//     accessorKey: 'totalCredit',
-//     header: 'Total Credit',
-//     cell: ({ row }) => row.original.totalCredit?.toLocaleString() || '0.00',
-//   },
-//   {
-//     accessorKey: 'status',
-//     header: 'Status',
-//     cell: ({ row }) => (
-//       <span className="px-2 py-1 rounded-full text-xs bg-gray-100">
-//         {row.original.status || 'Recorded'}
-//       </span>
-//     ),
-//   },
-//   {
-//     id: 'actions',
-//     header: 'Actions',
-//     cell: ({ row }) => (
-//       <div className="flex gap-2">
-//         <Link href={`/opening-balance/edit/${row.original.id}`}>
-//           <Button variant="outline" size="sm">
-//             <Edit size={16} />
-//           </Button>
-//         </Link>
-//         <Button
-//           variant="outline"
-//           size="sm"
-//           className="text-red-600 hover:text-red-700"
-//           onClick={() => {
-//             // handle delete modal
-//             // e.g. openDeleteModal(row.original.id)
-//           }}
-//         >
-//           <Trash2 size={16} />
-//         </Button>
-//       </div>
-//     ),
-//   },
-// ];
+export const getStatusStyles = (status: string) => {
+  switch (status) {
+    case 'Prepared':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'Checked':
+      return 'bg-blue-100 text-blue-800';
+    case 'Approved':
+      return 'bg-green-100 text-green-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+export const columns = (
+  handleDeleteOpen: (id: string) => void,
+  accountIndex: Record<string, any>
+): ColumnDef<OpeningBalance>[] => [
+  {
+    header: 'openingNo',
+    accessorKey: 'openingNo',
+    cell: ({ row }) => accountIndex[row.original.accountId]?.description || row.original.accountId || '-',
+  },
+  {
+    header: 'openingDate',
+    accessorKey: 'openingNo',
+  },
+  
+
+
+  {
+    header: 'Vehicle No',
+    accessorKey: 'VehicleNo',
+  },
+  {
+    header: 'Vehicle Date',
+    accessorKey: 'vehicleDate',
+  },
+  {
+    header: 'Status',
+    accessorKey: 'status',
+    cell: ({ row }) => (
+      <span
+        className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusStyles(
+          row.original.status || 'Prepared'
+        )}`}
+      >
+        {row.original.status || 'Prepared'}
+      </span>
+    ),
+  },
+  {
+    header: 'Actions',
+    id: 'actions',
+    cell: ({ row }) => {
+      const isApproved = String(row.original.status || '').toLowerCase() === 'approved';
+      return (
+        <div className="flex items-center gap-2">
+          {isApproved ? (
+            <Button size="sm" variant="outline" className="text-gray-500 cursor-not-allowed" disabled title="Approved records can't be edited">
+              <Edit size={16} />
+            </Button>
+          ) : (
+            <Link href={`/openingbalance/edit/${row.original.id}`}>
+              <Button size="sm" variant="outline" className="hover:bg-yellow-50">
+                <Edit size={16} />
+              </Button>
+            </Link>
+          )}
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="hover:bg-red-50 text-red-600"
+            title="Delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDeleteOpen(row.original.id);
+            }}
+          >
+            <Trash size={16} />
+          </Button>
+        </div>
+      );
+    },
+  },
+];

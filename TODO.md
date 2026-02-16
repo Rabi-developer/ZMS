@@ -1,9 +1,18 @@
-# TODO: Fix OrderProgress.tsx to display one row per consignment
+# TODO - Opening Balance Debit/Credit Balance Fix
 
-## Tasks
-- [x] Modify tableData useMemo to create one row per consignment instead of combining into single row
-- [x] Ensure booking order info (orderNo, orderDate, vehicleNo) is repeated in each row
-- [x] Include consignment-specific data in each row
-- [x] Handle order-level data (charges, payments, receipts) by repeating in each row
-- [x] If no consignments, still show one row with booking and other data
-- [ ] Test the changes to ensure correct display
+## Task
+Add validation/restriction to prevent saving Opening Balance when Debit and Credit are not equal (unbalanced).
+
+## Plan
+- [ ] Add validation in the onSubmit function to check if totals are balanced
+- [ ] Show error message if debit ≠ credit
+- [ ] Disable the submit button when totals are unbalanced
+
+## File to Edit
+- `src/components/ablsoftware/voucher/OpeningBalance/OpeningBalance.tsx`
+
+## Changes Needed
+1. Add a check in onSubmit to validate that total debit === total credit
+2. Add a state variable to track validation error
+3. Show error message when unbalanced
+4. Disable the submit button when unbalanced (optional but recommended)

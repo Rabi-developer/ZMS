@@ -197,21 +197,33 @@ export const ablSideBarItems = [
         icon: FaMapMarkerAlt,
         color: '#1a5f3a',
       },
+    ],
+  },
+
+  {
+    text: 'Old Opening Balance',
+    type: 'heading',
+  },
+  {
+    text: 'Opening Balance',
+    icon: FaAccusoft  ,
+    color: '#1a5f3a',
+    sub_menu: [
       {
-        text: 'Schedules',
-        href: '/abl/schedules',
+        text: 'Party Opening Balance',
+        href: '/openingbalance',
         icon: IoIosTimer,
         color: '#1a5f3a',
       },
       {
-        text: 'Invoices',
-        href: '/abl/invoices',
-        icon: FaFileInvoice,
+        text: 'Account Opening Balance',
+        href: '/AccountOpeningBalance',
+        icon: FaMapMarkerAlt,
         color: '#1a5f3a',
-      },
+      },   
+      
     ],
   },
-
   {
     text: 'Voucher Report',
     type: 'heading',
