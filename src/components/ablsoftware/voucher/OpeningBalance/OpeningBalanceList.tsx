@@ -4,24 +4,27 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { DataTable } from '@/components/ui/CommissionTable';
+import { DataTable } from '@/components/ui/CommissionTable'; // assuming this is your paginated table
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import {
   getAllOpeningBalance,
   deleteOpeningBalance,
 } from '@/apis/openingbalance';
-import { columns, OpeningBalance } from './column';
+import { columns, OpeningBalance } from '@/components/ablsoftware/voucher/OpeningBalance/column';
 import { getAllAblAssests } from '@/apis/ablAssests';
 import { getAllAblRevenue } from '@/apis/ablRevenue';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
 import { getAllAblExpense } from '@/apis/ablExpense';
 import { getAllEquality } from '@/apis/equality';
+import { getAllMunshyana } from '@/apis/munshyana';
+
+// ... rest of your imports
 
 const OpeningBalanceList = () => {
   const router = useRouter();
   const [data, setData] = useState<OpeningBalance[]>([]);
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   const [deleteId, setDeleteId] = useState('');
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(10);
@@ -35,7 +38,7 @@ const OpeningBalanceList = () => {
       setData(response?.data || []);
       setTotalRows(response.misc?.total || 0);
     } catch (error) {
-      toast.error('Failed to fetch opening balances');
+      toast.error('Failed to load opening balances');
     } finally {
       setLoading(false);
     }
@@ -48,67 +51,80 @@ const OpeningBalanceList = () => {
   useEffect(() => {
     const loadAccountIndex = async () => {
       try {
-        const [a, r, l, e, eq] = await Promise.all([
+        const [assets, revenue, liabilities, expense, equity, munshyana] = await Promise.all([
           getAllAblAssests(1, 10000),
           getAllAblRevenue(1, 10000),
           getAllAblLiabilities(1, 10000),
           getAllAblExpense(1, 10000),
           getAllEquality(1, 10000),
-        ].map(p => p.catch(() => ({ data: [] }))));
+          getAllMunshyana(1, 10000),
+        ].map(p => p.catch(() => ({ data: [] })))); // catch individual errors to prevent Promise.all from failing
 
         const idx: Record<string, any> = {};
-        [...a.data, ...r.data, ...l.data, ...e.data, ...eq.data].forEach(item => {
-          if (item?.id) idx[item.id] = item;
+        
+        // Add chart of accounts (Assets, Revenue, Liabilities, Expense, Equality)
+        [...assets.data, ...revenue.data, ...liabilities.data, ...expense.data, ...equity.data]
+          .forEach(item => {
+            if (item?.id) idx[item.id] = item;
+          });
+        
+        // Add Munshyana (charge types) - use chargesDesc as the name
+        (munshyana.data || []).forEach((item: any) => {
+          if (item?.id || item?.chargesDesc) {
+            const key = item.id || item.chargesDesc;
+            idx[key] = { ...item, name: item.chargesDesc };
+          }
         });
+        
         setAccountIndex(idx);
       } catch (err) {
-        console.error('Error loading account index:', err);
+        console.error('Failed to load account index:', err);
       }
     };
+
     loadAccountIndex();
   }, []);
 
- const handleDelete = async () => {
-
+  const handleDelete = async () => {
     try {
       await deleteOpeningBalance(deleteId);
-      setOpen(false)
-      toast("Deleted Successfully", {
-        type: "success",
-    });
+      toast.success('Deleted successfully');
+      setOpen(false);
       fetchOpeningBalances();
     } catch (error) {
-      console.error('Failed to delete branchs:', error);
+      console.error('Delete failed:', error);
+      toast.error('Failed to delete record');
     }
   };
 
+  const handleDeleteOpen = (id: string) => {
+    setDeleteId(id);
+    setOpen(true);
+  };
 
+  const handleDeleteClose = () => {
+    setOpen(false);
+    setDeleteId('');
+  };
 
-  const handlePageIndexChange = useCallback((newPageIndex: React.SetStateAction<number>) => {
-    setPageIndex(typeof newPageIndex === 'function' ? newPageIndex(pageIndex) : newPageIndex);
+  const handlePageIndexChange = useCallback((newIndex: number | ((prev: number) => number)) => {
+    setPageIndex(typeof newIndex === 'function' ? newIndex(pageIndex) : newIndex);
   }, [pageIndex]);
 
-  const handlePageSizeChange = useCallback((newPageSize: React.SetStateAction<number>) => {
-    setPageSize(typeof newPageSize === 'function' ? newPageSize(pageSize) : newPageSize);
+  const handlePageSizeChange = useCallback((newSize: number | ((prev: number) => number)) => {
+    setPageSize(typeof newSize === 'function' ? newSize(pageSize) : newSize);
     setPageIndex(0);
   }, [pageSize]);
-  const handleDeleteOpen = async (id:any) => {
-   setOpen(true)
-   setDeleteId(id)
-  };
-  const handleDeleteclose = async () => {
-    setOpen(false)
-  };
 
   return (
     <div className="container mx-auto p-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-        <DataTable 
+        <DataTable
           columns={columns(handleDeleteOpen, accountIndex)}
           data={data}
           loading={loading}
           link="/openingbalance/create"
-          searchName="accountName"
+          searchName="openingNo"           // better than searching by accountName here
           setPageIndex={handlePageIndexChange}
           pageIndex={pageIndex}
           setPageSize={handlePageSizeChange}
@@ -116,15 +132,14 @@ const OpeningBalanceList = () => {
           totalRows={totalRows}
         />
       </div>
-      {
-        open && 
+
+      {open && (
         <DeleteConfirmModel
-        handleDeleteclose={handleDeleteclose}
-        handleDelete={handleDelete}
-        isOpen={open}
+          isOpen={open}
+          handleDeleteclose={handleDeleteClose}
+          handleDelete={handleDelete}
         />
-      }
-      
+      )}
     </div>
   );
 };
