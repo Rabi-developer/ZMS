@@ -726,7 +726,21 @@ const LedgerPage: React.FC = () => {
       const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number } }> = {};
 
       const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow) => {
-        const accInfo = accountIndex[accountId] || ({ description: accountId, listid: accountId } as any);
+        // Try to find account info from accountIndex or search in tree
+        let accInfo = accountIndex[accountId];
+        if (!accInfo) {
+          const foundAccount = findAccountById(accountId, topLevelAccounts);
+          if (foundAccount) {
+            accInfo = { 
+              id: foundAccount.id, 
+              listid: foundAccount.listid || foundAccount.id, 
+              description: foundAccount.description || foundAccount.id 
+            };
+          } else {
+            accInfo = { id: accountId, listid: accountId, description: accountId };
+          }
+        }
+        
         const key = accountId;
         if (!groupMap[key]) {
           groupMap[key] = {
@@ -790,7 +804,23 @@ const LedgerPage: React.FC = () => {
         if (inSelected) {
           // Create group if it doesn't exist
           if (!groupMap[accountId]) {
-            const accInfo = accountIndex[accountId] || ({ description: accountId, listid: accountId } as any);
+            // Try to find account info from accountIndex or search in tree
+            let accInfo = accountIndex[accountId];
+            if (!accInfo) {
+              // Try to find in the tree
+              const foundAccount = findAccountById(accountId, topLevelAccounts);
+              if (foundAccount) {
+                accInfo = { 
+                  id: foundAccount.id, 
+                  listid: foundAccount.listid || foundAccount.id, 
+                  description: foundAccount.description || foundAccount.id 
+                };
+              } else {
+                // Fallback to ID
+                accInfo = { id: accountId, listid: accountId, description: accountId };
+              }
+            }
+            
             groupMap[accountId] = {
               accountId,
               description: accInfo.description,
@@ -821,7 +851,7 @@ const LedgerPage: React.FC = () => {
             isOpeningBalance: true,
           });
           
-          console.log(`Added opening balance row for ${accountId}: Debit=${debit}, Credit=${credit}`);
+          console.log(`Added opening balance row for ${accountId} (${groupMap[accountId].description}): Debit=${debit}, Credit=${credit}`);
         }
       });
 
