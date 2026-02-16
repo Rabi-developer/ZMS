@@ -45,6 +45,8 @@ interface TableRow {
   balance: number;
   initialBalance?: number;
   receiptAmount: number;
+  isOpeningBalance?: boolean;
+  openingBalanceId?: string;
 }
 
 // Define the schema for receipt form validation
@@ -70,6 +72,8 @@ const receiptSchema = z.object({
       balance: z.number().min(0, 'Balance must be non-negative').optional(),
       initialBalance: z.number().optional(),
       receiptAmount: z.number().min(0, 'Receipt Amount must be non-negative').optional(),
+      isOpeningBalance: z.boolean().optional(),
+      openingBalanceId: z.string().optional(),
     })
   ),
   salesTaxOption: z.string().optional(),
@@ -116,8 +120,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           receiptAmount: initialData.receiptAmount || 0,
           remarks: initialData.remarks || '',
           items: initialData.items?.length
-            ? initialData.items.map(row => ({ ...row, initialBalance: row.initialBalance || row.balance || 0 }))
-            : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0 }],
+            ? initialData.items.map(row => ({ ...row, initialBalance: row.initialBalance || row.balance || 0, isOpeningBalance: row.isOpeningBalance || false, openingBalanceId: row.openingBalanceId || '' }))
+            : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0, isOpeningBalance: false, openingBalanceId: '' }],
           salesTaxOption: initialData.salesTaxOption || 'without',
           salesTaxRate: initialData.salesTaxRate || '',
           whtOnSbr: initialData.whtOnSbr || '',
@@ -132,7 +136,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           party: '',
           receiptAmount: 0,
           remarks: '',
-          items: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0 }],
+          items: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0, isOpeningBalance: false, openingBalanceId: '' }],
           salesTaxOption: 'without',
           salesTaxRate: '',
           whtOnSbr: '',
@@ -235,19 +239,21 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         // Process opening balance entries for customers (debit > 0)
         const obEntries: any[] = [];
         (openingBalanceRes?.data || []).forEach((ob: any) => {
-          (ob.OpeningBalanceEntry || []).forEach((entry: any) => {
-            if (entry.Debit > 0 && entry.Customer) {
+          (ob.openingBalanceEntrys || []).forEach((entry: any) => {
+            if (entry.debit > 0 && entry.customer) {
               obEntries.push({
-                id: `OB-${ob.id}-${entry.Customer}`,
-                biltyNo: entry.BiltyNo || `OB-${ob.openingNo}`,
-                vehicleNo: entry.VehicleNo || 'N/A',
-                biltyDate: entry.BiltyDate || ob.openingDate,
-                biltyAmount: entry.Debit || 0,
+                id: `OB-${ob.openingNo}-${entry.id || entry.customer}`,
+                biltyNo: entry.biltyNo || `OB-${ob.openingNo}`,
+                vehicleNo: entry.vehicleNo || 'N/A',
+                biltyDate: entry.biltyDate || ob.openingDate,
+                biltyAmount: entry.debit || 0,
                 srbAmount: 0,
-                totalAmount: entry.Debit || 0,
+                totalAmount: entry.debit || 0,
                 isOpeningBalance: true,
-                customer: entry.Customer,
-                city: entry.City,
+                openingBalanceId: entry.id,
+                openingBalanceNo: ob.openingNo,
+                customer: entry.customer,
+                city: entry.city,
               });
             }
           });
@@ -359,6 +365,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     setValue(`items.${index}.srbAmount`, 0, { shouldValidate: true });
     setValue(`items.${index}.balance`, ob.totalAmount, { shouldValidate: true });
     setValue(`items.${index}.initialBalance`, ob.totalAmount, { shouldValidate: true });
+    setValue(`items.${index}.isOpeningBalance`, true, { shouldValidate: true });
+    setValue(`items.${index}.openingBalanceId`, ob.openingBalanceId, { shouldValidate: true });
     setShowConsignmentPopup(null);
     setSearchQuery('');
   };
@@ -366,7 +374,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const addTableRow = () => {
     setValue('items', [
       ...items,
-      { biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0 },
+      { biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0, isOpeningBalance: false, openingBalanceId: '' },
     ]);
   };
 
@@ -414,6 +422,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           totalAmount: row.totalAmount || 0,
           balance: row.balance || 0,
           receiptAmount: row.receiptAmount || 0,
+          isOpeningBalance: row.isOpeningBalance || false,
+          openingBalanceId: row.openingBalanceId || '',
         })),
         salesTaxOption: data.salesTaxOption || 'without',
         salesTaxRate: data.salesTaxRate || '',
@@ -650,6 +660,9 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
                             >
                               {row.biltyNo || 'Select Bilty'}
+                              {row.isOpeningBalance && (
+                                <span className="ml-2 text-xs bg-amber-500 text-white px-2 py-0.5 rounded">OB</span>
+                              )}
                             </Button>
                             {errors.items?.[index]?.biltyNo && (
                               <p className="text-red-500 text-xs mt-1">{errors.items[index].biltyNo.message}</p>
@@ -1002,10 +1015,11 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         </div>
 
         {showConsignmentPopup !== null && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-xl max-w-4xl w-full mx-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Select Consignment</h3>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-7xl w-full max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Consignment or Opening Balance</h3>
                 <Button
                   onClick={() => {
                     setShowConsignmentPopup(null);
@@ -1014,125 +1028,153 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                   className="text-gray-400 hover:text-gray-600 p-1"
                   variant="ghost"
                 >
-                  <FiX className="text-base" />
+                  <FiX className="text-xl" />
                 </Button>
               </div>
-              <div className="mb-3">
+
+              {/* Search */}
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by Bilty No or ID..."
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-sm"
+                  placeholder="Search by Bilty No, Vehicle No, Customer..."
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-transparent"
                 />
               </div>
-              <div className="max-h-48 overflow-y-auto">
-                {selectingConsignment ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Fetching balance...</span>
+
+              {/* Side by Side Content */}
+              <div className="flex-1 overflow-hidden flex gap-4 p-4">
+                {/* Left Side - Consignments */}
+                <div className="flex-1 flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3">
+                    <h4 className="font-semibold text-base">Consignments</h4>
                   </div>
-                ) : filteredConsignments.length === 0 ? (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-4">No consignments found</p>
-                ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px]">
-                          Bilty #
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px]">
-                          ID
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px]">
-                          Vehicle No
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[110px]">
-                          Bilty Date
-                        </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Bilty Amount
-                        </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[120px]">
-                          SRB Amount
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800">
-                      {filteredConsignments.map((consignment) => (
-                        <tr
-                          key={consignment.id}
-                          onClick={() => selectConsignment(showConsignmentPopup, consignment)}
-                          className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-                        >
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {consignment.biltyNo}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
-                            {consignment.id}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
-                            {consignment.vehicleNo}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
-                            {consignment.biltyDate}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-right text-gray-600 dark:text-gray-400">
-                            {consignment.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">
-                            {consignment.srbAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                        </tr>
-                      ))}
-                      
-                      {/* Opening Balance Section */}
-                      {filteredOpeningBalances.length > 0 && (
-                        <>
-                          <tr className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30">
-                            <td colSpan={6} className="px-4 py-2 text-center font-semibold text-amber-800 dark:text-amber-200 border-t-2 border-amber-300 dark:border-amber-700">
-                              Opening Balance Entries
-                            </td>
+                  <div className="flex-1 overflow-y-auto">
+                    {selectingConsignment ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Fetching balance...</span>
+                      </div>
+                    ) : filteredConsignments.length === 0 ? (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-12">No consignments found</p>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
+                              Bilty #
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
+                              Vehicle No
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
+                              Date
+                            </th>
+                            <th className="px-3 py-2 text-right font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
+                              Amount
+                            </th>
                           </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800">
+                          {filteredConsignments.map((consignment) => (
+                            <tr
+                              key={consignment.id}
+                              onClick={() => selectConsignment(showConsignmentPopup, consignment)}
+                              className="border-b border-gray-100 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors cursor-pointer"
+                            >
+                              <td className="px-3 py-3 text-gray-800 dark:text-gray-200 font-medium">
+                                {consignment.biltyNo}
+                              </td>
+                              <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
+                                {consignment.vehicleNo}
+                              </td>
+                              <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
+                                {consignment.biltyDate}
+                              </td>
+                              <td className="px-3 py-3 text-right text-gray-800 dark:text-gray-200 font-medium">
+                                {consignment.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Side - Opening Balance */}
+                <div className="flex-1 flex flex-col border border-amber-300 dark:border-amber-700 rounded-lg overflow-hidden bg-amber-50/30 dark:bg-amber-900/10">
+                  <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white px-4 py-3">
+                    <h4 className="font-semibold text-base flex items-center gap-2">
+                      <span>📋</span>
+                      <span>Opening Balance</span>
+                    </h4>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    {filteredOpeningBalances.length === 0 ? (
+                      <p className="text-sm text-amber-700 dark:text-amber-400 text-center py-12">No opening balance entries found</p>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-amber-100 dark:bg-amber-900/30">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Bilty #
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Customer
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Vehicle No
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Date
+                            </th>
+                            <th className="px-3 py-2 text-right font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Debit Amount
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800">
                           {filteredOpeningBalances.map((ob) => (
                             <tr
                               key={ob.id}
                               onClick={() => selectOpeningBalance(showConsignmentPopup!, ob)}
-                              className="border-b border-gray-200 dark:border-gray-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors cursor-pointer"
+                              className="border-b border-amber-100 dark:border-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors cursor-pointer"
                             >
-                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                              <td className="px-3 py-3 text-amber-900 dark:text-amber-200 font-medium">
                                 {ob.biltyNo}
                               </td>
-                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
-                                {ob.customer} ({ob.city || 'N/A'})
+                              <td className="px-3 py-3 text-amber-800 dark:text-amber-300">
+                                {ob.customer}
+                                {ob.city && <span className="text-xs ml-1">({ob.city})</span>}
                               </td>
-                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                              <td className="px-3 py-3 text-amber-700 dark:text-amber-400">
                                 {ob.vehicleNo}
                               </td>
-                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                              <td className="px-3 py-3 text-amber-700 dark:text-amber-400">
                                 {ob.biltyDate}
                               </td>
-                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-right text-gray-600 dark:text-gray-400">
-                                {ob.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">
-                                0.00
+                              <td className="px-3 py-3 text-right text-amber-900 dark:text-amber-200 font-medium">
+                                {ob.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                               </td>
                             </tr>
                           ))}
-                        </>
-                      )}
-                    </tbody>
-                  </table>
-                )}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-end mt-3">
+
+              {/* Footer */}
+              <div className="flex justify-end gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
                 <Button
                   onClick={() => {
                     setShowConsignmentPopup(null);
                     setSearchQuery('');
                   }}
-                  className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded-md"
+                  className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-md"
                 >
                   Cancel
                 </Button>

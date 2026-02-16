@@ -11,6 +11,7 @@ import { getAllCharges } from '@/apis/charges';
 import { createPaymentABL, updatePaymentABL, getPaymentABLHistory } from '@/apis/paymentABL';
 import { getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
 import { getAllMunshyana } from '@/apis/munshyana';
+import { getAllOpeningBalance } from '@/apis/openingbalance';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
@@ -207,6 +208,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const [charges, setCharges] = useState<Charge[]>([]);
   const [billPaymentInvoices, setBillPaymentInvoices] = useState<any[]>([]);
   const [munshyanaData, setMunshyanaData] = useState<any[]>([]);
+  const [openingBalances, setOpeningBalances] = useState<any[]>([]);
   const [showOrderPopup, setShowOrderPopup] = useState<number | null>(null);
   const [showChargePopup, setShowChargePopup] = useState<number | null>(null);
   const [orderSearch, setOrderSearch] = useState('');
@@ -334,11 +336,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [orderRes, chargeRes, billPaymentRes, munshyanaRes] = await Promise.all([
+        const [orderRes, chargeRes, billPaymentRes, munshyanaRes, openingBalanceRes] = await Promise.all([
           getAllBookingOrder(1, 10000),
           getAllCharges(1, 10000),
           getAllBiltyPaymentInvoice(1, 10000),
           getAllMunshyana(1, 10000),
+          getAllOpeningBalance(1, 10000),
         ]);
         setBookingOrders(
           orderRes.data.map((item: any) => ({
@@ -387,9 +390,34 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         setCharges(validCharges);
         setBillPaymentInvoices(billPaymentRes.data || []);
         setMunshyanaData(munshyanaRes.data || []);
+        
+        // Process opening balance entries for broker and charges (credit > 0)
+        const obEntries: any[] = [];
+        (openingBalanceRes?.data || []).forEach((ob: any) => {
+          (ob.openingBalanceEntrys || []).forEach((entry: any) => {
+            if (entry.credit > 0 && (entry.broker || entry.chargeType)) {
+              obEntries.push({
+                id: `OB-${ob.openingNo}-${entry.id || entry.broker || entry.chargeType}`,
+                biltyNo: entry.biltyNo || `OB-${ob.openingNo}`,
+                vehicleNo: entry.vehicleNo || 'N/A',
+                biltyDate: entry.biltyDate || ob.openingDate,
+                amount: entry.credit || 0,
+                isOpeningBalance: true,
+                openingBalanceId: entry.id,
+                openingBalanceNo: ob.openingNo,
+                broker: entry.broker,
+                chargeType: entry.chargeType,
+                city: entry.city,
+              });
+            }
+          });
+        });
+        setOpeningBalances(obEntries);
+        
         console.log('Processed charges:', validCharges);
         console.log('Bill Payment Invoices:', billPaymentRes.data);
         console.log('Munshyana Data:', munshyanaRes.data);
+        console.log('Opening Balances (Broker/Charges):', obEntries);
       } catch (error) {
         toast.error('Failed to load data');
         console.error('Error fetching data:', error);
