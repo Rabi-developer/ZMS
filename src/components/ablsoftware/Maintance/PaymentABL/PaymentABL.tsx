@@ -284,6 +284,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     ].some((field) => field.toLowerCase().includes(orderSearch.toLowerCase()))
   );
 
+  // Filter opening balances based on search term
+  const filteredOpeningBalances = openingBalances.filter((ob) =>
+    `${ob.biltyNo} ${ob.vehicleNo} ${ob.broker || ''} ${ob.chargeType || ''}`.toLowerCase().includes(orderSearch.toLowerCase())
+  );
+
   // Filter charges based on orderNo, status, and search term
   const getFilteredCharges = (index: number | null) => {
     if (index === null) return [];
@@ -531,6 +536,21 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     setValue(`paymentABLItems.${index}.orderNo`, String(order.orderNo || ''), { shouldValidate: true });
     setValue(`paymentABLItems.${index}.orderDate`, order.orderDate, { shouldValidate: true });
     setValue('paidTo', order.vendorName, { shouldValidate: true });
+    setShowOrderPopup(null);
+    setOrderSearch('');
+  };
+
+  const selectOpeningBalance = (index: number, ob: any) => {
+    setValue(`paymentABLItems.${index}.vehicleNo`, ob.vehicleNo, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.orderNo`, ob.biltyNo, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.orderDate`, ob.biltyDate, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.expenseAmount`, ob.amount, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.balance`, ob.amount, { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.charges`, ob.broker || ob.chargeType || 'Opening Balance', { shouldValidate: true });
+    setValue(`paymentABLItems.${index}.chargeNo`, ob.openingBalanceId, { shouldValidate: true });
+    if (ob.broker) {
+      setValue('paidTo', ob.broker, { shouldValidate: true });
+    }
     setShowOrderPopup(null);
     setOrderSearch('');
   };
@@ -1205,10 +1225,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
         {/* Booking Order Selection Popup */}
         {showOrderPopup !== null && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl max-w-3xl w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-7xl w-full max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Booking Order or Opening Balance</h3>
                 <Button
                   onClick={() => {
                     setShowOrderPopup(null);
@@ -1217,65 +1238,147 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                   className="text-gray-400 hover:text-gray-600 p-1"
                   variant="ghost"
                 >
-                  <FiX className="text-lg" />
+                  <FiX className="text-xl" />
                 </Button>
               </div>
-              <div className="mb-4">
+
+              {/* Search */}
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                 <input
                   type="text"
-                  placeholder="Search by Vehicle No, Order No, Date, or Vendor..."
                   value={orderSearch}
                   onChange={(e) => setOrderSearch(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
+                  placeholder="Search by Vehicle No, Order No, Broker, Charges..."
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-transparent"
                 />
               </div>
-              <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
-                {filteredBookingOrders.length === 0 ? (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No booking orders found</p>
-                ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Vehicle No
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Order No
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Order Date
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200">
-                          Vendor Name
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800">
-                      {filteredBookingOrders.map((order) => (
-                        <tr
-                          key={order.id}
-                          onClick={() => selectOrder(showOrderPopup, order)}
-                          className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-                        >
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {order.vehicleNo}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {order.orderNo}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {order.orderDate}
-                          </td>
-                          <td className="px-4 py-3 text-gray-800 dark:text-gray-200">
-                            {order.vendorName}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+
+              {/* Side by Side Content */}
+              <div className="flex-1 overflow-hidden flex gap-4 p-4">
+                {/* Left Side - Booking Orders */}
+                <div className="flex-1 flex flex-col border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3">
+                    <h4 className="font-semibold text-base">Booking Orders</h4>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    {filteredBookingOrders.length === 0 ? (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center py-12">No booking orders found</p>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
+                              Vehicle No
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
+                              Order No
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
+                              Date
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
+                              Vendor
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800">
+                          {filteredBookingOrders.map((order) => (
+                            <tr
+                              key={order.id}
+                              onClick={() => selectOrder(showOrderPopup, order)}
+                              className="border-b border-gray-100 dark:border-gray-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors cursor-pointer"
+                            >
+                              <td className="px-3 py-3 text-gray-800 dark:text-gray-200 font-medium">
+                                {order.vehicleNo}
+                              </td>
+                              <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
+                                {order.orderNo}
+                              </td>
+                              <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
+                                {order.orderDate}
+                              </td>
+                              <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
+                                {order.vendorName}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Side - Opening Balance */}
+                <div className="flex-1 flex flex-col border border-amber-300 dark:border-amber-700 rounded-lg overflow-hidden bg-amber-50/30 dark:bg-amber-900/10">
+                  <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-white px-4 py-3">
+                    <h4 className="font-semibold text-base flex items-center gap-2">
+                      <span>📋</span>
+                      <span>Opening Balance</span>
+                    </h4>
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    {filteredOpeningBalances.length === 0 ? (
+                      <p className="text-sm text-amber-700 dark:text-amber-400 text-center py-12">No opening balance entries found</p>
+                    ) : (
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-amber-100 dark:bg-amber-900/30">
+                          <tr>
+                            <th className="px-3 py-2 text-left font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Bilty #
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Vehicle No
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Broker
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Charge Type
+                            </th>
+                            <th className="px-3 py-2 text-left font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Date
+                            </th>
+                            <th className="px-3 py-2 text-right font-semibold text-amber-900 dark:text-amber-200 border-b border-amber-200 dark:border-amber-700">
+                              Credit Amount
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800">
+                          {filteredOpeningBalances.map((ob) => (
+                            <tr
+                              key={ob.id}
+                              onClick={() => selectOpeningBalance(showOrderPopup!, ob)}
+                              className="border-b border-amber-100 dark:border-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors cursor-pointer"
+                            >
+                              <td className="px-3 py-3 text-amber-900 dark:text-amber-200 font-medium">
+                                {ob.biltyNo}
+                              </td>
+                              <td className="px-3 py-3 text-amber-800 dark:text-amber-300">
+                                {ob.vehicleNo}
+                              </td>
+                              <td className="px-3 py-3 text-amber-700 dark:text-amber-400">
+                                {ob.broker || '-'}
+                              </td>
+                              <td className="px-3 py-3 text-amber-700 dark:text-amber-400">
+                                {ob.chargeType || '-'}
+                              </td>
+                              <td className="px-3 py-3 text-amber-700 dark:text-amber-400">
+                                {ob.biltyDate}
+                              </td>
+                              <td className="px-3 py-3 text-right text-amber-900 dark:text-amber-200 font-medium">
+                                {ob.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-end mt-4">
+
+              {/* Footer */}
+              <div className="flex justify-end gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
                 <Button
                   onClick={() => {
                     setShowOrderPopup(null);
