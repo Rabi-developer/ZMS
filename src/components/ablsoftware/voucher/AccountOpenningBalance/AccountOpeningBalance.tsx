@@ -86,7 +86,6 @@ interface HierarchicalDropdownProps {
 const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
   accounts,
   setValue,
-  name: _name,
   index,
   initialAccountId,
 }) => {
