@@ -94,7 +94,7 @@ const paymentSchema = z.object({
   chequeNo: z.string().optional(),
   chequeDate: z.string().optional(),
   remarks: z.string().optional(),
-  paidTo: z.string().min(1, 'Paid To is required'),
+  paidTo: z.string().optional(),
   paidAmount: z.number().min(0, 'Paid Amount must be non-negative').nullable(),
   advanced: z.number().min(0, 'Advanced Amount must be non-negative').nullable(),
   advancedDate: z.string().optional(),
