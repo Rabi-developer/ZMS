@@ -18,10 +18,10 @@ import { FaBalanceScale } from 'react-icons/fa';
 
 // API imports
 import {
-  createOpeningBalance,
-  updateOpeningBalance,
-  getSingleOpeningBalance,
-} from '@/apis/openingbalance';
+  createAccountOpeningBalance,
+  updateAccountOpeningBalance,
+  getSingleAccountOpeningBalance,
+} from '@/apis/accountopeningbalance';
 import { getAllEquality } from '@/apis/equality';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
 import { getAllAblAssests } from '@/apis/ablAssests';
@@ -79,7 +79,6 @@ type OpeningBalanceFormData = z.infer<typeof openingBalanceSchema>;
 interface HierarchicalDropdownProps {
   accounts: Account[];
   setValue: UseFormSetValue<OpeningBalanceFormData>;
-  name: string;
   index?: number;
   initialAccountId?: string;
 }
@@ -87,7 +86,7 @@ interface HierarchicalDropdownProps {
 const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
   accounts,
   setValue,
-  name,
+  name: _name,
   index,
   initialAccountId,
 }) => {
@@ -160,7 +159,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
   const handlePickFromSearch = (leaf: FlatLeaf) => {
     setSelectionPath(leaf.pathIds);
     setValue(
-      `entries.${index}.${name}` as Path<OpeningBalanceFormData>,
+      `entries.${index}.accountId` as Path<OpeningBalanceFormData>,
       leaf.id,
       { shouldValidate: true }
     );
@@ -171,7 +170,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
   const clearSelection = () => {
     setSelectionPath([]);
     setValue(
-      `entries.${index}.${name}` as Path<OpeningBalanceFormData>,
+      `entries.${index}.accountId` as Path<OpeningBalanceFormData>,
       '',
       { shouldValidate: true }
     );
@@ -190,7 +189,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
       else return;
     }
 
-    const targetPath = `entries.${index}.${name}` as Path<OpeningBalanceFormData>;
+    const targetPath = `entries.${index}.accountId` as Path<OpeningBalanceFormData>;
     if (selected?.children.length === 0) {
       setValue(targetPath, id, { shouldValidate: true });
     } else {
@@ -374,15 +373,15 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
         if (isEdit) {
           const id = window.location.pathname.split('/').pop();
           if (id) {
-            const { data } = await getSingleOpeningBalance(id);
-            setValue('OpeningNo', String(data.openingNo ?? ''));
-            setValue('OpeningDate', data.openingDate ?? '');
+            const { data } = await getSingleAccountOpeningBalance(id);
+            setValue('OpeningNo', String(data.accountOpeningNo ?? ''));
+            setValue('OpeningDate', data.accountOpeningDate ?? '');
 
-            const loadedEntries = (data.OpeningBalanceEntry ?? []).map((e: any) => ({
-              accountId: e.Account1 ?? '',
-              debit: Number(e.Debit1 ?? 0),
-              credit: Number(e.Credit1 ?? 0),
-              narration: e.Narration ?? '',
+            const loadedEntries = (data.accountOpeningBalanceEntrys ?? []).map((e: any) => ({
+              accountId: e.account ?? '',
+              debit: Number(e.debit ?? 0),
+              credit: Number(e.credit ?? 0),
+              narration: e.narration ?? '',
             }));
 
             if (loadedEntries.length) {
@@ -405,26 +404,26 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
   setIsSubmitting(true);
   try {
     const payload = {
-      AccountOpeningNo: data.OpeningNo ? parseInt(data.OpeningNo, 10) : undefined,
-      AccountOpeningDate: data.OpeningDate,
-      AccountOpeningBalanceEntrys: data.entries.map((e) => ({
-        Account: e.accountId,
-        Debit: e.debit,
-        Credit: e.credit,
-        Narration: e.narration || null,
+      accountOpeningNo: data.OpeningNo ? parseInt(data.OpeningNo, 10) : undefined,
+      accountOpeningDate: data.OpeningDate,
+      accountOpeningBalanceEntrys: data.entries.map((e) => ({
+        account: e.accountId,
+        debit: e.debit,
+        credit: e.credit,
+        narration: e.narration || null,
       })),
     };
 
     if (isEdit) {
       const id = window.location.pathname.split('/').pop()!;
-      await updateOpeningBalance({ id, ...payload });
+      await updateAccountOpeningBalance({ id, ...payload });
       toast.success('Opening balance updated successfully');
     } else {
-      await createOpeningBalance(payload);
+      await createAccountOpeningBalance(payload);
       toast.success('Opening balance created successfully');
     }
 
-    router.push('/openingbalance');
+    router.push('/AccountOpeningBalance');
   } catch (err: any) {
     toast.error(err?.response?.data?.message || 'Failed to save opening balance');
     console.error(err);
@@ -505,7 +504,6 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
                           <HierarchicalDropdown
                             accounts={topLevelAccounts}
                             setValue={setValue}
-                            name={`entries.${index}.accountId`}
                             index={index}
                             initialAccountId={ctrlField.value}
                           />

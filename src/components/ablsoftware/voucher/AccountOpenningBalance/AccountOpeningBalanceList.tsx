@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
 import {
-  getAllOpeningBalance,
-  deleteOpeningBalance,
-} from '@/apis/openingbalance';
+  getAllAccountOpeningBalance,
+  deleteAccountOpeningBalance,
+} from '@/apis/accountopeningbalance';
 import { columns, AccountOpeningBalance } from './columns';
 import { getAllAblAssests } from '@/apis/ablAssests';
 import { getAllAblRevenue } from '@/apis/ablRevenue';
@@ -32,7 +32,7 @@ const AccountOpeningBalanceList = () => {
   const fetchOpeningBalances = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getAllOpeningBalance(pageIndex + 1, pageSize);
+      const response = await getAllAccountOpeningBalance(pageIndex + 1, pageSize);
       setData(response?.data || []);
       setTotalRows(response.misc?.total || 0);
     } catch (error) {
@@ -76,7 +76,7 @@ const AccountOpeningBalanceList = () => {
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      await deleteOpeningBalance(deleteId);
+      await deleteAccountOpeningBalance(deleteId);
       toast.success('Deleted successfully');
       setOpen(false);
       fetchOpeningBalances();

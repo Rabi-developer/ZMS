@@ -1,12 +1,12 @@
 import apiFetch from "@/components/utils/fetchInstance";
 
 // AccountOpeningBalance-create
-const createAccountOpeningBalance = async (AccountOpeningBalance : any) => {
+const createAccountOpeningBalance = async (accountOpeningBalance: any) => {
   try {
     const response = await apiFetch('AccountOpeningBalance', {
       method: 'POST',
       headers: {}, 
-      body: JSON.stringify(AccountOpeningBalance),
+      body: JSON.stringify(accountOpeningBalance),
     }, true);
     return response;
   } catch (error: any) {
@@ -15,11 +15,17 @@ const createAccountOpeningBalance = async (AccountOpeningBalance : any) => {
 };
 
 // AccountOpeningBalance-list
-const getAllAccountOpeningBalance  = async (pageIndex: any = 1, pageSize: any = 10, filters: any = {}) => {
+const getAllAccountOpeningBalance = async (pageIndex: any = 1, pageSize: any = 10, filters: any = {}) => {
   try {
     let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
-    if (filters.orderNo) {
-      queryParams += `&OrderNo=${filters.orderNo}`;
+    if (filters.searchQuery) {
+      queryParams += `&SearchQuery=${encodeURIComponent(filters.searchQuery)}`;
+    }
+    if (filters.refId) {
+      queryParams += `&RefId=${filters.refId}`;
+    }
+    if (filters.totalCount) {
+      queryParams += `&TotalCount=${filters.totalCount}`;
     }
     const response = await apiFetch(`AccountOpeningBalance?${queryParams}`, {
       method: 'GET',
@@ -31,20 +37,8 @@ const getAllAccountOpeningBalance  = async (pageIndex: any = 1, pageSize: any = 
   }
 };
 
-const getAllAccountOpeningBalancePositions = async (pageIndex: any = 1, pageSize: any = 10) => {
-  try {
-    const response = await apiFetch(`AccountOpeningBalancePositions?PageIndex=${pageIndex}&PageSize=${pageSize}`, {
-      method: 'GET',
-      headers: {}, 
-    }, true);
-    return response;
-  } catch (error: any) {
-    throw error;
-  }
-};
-
 // get-single-AccountOpeningBalance-data
-const getSingleAccountOpeningBalance  = async (id: string) => {
+const getSingleAccountOpeningBalance = async (id: string) => {
   try {
     const response = await apiFetch(`AccountOpeningBalance/${id}`, {
       method: 'GET',
@@ -56,12 +50,13 @@ const getSingleAccountOpeningBalance  = async (id: string) => {
   }
 };
 
-const updateAccountOpeningBalance = async (AccountOpeningBalance: any) => {
+// update-AccountOpeningBalance
+const updateAccountOpeningBalance = async (accountOpeningBalance: any) => {
   try {
     const response = await apiFetch(`AccountOpeningBalance`, {
       method: 'PUT',
       headers: {},
-      body: JSON.stringify(AccountOpeningBalance),
+      body: JSON.stringify(accountOpeningBalance),
     }, true);
     return response;
   } catch (error: any) {
@@ -70,7 +65,7 @@ const updateAccountOpeningBalance = async (AccountOpeningBalance: any) => {
 };
 
 // delete-single-AccountOpeningBalance-data
-const deleteAccountOpeningBalance  = async (id: string) => {
+const deleteAccountOpeningBalance = async (id: string) => {
   try {
     const response = await apiFetch(`AccountOpeningBalance/${id}`, {
       method: 'DELETE',
@@ -81,56 +76,28 @@ const deleteAccountOpeningBalance  = async (id: string) => {
     throw error;
   }   
 };
-const updateAccountOpeningBalanceStatus = async (AccountOpeningBalanceStatus: { id: string; status: string }) => {
+
+// update-AccountOpeningBalance-status
+const updateAccountOpeningBalanceStatus = async (accountOpeningBalanceStatus: { id: string; status: string }) => {
   try {
     const response = await apiFetch('AccountOpeningBalance/status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ Id: AccountOpeningBalanceStatus.id, Status: AccountOpeningBalanceStatus.status }),
+      body: JSON.stringify({ Id: accountOpeningBalanceStatus.id, Status: accountOpeningBalanceStatus.status }),
     }, true);
     return response;
   } catch (error: any) {
     throw error;
   }
 };
-const updateAccountOpeningBalanceFiles = async ({ id, files }: { id: string; files: string }) => {
-  try {
-    if (!id) throw new Error('updateAccountOpeningBalanceFiles: id is required');
-    if (typeof files !== 'string') throw new Error('updateAccountOpeningBalanceFiles: files must be a comma-separated string');
 
-    // Try partial update first (PATCH only Files field)
-    try {
-      const patchResponse = await apiFetch(`AccountOpeningBalance/Files/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id, files }),
-      }, true);
-      return patchResponse;
-    } catch (patchErr) {
-      console.warn('PATCH AccountOpeningBalance/{id} failed, falling back to merge+PUT:', patchErr);
-    }
-
-    // Fallback: fetch existing order and merge Files, then PUT full payload
-    const existing = await getSingleAccountOpeningBalance(id);
-    const existingOrder = (existing as any)?.data || existing;
-    if (!existingOrder) throw new Error('updateAccountOpeningBalanceFiles: existing order not found');
-
-    const payload = { ...existingOrder, files };
-    const response = await apiFetch(`AccountOpeningBalance`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    }, true);
-
-    return response;
-  } catch (error: any) {
-    throw error;
-  }
+export { 
+  createAccountOpeningBalance, 
+  getAllAccountOpeningBalance, 
+  getSingleAccountOpeningBalance, 
+  updateAccountOpeningBalance, 
+  deleteAccountOpeningBalance, 
+  updateAccountOpeningBalanceStatus 
 };
-export { createAccountOpeningBalance , getAllAccountOpeningBalance , getAllAccountOpeningBalancePositions , getSingleAccountOpeningBalance , updateAccountOpeningBalance , deleteAccountOpeningBalance, updateAccountOpeningBalanceStatus , updateAccountOpeningBalanceFiles  };

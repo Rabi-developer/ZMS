@@ -6,14 +6,20 @@ import { ColumnDef } from '@tanstack/react-table';
 
 export interface AccountOpeningBalance {
   id: string;
-  openingNo?: string;
-  openingDate?: string;
-  // per-entry fields (assuming flattened or first entry shown – adjust if needed)
-  accountId: string;
-  debit: number;
-  credit: number;
-  narration?: string;
+  accountOpeningNo?: number;
+  accountOpeningDate?: string;
+  accountOpeningBalanceEntrys?: Array<{
+    id: string;
+    account: string;
+    debit: number;
+    credit: number;
+    narration?: string;
+  }>;
   status?: string;
+  createdBy?: string;
+  creationDate?: string;
+  updatedBy?: string;
+  updationDate?: string;
 }
 
 export const getStatusStyles = (status: string = 'Prepared') => {
@@ -35,36 +41,68 @@ export const columns = (
 ): ColumnDef<AccountOpeningBalance>[] => [
   {
     header: 'Opening No',
-    accessorKey: 'openingNo',
-    cell: ({ row }) => row.original.openingNo || '-',
+    accessorKey: 'accountOpeningNo',
+    cell: ({ row }) => row.original.accountOpeningNo || '-',
   },
   {
     header: 'Date',
-    accessorKey: 'openingDate',
-    cell: ({ row }) => row.original.openingDate || '-',
+    accessorKey: 'accountOpeningDate',
+    cell: ({ row }) => {
+      const date = row.original.accountOpeningDate;
+      if (!date) return '-';
+      try {
+        return new Date(date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+      } catch {
+        return date;
+      }
+    },
   },
   {
-    header: 'Account',
-    accessorKey: 'accountId',
-    cell: ({ row }) =>
-      accountIndex[row.original.accountId]?.description || row.original.accountId || '-',
+    header: 'Accounts',
+    accessorKey: 'accountOpeningBalanceEntrys',
+    cell: ({ row }) => {
+      const entries = row.original.accountOpeningBalanceEntrys || [];
+      if (entries.length === 0) return '-';
+      
+      // Get unique account names
+      const accountNames = entries
+        .map((entry) => accountIndex[entry.account]?.description || entry.account)
+        .filter((name, index, self) => self.indexOf(name) === index); // Remove duplicates
+      
+      if (accountNames.length === 1) {
+        return accountNames[0];
+      } else if (accountNames.length === 2) {
+        return accountNames.join(', ');
+      } else {
+        return `${accountNames[0]}, ${accountNames[1]} +${accountNames.length - 2} more`;
+      }
+    },
   },
   {
-    header: 'Debit',
-    accessorKey: 'debit',
-    cell: ({ row }) =>
-      row.original.debit ? row.original.debit.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '-',
+    header: 'Total Debit',
+    id: 'totalDebit',
+    cell: ({ row }) => {
+      const total = row.original.accountOpeningBalanceEntrys?.reduce(
+        (sum, entry) => sum + (entry.debit || 0),
+        0
+      ) || 0;
+      return total.toLocaleString('en-US', { minimumFractionDigits: 2 });
+    },
   },
   {
-    header: 'Credit',
-    accessorKey: 'credit',
-    cell: ({ row }) =>
-      row.original.credit ? row.original.credit.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '-',
-  },
-  {
-    header: 'Narration',
-    accessorKey: 'narration',
-    cell: ({ row }) => row.original.narration || '-',
+    header: 'Total Credit',
+    id: 'totalCredit',
+    cell: ({ row }) => {
+      const total = row.original.accountOpeningBalanceEntrys?.reduce(
+        (sum, entry) => sum + (entry.credit || 0),
+        0
+      ) || 0;
+      return total.toLocaleString('en-US', { minimumFractionDigits: 2 });
+    },
   },
   {
     header: 'Status',
