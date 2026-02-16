@@ -48,6 +48,7 @@ const billPaymentSchema = z.object({
   lines: z.array(
     z.discriminatedUnion('isAdditionalLine', [
       z.object({
+        id: z.string().optional(), // Line ID for editing
         isAdditionalLine: z.literal(false),
         vehicleNo: z.string().min(1, 'Vehicle No is required'),
         orderNo: z.string().min(1, 'Order No is required'),
@@ -58,6 +59,7 @@ const billPaymentSchema = z.object({
         remarks: z.string().optional(),
       }),
       z.object({
+        id: z.string().optional(), // Line ID for editing
         isAdditionalLine: z.literal(true),
         nameCharges: z.string().min(1, 'Name Charges is required'),
         amountCharges: z.number().min(0, 'Amount Charges must be non-negative'),
@@ -179,8 +181,14 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
         lines: initialData.lines?.length
           ? initialData.lines.map((line: any) =>
               line.isAdditionalLine
-                ? { isAdditionalLine: true, nameCharges: line.nameCharges || '', amountCharges: line.amountCharges || 0 }
+                ? { 
+                    id: line.id, // Include line ID
+                    isAdditionalLine: true, 
+                    nameCharges: line.nameCharges || '', 
+                    amountCharges: line.amountCharges || 0 
+                  }
                 : {
+                    id: line.id, // Include line ID
                     isAdditionalLine: false,
                     vehicleNo: line.vehicleNo || '',
                     orderNo: line.orderNo || '',
@@ -237,10 +245,16 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
         id: isEdit ? window.location.pathname.split('/').pop() : undefined,
         receiptNo: String(data.receiptNo),
         paymentDate: data.paymentDate,
-        lines: data.lines.map((line) =>
+        lines: data.lines.map((line: any) =>
           line.isAdditionalLine
-            ? { isAdditionalLine: true, nameCharges: line.nameCharges, amountCharges: line.amountCharges }
+            ? { 
+                id: line.id, // Include line ID for edit
+                isAdditionalLine: true, 
+                nameCharges: line.nameCharges, 
+                amountCharges: line.amountCharges 
+              }
             : {
+                id: line.id, // Include line ID for edit
                 isAdditionalLine: false,
                 vehicleNo: line.vehicleNo,
                 orderNo: line.orderNo,
