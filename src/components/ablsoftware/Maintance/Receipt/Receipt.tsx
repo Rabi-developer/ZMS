@@ -10,6 +10,7 @@ import { getAllPartys } from '@/apis/party';
 import { getAllSaleTexes } from '@/apis/salestexes';
 import { getAllConsignment, updateConsignment } from '@/apis/consignment';
 import { createReceipt, updateReceipt, getBiltyBalance } from '@/apis/receipt';
+import { getAllOpeningBalance } from '@/apis/openingbalance';
 import { toast } from 'react-toastify';
 import { useRouter } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
@@ -146,6 +147,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const [selectedSaleTaxes,setselectedSaleTaxes] = useState('');
     const [selectedWHTTaxes,setselectedWHTTaxes] = useState('');
   const [consignments, setConsignments] = useState<Consignment[]>([]);
+  const [openingBalances, setOpeningBalances] = useState<any[]>([]);
   const [showConsignmentPopup, setShowConsignmentPopup] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectingConsignment, setSelectingConsignment] = useState(false);
@@ -196,9 +198,13 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const salesTaxRate = watch('salesTaxRate');
   const whtOnSbr = watch('whtOnSbr');
 
-  // Filter consignments based on search query
+  // Filter consignments and opening balances based on search query
   const filteredConsignments = consignments.filter((consignment) =>
     `${consignment.biltyNo} ${consignment.id}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  const filteredOpeningBalances = openingBalances.filter((ob) =>
+    `${ob.biltyNo} ${ob.vehicleNo} ${ob.customer}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Fetch dropdown data
@@ -206,10 +212,11 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [partyRes, saleTaxRes, consignmentRes] = await Promise.all([
+        const [partyRes, saleTaxRes, consignmentRes, openingBalanceRes] = await Promise.all([
           getAllPartys(1, 1000),
           getAllSaleTexes(1, 1000),
           getAllConsignment(1, 1000),
+          getAllOpeningBalance(1, 10000),
         ]);
         setParties(partyRes.data.map((p: any) => ({ id: p.id, name: p.name })));
         setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.taxName, percentage: t.percentage })));
@@ -224,6 +231,28 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
             totalAmount: item.totalAmount || 0,
           }))   
         );
+        
+        // Process opening balance entries for customers (debit > 0)
+        const obEntries: any[] = [];
+        (openingBalanceRes?.data || []).forEach((ob: any) => {
+          (ob.OpeningBalanceEntry || []).forEach((entry: any) => {
+            if (entry.Debit > 0 && entry.Customer) {
+              obEntries.push({
+                id: `OB-${ob.id}-${entry.Customer}`,
+                biltyNo: entry.BiltyNo || `OB-${ob.openingNo}`,
+                vehicleNo: entry.VehicleNo || 'N/A',
+                biltyDate: entry.BiltyDate || ob.openingDate,
+                biltyAmount: entry.Debit || 0,
+                srbAmount: 0,
+                totalAmount: entry.Debit || 0,
+                isOpeningBalance: true,
+                customer: entry.Customer,
+                city: entry.City,
+              });
+            }
+          });
+        });
+        setOpeningBalances(obEntries);
       } catch (error) {
         toast.error('Failed to load data');
         console.error('Error fetching data:', error);
@@ -319,6 +348,19 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     } finally {
       setSelectingConsignment(false);
     }
+  };
+
+  const selectOpeningBalance = (index: number, ob: any) => {
+    setValue(`items.${index}.biltyNo`, ob.biltyNo, { shouldValidate: true });
+    setValue(`items.${index}.consignmentId`, ob.id, { shouldValidate: true });
+    setValue(`items.${index}.vehicleNo`, ob.vehicleNo, { shouldValidate: true });
+    setValue(`items.${index}.biltyDate`, ob.biltyDate, { shouldValidate: true });
+    setValue(`items.${index}.biltyAmount`, ob.totalAmount, { shouldValidate: true });
+    setValue(`items.${index}.srbAmount`, 0, { shouldValidate: true });
+    setValue(`items.${index}.balance`, ob.totalAmount, { shouldValidate: true });
+    setValue(`items.${index}.initialBalance`, ob.totalAmount, { shouldValidate: true });
+    setShowConsignmentPopup(null);
+    setSearchQuery('');
   };
 
   const addTableRow = () => {
@@ -1043,6 +1085,43 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           </td>
                         </tr>
                       ))}
+                      
+                      {/* Opening Balance Section */}
+                      {filteredOpeningBalances.length > 0 && (
+                        <>
+                          <tr className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/30 dark:to-amber-800/30">
+                            <td colSpan={6} className="px-4 py-2 text-center font-semibold text-amber-800 dark:text-amber-200 border-t-2 border-amber-300 dark:border-amber-700">
+                              Opening Balance Entries
+                            </td>
+                          </tr>
+                          {filteredOpeningBalances.map((ob) => (
+                            <tr
+                              key={ob.id}
+                              onClick={() => selectOpeningBalance(showConsignmentPopup!, ob)}
+                              className="border-b border-gray-200 dark:border-gray-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors cursor-pointer"
+                            >
+                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                                {ob.biltyNo}
+                              </td>
+                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                                {ob.customer} ({ob.city || 'N/A'})
+                              </td>
+                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                                {ob.vehicleNo}
+                              </td>
+                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400">
+                                {ob.biltyDate}
+                              </td>
+                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-right text-gray-600 dark:text-gray-400">
+                                {ob.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-400">
+                                0.00
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      )}
                     </tbody>
                   </table>
                 )}
