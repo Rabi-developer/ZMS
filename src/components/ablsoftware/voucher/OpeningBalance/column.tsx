@@ -102,6 +102,7 @@ export const columns = (
       return brokers.length ? brokers.join(', ') : '';
     },
   },
+  
   // {
   //   header: 'Charge Type',
   //   id: 'chargeType',
@@ -118,6 +119,28 @@ export const columns = (
   //     return types.length ? types.join(', ') : '';
   //   },
   // },
+  {
+    header: 'Debit',
+    id: 'totalDebit',
+    cell: ({ row }) => {
+      const total = (row.original.openingBalanceEntrys || []).reduce(
+        (sum, entry) => sum + (entry.debit || 0),
+        0
+      );
+      return total > 0 ? total.toFixed(2) : '';
+    },
+  },
+  {
+    header: 'Credit',
+    id: 'totalCredit',
+    cell: ({ row }) => {
+      const total = (row.original.openingBalanceEntrys || []).reduce(
+        (sum, entry) => sum + (entry.credit || 0),
+        0
+      );
+      return total > 0 ? total.toFixed(2) : '';
+    },
+  },
   {
     header: 'Status',
     id: 'status',

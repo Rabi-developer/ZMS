@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { getAllEntryVoucher } from '@/apis/entryvoucher';
+import { getAllAccountOpeningBalance } from '@/apis/accountopeningbalance';
 import { getAllAblAssests } from '@/apis/ablAssests';
 import { getAllAblRevenue } from '@/apis/ablRevenue';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
@@ -580,6 +581,8 @@ const LedgerPage: React.FC = () => {
   const runReport = async () => {
     try {
       setLoading(true);
+      
+      // Fetch all entry vouchers
       const all: VoucherItem[] = [];
       let pageIndex = 1;
       let totalPages = 1;
@@ -590,6 +593,52 @@ const LedgerPage: React.FC = () => {
         totalPages = res?.misc?.totalPages || 1;
         pageIndex += 1;
       } while (pageIndex <= totalPages);
+
+      // Fetch all account opening balances
+      const openingBalanceEntries: Array<{ 
+        accountId: string; 
+        debit: number; 
+        credit: number; 
+        narration?: string;
+        date: string;
+      }> = [];
+      
+      try {
+        let obPageIndex = 1;
+        let obTotalPages = 1;
+        do {
+          const obRes: any = await getAllAccountOpeningBalance(obPageIndex, 100, {});
+          const obData = obRes?.data || [];
+          console.log(`Fetched opening balance page ${obPageIndex}:`, obData.length, 'records');
+          
+          obData.forEach((ob: any) => {
+            const entries = ob.accountOpeningBalanceEntrys || [];
+            const obDate = ob.accountOpeningDate || '';
+            console.log('Opening balance entry:', ob);
+            
+            entries.forEach((entry: any) => {
+              const accountId = entry.account;
+              console.log('Processing entry:', { accountId, debit: entry.debit, credit: entry.credit });
+              
+              if (accountId) {
+                openingBalanceEntries.push({
+                  accountId: accountId,
+                  debit: Number(entry.debit || 0),
+                  credit: Number(entry.credit || 0),
+                  narration: entry.narration || 'Opening Balance',
+                  date: obDate,
+                });
+              }
+            });
+          });
+          obTotalPages = obRes?.misc?.totalPages || 1;
+          obPageIndex += 1;
+        } while (obPageIndex <= obTotalPages);
+        
+        console.log('Total opening balance entries loaded:', openingBalanceEntries.length);
+      } catch (err) {
+        console.warn('Failed to load opening balances:', err);
+      }
 
       const from = fromDate ? new Date(fromDate) : null;
       const to = toDate ? new Date(toDate) : null;
@@ -610,7 +659,7 @@ const LedgerPage: React.FC = () => {
         return (s || '').toLowerCase() === status.toLowerCase();
       };
 
-      const prevMap: Record<string, { date: number; pb: number }> = {};
+      const prevMap: Record<string, { date: number; pb: number; debit?: number; credit?: number }> = {};
       if (from) {
         all.forEach((v) => {
           const d = v.voucherDate ? new Date(v.voucherDate) : null;
@@ -677,7 +726,21 @@ const LedgerPage: React.FC = () => {
       const groupMap: Record<string, { accountId: string; description: string; listid: string; rows: any[]; totals: { credit1: number; debit1: number; pb1: number } }> = {};
 
       const pushRow = (accountId: string, v: VoucherItem, r: VoucherDetailRow) => {
-        const accInfo = accountIndex[accountId] || ({ description: accountId, listid: accountId } as any);
+        // Try to find account info from accountIndex or search in tree
+        let accInfo = accountIndex[accountId];
+        if (!accInfo) {
+          const foundAccount = findAccountById(accountId, topLevelAccounts);
+          if (foundAccount) {
+            accInfo = { 
+              id: foundAccount.id, 
+              listid: foundAccount.listid || foundAccount.id, 
+              description: foundAccount.description || foundAccount.id 
+            };
+          } else {
+            accInfo = { id: accountId, listid: accountId, description: accountId };
+          }
+        }
+        
         const key = accountId;
         if (!groupMap[key]) {
           groupMap[key] = {
@@ -727,10 +790,78 @@ const LedgerPage: React.FC = () => {
         });
       });
 
+      // Add opening balance entries as separate rows
+      openingBalanceEntries.forEach((obEntry) => {
+        const accountId = obEntry.accountId;
+        const keyNorm = normalize(accountId);
+        
+        // Check if account matches selected filters
+        const inSelected = selectedKeys.size === 0 || 
+                          selectedKeys.has(keyNorm) ||
+                          selectedKeys.has(normalize(accountIndex[accountId]?.listid)) ||
+                          selectedKeys.has(normalize(accountIndex[accountId]?.description));
+        
+        if (inSelected) {
+          // Create group if it doesn't exist
+          if (!groupMap[accountId]) {
+            // Try to find account info from accountIndex or search in tree
+            let accInfo = accountIndex[accountId];
+            if (!accInfo) {
+              // Try to find in the tree
+              const foundAccount = findAccountById(accountId, topLevelAccounts);
+              if (foundAccount) {
+                accInfo = { 
+                  id: foundAccount.id, 
+                  listid: foundAccount.listid || foundAccount.id, 
+                  description: foundAccount.description || foundAccount.id 
+                };
+              } else {
+                // Fallback to ID
+                accInfo = { id: accountId, listid: accountId, description: accountId };
+              }
+            }
+            
+            groupMap[accountId] = {
+              accountId,
+              description: accInfo.description,
+              listid: accInfo.listid,
+              rows: [],
+              totals: { credit1: 0, debit1: 0, pb1: 0 },
+            };
+          }
+          
+          // Add opening balance entry as a row
+          const debit = obEntry.debit;
+          const credit = obEntry.credit;
+          const balance = debit - credit;
+          
+          groupMap[accountId].rows.push({
+            _idx: -1,
+            voucherDate: obEntry.date || '-',
+            voucherNo: 'Opening Balance',
+            chequeNo: '-',
+            depositSlipNo: '-',
+            narration: obEntry.narration || 'Opening Balance',
+            debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+            credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+            pb1: balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            debit1Num: debit,
+            credit1Num: credit,
+            pb1Num: balance,
+            isOpeningBalance: true,
+          });
+          
+          console.log(`Added opening balance row for ${accountId} (${groupMap[accountId].description}): Debit=${debit}, Credit=${credit}`);
+        }
+      });
+
       const grouped: GroupedRows = Object.values(groupMap)
-        .filter((g) => g.rows.length > 0)
         .map((g) => {
           const rowsSorted = [...g.rows].sort((r1: any, r2: any) => {
+            // Opening balance rows should come first
+            if (r1.isOpeningBalance && !r2.isOpeningBalance) return -1;
+            if (!r1.isOpeningBalance && r2.isOpeningBalance) return 1;
+            
             const d1 = new Date(r1.voucherDate || '0000-00-00');
             const d2 = new Date(r2.voucherDate || '0000-00-00');
             if (d1 < d2) return -1;
@@ -739,26 +870,32 @@ const LedgerPage: React.FC = () => {
             const v2 = (r2.voucherNo || '').toString();
             return v1.localeCompare(v2, undefined, { numeric: true, sensitivity: 'base' });
           });
-          const keyNorm = normalize(g.accountId);
-          const prev = prevMap[keyNorm];
-          const opening = prev ? prev.pb : 0;
-          rowsSorted.unshift({
-            _idx: -1,
-            voucherDate: '-',
-            voucherNo: '-',
-            chequeNo: '-',
-            depositSlipNo: '-',
-            narration: 'Opening Balance (previous period)',
-            debit1: '',
-            credit1: '',
-            pb1: opening.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-            debit1Num: 0,
-            credit1Num: 0,
-            pb1Num: opening,
+          
+          // Calculate running balance
+          let runningBalance = 0;
+          rowsSorted.forEach((row: any) => {
+            runningBalance += (row.debit1Num || 0) - (row.credit1Num || 0);
+            row.pb1 = runningBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            row.pb1Num = runningBalance;
           });
+          
           const closing = rowsSorted.length > 0 ? rowsSorted[rowsSorted.length - 1].pb1Num : 0;
-          return { ...g, rows: rowsSorted, totals: { ...g.totals, pb1: closing } };
+          
+          // Calculate totals
+          const totalDebit = rowsSorted.reduce((sum: number, r: any) => sum + (r.debit1Num || 0), 0);
+          const totalCredit = rowsSorted.reduce((sum: number, r: any) => sum + (r.credit1Num || 0), 0);
+          
+          return { 
+            ...g, 
+            rows: rowsSorted, 
+            totals: { 
+              debit1: totalDebit, 
+              credit1: totalCredit, 
+              pb1: closing 
+            } 
+          };
         })
+        .filter((g) => g.rows.length > 0)
         .sort((a, b) => (a.listid || a.description).localeCompare(b.listid || b.description));
 
       setGroups(grouped);
