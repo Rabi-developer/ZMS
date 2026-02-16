@@ -15,16 +15,23 @@ const createOpeningBalance = async (OpeningBalance : any) => {
 };
 
 // OpeningBalance-list
-const getAllOpeningBalance  = async (pageIndex: any = 1, pageSize: any = 10, filters: any = {}) => {
+const getAllOpeningBalance  = async (pageIndex: any = 1, pageSize: any = 10000, filters: any = {}) => {
   try {
     let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
-    if (filters.orderNo) {
-      queryParams += `&OrderNo=${filters.orderNo}`;
+    if (filters.openingNo) {
+      queryParams += `&OrderNo=${filters.openingNo}`;
     }
     const response = await apiFetch(`OpeningBalance?${queryParams}`, {
       method: 'GET',
       headers: {}, 
     }, true);
+     if (response?.data && Array.isArray(response.data)) {
+      response.data.sort((a: any, b: any) => {
+        const openingNoA = a.openingNo || 0;
+        const openingNoB = b.openingNo || 0;
+        return openingNoA - openingNoB;
+      });
+    }
     return response;
   } catch (error: any) {
     throw error;

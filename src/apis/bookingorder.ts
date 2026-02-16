@@ -31,7 +31,7 @@ const getOrderProgress = async (bookingOrderId: string) => {
 // BookingOrder-list
 const getAllBookingOrder = async (
   pageIndex: any = 1,
-  pageSize: any = 10000,
+  pagecSize: any = 10000,
   filters: any = {}
 ) => {
   try {
