@@ -21,6 +21,7 @@ import { getAllPaymentABL } from '@/apis/paymentABL';
 import { getAllBrooker } from '@/apis/brooker';
 import { getAllVendor } from '@/apis/vendors';
 import { getAllReceipt } from '@/apis/receipt';
+import { getAllOpeningBalance } from '@/apis/openingbalance';
 import { exportBookingOrderToExcel } from './BookingOrderExcel';
 import { exportBiltiesReceivableToPDF, BiltiesReceivablePdfParams } from "@/components/ablsoftware/Maintance/common/BiltiesReceivablePdf";
 import { exportNonReceivableToPDF, NonReceivablePdfParams } from "@/components/ablsoftware/Maintance/common/NonReceivablePdf";
@@ -390,7 +391,7 @@ const BookingOrderReportExport: React.FC = () => {
   const loadReceivableData = useCallback(async () => {
     setReceivableLoading(true);
     try {
-      const [boRes, consRes, chargesRes, partyRes, unitRes, venRes, receiptRes] = await Promise.all([
+      const [boRes, consRes, chargesRes, partyRes, unitRes, venRes, receiptRes, openingBalanceRes] = await Promise.all([
         getAllBookingOrder(1, 20000),
         getAllConsignment(1, 40000),
         getAllCharges(1, 40000),
@@ -398,6 +399,7 @@ const BookingOrderReportExport: React.FC = () => {
         getAllUnitOfMeasures(1, 40000),
         getAllVendor(1, 40000),
         getAllReceipt(1, 100000),
+        getAllOpeningBalance(1, 10000),
       ]);
 
       const orders: any[] = boRes?.data || [];
@@ -407,6 +409,7 @@ const BookingOrderReportExport: React.FC = () => {
       const units: any[] = unitRes?.data || [];
       const vendors: any[] = venRes?.data || [];
       const receipts: any[] = receiptRes?.data || [];
+      const openingBalances: any[] = openingBalanceRes?.data || [];
 
       const receiptByBilty = receipts.reduce((acc: Record<string, number>, r: any) => {
         const items = Array.isArray(r.items) ? r.items : [];
@@ -554,6 +557,42 @@ const BookingOrderReportExport: React.FC = () => {
         }) : [];
 
         return [orderRow, ...consignmentRows];
+      });
+
+      // Add opening balance entries for customers (debit > 0)
+      openingBalances.forEach((ob: any) => {
+        (ob.openingBalanceEntrys || []).forEach((entry: any) => {
+          if (entry.debit > 0 && entry.customer) {
+            const biltyNo = entry.biltyNo || `OB-${ob.openingNo}`;
+            const receivedAmount = receiptByBilty[biltyNo] || 0;
+            const pendingAmount = entry.debit - receivedAmount;
+            
+            rows.push({
+              serial: serialCounter++,
+              orderNo: `OB-${ob.openingNo}`,
+              orderDate: formatDate(ob.openingDate),
+              vehicleNo: entry.vehicleNo || 'N/A',
+              bookingAmount: 0,
+              biltyNo: biltyNo,
+              biltyAmount: entry.debit,
+              consignmentFreight: entry.debit,
+              consignor: entry.customer || '-',
+              consignee: '-',
+              article: 'Opening Balance',
+              qty: '-',
+              departure: entry.city || '-',
+              destination: entry.city || '-',
+              vendor: '-',
+              carrier: '-',
+              isOrderRow: false,
+              ablDate: formatDate(entry.biltyDate || ob.openingDate),
+              receivedAmount,
+              pendingAmount,
+              biltyDate: formatDate(entry.biltyDate || ob.openingDate),
+              freightFrom: 'consignor',
+            });
+          }
+        });
       });
 
       setReceivableData(rows);
@@ -930,6 +969,49 @@ const BookingOrderReportExport: React.FC = () => {
           });
         });
       });
+    }
+
+    // Add opening balance entries for broker and charges (credit > 0)
+    try {
+      const openingBalanceRes = await getAllOpeningBalance(1, 10000);
+      const openingBalances: any[] = openingBalanceRes?.data || [];
+      
+      openingBalances.forEach((ob: any) => {
+        (ob.openingBalanceEntrys || []).forEach((entry: any) => {
+          if (entry.credit > 0 && (entry.broker || entry.chargeType)) {
+            const biltyNo = entry.biltyNo || `OB-${ob.openingNo}`;
+            const paidAmount = paidByBiltyNo[biltyNo] || 0;
+            const balance = entry.credit - paidAmount;
+            
+            // For Paid report, only include if paidAmount > 0
+            // For Unpaid report, only include if balance > 0
+            if ((type === 'Paid' && paidAmount > 0) || (type === 'Unpaid' && balance > 0)) {
+              const brokerName = entry.broker || 'Opening Balance';
+              
+              // Filter by broker if selected
+              if (selectedBroker !== 'All' && brokerName !== selectedBroker) return;
+              
+              brokerBillRows.push({
+                serial: serial++,
+                orderNo: `OB-${ob.openingNo}`,
+                invoiceNo: biltyNo,
+                vehicleNo: entry.vehicleNo || 'N/A',
+                amount: entry.credit,
+                dueDate: entry.biltyDate || ob.openingDate,
+                paidAmount: paidAmount,
+                balance: balance,
+                brokerName: brokerName,
+                brokerMobile: findBrokerMobile(brokerName),
+                remarks: entry.chargeType ? `Charge Type: ${entry.chargeType}` : 'Opening Balance',
+                munshyana: 0,
+                otherCharges: 0,
+              });
+            }
+          }
+        });
+      });
+    } catch (err) {
+      console.error('Failed to load opening balance for broker bills:', err);
     }
 
     if (brokerBillRows.length === 0) {

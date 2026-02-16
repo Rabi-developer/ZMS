@@ -15,6 +15,7 @@ import {
 import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllBusinessAssociate, getSingleBusinessAssociate } from '@/apis/businessassociate';
+import { getAllOpeningBalance } from '@/apis/openingbalance';
 import { columns, Charge } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 import { exportChargesReportToPDF, ChargeReportRow } from '@/components/ablsoftware/Maintance/common/ChargesReportPdf';
@@ -530,6 +531,37 @@ const ChargesList = () => {
         }
       });
     });
+
+    // Add opening balance entries for charges (credit > 0 with chargeType)
+    try {
+      const openingBalanceRes = await getAllOpeningBalance(1, 10000);
+      const openingBalances: any[] = openingBalanceRes?.data || [];
+      
+      openingBalances.forEach((ob: any) => {
+        (ob.openingBalanceEntrys || []).forEach((entry: any) => {
+          if (entry.credit > 0 && entry.chargeType) {
+            const entryDate = entry.biltyDate || ob.openingDate;
+            
+            // Apply date filter
+            if (!withinDate(entryDate)) return;
+            
+            // Apply charge type filter
+            if (reportSelectedChargeTypes.length > 0 && !reportSelectedChargeTypes.includes(String(entry.chargeType))) return;
+            
+            filteredRows.push({
+              chargeNo: `OB-${ob.openingNo}`,
+              chargeName: getChargeTypeName(entry.chargeType) || 'Opening Balance',
+              date: entryDate ? new Date(entryDate).toLocaleDateString('en-GB') : '-',
+              orderNo: `OB-${ob.openingNo}`,
+              vehicleNo: entry.vehicleNo || 'N/A',
+              amount: Number(entry.credit) || 0
+            });
+          }
+        });
+      });
+    } catch (err) {
+      console.error('Failed to load opening balance for charges report:', err);
+    }
 
     if (filteredRows.length === 0) {
       toast.info('No data found for the selected criteria');
