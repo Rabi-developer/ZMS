@@ -35,6 +35,12 @@ export const getStatusStyles = (status: string = 'Prepared') => {
   }
 };
 
+const formatPrimaryWithMore = (items: string[]) => {
+  if (!items.length) return '-';
+  if (items.length === 1) return items[0];
+  return `${items[0]} +${items.length - 1} more`;
+};
+
 export const columns = (
   handleDeleteOpen: (id: string) => void,
   accountIndex: Record<string, any>,
@@ -112,14 +118,8 @@ export const columns = (
       const accountNames = entries
         .map((entry) => getAccountLabel(entry.account))
         .filter((name, index, self) => self.indexOf(name) === index); // Remove duplicates
-      
-      if (accountNames.length === 1) {
-        return accountNames[0];
-      } else if (accountNames.length === 2) {
-        return accountNames.join(', ');
-      } else {
-        return `${accountNames[0]}, ${accountNames[1]} +${accountNames.length - 2} more`;
-      }
+
+      return formatPrimaryWithMore(accountNames);
     },
   },
   {

@@ -42,6 +42,12 @@ export const getStatusStyles = (status: string | null) => {
   }
 };
 
+const formatPrimaryWithMore = (items: string[]) => {
+  if (!items.length) return '';
+  if (items.length === 1) return items[0];
+  return `${items[0]} +${items.length - 1} more`;
+};
+
 export const columns = (
  handleDeleteOpen: (id: string) => void, 
  handlePdf: (id: string) => void, 
@@ -111,7 +117,7 @@ export const columns = (
           .map(e => e.vehicleNo?.trim())
           .filter(Boolean)
       )];
-      return vehicles.length ? vehicles.join(', ') : '';
+      return formatPrimaryWithMore(vehicles as string[]);
     },
   },
   {
@@ -123,7 +129,7 @@ export const columns = (
           .map(e => e.biltyDate?.trim())
           .filter(Boolean)
       )];
-      return dates.length ? dates.join(', ') : '';
+      return formatPrimaryWithMore(dates as string[]);
     },
   },
   {
@@ -135,7 +141,7 @@ export const columns = (
           .map(e => e.customer?.trim())
           .filter((c): c is string => !!c)
       )];
-      return customers.length ? customers.join(', ') : '';
+      return formatPrimaryWithMore(customers);
     },
   },
   {
@@ -147,7 +153,7 @@ export const columns = (
           .map(e => e.broker?.trim())
           .filter((b): b is string => !!b)
       )];
-      return brokers.length ? brokers.join(', ') : '';
+      return formatPrimaryWithMore(brokers);
     },
   },
   
