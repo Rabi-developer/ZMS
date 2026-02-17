@@ -123,6 +123,8 @@ const getReceiptAmount = (receipt: any): number =>
 
 const ABLDashboardlayout = () => {
   const pathname = usePathname() || '';
+  
+  // All hooks must be called before any conditional returns
   const [topAccounts, setTopAccounts] = useState<Account[]>([]);
   const [inProgressBookings, setInProgressBookings] = useState<any[]>([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
@@ -140,41 +142,6 @@ const ABLDashboardlayout = () => {
   const [overdueItems, setOverdueItems] = useState<any[]>([]);
 
   const { canRead, isSuperAdmin, isLoading: permissionsLoading } = usePermissions();
-  const canAccessAblDashboard =
-    isSuperAdmin || canRead('AblDashboard') || canRead('AblAssets') || canRead('BookingOrder');
-
-  if (!permissionsLoading && !canAccessAblDashboard) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Access Denied</h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            You don&apos;t have permission to access the ABL Dashboard.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (permissionsLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const isBookingOrderStart = (() => {
-    const p = pathname.toLowerCase();
-    if (!p) return false;
-    if (p.includes('/bookingorder/create')) return true;
-    if (p.includes('/bookingorder/edit')) return true;
-    if (p === '/bookingorder' || p.startsWith('/bookingorder?')) return true;
-    return false;
-  })();
 
   const fetchAccounts = async () => {
     setLoadingAccounts(true);
@@ -557,8 +524,22 @@ const ABLDashboardlayout = () => {
     };
   }, []);
 
+  // Helper functions
   const flattenAccounts = (nodes: Account[]): Account[] =>
     nodes.flatMap((n) => [n, ...flattenAccounts(n.children || [])]);
+
+  const parseDueDate = (a: Account): Date | null =>
+    parseDate((a as any).dueDate || (a as any).due_date || (a as any).duedate || (a as any).due);
+
+  // Calculate derived values AFTER all hooks
+  const isBookingOrderStart = (() => {
+    const p = pathname.toLowerCase();
+    if (!p) return false;
+    if (p.includes('/bookingorder/create')) return true;
+    if (p.includes('/bookingorder/edit')) return true;
+    if (p === '/bookingorder' || p.startsWith('/bookingorder?')) return true;
+    return false;
+  })();
 
   const accountsWithDue = flattenAccounts(topAccounts).filter((a) => {
     const fixed = parseNum((a as any).fixedAmount);
@@ -572,9 +553,6 @@ const ABLDashboardlayout = () => {
     return sum + Math.max(0, fixed - paid);
   }, 0);
 
-  const parseDueDate = (a: Account): Date | null =>
-    parseDate((a as any).dueDate || (a as any).due_date || (a as any).duedate || (a as any).due);
-
   const earliestDueDate = (() => {
     const dates = accountsWithDue.map(parseDueDate).filter((d): d is Date => !!d);
     if (!dates.length) return null;
@@ -582,6 +560,34 @@ const ABLDashboardlayout = () => {
   })();
 
   const accountWithDue = accountsWithDue[0] || null;
+
+  // Permission checks AFTER all hooks and calculations
+  const canAccessAblDashboard =
+    isSuperAdmin || canRead('AblDashboard') || canRead('AblAssets') || canRead('BookingOrder');
+
+  if (permissionsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canAccessAblDashboard) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Access Denied</h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            You don&apos;t have permission to access the ABL Dashboard.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (isBookingOrderStart) {
     return (
