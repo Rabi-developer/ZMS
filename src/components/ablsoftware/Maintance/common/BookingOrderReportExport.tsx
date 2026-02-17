@@ -1,7 +1,6 @@
 "use client";
 import React, { useCallback, useMemo, useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { format } from "date-fns";
 import { Tooltip } from "react-tooltip";
 import "react-tooltip/dist/react-tooltip.css";
 import { Button } from "@/components/ui/button";
@@ -40,7 +39,7 @@ const formatDate = (dateStr?: string): string => {
   if (isNaN(d.getTime())) return "-";
   const day = d.getDate().toString().padStart(2, '0');
   const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const year = d.getFullYear() % 100;
+  const year = d.getFullYear();
   return `${day}-${month}-${year}`;
 };
 
@@ -70,6 +69,27 @@ interface RowData {
   biltyDate?: string;
   freightFrom?: string;
 }
+
+const parseDateToTime = (dateStr?: string): number => {
+  if (!dateStr || dateStr === "-" || dateStr === "string") return Number.MAX_SAFE_INTEGER;
+
+  // Handle DD-MM-YYYY
+  const ddmmyyyy = /^(\d{2})-(\d{2})-(\d{4})$/;
+  const match = dateStr.match(ddmmyyyy);
+  if (match) {
+    const day = Number(match[1]);
+    const month = Number(match[2]) - 1;
+    const year = Number(match[3]);
+    return new Date(year, month, day).getTime();
+  }
+
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return Number.MAX_SAFE_INTEGER;
+  return d.getTime();
+};
+
+const sortRowsByBiltyDate = (rows: RowData[]): RowData[] =>
+  [...rows].sort((a, b) => parseDateToTime(a.biltyDate) - parseDateToTime(b.biltyDate));
 
 const ALL_COLUMNS: { key: ColumnKey; label: string; tooltip: string }[] = [
   { key: "serial", label: "SNo", tooltip: "Unique row number" },
@@ -1161,7 +1181,7 @@ const BookingOrderReportExport: React.FC = () => {
     }
     
     // Filter out order rows - only send consignment rows to PDF
-    const consignmentRows = receivableOrders.filter(o => !o.isOrderRow);
+    const consignmentRows = sortRowsByBiltyDate(receivableOrders.filter(o => !o.isOrderRow));
     
     const pdfRows = consignmentRows.map((o, idx) => ({
       serial: idx + 1,
@@ -1182,7 +1202,7 @@ const BookingOrderReportExport: React.FC = () => {
       biltyAmount: o.biltyAmount,
       receivedAmount: o.receivedAmount,
       pendingAmount: o.pendingAmount,
-      ablDate: o.ablDate || formatDate(o.orderDate) || "-",
+      ablDate: o.ablDate || o.orderDate || "-",
     }));
     
     console.log('Export Type:', receivableExportType); // Debug log
@@ -1237,7 +1257,7 @@ const BookingOrderReportExport: React.FC = () => {
       const wsData: any[][] = [];
       wsData.push([COMPANY_NAME]);
       wsData.push(["Non-Receivable Orders Report"]);
-      wsData.push([`Date Range: ${fromDate || "N/A"} to ${toDate || "N/A"}`]);
+      wsData.push([`Date Range: ${fromDate ? formatDate(fromDate) : "N/A"} to ${toDate ? formatDate(toDate) : "N/A"}`]);
       wsData.push([]); // spacer
 
       // Headers
@@ -1310,7 +1330,7 @@ const BookingOrderReportExport: React.FC = () => {
           <div className="flex items-center justify-between">
             <h1 className="text-4xl font-bold text-gray-900">Booking Order Reports</h1>
             <div className="text-sm font-medium text-gray-600">
-              {today.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" })}
+              {formatDate(today.toISOString())}
             </div>
           </div>
           <p className="mt-2 text-lg font-semibold text-gray-700">{COMPANY_NAME}</p>
@@ -1786,7 +1806,9 @@ const BookingOrderReportExport: React.FC = () => {
                             groupedUnknown[uName].push(row);
                           });
 
-                          const consignorSections = Object.entries(groupedConsignor).map(([partyName, rows]) => (
+                          const consignorSections = Object.entries(groupedConsignor).map(([partyName, rows]) => {
+                            const sortedRows = sortRowsByBiltyDate(rows);
+                            return (
                             <div key={`consignor-${partyName}`} className="border border-gray-200 rounded-lg overflow-hidden">
                               <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-200">
                                 <h4 className="font-bold text-gray-900">Consignor: {partyName}</h4>
@@ -1807,7 +1829,7 @@ const BookingOrderReportExport: React.FC = () => {
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
-                                    {rows.map((row, idx) => (
+                                    {sortedRows.map((row, idx) => (
                                       <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
@@ -1823,22 +1845,25 @@ const BookingOrderReportExport: React.FC = () => {
                                     <tr className="bg-gray-50 font-bold">
                                       <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
                                       <td className="px-4 py-2 text-xs text-gray-900">
-                                        {formatNumber(rows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
+                                        {formatNumber(sortedRows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
                                       </td>
                                       <td className="px-4 py-2 text-xs text-gray-900">
-                                        {formatNumber(rows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
+                                        {formatNumber(sortedRows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
                                       </td>
                                       <td className="px-4 py-2 text-xs text-red-600">
-                                        {formatNumber(rows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
+                                        {formatNumber(sortedRows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
                                       </td>
                                     </tr>
                                   </tbody>
                                 </table>
                               </div>
                             </div>
-                          ));
+                            );
+                          });
 
-                          const consigneeSections = Object.entries(groupedConsignee).map(([partyName, rows]) => (
+                          const consigneeSections = Object.entries(groupedConsignee).map(([partyName, rows]) => {
+                            const sortedRows = sortRowsByBiltyDate(rows);
+                            return (
                             <div key={`consignee-${partyName}`} className="border border-gray-200 rounded-lg overflow-hidden">
                               <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-200">
                                 <h4 className="font-bold text-gray-900">Consignee: {partyName}</h4>
@@ -1859,7 +1884,7 @@ const BookingOrderReportExport: React.FC = () => {
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
-                                    {rows.map((row, idx) => (
+                                    {sortedRows.map((row, idx) => (
                                       <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
@@ -1875,22 +1900,25 @@ const BookingOrderReportExport: React.FC = () => {
                                     <tr className="bg-gray-50 font-bold">
                                       <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
                                       <td className="px-4 py-2 text-xs text-gray-900">
-                                        {formatNumber(rows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
+                                        {formatNumber(sortedRows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
                                       </td>
                                       <td className="px-4 py-2 text-xs text-gray-900">
-                                        {formatNumber(rows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
+                                        {formatNumber(sortedRows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
                                       </td>
                                       <td className="px-4 py-2 text-xs text-red-600">
-                                        {formatNumber(rows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
+                                        {formatNumber(sortedRows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
                                       </td>
                                     </tr>
                                   </tbody>
                                 </table>
                               </div>
                             </div>
-                          ));
+                            );
+                          });
 
-                          const unknownSections = Object.entries(groupedUnknown).map(([partyName, rows]) => (
+                          const unknownSections = Object.entries(groupedUnknown).map(([partyName, rows]) => {
+                            const sortedRows = sortRowsByBiltyDate(rows);
+                            return (
                             <div key={`unknown-${partyName}`} className="border border-gray-200 rounded-lg overflow-hidden">
                               <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 border-b border-gray-200">
                                 <h4 className="font-bold text-gray-900">Un-Select Fright: {partyName}</h4>
@@ -1911,7 +1939,7 @@ const BookingOrderReportExport: React.FC = () => {
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
-                                    {rows.map((row, idx) => (
+                                    {sortedRows.map((row, idx) => (
                                       <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
@@ -1927,20 +1955,21 @@ const BookingOrderReportExport: React.FC = () => {
                                     <tr className="bg-gray-50 font-bold">
                                       <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
                                       <td className="px-4 py-2 text-xs text-gray-900">
-                                        {formatNumber(rows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
+                                        {formatNumber(sortedRows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
                                       </td>
                                       <td className="px-4 py-2 text-xs text-gray-900">
-                                        {formatNumber(rows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
+                                        {formatNumber(sortedRows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
                                       </td>
                                       <td className="px-4 py-2 text-xs text-red-600">
-                                        {formatNumber(rows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
+                                        {formatNumber(sortedRows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
                                       </td>
                                     </tr>
                                   </tbody>
                                 </table>
                               </div>
                             </div>
-                          ));
+                            );
+                          });
 
                           return [...consignorSections, ...consigneeSections, ...unknownSections];
                         }
@@ -1954,7 +1983,9 @@ const BookingOrderReportExport: React.FC = () => {
                           grouped[partyName].push(row);
                         });
 
-                        return Object.entries(grouped).map(([partyName, rows]) => (
+                        return Object.entries(grouped).map(([partyName, rows]) => {
+                          const sortedRows = sortRowsByBiltyDate(rows);
+                          return (
                           <div key={partyName} className="border border-gray-200 rounded-lg overflow-hidden">
                             <div className="bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 border-b border-gray-200">
                               <h4 className="font-bold text-gray-900">
@@ -1977,7 +2008,7 @@ const BookingOrderReportExport: React.FC = () => {
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                  {rows.map((row, idx) => (
+                                  {sortedRows.map((row, idx) => (
                                     <tr key={idx} className="hover:bg-gray-50">
                                       <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
                                       <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
@@ -1993,20 +2024,21 @@ const BookingOrderReportExport: React.FC = () => {
                                   <tr className="bg-gray-50 font-bold">
                                     <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
                                     <td className="px-4 py-2 text-xs text-gray-900">
-                                      {formatNumber(rows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
+                                      {formatNumber(sortedRows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
                                     </td>
                                     <td className="px-4 py-2 text-xs text-gray-900">
-                                      {formatNumber(rows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
+                                      {formatNumber(sortedRows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
                                     </td>
                                     <td className="px-4 py-2 text-xs text-red-600">
-                                      {formatNumber(rows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
+                                      {formatNumber(sortedRows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
                                     </td>
                                   </tr>
                                 </tbody>
                               </table>
                             </div>
                           </div>
-                        ));
+                          );
+                        });
                       })()}
                     </div>
                   ) : (
@@ -2036,7 +2068,7 @@ const BookingOrderReportExport: React.FC = () => {
                           {/*  */}
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {receivableOrders.filter(o => !o.isOrderRow).map((o, idx) => (
+                          {sortRowsByBiltyDate(receivableOrders.filter(o => !o.isOrderRow)).map((o, idx) => (
                             <tr key={idx} className="hover:bg-gray-50">
                               <td className="px-4 py-2 text-xs text-gray-900">{idx + 1}</td>
                               <td className="px-4 py-2 text-xs text-gray-900">{o.vehicleNo || '-'}</td>

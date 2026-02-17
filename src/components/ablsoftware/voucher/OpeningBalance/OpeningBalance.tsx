@@ -128,6 +128,25 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     return { debit, credit, difference: debit - credit };
   }, [OpeningBalanceEntrys]);
 
+  const handleAddRow = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    append({
+      type: 'customer',
+      biltyNo: '',
+      biltyDate: '',
+      vehicleNo: '',
+      city: '',
+      customer: '',
+      broker: '',
+      chargeType: '',
+      debit: 0,
+      credit: 0,
+    });
+  };
+
   // Fetch charge types from Munshyana on component mount
   useEffect(() => {
     const fetchChargeTypes = async () => {
@@ -258,11 +277,11 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             <ABLCustomInput label="Date *" type="date" {...register('openingDate')} error={errors.openingDate?.message} />
           </div>
 
-          <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 shadow">
-            <table className="w-full min-w-[1200px]">
-              <thead>
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 shadow">
+            <table className="w-full min-w-[1600px] table-fixed">
+              <thead className='sticky top-0 z-10'>
                 <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700">
-                  <th className="px-10 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 w-28">PARTICULAR</th>
+                  <th className="px-5 py-4 text-left font-semibold text-gray-700 dark:text-gray-300 w-28">PARTICULAR</th>
                   <th className="px-10 py-4 text-left font-semibold text-gray-700 dark:text-gray-300">BILTY NO</th>
                   <th className="px-10 py-4 text-left font-semibold text-gray-700 dark:text-gray-300">BILTY DATE</th>
                   <th className="px-10 py-4 text-left font-semibold text-gray-700 dark:text-gray-300">VEHICLE NO</th>
@@ -287,7 +306,7 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
                   return (
                     <tr key={field.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                      <td className="px-5 py-3">
+                      <td className="px-1 py-3 ">
                         <select
                           {...register(`OpeningBalanceEntrys.${index}.type`)}
                           className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
@@ -412,10 +431,8 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-between items-center">
             <Button
               type="button"
-              onClick={() => append({
-                type: 'customer',
-                biltyNo: '', biltyDate: '', vehicleNo: '', city: '', customer: '', broker: '', chargeType: '', debit: 0, credit: 0,
-              })}
+              onClick={handleAddRow}
+              onAuxClick={handleAddRow}
               className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-2.5 rounded-lg flex items-center gap-2 shadow-md"
             >
               <FiPlus size={18} /> Add Row

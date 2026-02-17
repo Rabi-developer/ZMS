@@ -106,12 +106,16 @@ const AccountOpeningBalanceList = () => {
   }, []);
 
   const handleDelete = async () => {
-    if (!deleteId) return;
+    if (!deleteId) {
+      toast.warning('No record selected for delete');
+      return;
+    }
     try {
       await deleteAccountOpeningBalance(deleteId);
       toast.success('Deleted successfully');
+      setDeleteId('');
       setOpen(false);
-      fetchOpeningBalances();
+      await fetchOpeningBalances();
     } catch (error) {
       toast.error('Failed to delete opening balance');
       console.error(error);
@@ -119,8 +123,8 @@ const AccountOpeningBalanceList = () => {
   };
 
   const handleDeleteOpen = (id: string) => {
-    setDeleteId(id);
     setOpen(true);
+    setDeleteId(id);
   };
 
   const handleDeleteClose = () => {
@@ -244,11 +248,13 @@ const AccountOpeningBalanceList = () => {
         </div>
       )}
 
-      <DeleteConfirmModel
-        isOpen={open}
-        handleDeleteclose={handleDeleteClose}
-        handleDelete={handleDelete}
-      />
+      {open && (
+        <DeleteConfirmModel
+          isOpen={open}
+          handleDeleteclose={handleDeleteClose}
+          handleDelete={handleDelete}
+        />
+      )}
     </div>
   );
 };

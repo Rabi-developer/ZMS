@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import React, { useState, useEffect, useRef } from 'react';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -98,6 +98,21 @@ interface ReceiptFormProps {
 
 const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const router = useRouter();
+  const emptyItemRow = {
+    biltyNo: '',
+    consignmentId: '',
+    vehicleNo: '',
+    biltyDate: '',
+    biltyAmount: 0,
+    srbAmount: 0,
+    totalAmount: 0,
+    balance: 0,
+    initialBalance: 0,
+    receiptAmount: 0,
+    isOpeningBalance: false,
+    openingBalanceId: '',
+  };
+
   const {
     control,
     register,
@@ -121,7 +136,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           remarks: initialData.remarks || '',
           items: initialData.items?.length
             ? initialData.items.map(row => ({ ...row, initialBalance: row.initialBalance || row.balance || 0, isOpeningBalance: row.isOpeningBalance || false, openingBalanceId: row.openingBalanceId || '' }))
-            : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0, isOpeningBalance: false, openingBalanceId: '' }],
+            : [{ ...emptyItemRow }],
           salesTaxOption: initialData.salesTaxOption || 'without',
           salesTaxRate: initialData.salesTaxRate || '',
           whtOnSbr: initialData.whtOnSbr || '',
@@ -136,11 +151,15 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           party: '',
           receiptAmount: 0,
           remarks: '',
-          items: [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0, isOpeningBalance: false, openingBalanceId: '' }],
+          items: [{ ...emptyItemRow }],
           salesTaxOption: 'without',
           salesTaxRate: '',
           whtOnSbr: '',
         },
+  });
+  const { append, remove } = useFieldArray({
+    control,
+    name: 'items',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -155,6 +174,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const [showConsignmentPopup, setShowConsignmentPopup] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectingConsignment, setSelectingConsignment] = useState(false);
+  const consignmentTableRef = useRef<HTMLDivElement | null>(null);
 
   const paymentModes: DropdownOption[] = [
     { id: 'Cash', name: 'Cash' },
@@ -308,7 +328,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               initialBalance: row.initialBalance || row.balance || 0,
               receiptAmount: row.receiptAmount || 0,
             }))
-          : [{ biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0 }],
+          : [{ ...emptyItemRow }],
         salesTaxOption: initialData.salesTaxOption || 'without',
         salesTaxRate: initialData.salesTaxRate || '',
         whtOnSbr: initialData.whtOnSbr || '',
@@ -371,17 +391,24 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     setSearchQuery('');
   };
 
-  const addTableRow = () => {
-    setValue('items', [
-      ...items,
-      { biltyNo: '', consignmentId: '', vehicleNo: '', biltyDate: '', biltyAmount: 0, srbAmount: 0, totalAmount: 0, balance: 0, initialBalance: 0, receiptAmount: 0, isOpeningBalance: false, openingBalanceId: '' },
-    ]);
+  const addTableRow = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    append({ ...emptyItemRow });
+
+    // Keep newest row visible when list is long
+    setTimeout(() => {
+      if (consignmentTableRef.current) {
+        consignmentTableRef.current.scrollTop = consignmentTableRef.current.scrollHeight;
+      }
+    }, 0);
   };
 
   const removeTableRow = (index: number) => {
     if (items.length > 1) {
-      const newitems = items.filter((_, i) => i !== index);
-      setValue('items', newitems);
+      remove(index);
     }
   };
 
@@ -616,10 +643,13 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 </div>
               </div>
 
-              <div className="p-4">
-                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
-                  <table className="w-full text-sm">
-                    <thead>
+              <div className="p-4 overflow-y-auto max-h-[400px] ">
+                <div
+                  ref={consignmentTableRef}
+                  className="overflow-x-auto overflow-y-auto max-h-[420px] rounded-lg border border-gray-200 dark:border-gray-600"
+                >
+                  <table className="w-full text-sm ">
+                    <thead className='sticky top-0 z-10'>
                       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
                         <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
                           Bilty #
@@ -773,6 +803,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                   <Button
                     type="button"
                     onClick={addTableRow}
+                    onAuxClick={addTableRow}
                     className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg"
                   >
                     + Add New Row

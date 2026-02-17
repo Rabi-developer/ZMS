@@ -349,6 +349,19 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
     return { debit, credit, difference: debit - credit };
   }, [entries]);
 
+  const handleAddRow = (e?: React.MouseEvent<HTMLButtonElement>) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    append({
+      accountId: '',
+      debit: 0,
+      credit: 0,
+      narration: '',
+    });
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -493,9 +506,9 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
           </div>
 
           {/* Entries Table - simplified */}
-          <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="overflow-x-auto overflow-y-auto max-h-[500px] rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="w-full min-w-max divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-100 dark:bg-gray-900">
+              <thead className="bg-gray-100 dark:bg-gray-900 sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-4 text-left font-semibold text-gray-700 dark:text-gray-200">Account</th>
                   <th className="px-6 py-4 text-right font-semibold text-gray-700 dark:text-gray-200">Debit</th>
@@ -508,7 +521,7 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {fields.map((field, index) => (
                   <tr key={field.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-                    <td className="px-4 py-4 align-top border-r dark:border-gray-700">
+                    <td className="px-4 py-4  align-top border-r dark:border-gray-700">
                       <Controller
                         name={`entries.${index}.accountId`}
                         control={control}
@@ -608,14 +621,8 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
           <div className="flex flex-col sm:flex-row justify-between gap-4 mt-8 ">
             <Button
               type="button"
-              onClick={() =>
-                append({
-                  accountId: '',
-                  debit: 0,
-                  credit: 0,
-                  narration: '',
-                })
-              }
+              onClick={handleAddRow}
+              onAuxClick={handleAddRow}
               className="flex bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white"
             >
               <FiPlus /> Add Row
