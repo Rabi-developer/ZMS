@@ -43,6 +43,7 @@ type Account = {
 
 const rowSchema = z
   .object({
+    id: z.string().optional(),
     accountId: z.string().min(1, 'Account is required'),
     debit: z.number().min(0).default(0),
     credit: z.number().min(0).default(0),
@@ -76,6 +77,16 @@ const openingBalanceSchema = z.object({
 });
 
 type OpeningBalanceFormData = z.infer<typeof openingBalanceSchema>;
+
+const resolveAccountId = (value: any): string => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object') {
+    return value.id || value.accountId || value.value || '';
+  }
+  return '';
+};
+
 interface HierarchicalDropdownProps {
   accounts: Account[];
   setValue: UseFormSetValue<OpeningBalanceFormData>;
@@ -377,7 +388,8 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
             setValue('OpeningDate', data.accountOpeningDate ?? '');
 
             const loadedEntries = (data.accountOpeningBalanceEntrys ?? []).map((e: any) => ({
-              accountId: e.account ?? '',
+              id: e.id,
+              accountId: resolveAccountId(e.account),
               debit: Number(e.debit ?? 0),
               credit: Number(e.credit ?? 0),
               narration: e.narration ?? '',
@@ -406,7 +418,8 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
       accountOpeningNo: data.OpeningNo ? parseInt(data.OpeningNo, 10) : undefined,
       accountOpeningDate: data.OpeningDate,
       accountOpeningBalanceEntrys: data.entries.map((e) => ({
-        account: e.accountId,
+        ...(e.id ? { id: e.id } : {}),
+        account: resolveAccountId(e.accountId),
         debit: e.debit,
         credit: e.credit,
         narration: e.narration || null,
@@ -422,7 +435,7 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
       toast.success('Opening balance created successfully');
     }
 
-    router.push('/AccountOpeningBalance');
+    router.push('/AccountOpeningBalance?refresh=true');
   } catch (err: any) {
     toast.error(err?.response?.data?.message || 'Failed to save opening balance');
     console.error(err);

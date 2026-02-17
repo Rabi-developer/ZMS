@@ -10,7 +10,7 @@ export interface AccountOpeningBalance {
   accountOpeningDate?: string;
   accountOpeningBalanceEntrys?: Array<{
     id: string;
-    account: string;
+    account: string | { id?: string; description?: string; name?: string };
     debit: number;
     credit: number;
     narration?: string;
@@ -37,8 +37,39 @@ export const getStatusStyles = (status: string = 'Prepared') => {
 
 export const columns = (
   handleDeleteOpen: (id: string) => void,
-  accountIndex: Record<string, any>
+  accountIndex: Record<string, any>,
+  handleCheckboxChange: (id: string, checked: boolean) => void,
+  selectedIds: string[]
 ): ColumnDef<AccountOpeningBalance>[] => [
+  {
+    id: 'select',
+    header: ({ table }) => {
+      const rowIds = table.getRowModel().rows.map((r) => r.original.id);
+      const allSelected = rowIds.length > 0 && rowIds.every((id) => selectedIds.includes(id));
+      return (
+        <input
+          type="checkbox"
+          checked={allSelected}
+          onChange={(e) => {
+            e.stopPropagation();
+            rowIds.forEach((id) => handleCheckboxChange(id, e.target.checked));
+          }}
+          className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+        />
+      );
+    },
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        checked={selectedIds.includes(row.original.id)}
+        onChange={(e) => {
+          e.stopPropagation();
+          handleCheckboxChange(row.original.id, e.target.checked);
+        }}
+        className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+      />
+    ),
+  },
   {
     header: 'Opening No',
     accessorKey: 'accountOpeningNo',
@@ -67,10 +98,19 @@ export const columns = (
     cell: ({ row }) => {
       const entries = row.original.accountOpeningBalanceEntrys || [];
       if (entries.length === 0) return '-';
-      
-      // Get unique account names
+
+      const getAccountLabel = (account: any): string => {
+        if (!account) return '-';
+        if (typeof account === 'string') {
+          return accountIndex[account]?.description || account;
+        }
+        const id = account.id || account.accountId || '';
+        if (id && accountIndex[id]?.description) return accountIndex[id].description;
+        return account.description || account.name || id || '-';
+      };
+
       const accountNames = entries
-        .map((entry) => accountIndex[entry.account]?.description || entry.account)
+        .map((entry) => getAccountLabel(entry.account))
         .filter((name, index, self) => self.indexOf(name) === index); // Remove duplicates
       
       if (accountNames.length === 1) {

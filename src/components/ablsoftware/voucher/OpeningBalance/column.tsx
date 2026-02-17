@@ -43,9 +43,57 @@ export const getStatusStyles = (status: string | null) => {
 };
 
 export const columns = (
-  handleDeleteOpen: (id: string) => void,
-  accountIndex: Record<string, any>
+ handleDeleteOpen: (id: string) => void, 
+ handlePdf: (id: string) => void, 
+ selectedOpeningBalanceIds: string[], 
+ onCheckboxChange: (id: string, checked: boolean) => void, 
+ p0: (id: string) => void
 ): ColumnDef<OpeningBalance>[] => [
+  {
+    id: 'select',
+    header: ({ table }) => {
+      const rowIds = table.getRowModel().rows.map((r) => r.original.id);
+      const allSelected = rowIds.length > 0 && rowIds.every((id) => selectedOpeningBalanceIds.includes(id));
+      
+      const handleToggleAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        e.stopPropagation();
+        const checked = e.target.checked;
+        
+        // Call onCheckboxChange for each row individually
+        rowIds.forEach(id => {
+          const isCurrentlySelected = selectedOpeningBalanceIds.includes(id);
+          // Only call if the state needs to change
+          if (checked && !isCurrentlySelected) {
+            onCheckboxChange(id, true);
+          } else if (!checked && isCurrentlySelected) {
+            onCheckboxChange(id, false);
+          }
+        });
+      };
+      
+      return (
+        <input
+          type="checkbox"
+          checked={allSelected}
+          onChange={handleToggleAll}
+          onClick={(e) => e.stopPropagation()}
+          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+        />
+      );
+    },
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        checked={selectedOpeningBalanceIds.includes(row.original.id)}
+        onChange={(e) => {
+          e.stopPropagation();
+          onCheckboxChange(row.original.id, e.target.checked);
+        }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+      />
+    ),
+  },
   {
     header: 'Opening No',
     accessorKey: 'openingNo',

@@ -34,6 +34,7 @@ const defaultChargeTypes = [
   { value: 'other', label: 'Other Charges' },
 ]; 
 const rowSchema = z.object({
+  id:          z.string().optional(), // For edit mode
   type:        z.enum(['customer', 'broker', 'charges']),
   biltyNo:     z.string().optional(),
   biltyDate:   z.string().optional(),
@@ -168,23 +169,24 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         setValue('openingNo',   String(data.openingNo || ''));
         setValue('openingDate', data.openingDate || '');
 
-        const loaded = (data.OpeningBalanceEntry || []).map((e: any) => {
-          const debitVal  = Number(e.Debit  || 0);
-          const creditVal = Number(e.Credit || 0);
+        const loaded = (data.openingBalanceEntrys || []).map((e: any) => {
+          const debitVal  = Number(e.debit  || 0);
+          const creditVal = Number(e.credit || 0);
           let rowType: 'customer' | 'broker' | 'charges' = 'broker';
 
           if (debitVal > 0) rowType = 'customer';
-          else if (creditVal > 0 && e.ChargeType) rowType = 'charges';
+          else if (creditVal > 0 && e.chargeType) rowType = 'charges';
 
           return {
+            id: e.id, // Include the entry ID for updates
             type: rowType,
-            biltyNo:     e.BiltyNo    || '',
-            biltyDate:   e.BiltyDate  || '',
-            vehicleNo:   e.VehicleNo  || '',
-            city:        e.City       || '',
-            customer:    rowType === 'customer' ? (e.Customer || '') : '',
-            broker:      rowType === 'broker'   ? (e.Broker   || e.Customer || '') : '',
-            chargeType:  rowType === 'charges'  ? (e.ChargeType || '') : '',
+            biltyNo:     e.biltyNo    || '',
+            biltyDate:   e.biltyDate  || '',
+            vehicleNo:   e.vehicleNo  || '',
+            city:        e.city       || '',
+            customer:    rowType === 'customer' ? (e.customer || '') : '',
+            broker:      rowType === 'broker'   ? (e.broker   || e.customer || '') : '',
+            chargeType:  rowType === 'charges'  ? (e.chargeType || '') : '',
             debit:       debitVal,
             credit:      creditVal,
           };
@@ -205,9 +207,9 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setIsSubmitting(true);
     try {
       const payload = {
-       
         openingDate: data.openingDate,
         OpeningBalanceEntrys: data.OpeningBalanceEntrys.map(e => ({
+          Id:          e.id || undefined, // Include ID for existing entries
           BiltyNo:     e.biltyNo,
           BiltyDate:   e.biltyDate,
           VehicleNo:   e.vehicleNo,

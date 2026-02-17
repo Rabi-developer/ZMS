@@ -428,37 +428,45 @@ export function DataTable<TData extends { id: string }, TValue>({
                     </thead>
                     <tbody>
                       {table.getRowModel().rows.length ? (
-                        table.getRowModel().rows.map((row, index) => (
-                          <React.Fragment key={row.id}>
-                            <motion.tr
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.3, delay: index * 0.05 }}
-                              className="border-b border-[#6e997f]/30 hover:bg-[#3a614c]/5 transition-all duration-200 group cursor-pointer"
-                              onClick={() => onRowClick?.(row.original.id)}
-                              onDoubleClick={() => onRowDoubleClick?.(row.original.id)}
-                            >
-                              {row.getVisibleCells().map((cell) => (
-                                <td
-                                  key={cell.id}
-                                  className="px-4 py-3 text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors"
-                                >
-                                  {flexRender(
-                                    cell.column.columnDef.cell,
-                                    cell.getContext()
-                                  )}
-                                </td>
-                              ))}
-                            </motion.tr>
-                            {expandedRowId === row.original.id && expandedRowRender && (
-                              <tr>
-                                <td colSpan={columns.length} className="p-0">
-                                  {expandedRowRender(row.original)}
-                                </td>
-                              </tr>
-                            )}
-                          </React.Fragment>
-                        ))
+                        table.getRowModel().rows.map((row, index) => {
+                          const isSelected = selectedRowIds.includes(row.original.id);
+                          return (
+                            <React.Fragment key={row.id}>
+                              <motion.tr
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.3, delay: index * 0.05 }}
+                                className={`border-b border-[#6e997f]/30 transition-all duration-200 group cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-[#3a614c]/10 ring-1 ring-inset ring-[#3a614c]/30'
+                                    : 'hover:bg-[#3a614c]/5'
+                                }`}
+                                data-state={isSelected ? 'selected' : undefined}
+                                onClick={() => onRowClick?.(row.original.id)}
+                                onDoubleClick={() => onRowDoubleClick?.(row.original.id)}
+                              >
+                                {row.getVisibleCells().map((cell) => (
+                                  <td
+                                    key={cell.id}
+                                    className="px-4 py-3 text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white transition-colors"
+                                  >
+                                    {flexRender(
+                                      cell.column.columnDef.cell,
+                                      cell.getContext()
+                                    )}
+                                  </td>
+                                ))}
+                              </motion.tr>
+                              {expandedRowId === row.original.id && expandedRowRender && (
+                                <tr>
+                                  <td colSpan={columns.length} className="p-0">
+                                    {expandedRowRender(row.original)}
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })
                       ) : (
                         <tr>
                           <td
