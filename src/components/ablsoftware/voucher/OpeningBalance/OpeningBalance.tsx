@@ -83,7 +83,12 @@ const openingBalanceSchema = z.object({
   id:          z.string().optional(),
   openingNo:   z.string().optional(),
   openingDate: z.string().min(1, 'Date is required'),
-  OpeningBalanceEntrys:     z.array(rowSchema).min(1, 'At least one entry required'),
+  createdBy:   z.string().optional(),
+  creationDate: z.string().optional(),
+  updatedBy:   z.string().optional(),
+  updationDate: z.string().optional(),
+  status:      z.string().optional(),
+  OpeningBalanceEntrys: z.array(rowSchema).min(1, 'At least one entry required'),
 });
 
 type OpeningBalanceFormData = z.infer<typeof openingBalanceSchema>;
@@ -185,8 +190,14 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
         const { data } = await getSingleOpeningBalance(id);
 
-        setValue('openingNo',   String(data.openingNo || ''));
+        setValue('id', data.id || id);
+        setValue('openingNo', String(data.openingNo || ''));
         setValue('openingDate', data.openingDate || '');
+        setValue('createdBy', data.createdBy || '');
+        setValue('creationDate', data.creationDate || '');
+        setValue('updatedBy', data.updatedBy || '');
+        setValue('updationDate', data.updationDate || '');
+        setValue('status', data.status || '');
 
         const loaded = (data.openingBalanceEntrys || []).map((e: any) => {
           const debitVal  = Number(e.debit  || 0);
@@ -225,32 +236,40 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const onSubmit = async (data: OpeningBalanceFormData) => {
     setIsSubmitting(true);
     try {
-      const payload = {
+      const payload: any = {
         openingDate: data.openingDate,
-        OpeningBalanceEntrys: data.OpeningBalanceEntrys.map(e => ({
-          Id:          e.id || undefined, // Include ID for existing entries
-          BiltyNo:     e.biltyNo,
-          BiltyDate:   e.biltyDate,
-          VehicleNo:   e.vehicleNo,
-          City:        e.city || null,
-          Customer:    e.type === 'customer' ? e.customer : null,
-          Broker:      e.type === 'broker'   ? e.broker   : null,
-          ChargeType:  e.type === 'charges'  ? e.chargeType : null,
-          Debit:      e.debit,
-          Credit:     e.credit,
+        openingBalanceEntrys: data.OpeningBalanceEntrys.map(e => ({
+          id:          e.id || undefined, // Include ID for existing entries
+          biltyNo:     e.biltyNo || null,
+          biltyDate:   e.biltyDate || null,
+          vehicleNo:   e.vehicleNo || null,
+          city:        e.city || null,
+          customer:    e.type === 'customer' ? (e.customer || null) : null,
+          broker:      e.type === 'broker'   ? (e.broker || null)   : null,
+          chargeType:  e.type === 'charges'  ? (e.chargeType || null) : null,
+          debit:       e.debit || 0,
+          credit:      e.credit || 0,
         })),
       };
 
       if (isEdit) {
         const id = window.location.pathname.split('/').pop();
-        await updateOpeningBalance({ id, ...payload });
+        payload.id = id;
+        payload.createdBy = data.createdBy || null;
+        payload.creationDate = data.creationDate || null;
+        payload.updatedBy = 'System'; // You can get this from auth context
+        payload.updationDate = new Date().toISOString();
+        payload.status = data.status || null;
+        
+        await updateOpeningBalance(payload);
         toast.success('Updated successfully');
       } else {
         await createOpeningBalance(payload);
         toast.success('Created successfully');
       }
       router.push('/openingbalance');
-    } catch {
+    } catch (error) {
+      console.error('Failed to save:', error);
       toast.error('Failed to save');
     } finally {
       setIsSubmitting(false);
