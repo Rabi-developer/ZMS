@@ -15,9 +15,9 @@ const createAccountOpeningBalance = async (accountOpeningBalance: any) => {
 };
 
 // AccountOpeningBalance-list
-const getAllAccountOpeningBalance = async (pageIndex: any = 1, pageSize: any = 10, filters: any = {}) => {
+const getAllAccountOpeningBalance = async (pageIndex: any = 1, pageSize: any = 10000, filters: any = {}) => {
   try {
-    let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
+    let queryParams = `PageIndex=${pageIndex}&PageSize=10000`;
     if (filters.searchQuery) {
       queryParams += `&SearchQuery=${encodeURIComponent(filters.searchQuery)}`;
     }

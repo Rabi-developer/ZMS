@@ -17,7 +17,7 @@ const createOpeningBalance = async (OpeningBalance : any) => {
 // OpeningBalance-list
 const getAllOpeningBalance  = async (pageIndex: any = 1, pageSize: any = 10000, filters: any = {}) => {
   try {
-    let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
+    let queryParams = `PageIndex=${pageIndex}&PageSize=10000`;
     if (filters.openingNo) {
       queryParams += `&OrderNo=${filters.openingNo}`;
     }
