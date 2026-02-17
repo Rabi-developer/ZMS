@@ -622,7 +622,7 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
             </Button>
 
             <Button type="submit"
-            className='bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white' disabled={isSubmitting || totals.difference !== 0}>
+            className='bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white' disabled={isSubmitting}>
               {isSubmitting ? 'Saving...' : isEdit ? 'Update Balance' : 'Save Opening Balance'}
             </Button>
           </div>
