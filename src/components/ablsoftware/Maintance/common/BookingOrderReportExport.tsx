@@ -164,7 +164,7 @@ const BookingOrderReportExport: React.FC = () => {
   const [toDate, setToDate] = useState<string>("");
   const [activeTab, setActiveTab] = useState<'booking' | 'bilty' | 'brokerBill'>('booking');
   const [receivableExportType, setReceivableExportType] = useState<'bilty' | 'party'>('bilty');
-  const [partyType, setPartyType] = useState<'consignor' | 'consignee' | 'all'>('consignor'); // New: supports 'all'
+  const [partyType, setPartyType] = useState<'consignor' | 'consignee' | 'all'>('all'); // New: supports 'all'
   const [selectedBiltyNo, setSelectedBiltyNo] = useState<string[]>([]);
   const [selectedPartyFilter, setSelectedPartyFilter] = useState<string[]>([]);
   const [allParties, setAllParties] = useState<{ id: string; name: string }[]>([]);
@@ -566,6 +566,8 @@ const BookingOrderReportExport: React.FC = () => {
             const biltyNo = entry.biltyNo || `OB-${ob.openingNo}`;
             const receivedAmount = receiptByBilty[biltyNo] || 0;
             const pendingAmount = entry.debit - receivedAmount;
+            const freightFrom = String(entry.freightFrom || entry.FreightFrom || "").trim().toLowerCase() || "consignee";
+            const isConsignorFreight = freightFrom === "consignor";
             
             rows.push({
               serial: serialCounter++,
@@ -576,8 +578,8 @@ const BookingOrderReportExport: React.FC = () => {
               biltyNo: biltyNo,
               biltyAmount: entry.debit,
               consignmentFreight: entry.debit,
-              consignor: entry.customer || '-',
-              consignee: '-',
+              consignor: isConsignorFreight ? (entry.customer || '-') : '-',
+              consignee: isConsignorFreight ? '-' : (entry.customer || '-'),
               article: 'Opening Balance',
               qty: '-',
               departure: entry.city || '-',
@@ -589,7 +591,7 @@ const BookingOrderReportExport: React.FC = () => {
               receivedAmount,
               pendingAmount,
               biltyDate: formatDate(entry.biltyDate || ob.openingDate),
-              freightFrom: 'consignor',
+              freightFrom,
             });
           }
         });
