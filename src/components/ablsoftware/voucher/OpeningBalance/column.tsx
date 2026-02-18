@@ -109,6 +109,18 @@ export const columns = (
     accessorKey: 'openingDate',
   },
   {
+    header: 'Bilty No',
+    id: 'biltyNo',
+    cell: ({ row }) => {
+      const biltyNos = [...new Set(
+        (row.original.openingBalanceEntrys || [])
+          .map(e => e.biltyNo?.trim())
+          .filter(Boolean)
+      )];
+      return formatPrimaryWithMore(biltyNos as string[]);
+    },
+  },
+  {
     header: 'Vehicle No',
     id: 'vehicleNo',
     cell: ({ row }) => {
