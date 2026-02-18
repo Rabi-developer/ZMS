@@ -305,7 +305,7 @@ export function DataTable<TData extends { id: string }, TValue>({
               className="mb-4"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {searchableColumns.slice(0, 6).map((column) => (
+                {searchableColumns.map((column) => (
                   <div key={column.id} className="relative">
                     <Input
                       placeholder={`Search ${column.id}...`}

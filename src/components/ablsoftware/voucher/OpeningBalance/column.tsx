@@ -103,70 +103,162 @@ export const columns = (
   {
     header: 'Opening No',
     accessorKey: 'openingNo',
+    enableColumnFilter: true,
   },
   {
     header: 'Opening Date',
     accessorKey: 'openingDate',
+    enableColumnFilter: true,
   },
   {
     header: 'Bilty No',
     id: 'biltyNo',
+    accessorFn: (row: OpeningBalance) => {
+      const biltyNos = [...new Set(
+        (row.openingBalanceEntrys || [])
+          .map((e: OpeningBalanceEntry) => e.biltyNo?.trim())
+          .filter(Boolean)
+      )];
+      return biltyNos.join(', ');
+    },
     cell: ({ row }) => {
       const biltyNos = [...new Set(
         (row.original.openingBalanceEntrys || [])
-          .map(e => e.biltyNo?.trim())
+          .map((e: OpeningBalanceEntry) => e.biltyNo?.trim())
           .filter(Boolean)
       )];
       return formatPrimaryWithMore(biltyNos as string[]);
     },
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue) return true;
+      const biltyNos = (row.original.openingBalanceEntrys || [])
+        .map(e => e.biltyNo?.trim())
+        .filter(Boolean);
+      return biltyNos.some(bilty => 
+        bilty?.toLowerCase().includes(filterValue.toLowerCase())
+      );
+    },
+    enableColumnFilter: true,
   },
   {
     header: 'Vehicle No',
     id: 'vehicleNo',
+    accessorFn: (row: OpeningBalance) => {
+      const vehicles = [...new Set(
+        (row.openingBalanceEntrys || [])
+          .map((e: OpeningBalanceEntry) => e.vehicleNo?.trim())
+          .filter(Boolean)
+      )];
+      return vehicles.join(', ');
+    },
     cell: ({ row }) => {
       const vehicles = [...new Set(
         (row.original.openingBalanceEntrys || [])
-          .map(e => e.vehicleNo?.trim())
+          .map((e: OpeningBalanceEntry) => e.vehicleNo?.trim())
           .filter(Boolean)
       )];
       return formatPrimaryWithMore(vehicles as string[]);
     },
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue) return true;
+      const vehicles = (row.original.openingBalanceEntrys || [])
+        .map(e => e.vehicleNo?.trim())
+        .filter(Boolean);
+      return vehicles.some(vehicle => 
+        vehicle?.toLowerCase().includes(filterValue.toLowerCase())
+      );
+    },
+    enableColumnFilter: true,
   },
   {
     header: 'Vehicle Date',
     id: 'vehicleDate',
+    accessorFn: (row: OpeningBalance) => {
+      const dates = [...new Set(
+        (row.openingBalanceEntrys || [])
+          .map((e: OpeningBalanceEntry) => e.biltyDate?.trim())
+          .filter(Boolean)
+      )];
+      return dates.join(', ');
+    },
     cell: ({ row }) => {
       const dates = [...new Set(
         (row.original.openingBalanceEntrys || [])
-          .map(e => e.biltyDate?.trim())
+          .map((e: OpeningBalanceEntry) => e.biltyDate?.trim())
           .filter(Boolean)
       )];
       return formatPrimaryWithMore(dates as string[]);
     },
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue) return true;
+      const dates = (row.original.openingBalanceEntrys || [])
+        .map(e => e.biltyDate?.trim())
+        .filter(Boolean);
+      return dates.some(date => 
+        date?.toLowerCase().includes(filterValue.toLowerCase())
+      );
+    },
+    enableColumnFilter: true,
   },
   {
     header: 'Customer',
     id: 'customer',
+    accessorFn: (row: OpeningBalance) => {
+      const customers = [...new Set(
+        (row.openingBalanceEntrys || [])
+          .map((e: OpeningBalanceEntry) => e.customer?.trim())
+          .filter((c): c is string => !!c)
+      )];
+      return customers.join(', ');
+    },
     cell: ({ row }) => {
       const customers = [...new Set(
         (row.original.openingBalanceEntrys || [])
-          .map(e => e.customer?.trim())
+          .map((e: OpeningBalanceEntry) => e.customer?.trim())
           .filter((c): c is string => !!c)
       )];
       return formatPrimaryWithMore(customers);
     },
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue) return true;
+      const customers = (row.original.openingBalanceEntrys || [])
+        .map(e => e.customer?.trim())
+        .filter((c): c is string => !!c);
+      return customers.some(customer => 
+        customer?.toLowerCase().includes(filterValue.toLowerCase())
+      );
+    },
+    enableColumnFilter: true,
   },
   {
     header: 'Broker',
     id: 'broker',
+    accessorFn: (row: OpeningBalance) => {
+      const brokers = [...new Set(
+        (row.openingBalanceEntrys || [])
+          .map((e: OpeningBalanceEntry) => e.broker?.trim())
+          .filter((b): b is string => !!b)
+      )];
+      return brokers.join(', ');
+    },
     cell: ({ row }) => {
       const brokers = [...new Set(
         (row.original.openingBalanceEntrys || [])
-          .map(e => e.broker?.trim())
+          .map((e: OpeningBalanceEntry) => e.broker?.trim())
           .filter((b): b is string => !!b)
       )];
       return formatPrimaryWithMore(brokers);
     },
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue) return true;
+      const brokers = (row.original.openingBalanceEntrys || [])
+        .map(e => e.broker?.trim())
+        .filter((b): b is string => !!b);
+      return brokers.some(broker => 
+        broker?.toLowerCase().includes(filterValue.toLowerCase())
+      );
+    },
+    enableColumnFilter: true,
   },
   
   // {
@@ -188,6 +280,13 @@ export const columns = (
   {
     header: 'Debit',
     id: 'totalDebit',
+    accessorFn: (row: OpeningBalance) => {
+      const total = (row.openingBalanceEntrys || []).reduce(
+        (sum, entry) => sum + (entry.debit || 0),
+        0
+      );
+      return total.toFixed(2);
+    },
     cell: ({ row }) => {
       const total = (row.original.openingBalanceEntrys || []).reduce(
         (sum, entry) => sum + (entry.debit || 0),
@@ -195,10 +294,26 @@ export const columns = (
       );
       return total > 0 ? total.toFixed(2) : '';
     },
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue) return true;
+      const total = (row.original.openingBalanceEntrys || []).reduce(
+        (sum, entry) => sum + (entry.debit || 0),
+        0
+      );
+      return total.toFixed(2).includes(filterValue);
+    },
+    enableColumnFilter: true,
   },
   {
     header: 'Credit',
     id: 'totalCredit',
+    accessorFn: (row: OpeningBalance) => {
+      const total = (row.openingBalanceEntrys || []).reduce(
+        (sum, entry) => sum + (entry.credit || 0),
+        0
+      );
+      return total.toFixed(2);
+    },
     cell: ({ row }) => {
       const total = (row.original.openingBalanceEntrys || []).reduce(
         (sum, entry) => sum + (entry.credit || 0),
@@ -206,10 +321,20 @@ export const columns = (
       );
       return total > 0 ? total.toFixed(2) : '';
     },
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue) return true;
+      const total = (row.original.openingBalanceEntrys || []).reduce(
+        (sum, entry) => sum + (entry.credit || 0),
+        0
+      );
+      return total.toFixed(2).includes(filterValue);
+    },
+    enableColumnFilter: true,
   },
   {
     header: 'Status',
     id: 'status',
+    accessorFn: (row: OpeningBalance) => row.status || 'Prepared',
     cell: ({ row }) => {
       const status = row.original.status || 'Prepared';
       return (
@@ -220,6 +345,12 @@ export const columns = (
         </span>
       );
     },
+    filterFn: (row, columnId, filterValue) => {
+      if (!filterValue) return true;
+      const status = row.original.status || 'Prepared';
+      return status.toLowerCase().includes(filterValue.toLowerCase());
+    },
+    enableColumnFilter: true,
   },
   {
     header: 'Actions',
