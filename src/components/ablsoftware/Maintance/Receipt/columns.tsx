@@ -14,10 +14,11 @@ export interface Receipt {
   bankName: string;
   chequeNo: string;
   chequeDate: string;
-  receiptAmount: string;
+  receiptAmount: string | number;
   totalAmount: string;
   status: string;
   orderNo?: string;
+  remarks?: string;
 }
 
 export const getStatusStyles = (status: string) => {
@@ -61,30 +62,65 @@ export const columns = (
   {
     header: 'Receipt No',
     accessorKey: 'receiptNo',
-    // cell: ({ row }: { row: Row<Receipt> }) => (
-    //   <span>{row.index + 1}</span>
-    // ),
+    enableColumnFilter: true,
   },
   {
     header: 'Receipt Date',
     accessorKey: 'receiptDate',
+    enableColumnFilter: true,
+  },
+  {
+    header: 'Bank Name',
+    accessorKey: 'bankName',
+    enableColumnFilter: true,
   },
   {
     header: 'Party',
     accessorKey: 'party',
+    enableColumnFilter: true,
+  },
+  {
+    header: 'Receipt Amount',
+    accessorKey: 'receiptAmount',
+    cell: ({ row }: { row: Row<Receipt> }) => {
+      const amount = Number(row.original.receiptAmount) || 0;
+      return (
+        <span className="font-medium">
+          {amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+      );
+    },
+    enableColumnFilter: true,
   },
   {
     header: 'Payment Mode',
     accessorKey: 'paymentMode',
+    enableColumnFilter: true,
+  },
+  {
+    header: 'Cheque No',
+    accessorKey: 'chequeNo',
+    enableColumnFilter: true,
+  },
+  {
+    header: 'Remarks',
+    accessorKey: 'remarks',
+    cell: ({ row }: { row: Row<Receipt> }) => (
+      <span className="text-sm text-gray-600 dark:text-gray-400">
+        {row.original.remarks || '-'}
+      </span>
+    ),
+    enableColumnFilter: true,
   },
   {
     header: 'Status',
     accessorKey: 'status',
     cell: ({ row }: { row: Row<Receipt> }) => (
-      <span className={`px-2 py-1 rounded-full ${getStatusStyles(row.original.status || 'Pending')}`}>
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles(row.original.status || 'Pending')}`}>
         {row.original.status || 'Pending'}
       </span>
     ),
+    enableColumnFilter: true,
   },
   {
     header: 'Actions',
