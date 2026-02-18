@@ -343,11 +343,23 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       const balance = row.biltyNo ? (row.initialBalance || 0) - (row.receiptAmount || 0) : totalAmount - (row.receiptAmount || 0);
       return { ...row, totalAmount, balance };
     });
-    setValue('items', updateditems);
+    
+    // Only update if values actually changed to prevent infinite loop
+    const hasChanged = items.some((row, index) => {
+      const updated = updateditems[index];
+      return row.totalAmount !== updated.totalAmount || row.balance !== updated.balance;
+    });
+    
+    if (hasChanged) {
+      setValue('items', updateditems, { shouldValidate: false });
+    }
 
     const totalReceiptAmount = updateditems.reduce((sum, row) => sum + (row.receiptAmount || 0), 0);
-    setValue('receiptAmount', totalReceiptAmount);
-  }, [items, setValue]);
+    const currentReceiptAmount = watch('receiptAmount');
+    if (currentReceiptAmount !== totalReceiptAmount) {
+      setValue('receiptAmount', totalReceiptAmount, { shouldValidate: false });
+    }
+  }, [items, setValue, watch]);
 
   const selectConsignment = async (index: number, consignment: Consignment) => {
     setSelectingConsignment(true);
