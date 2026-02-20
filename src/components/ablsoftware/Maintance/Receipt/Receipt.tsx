@@ -62,6 +62,7 @@ const receiptSchema = z.object({
   remarks: z.string().optional(),
   items: z.array(
     z.object({
+      id: z.string().optional().nullable(),
       biltyNo: z.string().min(1, 'Bilty No is required'),
       consignmentId: z.string().optional(),
       vehicleNo: z.string().optional(),
@@ -99,6 +100,7 @@ interface ReceiptFormProps {
 const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const router = useRouter();
   const emptyItemRow = {
+    id: null,
     biltyNo: '',
     consignmentId: '',
     vehicleNo: '',
@@ -318,6 +320,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         remarks: initialData.remarks || '',
         items: initialData.items?.length
           ? initialData.items.map(row => ({
+            id: row.id || null,
               biltyNo: row.biltyNo || '',
               consignmentId: row.consignmentId || '',
               vehicleNo: row.vehicleNo || '',
@@ -453,6 +456,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         receiptAmount: data.receiptAmount || 0,
         remarks: data.remarks || '',
         items: data.items.map(row => ({
+          id: row.id || null,
           biltyNo: row.biltyNo || '',
           consignmentId: row.consignmentId || '',
           vehicleNo: row.vehicleNo || '',
