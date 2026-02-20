@@ -656,13 +656,13 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 </div>
               </div>
 
-              <div className="p-4 overflow-y-auto max-h-[400px] ">
+              <div className="p-4 ">
                 <div
                   ref={consignmentTableRef}
                   className="overflow-x-auto overflow-y-auto max-h-[420px] rounded-lg border border-gray-200 dark:border-gray-600"
                 >
                   <table className="w-full text-sm ">
-                    <thead className='sticky top-0 z-10'>
+                    <thead className='sticky top-0 '>
                       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
                         <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
                           Bilty #
