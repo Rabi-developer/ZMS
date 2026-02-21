@@ -275,7 +275,6 @@ const OpeningBalanceList = () => {
             () => {}, // pdf handler (unused here)
             selectedIds,
             handleCheckboxChange,
-            () => {} // dummy / unused param
           )}
           data={filteredData}
           loading={loading}

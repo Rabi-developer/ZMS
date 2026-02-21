@@ -418,7 +418,6 @@ const EntryVoucherList = () => {
           handlePdf,
           selectedVoucherIds,
           handleCheckboxChange,
-          () => {}
         )}
         data={filteredVouchers}
         loading={loading}

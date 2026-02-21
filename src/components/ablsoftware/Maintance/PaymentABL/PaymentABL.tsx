@@ -808,7 +808,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             id: row.id ?? null,
             vehicleNo: row.vehicleNo || '',
             orderNo: row.orderNo || '',
-            charges: row.chargeNo || '',
+            charges: row.charges || row.chargeNo || '',
             orderDate: row.orderDate || '',
             dueDate: row.dueDate || '',
             expenseAmount: row.expenseAmount !== null && row.expenseAmount !== undefined ? String(row.expenseAmount) : null,
@@ -1103,7 +1103,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                               className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
                               disabled={isViewMode || !row.vehicleNo || !row.orderNo}
                             >
-                              {row.chargeNo || 'Select Charges'}
+                              {row.charges || row.chargeNo || 'Select Charges'}
                             </Button>
                             {errors.paymentABLItems?.[index]?.charges && (
                               <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].charges.message}</p>
