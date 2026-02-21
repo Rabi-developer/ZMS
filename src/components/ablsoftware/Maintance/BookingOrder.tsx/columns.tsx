@@ -1,4 +1,4 @@
-import { Edit, Trash } from 'lucide-react';
+import { Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Row, ColumnDef } from '@tanstack/react-table'; // Import Row and ColumnDef types
@@ -37,7 +37,6 @@ export interface BookingOrder {
   files?: string; // Comma-separated Cloudinary URLs
 }
 
-// Add onRowSelect to handle checkbox changes
 export const columns = (
   handleDeleteOpen: (id: string) => void,
   onRowSelect: (id: string, checked: boolean) => void,
@@ -111,10 +110,10 @@ export const columns = (
       </span>
     ),
   },
-  {
-    header: 'Remarks',
-    accessorKey: 'remarks',
-  },
+  // {
+  //   header: 'Remarks',
+  //   accessorKey: 'remarks',
+  // },
   {
     header: 'Actions',
     accessorKey: 'actions',
@@ -122,6 +121,15 @@ export const columns = (
       const isApproved = String(row.original.status || '').toLowerCase() === 'approved';
       return (
       <div className="flex space-x-2">
+        <Link href={`/bookingorder/edit/${row.original.id}?mode=view`}>
+          <Button
+            size="sm"
+            className="bg-blue-500 hover:bg-blue-600"
+            title="View Details"
+          >
+            <Eye size={16} />
+          </Button>
+        </Link>
         {isApproved ? (
           <Button size="sm" className="bg-gray-300 text-gray-600 cursor-not-allowed" disabled title="Approved records can't be edited">
             <Edit size={16} />

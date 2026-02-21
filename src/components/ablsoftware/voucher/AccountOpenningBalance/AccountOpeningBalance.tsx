@@ -12,9 +12,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { toast } from 'react-toastify';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FiPlus, FiX, FiTrash2, FiSearch } from 'react-icons/fi';
-import { FaBalanceScale } from 'react-icons/fa';
+import { FaBalanceScale,  } from 'react-icons/fa'; // Added MdInfo for banner
 
 // API imports
 import {
@@ -87,11 +87,16 @@ const resolveAccountId = (value: any): string => {
   return '';
 };
 
+// ─────────────────────────────────────────────
+// HierarchicalDropdown with disabled support
+// ─────────────────────────────────────────────
+
 interface HierarchicalDropdownProps {
   accounts: Account[];
   setValue: UseFormSetValue<OpeningBalanceFormData>;
   index?: number;
   initialAccountId?: string;
+  disabled?: boolean;
 }
 
 const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
@@ -99,6 +104,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
   setValue,
   index,
   initialAccountId,
+  disabled = false,
 }) => {
   const [selectionPath, setSelectionPath] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -167,6 +173,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
   }, [searchTerm, flatLeaves]);
 
   const handlePickFromSearch = (leaf: FlatLeaf) => {
+    if (disabled) return;
     setSelectionPath(leaf.pathIds);
     setValue(
       `entries.${index}.accountId` as Path<OpeningBalanceFormData>,
@@ -178,6 +185,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
   };
 
   const clearSelection = () => {
+    if (disabled) return;
     setSelectionPath([]);
     setValue(
       `entries.${index}.accountId` as Path<OpeningBalanceFormData>,
@@ -187,6 +195,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
   };
 
   const handleSelect = (level: number, id: string) => {
+    if (disabled) return;
     const newPath = selectionPath.slice(0, level);
     newPath.push(id);
     setSelectionPath(newPath);
@@ -232,19 +241,17 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
   });
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={`flex flex-col gap-2 ${disabled ? 'opacity-70 pointer-events-none' : ''}`}>
       <div className="relative flex items-center gap-2">
         <div className="relative flex-1">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setShowSearchList(true);
-            }}
-            onFocus={() => setShowSearchList(true)}
+            onChange={(e) => !disabled && setSearchTerm(e.target.value)}
+            onFocus={() => !disabled && setShowSearchList(true)}
             placeholder="Search account..."
-            className="w-full pl-10 pr-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            disabled={disabled}
+            className="w-full pl-10 pr-4 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
           />
           {showSearchList && searchTerm && filteredLeaves.length > 0 && (
             <div className="absolute z-20 w-full mt-1 max-h-64 overflow-auto bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-md shadow-xl">
@@ -252,8 +259,9 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
                 <button
                   key={leaf.id}
                   type="button"
-                  onClick={() => handlePickFromSearch(leaf)}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-emerald-50 dark:hover:bg-gray-700"
+                  onClick={() => !disabled && handlePickFromSearch(leaf)}
+                  disabled={disabled}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-emerald-50 dark:hover:bg-gray-700 disabled:opacity-50"
                 >
                   {leaf.label}
                 </button>
@@ -264,7 +272,8 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
         <button
           type="button"
           onClick={clearSelection}
-          className="px-3 py-2 text-sm border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:border-gray-600"
+          disabled={disabled}
+          className="px-3 py-2 text-sm border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Reset
         </button>
@@ -292,8 +301,9 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({
             <select
               key={level}
               value={value}
-              onChange={(e) => handleSelect(level, e.target.value)}
-              className="min-w-[220px] px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              onChange={(e) => !disabled && handleSelect(level, e.target.value)}
+              disabled={disabled}
+              className="min-w-[220px] px-3 py-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <option value="">Select level {level + 1}...</option>
               {options.map((acc) => (
@@ -319,6 +329,9 @@ interface AccountOpeningBalanceProps {
 
 const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = false }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isViewMode = searchParams?.get('mode') === 'view';
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [topLevelAccounts, setTopLevelAccounts] = useState<Account[]>([]);
@@ -424,42 +437,42 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
     loadData();
   }, [isEdit, setValue]);
 
- const onSubmit = async (data: OpeningBalanceFormData) => {
-  setIsSubmitting(true);
-  try {
-    const payload = {
-      accountOpeningNo: data.OpeningNo ? parseInt(data.OpeningNo, 10) : undefined,
-      accountOpeningDate: data.OpeningDate,
-      accountOpeningBalanceEntrys: data.entries.map((e) => ({
-        ...(e.id ? { id: e.id } : {}),
-        account: resolveAccountId(e.accountId),
-        debit: e.debit,
-        credit: e.credit,
-        narration: e.narration || null,
-      })),
-    };
+  const onSubmit = async (data: OpeningBalanceFormData) => {
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        accountOpeningNo: data.OpeningNo ? parseInt(data.OpeningNo, 10) : undefined,
+        accountOpeningDate: data.OpeningDate,
+        accountOpeningBalanceEntrys: data.entries.map((e) => ({
+          ...(e.id ? { id: e.id } : {}),
+          account: resolveAccountId(e.accountId),
+          debit: e.debit,
+          credit: e.credit,
+          narration: e.narration || null,
+        })),
+      };
 
-    if (isEdit) {
-      const id = window.location.pathname.split('/').pop()!;
-      await updateAccountOpeningBalance({ id, ...payload });
-      toast.success('Opening balance updated successfully');
-    } else {
-      await createAccountOpeningBalance(payload);
-      toast.success('Opening balance created successfully');
+      if (isEdit) {
+        const id = window.location.pathname.split('/').pop()!;
+        await updateAccountOpeningBalance({ id, ...payload });
+        toast.success('Opening balance updated successfully');
+      } else {
+        await createAccountOpeningBalance(payload);
+        toast.success('Opening balance created successfully');
+      }
+
+      router.push('/AccountOpeningBalance?refresh=true');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to save opening balance');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.push('/AccountOpeningBalance?refresh=true');
-  } catch (err: any) {
-    toast.error(err?.response?.data?.message || 'Failed to save opening balance');
-    console.error(err);
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   return (
     <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-6 py-5">
+      <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="bg-white/20 p-3 rounded-lg">
@@ -484,6 +497,18 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
         </div>
       </div>
 
+      {/* View Mode Banner */}
+      {isViewMode && (
+        <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+          <div>
+            <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              This Account Opening Balance record is read-only. No changes can be made.
+            </p>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="p-12 text-center text-gray-500 dark:text-gray-400">Loading accounts...</div>
       ) : (
@@ -502,10 +527,11 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
               type="date"
               {...register('OpeningDate')}
               error={errors.OpeningDate?.message}
+              disabled={isViewMode}
             />
           </div>
 
-          {/* Entries Table - simplified */}
+          {/* Entries Table */}
           <div className="overflow-x-auto overflow-y-auto max-h-[500px] rounded-lg border border-gray-200 dark:border-gray-700">
             <table className="w-full min-w-max divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-100 dark:bg-gray-900 sticky top-0 z-10">
@@ -521,7 +547,7 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {fields.map((field, index) => (
                   <tr key={field.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-                    <td className="px-4 py-4  align-top border-r dark:border-gray-700">
+                    <td className="px-4 py-4 align-top border-r dark:border-gray-700">
                       <Controller
                         name={`entries.${index}.accountId`}
                         control={control}
@@ -531,6 +557,7 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
                             setValue={setValue}
                             index={index}
                             initialAccountId={ctrlField.value}
+                            disabled={isViewMode}  // ← disable in view mode
                           />
                         )}
                       />
@@ -544,11 +571,12 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
                     <td className="px-4 py-4 border-r dark:border-gray-700">
                       <input
                         {...register(`entries.${index}.debit`, { valueAsNumber: true })}
-                        className="w-full text-right px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                        className="w-full text-right px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
                         type="number"
                         min="0"
                         step="0.01"
                         placeholder="0.00"
+                        disabled={isViewMode}
                       />
                       {errors.entries?.[index]?.debit && (
                         <p className="text-red-500 text-xs mt-1">
@@ -560,11 +588,12 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
                     <td className="px-4 py-4 border-r dark:border-gray-700">
                       <input
                         {...register(`entries.${index}.credit`, { valueAsNumber: true })}
-                        className="w-full text-right px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                        className="w-full text-right px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
                         type="number"
                         min="0"
                         step="0.01"
                         placeholder="0.00"
+                        disabled={isViewMode}
                       />
                       {errors.entries?.[index]?.credit && (
                         <p className="text-red-500 text-xs mt-1">
@@ -576,8 +605,9 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
                     <td className="px-4 py-4 border-r dark:border-gray-700">
                       <input
                         {...register(`entries.${index}.narration`)}
-                        className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                        className="w-full px-3 py-2 border rounded dark:bg-gray-700 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed"
                         placeholder="Optional narration..."
+                        disabled={isViewMode}
                       />
                     </td>
 
@@ -588,6 +618,7 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
                           variant="destructive"
                           size="icon"
                           onClick={() => remove(index)}
+                          disabled={isViewMode}
                         >
                           <FiTrash2 size={18} />
                         </Button>
@@ -618,20 +649,34 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
             </table>
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between gap-4 mt-8 ">
+          <div className="flex flex-col sm:flex-row justify-between gap-4 mt-8">
             <Button
               type="button"
               onClick={handleAddRow}
               onAuxClick={handleAddRow}
-              className="flex bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white"
+              className="flex bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={isViewMode}
             >
               <FiPlus /> Add Row
             </Button>
 
-            <Button type="submit"
-            className='bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white' disabled={isSubmitting}>
-              {isSubmitting ? 'Saving...' : isEdit ? 'Update Balance' : 'Save Opening Balance'}
-            </Button>
+            {isViewMode ? (
+              <Button
+                type="button"
+                onClick={() => router.back()}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-md transition-all disabled:opacity-60"
+              >
+                <FiX className="mr-2" /> Back
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-6 py-2 rounded-md transition-all disabled:opacity-60"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Saving...' : isEdit ? 'Update Balance' : 'Save Opening Balance'}
+              </Button>
+            )}
           </div>
         </form>
       )}

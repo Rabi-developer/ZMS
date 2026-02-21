@@ -111,6 +111,10 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderNoParam = searchParams.get('orderNo') || '';
+  
+  // Check if we're in view mode
+  const isViewMode = searchParams.get('mode') === 'view';
+  
   const {
     control,
     register,
@@ -171,6 +175,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
   const [charges, setCharges] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
+  
 
   // Backward compatibility: map legacy numeric values to human-readable text
   const vehicleTypeMap: Record<string, string> = {
@@ -626,6 +631,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
             </div>
           </div>
         )}
+        
 
         <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
@@ -655,6 +661,17 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
               </div>
             </div>
           </div>
+          {isViewMode && (
+        <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+          <div>
+            <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              This Booking Order record is read-only. No changes can be made.
+            </p>
+          </div>
+        </div>
+      )}
+
 
           <div className="border-b border-gray-200 dark:border-gray-700 px-8 bg-gray-50 dark:bg-gray-850 py-3">
             <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
@@ -703,6 +720,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                         selectedOption={field.value || ''}
                         onChange={(value) => setValue('transporter', value, { shouldValidate: true })}
                         error={errors.transporter?.message}
+                        disabled={isViewMode}
                       />
                     )}
                   />
@@ -714,6 +732,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.vehicleNo?.message}
                     id="vehicleNo"
+                    disabled={isViewMode}
                   />
                   <ABLNewCustomInput
                     label="Driver Name"
@@ -722,6 +741,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.driverName?.message}
                     id="driverName"
+                    disabled={isViewMode}
                   />
                 </div>
               </div>
@@ -735,6 +755,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.orderDate?.message}
                     id="orderDate"
+                    disabled={isViewMode}
                   />
 
                   <Controller
@@ -747,6 +768,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                         selectedOption={field.value || ''}
                         onChange={(value) => setValue('vendor', value, { shouldValidate: true })}
                         error={errors.vendor?.message}
+                        disabled={isViewMode}
                       />
                     )}
                   />
@@ -761,6 +783,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                         selectedOption={field.value || ''}
                         onChange={(value) => setValue('vehicleType', value, { shouldValidate: true })}
                         error={errors.vehicleType?.message}
+                        disabled={isViewMode}
                       />
                     )}
                   />
@@ -772,6 +795,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.containerNo?.message}
                     id="containerNo"
+                    disabled={isViewMode}
                   />
                 </div>
               </div>
@@ -786,6 +810,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   register={register}
                   error={errors.cargoWeight?.message}
                   id="cargoWeight"
+                  disabled={isViewMode}
                 />
                 <ABLNewCustomInput
                   label="Booked Days"
@@ -794,6 +819,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   register={register}
                   error={errors.bookedDays?.message}
                   id="bookedDays"
+                  disabled={isViewMode}
                 />
                 <ABLNewCustomInput
                   label="Detention Days"
@@ -802,6 +828,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   register={register}
                   error={errors.detentionDays?.message}
                   id="detentionDays"
+                  disabled={isViewMode}
                 />
               </div>
             </div>
@@ -819,6 +846,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                         selectedOption={field.value || ''}
                         onChange={(value) => setValue('fromLocation', value, { shouldValidate: true })}
                         error={errors.fromLocation?.message}
+                        disabled={isViewMode}
                       />
                     )}
                   />
@@ -833,6 +861,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                         selectedOption={field.value || ''}
                         onChange={(value) => setValue('via1', value, { shouldValidate: true })}
                         error={errors.via1?.message}
+                        disabled={isViewMode}
                       />
                     )}
                   />
@@ -844,6 +873,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.departureDate?.message}
                     id="departureDate"
+                    disabled={isViewMode}
                   />
 
                   <ABLNewCustomInput
@@ -853,6 +883,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.reachedDate?.message}
                     id="reachedDate"
+                    disabled={isViewMode}
                   />
 
                   <ABLNewCustomInput
@@ -862,6 +893,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.contactNo?.message}
                     id="contactNo"
+                    disabled={isViewMode}
                   />
                 </div>
               </div>
@@ -875,9 +907,9 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                       <AblNewCustomDrpdown
                         label="To Location"
                         options={locations}
-                        selectedOption={field.value || ''}
-                        onChange={(value) => setValue('toLocation', value, { shouldValidate: true })}
+                        selectedOption={field.value || ''}                        onChange={(value) => setValue('toLocation', value, { shouldValidate: true })}
                         error={errors.toLocation?.message}
+                        disabled={isViewMode}
                       />
                     )}
                   />
@@ -892,6 +924,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                         selectedOption={field.value || ''}
                         onChange={(value) => setValue('via2', value, { shouldValidate: true })}
                         error={errors.via2?.message}
+                        disabled={isViewMode}
                       />
                     )}
                   />
@@ -903,6 +936,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.expectedReachedDate?.message}
                     id="expectedReachedDate"
+                    disabled={isViewMode}
                   />
 
                   <ABLNewCustomInput
@@ -912,6 +946,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.vehicleMunshyana?.message}
                     id="vehicleMunshyana"
+                    disabled={isViewMode}
                   />
 
                   <ABLNewCustomInput
@@ -921,6 +956,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     register={register}
                     error={errors.contractOwner?.message}
                     id="contractOwner"
+                    disabled={isViewMode}
                   />
                 </div>
               </div>
@@ -935,30 +971,41 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   register={register}
                   error={errors.remarks?.message}
                   id="remarks"
+                  disabled={isViewMode}
                 />
               </div>
             </div>
 
             <div className="flex flex-wrap justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow"
-              >
-                <div className="flex items-center gap-2">
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="text-base" />
-                      <span>{isEdit ? 'Update Booking Order' : 'Create Booking Order'}</span>
-                    </>
-                  )}
-                </div>
-              </Button>
+              {isViewMode ? (
+                <Button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-xl transition-all duration-300 shadow"
+                >
+                  Close
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow"
+                >
+                  <div className="flex items-center gap-2">
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiSave className="text-base" />
+                        <span>{isEdit ? 'Update Booking Order' : 'Create Booking Order'}</span>
+                      </>
+                    )}
+                  </div>
+                </Button>
+              )}
             </div>
           </form>
         </div>
@@ -972,6 +1019,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   setTempSelectedConsignments(selectedConsignments);
                   setIsModalOpen(true);
                 }}
+                disabled={isViewMode}
               >
                 Select Consignments
               </Button>
@@ -998,8 +1046,10 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     setIsSubmitting(false);
                   }
                 }}
+                disabled={isViewMode}
               >
                 Add Consignment
+                
               </Button>
               <Button
                 onClick={async () => {
@@ -1024,6 +1074,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                     setIsSubmitting(false);
                   }
                 }}
+                disabled={isViewMode}
               >
                 Add Charges
               </Button>
@@ -1032,6 +1083,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   const orderNo = getValues('OrderNo') || '';
                   router.push(`/receipt/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
                 }}
+                disabled={isViewMode}
               >
                 Receipt
               </Button>
@@ -1040,6 +1092,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
                   const orderNo = getValues('OrderNo') || '';
                   router.push(`/paymentABL/create?fromBooking=true&orderNo=${encodeURIComponent(orderNo)}`);
                 }}
+                disabled={isViewMode}
               >
                 Payment
               </Button>

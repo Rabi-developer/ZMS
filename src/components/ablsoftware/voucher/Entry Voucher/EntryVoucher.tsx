@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
 import { toast } from 'react-toastify';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MdInfo, MdDelete } from 'react-icons/md';
 import { FaFileInvoice } from 'react-icons/fa';
 import { FiSave, FiX, FiSearch } from 'react-icons/fi';
@@ -140,7 +140,6 @@ const voucherSchema = z.object({
       })
   ),
 });
-
 type VoucherFormData = z.infer<typeof voucherSchema>;
 
 // Hierarchical Dropdown Component
@@ -151,6 +150,7 @@ interface HierarchicalDropdownProps {
   name: string;
   index?: number;
   initialAccountId?: string;
+  disabled?: boolean;
 }
 
 const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, onSelect, setValue, name, index, initialAccountId }) => {
@@ -446,6 +446,8 @@ const getAccountType = (id: string, accounts: Account[]): string | null => {
 
 const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isViewMode = searchParams?.get('mode') === 'view';
   const {
     register,
     handleSubmit,
@@ -735,6 +737,8 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setSelectedAccounts(newSelectedAccounts);
   };
 
+  
+
   const onSubmit = async (data: VoucherFormData) => {
     setIsSubmitting(true);
     try {
@@ -872,6 +876,17 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               </Link>
             </div>
           </div>
+          
+          {isViewMode && (
+        <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+          <div>
+            <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              This Entry Voucher record is read-only. No changes can be made.
+            </p>
+          </div>
+        </div>
+      )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-4 md:p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
@@ -890,6 +905,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 register={register}
                 error={errors.voucherDate?.message}
                 id="voucherDate"
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="Reference No"
@@ -898,6 +914,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 register={register}
                 error={errors.referenceNo?.message}
                 id="referenceNo"
+                disabled={isViewMode}
               />
                <Controller
                 name="paymentMode"
@@ -909,6 +926,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     selectedOption={field.value || ''}
                     onChange={field.onChange}
                     error={errors.paymentMode?.message}
+                    disabled={isViewMode}
                   />
                 )}
               />
@@ -923,6 +941,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       selectedOption={field.value || ''}
                       onChange={field.onChange}
                       error={errors.bankName?.message}
+                      disabled={isViewMode}
                     />
                   )}
                 />
@@ -934,6 +953,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                   register={register}
                   error={errors.chequeDate?.message}
                   id="chequeDate"
+                  disabled={isViewMode}
                 />
               )}
               <ABLCustomInput
@@ -943,6 +963,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 register={register}
                 error={errors.chequeNo?.message}
                 id="chequeNo"
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="Deposit Slip No"
@@ -951,6 +972,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 register={register}
                 error={errors.depositSlipNo?.message}
                 id="depositSlipNo"
+                disabled={isViewMode}
               />
               <Controller
                 name="paidTo"
@@ -962,6 +984,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     selectedOption={field.value || ''}
                     onChange={field.onChange}
                     error={errors.paidTo?.message}
+                    disabled={isViewMode}
                   />
                 )}
               />
@@ -980,6 +1003,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                 register={register}
                 error={errors.description?.message}
                 id="description"
+                disabled={isViewMode}
               />
             </div>
 
@@ -1031,6 +1055,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               ? 'bg-white dark:bg-gray-800'
                               : 'bg-gray-50 dark:bg-gray-700/50'
                           } hover:bg-gray-100 dark:hover:bg-gray-600/50`}
+                          
                         >
                           <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
                             <HierarchicalDropdown
@@ -1040,6 +1065,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               name="account1"
                               index={index}
                               initialAccountId={row.account1}
+                              disabled={isViewMode}            
                             />
                             {errors.tableData?.[index]?.account1 && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account1?.message}</p>
@@ -1053,6 +1079,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               type="number"
                               min="0"
                               step="0.01"
+                              disabled={isViewMode}
                             />
                             {errors.tableData?.[index]?.debit1 && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].debit1?.message}</p>
@@ -1066,6 +1093,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               type="number"
                               min="0"
                               step="0.01"
+                              disabled={isViewMode}
                             />
                             {errors.tableData?.[index]?.credit1 && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].credit1?.message}</p>
@@ -1076,6 +1104,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               {...register(`tableData.${index}.narration`)}
                               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white transition-all duration-200"
                               placeholder="Enter narration"
+                              disabled={isViewMode}
                             />
                             {errors.tableData?.[index]?.narration && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].narration?.message}</p>
@@ -1089,6 +1118,8 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               name="account2"
                               index={index}
                               initialAccountId={row.account2}
+                              disabled={isViewMode}
+                              
                             />
                             {errors.tableData?.[index]?.account2 && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account2?.message}</p>
@@ -1102,6 +1133,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               type="number"
                               min="0"
                               step="0.01"
+                              disabled={isViewMode}
                             />
                             {errors.tableData?.[index]?.debit2 && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].debit2?.message}</p>
@@ -1115,6 +1147,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                               type="number"
                               min="0"
                               step="0.01"
+                              disabled={isViewMode}
                             />
                             {errors.tableData?.[index]?.credit2 && (
                               <p className="text-red-500 text-xs mt-1">{errors.tableData[index].credit2?.message}</p>
@@ -1127,6 +1160,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                                 onClick={() => deleteTableRow(index)}
                                 className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 transition-all duration-200"
                                 title="Delete Row"
+                                disabled={isViewMode}
                               >
                                 <MdDelete className="text-lg" />
                               </Button>
@@ -1170,7 +1204,8 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                     type="button"
                     onClick={addTableRow}
                     className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg"
-                  >
+                    disabled={isViewMode}
+                    >
                     + Add New Row
                   </Button>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -1248,29 +1283,38 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               </div>
             )} */}
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-sm"
-              >
-                <div className="flex items-center gap-2">
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="text-sm" />
-                      <span>{isEdit ? 'Update Voucher' : 'Create Voucher'}</span>
-                    </>
-                  )}
-                </div>
-              </Button>
-            </div>
+            <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 mt-6">
+     {isViewMode ? (
+    <Button
+      type="button"
+      onClick={() => router.back()}  
+      className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2 text-sm font-medium"
+    >
+      <FiX className="text-base" />
+      Back
+    </Button>
+  ) : (
+    <Button
+      type="submit"
+      disabled={isSubmitting}
+      className="px-6 py-2.5 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center gap-2 text-sm font-medium"
+    >
+      {isSubmitting ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          <span>Saving...</span>
+        </>
+      ) : (
+        <>
+          <FiSave className="text-base" />
+          <span>{isEdit ? 'Update Voucher' : 'Create Voucher'}</span>
+        </>
+      )}
+    </Button>
+   )}
+          </div>
           </form>
-        </div>
+            </div>
 
         <div className="mt-4 bg-white dark:bg-gray-800 rounded-md shadow-md p-3 border border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between">

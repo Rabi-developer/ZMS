@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +13,7 @@ import { getAllBrooker } from '@/apis/brooker';
 import { getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllCharges } from '@/apis/charges';
 import { toast } from 'react-toastify';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MdLocalShipping, MdInfo, MdSearch } from 'react-icons/md';
 import { FaMoneyBillWave, FaReceipt } from 'react-icons/fa';
 import Link from 'next/link';
@@ -48,7 +49,7 @@ const billPaymentSchema = z.object({
   lines: z.array(
     z.discriminatedUnion('isAdditionalLine', [
       z.object({
-        id: z.string().optional(), // Line ID for editing
+        id: z.string().optional(),
         isAdditionalLine: z.literal(false),
         vehicleNo: z.string().min(1, 'Vehicle No is required'),
         orderNo: z.string().min(1, 'Order No is required'),
@@ -59,7 +60,7 @@ const billPaymentSchema = z.object({
         remarks: z.string().optional(),
       }),
       z.object({
-        id: z.string().optional(), // Line ID for editing
+        id: z.string().optional(),
         isAdditionalLine: z.literal(true),
         nameCharges: z.string().min(1, 'Name Charges is required'),
         amountCharges: z.number().min(0, 'Amount Charges must be non-negative'),
@@ -77,6 +78,9 @@ interface BillPaymentInvoiceFormProps {
 
 const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvoiceFormProps) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isViewMode = searchParams?.get('mode') === 'view';
+
   const {
     control,
     register,
@@ -118,7 +122,6 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
           getAllCharges(1, 10000),
         ]);
 
-        // Munshyana & Brokers
         setMunshyanas(munRes.data?.map((m: any) => ({ id: m.id, name: m.chargesDesc || m.name })) || []);
         setBusinessAssociates(
           baRes.data?.map((ba: any) => ({
@@ -128,7 +131,6 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
           })) || []
         );
 
-        // Booking Orders
         const bookingOrders: BookingOrder[] = (bookRes.data || []).map((b: any) => ({
           id: b.id,
           vehicleNo: String(b.vehicleNo ?? ''),
@@ -136,7 +138,6 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
           munshayana: String(b.munshayana ?? ''),
         }));
 
-        // Build map: orderNo → first charge amount + collect valid orders
         const amountMap: Record<string, number> = {};
         const validOrderNos = new Set<string>();
 
@@ -151,10 +152,8 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
 
         setOrderToFirstAmountMap(amountMap);
 
-        // Filter only booking orders that have charges
         const filtered = bookingOrders.filter((order) => validOrderNos.has(order.orderNo));
         setValidBookingOrders(filtered);
-
       } catch (error) {
         console.error('Error loading data:', error);
         toast.error('Failed to load required data');
@@ -182,13 +181,13 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
           ? initialData.lines.map((line: any) =>
               line.isAdditionalLine
                 ? { 
-                    id: line.id, // Include line ID
+                    id: line.id,
                     isAdditionalLine: true, 
                     nameCharges: line.nameCharges || '', 
                     amountCharges: line.amountCharges || 0 
                   }
                 : {
-                    id: line.id, // Include line ID
+                    id: line.id,
                     isAdditionalLine: false,
                     vehicleNo: line.vehicleNo || '',
                     orderNo: line.orderNo || '',
@@ -204,15 +203,15 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     }
   }, [isEdit, initialData, reset]);
 
-  // Update broker details when selected
+  // Update broker details
   useEffect(() => {
     const brokerId = (lines.find((line) => !line.isAdditionalLine) as any)?.broker;
     const broker = businessAssociates.find((b) => b.id === brokerId);
     setSelectedBrokerDetails(broker || null);
   }, [lines, businessAssociates]);
 
-  // Select vehicle/order
   const selectVehicle = (order: BookingOrder, index: number) => {
+    if (isViewMode) return;
     const amount = orderToFirstAmountMap[order.orderNo] || 0;
 
     setValue(`lines.${index}.vehicleNo`, order.vehicleNo);
@@ -226,6 +225,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   };
 
   const addLine = () => {
+    if (isViewMode) return;
     setValue('lines', [
       ...lines,
       { isAdditionalLine: true, nameCharges: '', amountCharges: 0 },
@@ -233,12 +233,14 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   };
 
   const removeLine = (index: number) => {
+    if (isViewMode) return;
     if (lines.length > 1) {
       setValue('lines', lines.filter((_, i) => i !== index));
     }
   };
 
   const onSubmit = async (data: BillPaymentFormData) => {
+    if (isViewMode) return;
     setIsSubmitting(true);
     try {
       const payload = {
@@ -248,13 +250,13 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
         lines: data.lines.map((line: any) =>
           line.isAdditionalLine
             ? { 
-                id: line.id, // Include line ID for edit
+                id: line.id,
                 isAdditionalLine: true, 
                 nameCharges: line.nameCharges, 
                 amountCharges: line.amountCharges 
               }
             : {
-                id: line.id, // Include line ID for edit
+                id: line.id,
                 isAdditionalLine: false,
                 vehicleNo: line.vehicleNo,
                 orderNo: line.orderNo,
@@ -329,6 +331,19 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
           </div>
         </div>
 
+        {/* View Mode Banner */}
+        {isViewMode && (
+          <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+            <MdInfo className="text-xl text-amber-700 dark:text-amber-300" />
+            <div>
+              <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                This bill payment invoice is read-only. No changes can be made.
+              </p>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-8">
           {/* Basic Info */}
           <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl">
@@ -359,6 +374,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                 register={register}
                 error={errors.paymentDate?.message}
                 id="paymentDate"
+                disabled={isViewMode}
               />
             </div>
           </div>
@@ -369,9 +385,15 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <MdLocalShipping /> Invoice Lines
               </h3>
-              <Button type="button" onClick={addLine} className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white">
-                <FiPlus className="mr-2" /> Add Line
-              </Button>
+              {!isViewMode && (
+                <Button 
+                  type="button" 
+                  onClick={addLine} 
+                  className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white"
+                >
+                  <FiPlus className="mr-2" /> Add Line
+                </Button>
+              )}
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
@@ -396,21 +418,24 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                       <td className="px-4 py-3">
                         {!line.isAdditionalLine && (
                           <>
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                setSelectedLineIndex(index);
-                                setShowPopup(true);
-                              }}
-                              className="mb-2 w-full text-xs bg-[#3a614c] hover:bg-[#3a614c]/90"
-                            >
-                              Select Vehicle
-                            </Button>
+                            {!isViewMode ? (
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedLineIndex(index);
+                                  setShowPopup(true);
+                                }}
+                                className="mb-2 w-full text-xs bg-[#3a614c] hover:bg-[#3a614c]/90"
+                              >
+                                Select Vehicle
+                              </Button>
+                            ) : (
                             <input
                               {...register(`lines.${index}.vehicleNo`)}
                               disabled
-                              className="w-full border rounded px-3 py-2 bg-gray-100"
+                              className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
                             />
+                            )}
                           </>
                         )}
                       </td>
@@ -419,7 +444,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                           <input
                             {...register(`lines.${index}.orderNo`)}
                             disabled
-                            className="w-full border rounded px-3 py-2 bg-gray-100"
+                            className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
                           />
                         )}
                       </td>
@@ -429,7 +454,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                             type="number"
                             {...register(`lines.${index}.amount`, { valueAsNumber: true })}
                             disabled
-                            className="w-full border rounded px-3 py-2 bg-gray-100"
+                            className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
                           />
                         )}
                       </td>
@@ -439,8 +464,9 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                             {line.isAdditionalLine && (
                               <input
                                 {...register(`lines.${index}.nameCharges`)}
-                                className="w-full border rounded px-3 py-2"
+                                className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
                                 placeholder="Charge name"
+                                disabled={isViewMode}
                               />
                             )}
                           </td>
@@ -449,7 +475,8 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                               <input
                                 type="number"
                                 {...register(`lines.${index}.amountCharges`, { valueAsNumber: true })}
-                                className="w-full border rounded px-3 py-2"
+                                className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                                disabled={isViewMode}
                               />
                             )}
                           </td>
@@ -460,11 +487,12 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                           <input
                             type="number"
                             {...register(`lines.${index}.munshayana`, { valueAsNumber: true })}
-                            className="w-full border rounded px-3 py-2"
+                            className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                            disabled={isViewMode}
                           />
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="w-full px-4 py-3">
                         {!line.isAdditionalLine && (
                           <Controller
                             name={`lines.${index}.broker`}
@@ -475,6 +503,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                                 selectedOption={field.value || ''}
                                 onChange={field.onChange}
                                 label=""
+                                disabled={isViewMode}
                               />
                             )}
                           />
@@ -485,7 +514,8 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                           <input
                             type="date"
                             {...register(`lines.${index}.dueDate`)}
-                            className="w-full border rounded px-3 py-2"
+                            className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                            disabled={isViewMode}
                           />
                         )}
                       </td>
@@ -493,20 +523,22 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                         {!line.isAdditionalLine && (
                           <input
                             {...register(`lines.${index}.remarks`)}
-                            className="w-full border rounded px-3 py-2"
+                            className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
                             placeholder="Remarks"
+                            disabled={isViewMode}
                           />
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <Button
-                          type="button"
-                          onClick={() => removeLine(index)}
-                          disabled={lines.length <= 1}
-                          className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2"
-                        >
-                          <FiTrash2 />
-                        </Button>
+                        {!isViewMode && lines.length > 1 && (
+                          <Button
+                            type="button"
+                            onClick={() => removeLine(index)}
+                            className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2"
+                          >
+                            <FiTrash2 />
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -547,28 +579,38 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
             </div>
           )}
 
-          {/* Submit Button */}
-          <div className="flex justify-end">
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl"
-            >
-              {isSubmitting ? (
-                <>Saving...</>
-              ) : (
-                <>
-                  <FiSave className="mr-2" />
-                  {isEdit ? 'Update Invoice' : 'Create Invoice'}
-                </>
-              )}
-            </Button>
+          {/* Submit / Back area */}
+          <div className="flex justify-end gap-4">
+            {isViewMode ? (
+              <Button
+                type="button"
+                onClick={() => router.back()}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl"
+              >
+                <FiX className="mr-2" /> Back to List
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-8 py-4 text-lg font-semibold shadow-lg hover:shadow-xl"
+              >
+                {isSubmitting ? (
+                  <>Saving...</>
+                ) : (
+                  <>
+                    <FiSave className="mr-2" />
+                    {isEdit ? 'Update Invoice' : 'Create Invoice'}
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </form>
       </div>
 
-      {/* Vehicle Selection Popup */}
-      {showPopup && (
+      {/* Vehicle Selection Popup - only show when not in view mode */}
+      {!isViewMode && showPopup && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden">
             <div className="p-6 border-b flex justify-between items-center">

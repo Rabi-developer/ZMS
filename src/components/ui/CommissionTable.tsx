@@ -383,7 +383,7 @@ export function DataTable<TData extends { id: string }, TValue>({
             <div className="overflow-hidden rounded-lg border-2 border-[#6e997f] dark:border-[#6e997f] shadow-sm">
               <div className="overflow-x-auto">
                 <div className="max-h-[350px] overflow-y-auto relative">
-                  <table className="w-full table-fixed">
+                  <table className="w-full">
                     <thead className="bg-[#3a614c]/5 sticky top-0 z-10">
                       {table.getHeaderGroups().map((headerGroup) => (
                         <tr key={headerGroup.id} className="border-b-2 border-[#6e997f]">

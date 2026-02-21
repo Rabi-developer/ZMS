@@ -1,5 +1,5 @@
 // columns.tsx
-import { Edit, Trash } from 'lucide-react';
+import { Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
@@ -166,6 +166,16 @@ export const columns = (
 
       return (
         <div className="flex items-center gap-2">
+          <Link href={`/AccountOpeningBalance/edit/${row.original.id}?mode=view`}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="hover:bg-blue-50 text-blue-600 border-blue-200"
+              title="View Details"
+            >
+              <Eye size={16} />
+            </Button>
+          </Link>
           {isApproved ? (
             <Button
               size="sm"

@@ -1,4 +1,4 @@
-import { Edit, Trash } from 'lucide-react';
+import { Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
@@ -116,6 +116,15 @@ export const columns = (
       const isApproved = String(row.original.status || '').toLowerCase() === 'approved';
       return (
       <div className="flex space-x-2">
+        <Link href={`/paymentABL/edit/${row.original.id}?mode=view`}>
+          <Button
+            size="sm"
+            className="bg-blue-500 hover:bg-blue-600"
+            title="View Details"
+          >
+            <Eye size={16} />
+          </Button>
+        </Link>
         {isApproved ? (
           <Button size="sm" className="bg-gray-300 text-gray-600 cursor-not-allowed" disabled title="Approved records can't be edited">
             <Edit size={16} />

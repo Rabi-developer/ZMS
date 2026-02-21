@@ -95,6 +95,11 @@ type OpeningBalanceFormData = z.infer<typeof openingBalanceSchema>;
 
 const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
+  
+  // Check if we're in view mode
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const isViewMode = searchParams?.get('mode') === 'view';
+  
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [chargeTypes, setChargeTypes] = useState<{ value: string; label: string }[]>(defaultChargeTypes);
@@ -287,13 +292,25 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         </p>
       </div>
 
+
+      {isViewMode && (
+        <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+          <div>
+            <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              This opening balance record is read-only. No changes can be made.
+            </p>
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="p-12 text-center text-gray-500 dark:text-gray-400">Loading...</div>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 md:p-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 bg-gray-50 dark:bg-gray-800/40 p-6 rounded-xl border">
             <ABLCustomInput label="Opening Balance #" type="text" {...register('openingNo')} disabled placeholder="Auto-generated" />
-            <ABLCustomInput label="Date *" type="date" {...register('openingDate')} error={errors.openingDate?.message} />
+            <ABLCustomInput label="Date *" type="date" {...register('openingDate')} error={errors.openingDate?.message} disabled={isViewMode} />
           </div>
 
           <div className="overflow-x-auto max-h-[400px] overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 shadow">
@@ -328,7 +345,8 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       <td className="px-1 py-3 ">
                         <select
                           {...register(`OpeningBalanceEntrys.${index}.type`)}
-                          className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                          className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                          disabled={isViewMode}
                         >
                           <option value="customer">Customer</option>
                           <option value="broker">Broker</option>
@@ -336,15 +354,15 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                         </select>
                       </td>
 
-                      <td className="px-5 py-3"><input {...register(`OpeningBalanceEntrys.${index}.biltyNo`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600" placeholder="Bilty #" /></td>
-                      <td className="px-5 py-3"><input {...register(`OpeningBalanceEntrys.${index}.biltyDate`)} type="date" className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600" /></td>
-                      <td className="px-5 py-3"><input {...register(`OpeningBalanceEntrys.${index}.vehicleNo`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600" placeholder="Vehicle #" /></td>
-                      <td className="px-5 py-3"><input {...register(`OpeningBalanceEntrys.${index}.city`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600" placeholder="City" /></td>
+                      <td className="px-5 py-3"><input {...register(`OpeningBalanceEntrys.${index}.biltyNo`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed" placeholder="Bilty #" disabled={isViewMode} /></td>
+                      <td className="px-5 py-3"><input {...register(`OpeningBalanceEntrys.${index}.biltyDate`)} type="date" className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed" disabled={isViewMode} /></td>
+                      <td className="px-5 py-3"><input {...register(`OpeningBalanceEntrys.${index}.vehicleNo`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed" placeholder="Vehicle #" disabled={isViewMode} /></td>
+                      <td className="px-5 py-3"><input {...register(`OpeningBalanceEntrys.${index}.city`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 disabled:opacity-60 disabled:cursor-not-allowed" placeholder="City" disabled={isViewMode} /></td>
 
                       {hasCustomer && (
                         <td className="px-5 py-3">
                           {isCustomer ? (
-                            <input {...register(`OpeningBalanceEntrys.${index}.customer`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500" placeholder="Customer name" />
+                            <input {...register(`OpeningBalanceEntrys.${index}.customer`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed" placeholder="Customer name" disabled={isViewMode} />
                           ) : (
                             <div className="h-10 bg-gray-100 dark:bg-gray-700 rounded-lg" />
                           )}
@@ -354,7 +372,7 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                       {hasBroker && (
                         <td className="px-5 py-3">
                           {isBroker ? (
-                            <input {...register(`OpeningBalanceEntrys.${index}.broker`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500" placeholder="Broker name" />
+                            <input {...register(`OpeningBalanceEntrys.${index}.broker`)} className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed" placeholder="Broker name" disabled={isViewMode} />
                           ) : (
                             <div className="h-10 bg-gray-100 dark:bg-gray-700 rounded-lg" />
                           )}
@@ -366,7 +384,8 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           {isCharges ? (
                             <select
                               {...register(`OpeningBalanceEntrys.${index}.chargeType`)}
-                              className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+                              className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                              disabled={isViewMode}
                             >
                               <option value="">Select charge type</option>
                               {chargeTypes.map(ct => (
@@ -385,9 +404,9 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           type="number"
                           min="0"
                           step="0.01"
-                          disabled={!isCustomer}
+                          disabled={!isCustomer || isViewMode}
                           className={`w-full px-3 py-2 text-right border rounded-lg dark:bg-gray-800 dark:border-gray-600 ${
-                            isCustomer ? 'focus:ring-2 focus:ring-emerald-500' : 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-60'
+                            isCustomer && !isViewMode ? 'focus:ring-2 focus:ring-emerald-500' : 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-60'
                           }`}
                           placeholder="0.00"
                         />
@@ -399,16 +418,16 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
                           type="number"
                           min="0"
                           step="0.01"
-                          disabled={!isBroker && !isCharges}
+                          disabled={(!isBroker && !isCharges) || isViewMode}
                           className={`w-full px-3 py-2 text-right border rounded-lg dark:bg-gray-800 dark:border-gray-600 ${
-                            (isBroker || isCharges) ? 'focus:ring-2 focus:ring-emerald-500' : 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-60'
+                            (isBroker || isCharges) && !isViewMode ? 'focus:ring-2 focus:ring-emerald-500' : 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed opacity-60'
                           }`}
                           placeholder="0.00"
                         />
                       </td>
 
                       <td className="px-5 py-3 text-center">
-                        {fields.length > 1 && (
+                        {!isViewMode && fields.length > 1 && (
                           <Button type="button" variant="destructive" size="icon" className="h-9 w-9" onClick={() => remove(index)}>
                             <FiTrash2 size={18} />
                           </Button>
@@ -448,32 +467,44 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           </div>
 
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-between items-center">
-            <Button
-              type="button"
-              onClick={handleAddRow}
-              onAuxClick={handleAddRow}
-              className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-2.5 rounded-lg flex items-center gap-2 shadow-md"
-            >
-              <FiPlus size={18} /> Add Row
-            </Button>
+            {!isViewMode && (
+              <Button
+                type="button"
+                onClick={handleAddRow}
+                onAuxClick={handleAddRow}
+                className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-2.5 rounded-lg flex items-center gap-2 shadow-md"
+              >
+                <FiPlus size={18} /> Add Row
+              </Button>
+            )}
 
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-8 py-2.5 rounded-lg flex items-center gap-2 shadow-md min-w-[220px] justify-center disabled:opacity-60"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <FiSave size={18} />
-                  {isEdit ? 'Update' : 'Save'} Opening Balance
-                </>
-              )}
-            </Button>
+            {isViewMode ? (
+              <Button
+                type="button"
+                onClick={() => router.back()}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-8 py-2.5 rounded-lg ml-auto"
+              >
+                Close
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-8 py-2.5 rounded-lg flex items-center gap-2 shadow-md min-w-[220px] justify-center disabled:opacity-60"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <FiSave size={18} />
+                    {isEdit ? 'Update' : 'Save'} Opening Balance
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </form>
       )}

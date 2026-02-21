@@ -13,7 +13,7 @@ import { getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllOpeningBalance } from '@/apis/openingbalance';
 import { toast } from 'react-toastify';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
 import { FaFileInvoice, FaMoneyBillWave } from 'react-icons/fa';
 import { FiSave, FiX } from 'react-icons/fi';
@@ -213,7 +213,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   const [showChargePopup, setShowChargePopup] = useState<number | null>(null);
   const [orderSearch, setOrderSearch] = useState('');
   const [chargeSearch, setChargeSearch] = useState('');
-
+  const searchParams = useSearchParams();
+  
   const paymentModes: DropdownOption[] = [
     { id: 'Cash', name: 'Cash' },
     { id: 'Cheque', name: 'Cheque' },
@@ -760,7 +761,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       setValue('paymentABLItems', newPaymentABLItems, { shouldValidate: true });
     }
   };
-
+  
+  const isViewMode = searchParams.get('mode') === 'view';
+  const isFieldDisabled = (): boolean => {
+  return isViewMode;  
+  };
   const onSubmit = async (data: PaymentFormData) => {
     setIsSubmitting(true);
     try {
@@ -865,6 +870,16 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               </Link>
             </div>
           </div>
+          {isViewMode && (
+        <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+          <div>
+            <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              This Payment record is read-only. No changes can be made.
+            </p>
+          </div>
+        </div>
+      )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
@@ -892,6 +907,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.paymentDate?.message}
                 id="paymentDate"
+                disabled={isViewMode}
               />
               <Controller
                 name="paymentMode"
@@ -903,6 +919,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                     selectedOption={field.value || ''}
                     onChange={field.onChange}
                     error={errors.paymentMode?.message}
+                    disabled={isViewMode}
                   />
                 )}
               />
@@ -916,6 +933,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                     selectedOption={field.value || ''}
                     onChange={field.onChange}
                     error={errors.bankName?.message}
+                    disabled={isViewMode}
                   />
                 )}
               />
@@ -926,6 +944,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.chequeNo?.message}
                 id="chequeNo"
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="Cheque Date"
@@ -933,6 +952,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.chequeDate?.message}
                 id="chequeDate"
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="Paid To"
@@ -959,6 +979,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.remarks?.message}
                 id="remarks"
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="Advanced"
@@ -967,8 +988,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.advanced?.message}
                 id="advanced"
-                // Ensure value is parsed as number
                 {...register('advanced', { valueAsNumber: true })}
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="Advanced Date"
@@ -977,6 +998,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.advancedDate?.message}
                 id="advancedDate"
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="PDC"
@@ -985,8 +1007,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.pdc?.message}
                 id="pdc"
-                // Ensure value is parsed as number
                 {...register('pdc', { valueAsNumber: true })}
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="PDC Date"
@@ -995,6 +1017,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                 register={register}
                 error={errors.pdcDate?.message}
                 id="pdcDate"
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="Payment Amount"
@@ -1057,6 +1080,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                               type="button"
                               onClick={() => setShowOrderPopup(index)}
                               className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
+                              disabled={isViewMode}  
                             >
                               {row.vehicleNo || 'Select Vehicle'}
                             </Button>
@@ -1077,6 +1101,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                               type="button"
                               onClick={() => setShowChargePopup(index)}
                               className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
+                              disabled={isViewMode || !row.vehicleNo || !row.orderNo}
                             >
                               {row.chargeNo || 'Select Charges'}
                             </Button>
@@ -1129,6 +1154,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                               type="number"
                               min="0"
                               step="0.01"
+                              disabled={isViewMode}
                             />
                             {errors.paymentABLItems?.[index]?.paidAmount && (
                               <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].paidAmount.message}</p>
@@ -1177,7 +1203,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                     type="button"
                     onClick={addTableRow}
                     className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg"
-                  >
+                    disabled={isViewMode}
+                 >
                     + Add New Row
                   </Button>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -1187,28 +1214,37 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="text-sm" />
-                      <span>{isEdit ? 'Update Payment' : 'Create Payment'}</span>
-                    </>
-                  )}
-                </div>
-              </Button>
-            </div>
-          </form>
+      <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+     {isViewMode ? (
+     <Button
+      type="button"
+      onClick={() => router.back()}  
+      className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2 text-sm font-medium"
+    >
+      <FiX className="text-base" />
+      Back
+    </Button>
+    ) : (
+    <Button
+      type="submit"
+      disabled={isSubmitting}
+      className="px-6 py-2.5 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center gap-2 text-sm font-medium"
+    >
+      {isSubmitting ? (
+        <>
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          <span>Saving...</span>
+        </>
+      ) : (
+        <>
+          <FiSave className="text-base" />
+          <span>{isEdit ? 'Update Payment' : 'Create Payment'}</span>
+        </>
+      )}
+    </Button>
+     )}
+        </div>
+         </form>
         </div>
 
         <div className="mt-4 bg-white dark:bg-gray-800 rounded-md shadow-md p-3 border border-gray-100 dark:border-gray-700">

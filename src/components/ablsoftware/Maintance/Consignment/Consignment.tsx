@@ -131,7 +131,8 @@ const ConsignmentForm = ({ isEdit = false }) => {
   const fromBooking = searchParams.get('fromBooking') === 'true';
   const bookingOrderId = searchParams.get('bookingOrderId') || '';
   const orderNoParam = searchParams.get('orderNo') || '';
-
+// Check if we're in view mode
+  const isViewMode = searchParams.get('mode') === 'view';
   const {
     control,
     register,
@@ -528,6 +529,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
   };
 
   const [submitMode, setSubmitMode] = useState<'back' | 'addAnother' | 'list'>('back');
+  
 
   const onSubmit = async (data: ConsignmentFormData) => {
     setIsSubmitting(true);
@@ -662,14 +664,23 @@ const ConsignmentForm = ({ isEdit = false }) => {
     }
   };
 
-  const isFieldDisabled = (field: string) => {
-    if (!fromBooking) return false;
-    // Allow editing of receiptNo and consignmentNo even when from booking
-    return fromBooking && !['consignor', 'consignee', 'receiptNo', 'consignmentNo'].includes(field);
-  };
+ const isFieldDisabled = (field?: string): boolean => {
+  if (isViewMode) return true;                    
+  if (fromBooking) {
+    const editableInBookingMode = [
+      'consignor',
+      'consignee',
+      'receiptNo',
+      'consignmentNo',
+    ];
+    return !editableInBookingMode.includes(field || '');
+  }
+
+  return false;
+};
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4">
+    <div className="w-full max-w-4xl lg:max-w-7xl mx-auto bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4">
       <div className="w-full">
         {isLoading && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -708,6 +719,17 @@ const ConsignmentForm = ({ isEdit = false }) => {
               </div>
             </div>
           </div>
+          {isViewMode && (
+        <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+          <div>
+            <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              This Consignment record is read-only. No changes can be made.
+            </p>
+          </div>
+        </div>
+      )}
+
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-8">
             {fromBooking && (
@@ -736,7 +758,8 @@ const ConsignmentForm = ({ isEdit = false }) => {
                         register={register}
                         error={errors.receiptNo?.message}
                         id="receiptNo"
-                        disabled
+                       disabled={isFieldDisabled('receiptNo')}
+                        
                       />
                     )}
                   />
@@ -753,7 +776,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                         register={register}
                         error={errors.orderNo?.message}
                         id="orderNo"
-                        disabled={fromBooking}
+                        disabled={isFieldDisabled('orderNo') || fromBooking}
                       />
                     )}
                   />
@@ -787,6 +810,18 @@ const ConsignmentForm = ({ isEdit = false }) => {
                       id="date"
                       disabled={isFieldDisabled('date')}
                     />
+               
+                    <ABLNewCustomInput
+                      label="Credit Allowed"
+                      type="text"
+                      placeholder="Enter credit amount"
+                      register={register}
+                      error={errors.creditAllowed?.message}
+                      id="creditAllowed"
+                      disabled={isFieldDisabled('creditAllowed')}
+                    />
+                  </div>
+                   <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
                     <Controller
                       name="consignor"
                       control={control}
@@ -815,6 +850,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                         />
                       )}
                     />
+
                     <Controller
                       name="freightFrom"
                       control={control}
@@ -829,16 +865,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                         />
                       )}
                     />
-                    <ABLNewCustomInput
-                      label="Credit Allowed"
-                      type="text"
-                      placeholder="Enter credit amount"
-                      register={register}
-                      error={errors.creditAllowed?.message}
-                      id="creditAllowed"
-                      disabled={isFieldDisabled('creditAllowed')}
-                    />
-                  </div>
+                    </div>
                 </div>
               </div>
               <div className="col-span-1">
@@ -847,7 +874,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                     type="button"
                     onClick={() => setShowOrderPopup(true)}
                     className="mb-3 w-full bg-[#3a614c] hover:bg-[#3a614c]/90 text-white"
-                    disabled={fromBooking}
+                    disabled={isFieldDisabled('fieldName') || fromBooking}
                   >
                     Select Order No
                   </Button>
@@ -858,7 +885,6 @@ const ConsignmentForm = ({ isEdit = false }) => {
                     register={register}
                     error={errors.orderNo?.message}
                     id="orderNo"
-                    disabled
                   />
                   {getSelectedOrderDetails() && (
                     <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-600">
@@ -896,7 +922,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                     register={register}
                     error={errors.consignmentNo?.message}
                     id="consignmentNo"
-                    disabled
+                   disabled={isFieldDisabled('consignmentNo')}
                   />
                   <ABLNewCustomInput
                     label="Cons.Date"
@@ -1180,7 +1206,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                   register={register}
                   error={errors.sprAmount?.message}
                   id="sprAmount"
-                  disabled
+                  disabled={isFieldDisabled('sprAmount') || !sbrTax}
                 />
               ) : null}
             </div>
@@ -1213,7 +1239,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                     register={register}
                     error={errors.totalAmount?.message}
                     id="totalAmount"
-                    disabled
+                    disabled={isFieldDisabled('totalAmount') || !freight}
                   />
                 </div>
               </div>
@@ -1271,7 +1297,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                   register={register}
                   error={errors.receivedAmount?.message}
                   id="receivedAmount"
-                  disabled
+                  disabled={isFieldDisabled('receivedAmount') || !freight}
                 />
                 <ABLCustomInput
                   label="Income Tax Ded."
@@ -1289,13 +1315,22 @@ const ConsignmentForm = ({ isEdit = false }) => {
                   register={register}
                   error={errors.incomeTaxAmount?.message}
                   id="incomeTaxAmount"
-                  disabled
+                  disabled={isFieldDisabled('incomeTaxAmount') || !freight}
                 />
               </div>
             </div>
 
             <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-700 mt-8">
-              {fromBooking ? (
+             {isViewMode ? (
+             <Button
+              type="button"
+              onClick={() => router.back()}
+              className="px-8 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl font-medium text-sm flex items-center gap-2"
+              >
+              <FiX className="text-lg" />
+                Back
+              </Button>
+              ) : fromBooking ? (
                 <>
                   <Button
                     type="submit"

@@ -12,7 +12,7 @@ import { getAllConsignment, updateConsignment } from '@/apis/consignment';
 import { createReceipt, updateReceipt, getBiltyBalance } from '@/apis/receipt';
 import { getAllOpeningBalance } from '@/apis/openingbalance';
 import { toast } from 'react-toastify';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
 import { FaFileInvoice, FaMoneyBillWave } from 'react-icons/fa';
 import { FiSave, FiX } from 'react-icons/fi';
@@ -99,6 +99,8 @@ interface ReceiptFormProps {
 
 const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const router = useRouter();
+    const searchParams = useSearchParams();
+
   const emptyItemRow = {
     id: null,
     biltyNo: '',
@@ -115,6 +117,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     openingBalanceId: '',
   };
 
+  // Check if we're in view mode
+  const isViewMode = searchParams.get('mode') === 'view';
   const {
     control,
     register,
@@ -551,6 +555,16 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               </Link>
             </div>
           </div>
+          {isViewMode && (
+        <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+          <div>
+            <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              This Receipt record is read-only. No changes can be made.
+            </p>
+          </div>
+        </div>
+      )}
 
           <form onSubmit={handleSubmit(onSubmit)} className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
@@ -578,6 +592,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 register={register}
                 error={errors.receiptDate?.message}
                 id="receiptDate"
+                disabled={isViewMode}
               />
               <Controller
                 name="paymentMode"
@@ -591,6 +606,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                     error={errors.paymentMode?.message}
                   />
                 )}
+                disabled={isViewMode}
               />
               <Controller
                 name="bankName"
@@ -604,6 +620,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                     error={errors.bankName?.message}
                   />
                 )}
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="Cheque #"
@@ -612,6 +629,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 register={register}
                 error={errors.chequeNo?.message}
                 id="chequeNo"
+                disabled={isViewMode}
               />
               <ABLCustomInput
                 label="Cheque Date"
@@ -619,6 +637,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 register={register}
                 error={errors.chequeDate?.message}
                 id="chequeDate"
+                disabled={isViewMode}
               />
               <Controller
                 name="party"
@@ -630,6 +649,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                     selectedOption={field.value || ''}
                     onChange={field.onChange}
                     error={errors.party?.message}
+                    disabled={isViewMode}
                   />
                 )}
               />
@@ -640,7 +660,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 register={register}
                 error={errors.receiptAmount?.message}
                 id="receiptAmount"
-                disabled
+                disabled={isViewMode}
+                
               />
               <ABLCustomInput
                 label="Remarks"
@@ -649,6 +670,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 register={register}
                 error={errors.remarks?.message}
                 id="remarks"
+                disabled={isViewMode}
               />
             </div>
 
@@ -705,6 +727,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               type="button"
                               onClick={() => setShowConsignmentPopup(index)}
                               className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
+                              disabled={isViewMode}
                             >
                               {row.biltyNo || 'Select Bilty'}
                               {row.isOpeningBalance && (
@@ -772,6 +795,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               min="0"
                               step="0.01"
                               value={row.receiptAmount ?? 0}
+                              disabled={isViewMode || !row.biltyNo}
                             />
                             {errors.items?.[index]?.receiptAmount && (
                               <p className="text-red-500 text-xs mt-1">{errors.items[index].receiptAmount.message}</p>
@@ -808,6 +832,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           {items.reduce((sum, row) => sum + (row.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base">
+                          disabled={isViewMode}
                           {items.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3"></td>
@@ -822,6 +847,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                     onClick={addTableRow}
                     onAuxClick={addTableRow}
                     className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg"
+                    disabled={isViewMode}
                   >
                     + Add New Row
                   </Button>
@@ -858,6 +884,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                             selectedOption={field.value || ''}
                             onChange={field.onChange}
                             error={errors.salesTaxOption?.message}
+                            disabled={isViewMode}
                           />
                         )}
                       />
@@ -881,6 +908,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                                 }
                               }}
                               error={errors.salesTaxRate?.message}
+                              disabled={isViewMode}
                             />
                           )}
                         />
@@ -904,6 +932,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                                 }
                               }}
                             error={errors.whtOnSbr?.message}
+                            disabled={isViewMode}
                           />
                         )}
                       />
@@ -1026,27 +1055,47 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="text-sm" />
-                      <span>{isEdit ? 'Update Receipt' : 'Create Receipt'}</span>
-                    </>
-                  )}
-                </div>
-              </Button>
-            </div>
+      <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+      {isViewMode ? (
+    <Button
+      type="button"
+      onClick={() => router.back()} 
+      className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2 text-sm font-medium"
+    >
+      <FiX className="text-base" />
+      Back
+     </Button>
+      ) : (
+       <>
+      <Button
+        type="submit"
+        disabled={isSubmitting}
+        className="px-6 py-2.5 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center gap-2 text-sm font-medium"
+      >
+        {isSubmitting ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span>Saving...</span>
+          </>
+        ) : (
+          <>
+            <FiSave className="text-base" />
+            <span>{isEdit ? 'Update Receipt' : 'Create Receipt'}</span>
+          </>
+        )}
+      </Button>
+
+      <Button
+        type="button"
+        onClick={() => router.back()}
+        className="px-6 py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2 text-sm font-medium"
+      >
+        <FiX className="text-base" />
+        Cancel
+      </Button>
+      </>
+      )}
+     </div>
           </form>
         </div>
 

@@ -389,15 +389,19 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
     }
   };
 
-  const isFieldDisabled = (field: string) => {
-    if (!fromBooking) return false;
-    return !['charge', 'amount'].includes(field);
-  };
-
   const totalCharges = lines.reduce((sum, line) => sum + (line.amount || 0), 0);
   const totalPayments = payments.reduce((sum, payment) => sum + (payment.paidAmount || 0), 0);
   const balance = totalCharges - totalPayments;
   const maxRows = Math.max(lines.length, payments.length);
+
+  const isFieldDisabled = (field?: string): boolean => {
+  if (isViewMode) return true;
+  if (fromBooking) {
+    const allowed = ['charge', 'amount'];
+    return !allowed.includes(field || '');
+  }  return false;
+};
+  const isViewMode = searchParams.get('mode') === 'view';
 
   return (
     <div className="max-w-8xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -428,6 +432,17 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
               </Link>
             </div>
           </div>
+
+          {isViewMode && (
+        <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+          <div>
+            <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+              This Charges record is read-only. No changes can be made.
+            </p>
+          </div>
+        </div>
+      )}
 
           <form onSubmit={handleSubmit(async (data) => {
             console.log('Form data on submit:', data);
@@ -537,14 +552,14 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                   register={register}
                   error={errors.chargeDate?.message}
                   id="chargeDate"
-                  disabled={isFieldDisabled('chargeDate')}
+                  disabled={isFieldDisabled('chargeDate') }
                 />
                 <div>
                   <Button
                     type="button"
                     onClick={() => setShowOrderPopup(true)}
                     className="mb-3 w-full bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs"
-                    disabled={fromBooking || isFieldDisabled('orderNo')}
+                    disabled={isViewMode || fromBooking }
                   >
                     {fromBooking ? 'Order Auto-Selected' : 'Select Order No'}
                   </Button>
@@ -607,6 +622,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                     type="button"
                     onClick={addLine}
                     className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs px-2 py-1 rounded-md"
+                    disabled={isViewMode || fromBooking }
                   >
                     <FiPlus className="mr-1" /> Add Line
                   </Button>
@@ -685,7 +701,7 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                     <select
                                       {...field}
                                       disabled={isFieldDisabled('charge')}
-                                      className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c]"
+                                      className="w-auto px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c]"
                                     >
                                       <option value="">Select</option>
                                       {munshyanas.map((mun) => (
@@ -958,27 +974,36 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
               </div>
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#3a614c]/30 font-medium text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="text-lg" />
-                      <span>{isEdit ? 'Update Charges' : 'Create Charges'}</span>
-                    </>
-                  )}
-                </div>
-              </Button>
-            </div>
+          <div className="flex justify-end pt-4 border-t border-gray-200 dark:border-gray-700 mt-4 gap-4">
+          {isViewMode ? (
+        <Button
+          type="button"
+          onClick={() => router.back()}
+          className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-xl transition-all shadow-md flex items-center gap-2 text-sm"
+        >
+          <FiX className="text-base" />
+          Back
+        </Button>
+      ) : (
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="px-6 py-2 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-xl transition-all disabled:opacity-50 shadow-lg flex items-center gap-2 text-sm"
+        >
+          {isSubmitting ? (
+            <>
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <span>Saving...</span>
+        </>
+          ) : (
+        <>
+          <FiSave className="text-base" />
+          <span>{isEdit ? 'Update Charges' : 'Create Charges'}</span>
+        </>
+          )}
+        </Button>
+        )}
+          </div>
           </form>
         </div>
 
