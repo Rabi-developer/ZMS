@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import { getSinglePaymentABL} from '@/apis/paymentABL';
 import Loader from '@/components/ui/Loader';
@@ -31,7 +31,9 @@ const UpdatePaymentABL = () => {
       {
         !initialData ? <Loader /> :
           <div>
-            <PaymentABLForm isEdit={true} initialData={initialData} />
+            <Suspense fallback={<Loader />}>
+              <PaymentABLForm isEdit={true} initialData={initialData} />
+            </Suspense>
           </div>
       }
     </MainLayout>

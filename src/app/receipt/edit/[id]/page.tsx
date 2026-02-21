@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import { getSingleReceipt} from '@/apis/receipt';
 import Loader from '@/components/ui/Loader';
@@ -31,7 +31,9 @@ const UpdateReceipt = () => {
       {
         !initialData ? <Loader /> :
           <div>
-            <ReceiptForm isEdit={true} initialData={initialData} />
+            <Suspense fallback={<Loader />}>
+              <ReceiptForm isEdit={true} initialData={initialData} />
+            </Suspense>
           </div>
       }
     </MainLayout>

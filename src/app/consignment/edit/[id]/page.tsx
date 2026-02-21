@@ -1,5 +1,5 @@
 'use client'
-import React from 'react';
+import React, { Suspense } from 'react';
 import MainLayout from '@/components/MainLayout/MainLayout'
 import ConsignmentForm from '@/components/ablsoftware/Maintance/Consignment/Consignment';
 
@@ -7,7 +7,9 @@ const UpdateConsignment = () => {
   return (
     <MainLayout activeInterface="ABL">
       <div>
-        <ConsignmentForm isEdit={true} />
+        <Suspense fallback={<div>Loading...</div>}>
+          <ConsignmentForm isEdit={true} />
+        </Suspense>
       </div>
     </MainLayout>
   );

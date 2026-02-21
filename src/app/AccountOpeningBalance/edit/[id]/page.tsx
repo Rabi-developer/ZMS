@@ -1,5 +1,5 @@
 'use client'
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import { getSingleAccountOpeningBalance} from '@/apis/accountopeningbalance';
 import Loader from '@/components/ui/Loader';
@@ -31,7 +31,9 @@ const UpdateAccountOpeningBalance = () => {
       {
         !initialData ? <Loader /> :
           <div>
-            <AccountOpeningBalance isEdit={true}/>
+            <Suspense fallback={<Loader />}>
+              <AccountOpeningBalance isEdit={true}/>
+            </Suspense>
           </div>
       }
     </MainLayout>
