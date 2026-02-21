@@ -25,6 +25,8 @@ interface DropdownOption {
 }
 
 interface Consignment {
+  freightPaidBy: string;
+  customerName: any;
   id: string;
   biltyNo: string;
   vehicleNo: string;
@@ -47,6 +49,8 @@ interface TableRow {
   receiptAmount: number;
   isOpeningBalance?: boolean;
   openingBalanceId?: string;
+  freightPaidBy?: 'consignor' | 'consignee' | null; 
+  customerName?: string;
 }
 
 // Define the schema for receipt form validation
@@ -75,6 +79,8 @@ const receiptSchema = z.object({
       receiptAmount: z.number().min(0, 'Receipt Amount must be non-negative').optional(),
       isOpeningBalance: z.boolean().optional(),
       openingBalanceId: z.string().optional(),
+      freightPaidBy: z.enum(['consignor', 'consignee']).optional().nullable(),
+      customerName: z.string().optional().nullable(),
     })
   ),
   salesTaxOption: z.string().optional(),
@@ -238,6 +244,13 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     `${ob.biltyNo} ${ob.vehicleNo} ${ob.customer}`.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Helper function to resolve party ID to name
+  const resolvePartyName = (partyId: string, partyData: any[]): string => {
+    if (!partyId) return '';
+    const party = partyData.find(p => p.id === partyId);
+    return party ? party.name : partyId;
+  };
+
   // Fetch dropdown data
   useEffect(() => {
     const fetchData = async () => {
@@ -249,18 +262,31 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           getAllConsignment(1, 1000),
           getAllOpeningBalance(1, 10000),
         ]);
-        setParties(partyRes.data.map((p: any) => ({ id: p.id, name: p.name })));
+        const partyData = partyRes.data.map((p: any) => ({ id: p.id, name: p.name }));
+        setParties(partyData);
         setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.taxName, percentage: t.percentage })));
         setConsignments(
-          consignmentRes.data.map((item: any) => ({
-            id: item.id,
-            biltyNo: item.biltyNo || item.bilty || item.id,
-            vehicleNo: item.vehicleNo || item.orderNo || 'Unknown',
-            biltyDate: item.biltyDate || item.consignmentDate || new Date().toISOString().split('T')[0],
-            biltyAmount: item.totalAmount || 0, // Map to totalAmount from ConsignmentForm
-            srbAmount: item.sprAmount || 0, // Map to sprAmount from ConsignmentForm
-            totalAmount: item.totalAmount || 0,
-          }))   
+          consignmentRes.data.map((item: any) => {
+            const consignorName = resolvePartyName(item.consignor, partyData) || item.consignorName || 'Unknown Consignor';
+            const consigneeName = resolvePartyName(item.consignee, partyData) || item.consigneeName || 'Unknown Consignee';
+            const freightPaidBy = item.freightPaidBy?.toLowerCase() || 'consignor';
+            
+            return {
+              id: item.id,
+              biltyNo: item.biltyNo || item.bilty || item.id,
+              vehicleNo: item.vehicleNo || item.orderNo || 'Unknown',
+              biltyDate: item.biltyDate || item.consignmentDate || new Date().toISOString().split('T')[0],
+              biltyAmount: item.totalAmount || 0,
+              srbAmount: item.sprAmount || 0,
+              totalAmount: item.totalAmount || 0,
+              freightPaidBy: freightPaidBy,
+              consignor: item.consignor,
+              consignee: item.consignee,
+              consignorName: consignorName,
+              consigneeName: consigneeName,
+              customerName: freightPaidBy === 'consignee' ? consigneeName : consignorName,
+            };
+          })   
         );
         
         // Process opening balance entries for customers (debit > 0)
@@ -369,32 +395,44 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     }
   }, [items, setValue, watch]);
 
-  const selectConsignment = async (index: number, consignment: Consignment) => {
-    setSelectingConsignment(true);
-    try {
-      const balanceData = await getBiltyBalance(consignment.biltyNo);
-      const remainingBalance = balanceData.balance || balanceData.remainingBalance || 0;
-      if (remainingBalance <= 0) {
-        toast.error('This bilty has no remaining balance. Cannot create receipt.');
-        return;
-      }
-      setValue(`items.${index}.biltyNo`, consignment.biltyNo, { shouldValidate: true });
-      setValue(`items.${index}.consignmentId`, consignment.id, { shouldValidate: true });
-      setValue(`items.${index}.vehicleNo`, consignment.vehicleNo, { shouldValidate: true });
-      setValue(`items.${index}.biltyDate`, consignment.biltyDate, { shouldValidate: true });
-      setValue(`items.${index}.biltyAmount`, consignment.totalAmount, { shouldValidate: true }); // Use totalAmount
-      setValue(`items.${index}.srbAmount`, consignment.srbAmount, { shouldValidate: true }); // Use sprAmount
-      setValue(`items.${index}.balance`, remainingBalance, { shouldValidate: true });
-      setValue(`items.${index}.initialBalance`, remainingBalance, { shouldValidate: true });
-      setShowConsignmentPopup(null);
-      setSearchQuery('');
-    } catch (error) {
-      toast.error('Failed to fetch bilty balance');
-      console.error('Error fetching balance:', error);
-    } finally {
-      setSelectingConsignment(false);
+  const selectConsignment = async (index: number, consignment: any) => {  // ← use `any` temporarily or extend Consignment interface
+  setSelectingConsignment(true);
+  try {
+    const balanceData = await getBiltyBalance(consignment.biltyNo);
+    const remainingBalance = balanceData.balance || balanceData.remainingBalance || 0;
+    if (remainingBalance <= 0) {
+      toast.error('This bilty has no remaining balance. Cannot create receipt.');
+      return;
     }
-  };
+
+    // ── NEW: Determine who paid freight and set customer name ──
+    const freightPaidBy = consignment.freightPaidBy?.toLowerCase() || 'consignor'; // default to consignor if missing
+    const customerName =
+      freightPaidBy === 'consignee'
+        ? consignment.consigneeName || consignment.consignee || 'Unknown Consignee'
+        : consignment.consignorName || consignment.consignor || 'Unknown Consignor';
+
+    setValue(`items.${index}.biltyNo`, consignment.biltyNo, { shouldValidate: true });
+    setValue(`items.${index}.consignmentId`, consignment.id, { shouldValidate: true });
+    setValue(`items.${index}.vehicleNo`, consignment.vehicleNo, { shouldValidate: true });
+    setValue(`items.${index}.biltyDate`, consignment.biltyDate, { shouldValidate: true });
+    setValue(`items.${index}.biltyAmount`, consignment.totalAmount, { shouldValidate: true });
+    setValue(`items.${index}.srbAmount`, consignment.srbAmount, { shouldValidate: true });
+    setValue(`items.${index}.balance`, remainingBalance, { shouldValidate: true });
+    setValue(`items.${index}.initialBalance`, remainingBalance, { shouldValidate: true });
+
+    setValue(`items.${index}.freightPaidBy`, freightPaidBy);
+    setValue(`items.${index}.customerName`, customerName);
+
+    setShowConsignmentPopup(null);
+    setSearchQuery('');
+  } catch (error) {
+    toast.error('Failed to fetch bilty balance');
+    console.error('Error:', error);
+  } finally {
+    setSelectingConsignment(false);
+  }
+};
 
   const selectOpeningBalance = (index: number, ob: any) => {
     setValue(`items.${index}.biltyNo`, ob.biltyNo, { shouldValidate: true });
@@ -1162,6 +1200,9 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                             <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
                               Bilty #
                             </th>
+                            <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[180px]">
+                             Customer (Freight By)
+                            </th>
                             <th className="px-3 py-2 text-left font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-600">
                               Vehicle No
                             </th>
@@ -1182,6 +1223,22 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                             >
                               <td className="px-3 py-3 text-gray-800 dark:text-gray-200 font-medium">
                                 {consignment.biltyNo}
+                              </td>
+                              <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
+                                {consignment.customerName ? (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{consignment.customerName}</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                      consignment.freightPaidBy === 'consignee' 
+                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300' 
+                                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                                    }`}>
+                                      {consignment.freightPaidBy === 'consignee' ? 'Consignee' : 'Consignor'}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  '—'
+                                )}
                               </td>
                               <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
                                 {consignment.vehicleNo}
