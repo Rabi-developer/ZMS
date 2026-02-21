@@ -12,6 +12,7 @@ import { createPaymentABL, updatePaymentABL, getPaymentABLHistory } from '@/apis
 import { getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllOpeningBalance } from '@/apis/openingbalance';
+import { getAllVendor } from '@/apis/vendors';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
@@ -342,13 +343,21 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [orderRes, chargeRes, billPaymentRes, munshyanaRes, openingBalanceRes] = await Promise.all([
+        const [orderRes, chargeRes, billPaymentRes, munshyanaRes, openingBalanceRes, vendorRes] = await Promise.all([
           getAllBookingOrder(1, 10000),
           getAllCharges(1, 10000),
           getAllBiltyPaymentInvoice(1, 10000),
           getAllMunshyana(1, 10000),
           getAllOpeningBalance(1, 10000),
+          getAllVendor(1, 10000),
         ]);
+        
+        // Create vendor lookup map
+        const vendorMap = new Map();
+        (vendorRes.data || []).forEach((vendor: any) => {
+          vendorMap.set(vendor.id, vendor.vendorName || vendor.name || 'Unknown');
+        });
+        
         setBookingOrders(
           orderRes.data.map((item: any) => ({
             id: item.id || item.orderNo,
@@ -356,7 +365,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             vehicleNo: String(item.vehicleNo || 'N/A'),
             orderDate: item.orderDate || new Date().toISOString().split('T')[0],
             vendor: item.vendor || 'N/A',
-            vendorName: item.vendorName || item.vendor || 'Unknown',
+            vendorName: vendorMap.get(item.vendor) || item.vendorName || item.vendor || 'Unknown',
           }))
         );
         const validCharges = chargeRes.data
