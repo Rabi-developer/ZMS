@@ -307,7 +307,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           .map((line) => ({
             id: line.id,
             chargeNo: charge.chargeNo,
-            chargeName: line.vehicle || `Charge ${line.id}`,
+            chargeName: line.charge || line.vehicle || charge.chargeNo || `Charge ${line.id}`,
             orderNo: charge.orderNo,
             chargeDate: charge.chargeDate || new Date().toISOString().split('T')[0],
             date: line.date || charge.chargeDate || '',
