@@ -631,7 +631,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             });
             toast.info(`Previous balance found: ${remainingBalance.toLocaleString()}. Showing remaining balance.`);
             
-            setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: false });
+            setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
             setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
             setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
             setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
@@ -654,53 +654,11 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         console.warn('Skipping history check - missing required fields:', { vehicleNo, orderNo, chargeNo });
       }
 
-      // No history or history check skipped - calculate amount normally
-      console.log('No history found or history check skipped - using BillPaymentInvoice amount');
+      // No history or history check skipped - use charge amount only (not BillPaymentInvoice)
+      console.log('No history found or history check skipped - using Charge amount only');
       let finalAmount = charge.amount || null;
 
-      // Use vehicle number from the already selected booking order
-      const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
-
-      // Check if there's a matching billpaymentinvoice for this order/vehicle
-      const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
-        if (!bill.lines || !Array.isArray(bill.lines)) return false;
-        return bill.lines.some((line: any) =>
-          !line.isAdditionalLine &&
-          (line.vehicleNo === selectedVehicleNo || line.orderNo === orderNo)
-        );
-      });
-
-      // If matching billpayment found, calculate the total amount (with munshyana and charges)
-      if (matchingBillPayment.lines) {
-        const mainLine = matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
-        
-        if (mainLine) {
-          // Start with base amount
-          const totalAmount = Number(mainLine.amount) || 0;
-          
-          // Add all additional charges
-          const totalAdditional = matchingBillPayment.lines.reduce((sum: number, l: any) => 
-            sum + (l.isAdditionalLine ? (Number(l.amountCharges) || 0) : 0), 0
-          );
-          
-          // Subtract munshyana deduction
-          const munshayanaDeduction = matchingBillPayment.lines.reduce((sum: number, l: any) => 
-            sum + (!l.isAdditionalLine ? (Number(l.munshayana) || 0) : 0), 0
-          );
-          
-          // Calculate final total (same as shown in BillPaymentInvoice)
-          finalAmount = totalAmount + totalAdditional - munshayanaDeduction;
-          
-          console.log('Bill Payment Invoice Total Amount:', {
-            baseAmount: totalAmount,
-            additionalCharges: totalAdditional,
-            munshayanaDeduction: munshayanaDeduction,
-            finalTotal: finalAmount
-          });
-        }
-      }
-
-      setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
       setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
@@ -717,17 +675,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       // Continue with normal flow if history check fails
       toast.warning('Could not check payment history. Proceeding with charge selection.');
       
-      const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
-      const orderNo = paymentABLItems?.[index]?.orderNo || '';
       let finalAmount = charge.amount || null;
-      const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
-        if (!bill.lines || !Array.isArray(bill.lines)) return false;
-        return bill.lines.some((line: any) =>
-          !line.isAdditionalLine &&
-          (line.vehicleNo === selectedVehicleNo || line.orderNo === orderNo)
-        );
-      });
-      setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || ''), { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.chargeNo`, String(charge.chargeNo || ''), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
       setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
