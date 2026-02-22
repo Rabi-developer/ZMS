@@ -309,7 +309,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   return (
     <div className="max-w-7xl mx-auto p-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border">
-        {/* Header */}
+         {!isViewMode && (
         <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-6 rounded-t-2xl">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
@@ -330,6 +330,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
             </Link>
           </div>
         </div>
+         )}
 
         {/* View Mode Banner */}
         {isViewMode && (

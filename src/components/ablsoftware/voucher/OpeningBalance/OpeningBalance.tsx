@@ -283,6 +283,7 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
 
   return (
     <div className="max-w-7xl mx-auto bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {!isViewMode && (
       <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
         <h1 className="text-2xl md:text-3xl font-bold">
           {isEdit ? 'Edit Party Opening Balance' : 'Party Opening Balance'}
@@ -291,6 +292,7 @@ const OpeningBalanceForm = ({ isEdit = false }: { isEdit?: boolean }) => {
           Customer (Debit) • Broker / Charges (Credit)
         </p>
       </div>
+      )}
 
 
       {isViewMode && (

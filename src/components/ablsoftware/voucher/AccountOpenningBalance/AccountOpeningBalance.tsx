@@ -472,6 +472,7 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
 
   return (
     <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+      {!isViewMode && (
       <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -496,6 +497,7 @@ const AccountOpeningBalance: React.FC<AccountOpeningBalanceProps> = ({ isEdit = 
           </Button>
         </div>
       </div>
+      )}
 
       {/* View Mode Banner */}
       {isViewMode && (

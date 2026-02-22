@@ -572,6 +572,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         )}
 
         <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {!isViewMode && (
           <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -593,6 +594,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               </Link>
             </div>
           </div>
+          )}
           {isViewMode && (
         <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
           <div>
