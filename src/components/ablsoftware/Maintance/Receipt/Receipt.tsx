@@ -34,6 +34,10 @@ interface Consignment {
   biltyAmount: number;
   srbAmount: number;
   totalAmount: number;
+  consignor: string;
+  consignee: string;
+  consignorName: string;
+  consigneeName: string;
 }
 
 interface TableRow {
@@ -269,7 +273,19 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           consignmentRes.data.map((item: any) => {
             const consignorName = resolvePartyName(item.consignor, partyData) || item.consignorName || 'Unknown Consignor';
             const consigneeName = resolvePartyName(item.consignee, partyData) || item.consigneeName || 'Unknown Consignee';
-            const freightPaidBy = item.freightPaidBy?.toLowerCase() || 'consignor';
+            
+            // Check if freightFrom is empty or not selected
+            const freightFromRaw = item.freightFrom?.trim();
+            const hasFreightFrom = freightFromRaw && freightFromRaw !== '';
+            
+            // Use freightFrom field and normalize to lowercase
+            const freightFrom = hasFreightFrom ? freightFromRaw.toLowerCase() : null;
+            
+            // Determine customer name based on who is paying the freight
+            let customerName = 'Unselected Freight From';
+            if (hasFreightFrom) {
+              customerName = freightFrom === 'consignee' ? consigneeName : consignorName;
+            }
             
             return {
               id: item.id,
@@ -279,12 +295,12 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               biltyAmount: item.totalAmount || 0,
               srbAmount: item.sprAmount || 0,
               totalAmount: item.totalAmount || 0,
-              freightPaidBy: freightPaidBy,
+              freightPaidBy: freightFrom,
               consignor: item.consignor,
               consignee: item.consignee,
               consignorName: consignorName,
               consigneeName: consigneeName,
-              customerName: freightPaidBy === 'consignee' ? consigneeName : consignorName,
+              customerName: customerName,
             };
           })   
         );
@@ -395,7 +411,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     }
   }, [items, setValue, watch]);
 
-  const selectConsignment = async (index: number, consignment: any) => {  // ← use `any` temporarily or extend Consignment interface
+  const selectConsignment = async (index: number, consignment: any) => {
   setSelectingConsignment(true);
   try {
     const balanceData = await getBiltyBalance(consignment.biltyNo);
@@ -405,12 +421,21 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       return;
     }
 
-    // ── NEW: Determine who paid freight and set customer name ──
-    const freightPaidBy = consignment.freightPaidBy?.toLowerCase() || 'consignor'; // default to consignor if missing
-    const customerName =
-      freightPaidBy === 'consignee'
-        ? consignment.consigneeName || consignment.consignee || 'Unknown Consignee'
-        : consignment.consignorName || consignment.consignor || 'Unknown Consignor';
+    // Check if freightFrom is selected
+    const freightFromRaw = consignment.freightPaidBy;
+    const hasFreightFrom = freightFromRaw && freightFromRaw !== null;
+    
+    // Determine who paid freight and set customer name correctly
+    let customerName = 'Unselected Freight From';
+    let freightPaidBy = null;
+    
+    if (hasFreightFrom) {
+      freightPaidBy = freightFromRaw;
+      customerName =
+        freightFromRaw === 'consignee'
+          ? consignment.consigneeName || consignment.consignee || 'Unknown Consignee'
+          : consignment.consignorName || consignment.consignor || 'Unknown Consignor';
+    }
 
     setValue(`items.${index}.biltyNo`, consignment.biltyNo, { shouldValidate: true });
     setValue(`items.${index}.consignmentId`, consignment.id, { shouldValidate: true });
@@ -1229,17 +1254,27 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
                                 {consignment.customerName ? (
                                   <div className="flex items-center gap-2">
-                                    <span className="font-medium">{consignment.customerName}</span>
-                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
-                                      consignment.freightPaidBy === 'consignee' 
-                                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300' 
-                                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
-                                    }`}>
-                                      {consignment.freightPaidBy === 'consignee' ? 'Consignee' : 'Consignor'}
-                                    </span>
+                                    {consignment.customerName === 'Unselected Freight From' ? (
+                                      <span className="text-sm font-medium text-red-600 dark:text-red-400 flex items-center gap-1">
+                                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
+                                          ⚠️ Unselected Freight From
+                                        </span>
+                                      </span>
+                                    ) : (
+                                      <>
+                                        <span className="font-medium">{consignment.customerName}</span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                          consignment.freightPaidBy === 'consignee' 
+                                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300' 
+                                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                                        }`}>
+                                          {consignment.freightPaidBy === 'consignee' ? 'Consignee' : 'Consignor'}
+                                        </span>
+                                      </>
+                                    )}
                                   </div>
                                 ) : (
-                                  '—'
+                                  <span className="text-sm text-gray-400">—</span>
                                 )}
                               </td>
                               <td className="px-3 py-3 text-gray-600 dark:text-gray-400">
