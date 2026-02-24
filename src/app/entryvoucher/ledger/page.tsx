@@ -771,7 +771,15 @@ const LedgerPage: React.FC = () => {
           voucherNo: v.voucherNo || '-',
           chequeNo: v.chequeNo || '-',
           depositSlipNo: v.depositSlipNo || '-',
-          narration: v.narration || v.description || r.narration || '-',
+          narration: (() => {
+            const paymentDetail = v.paymentMode === 'Cash' 
+              ? 'Petty Cash' 
+              : (v.paymentMode === 'Cheque' || v.paymentMode === 'Bank Transfer') 
+                ? v.bankName || v.paymentMode 
+                : '';
+            const baseNarration = v.narration || v.description || r.narration || '-';
+            return paymentDetail ? `[${paymentDetail}] ${baseNarration}` : baseNarration;
+          })(),
           debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           pb1: pb.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
