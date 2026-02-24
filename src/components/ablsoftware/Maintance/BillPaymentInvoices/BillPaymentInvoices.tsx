@@ -76,6 +76,14 @@ interface BillPaymentInvoiceFormProps {
   initialData?: Partial<BillPaymentFormData> & { id?: string };
 }
 
+interface ChargeDisplay {
+  id: string;
+  vehicleNo: string;
+  orderNo: string;
+  amount: number;
+  munshayana: string;
+}
+
 const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvoiceFormProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -102,8 +110,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [munshyanas, setMunshyanas] = useState<DropdownOption[]>([]);
   const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
-  const [validBookingOrders, setValidBookingOrders] = useState<BookingOrder[]>([]);
-  const [orderToFirstAmountMap, setOrderToFirstAmountMap] = useState<Record<string, number>>({});
+  const [availableCharges, setAvailableCharges] = useState<ChargeDisplay[]>([]);
 
   const [showPopup, setShowPopup] = useState(false);
   const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
@@ -138,22 +145,24 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
           munshayana: String(b.munshayana ?? ''),
         }));
 
-        const amountMap: Record<string, number> = {};
-        const validOrderNos = new Set<string>();
-
+        const allFlatCharges: ChargeDisplay[] = [];
         (chargesRes.data || []).forEach((charge: any) => {
           const orderNo = String(charge.orderNo ?? '');
+          const bo = bookingOrders.find(b => b.orderNo === orderNo);
           if (charge.lines && charge.lines.length > 0) {
-            const firstAmount = Number(charge.lines[0].amount ?? 0);
-            amountMap[orderNo] = firstAmount;
-            validOrderNos.add(orderNo);
+            charge.lines.forEach((line: any, lIndex: number) => {
+              allFlatCharges.push({
+                id: `${charge.id}-${lIndex}`,
+                vehicleNo: bo?.vehicleNo || '—',
+                orderNo: orderNo,
+                amount: Number(line.amount ?? 0),
+                munshayana: bo?.munshayana || '',
+              });
+            });
           }
         });
 
-        setOrderToFirstAmountMap(amountMap);
-
-        const filtered = bookingOrders.filter((order) => validOrderNos.has(order.orderNo));
-        setValidBookingOrders(filtered);
+        setAvailableCharges(allFlatCharges);
       } catch (error) {
         console.error('Error loading data:', error);
         toast.error('Failed to load required data');
@@ -210,13 +219,12 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     setSelectedBrokerDetails(broker || null);
   }, [lines, businessAssociates]);
 
-  const selectVehicle = (order: BookingOrder, index: number) => {
+  const selectVehicle = (charge: ChargeDisplay, index: number) => {
     if (isViewMode) return;
-    const amount = orderToFirstAmountMap[order.orderNo] || 0;
-
-    setValue(`lines.${index}.vehicleNo`, order.vehicleNo);
-    setValue(`lines.${index}.orderNo`, order.orderNo);
-    setValue(`lines.${index}.amount`, amount);
+    
+    setValue(`lines.${index}.vehicleNo`, charge.vehicleNo);
+    setValue(`lines.${index}.orderNo`, charge.orderNo);
+    setValue(`lines.${index}.amount`, charge.amount);
     setValue(`lines.${index}.munshayana`, 0);
     setValue(`lines.${index}.isAdditionalLine`, false);
 
@@ -289,12 +297,12 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     return munshyanas.find((m) => m.id === id)?.name || id;
   };
 
-  const filteredBookingOrders = validBookingOrders.filter((order) => {
+  const filteredCharges = availableCharges.filter((charge) => {
     const q = searchQuery.toLowerCase();
     return (
-      order.vehicleNo.toLowerCase().includes(q) ||
-      order.orderNo.toLowerCase().includes(q) ||
-      getMunshayanaName(order.munshayana).toLowerCase().includes(q)
+      charge.vehicleNo.toLowerCase().includes(q) ||
+      charge.orderNo.toLowerCase().includes(q) ||
+      getMunshayanaName(charge.munshayana).toLowerCase().includes(q)
     );
   });
 
@@ -634,9 +642,9 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
               </div>
 
               <div className="max-h-96 overflow-y-auto">
-                {filteredBookingOrders.length === 0 ? (
+                {filteredCharges.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
-                    <p className="text-xl">No orders with charges found</p>
+                    <p className="text-xl">No charges found</p>
                   </div>
                 ) : (
                   <table className="w-full">
@@ -644,23 +652,23 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                       <tr>
                         <th className="px-6 py-4 text-left font-semibold">Vehicle No</th>
                         <th className="px-6 py-4 text-left font-semibold">Order No</th>
-                        <th className="px-6 py-4 text-left font-semibold">Amount (First Line)</th>
+                        <th className="px-6 py-4 text-left font-semibold">Amount</th>
                         <th className="px-6 py-4 text-left font-semibold">Munshayana</th>
                         <th className="px-6 py-4 text-left font-semibold">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {filteredBookingOrders.map((order) => (
-                        <tr key={order.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-6 py-4">{order.vehicleNo || '—'}</td>
-                          <td className="px-6 py-4 font-medium">{order.orderNo}</td>
+                      {filteredCharges.map((charge) => (
+                        <tr key={charge.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="px-6 py-4">{charge.vehicleNo}</td>
+                          <td className="px-6 py-4 font-medium">{charge.orderNo}</td>
                           <td className="px-6 py-4 font-bold text-green-600">
-                            {orderToFirstAmountMap[order.orderNo]?.toLocaleString() || '0'}
+                            {charge.amount.toLocaleString()}
                           </td>
-                          <td className="px-6 py-4">{getMunshayanaName(order.munshayana)}</td>
+                          <td className="px-6 py-4">{getMunshayanaName(charge.munshayana)}</td>
                           <td className="px-6 py-4">
                             <Button
-                              onClick={() => selectVehicle(order, selectedLineIndex || 0)}
+                              onClick={() => selectVehicle(charge, selectedLineIndex || 0)}
                               className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white px-6 py-3"
                             >
                               Select
