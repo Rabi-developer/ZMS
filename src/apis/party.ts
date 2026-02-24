@@ -47,7 +47,7 @@ const getSingleParty = async (id: string) => {
 // Update Party
 const updateParty = async (id: string, Party: any) => {
   try {
-    const response = await apiFetch(`Party/${id}`, {
+    const response = await apiFetch(`Party/`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
