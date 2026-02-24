@@ -654,9 +654,43 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         console.warn('Skipping history check - missing required fields:', { vehicleNo, orderNo, chargeNo });
       }
 
-      // No history or history check skipped - use charge amount only (not BillPaymentInvoice)
-      console.log('No history found or history check skipped - using Charge amount only');
+      // No history or history check skipped - calculate amount with Munshyana deduction if BillPaymentInvoice exists
+      console.log('No history found or history check skipped - checking for BillPaymentInvoice');
       let finalAmount = charge.amount || null;
+
+      // Use vehicle number from the already selected booking order
+      const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
+
+      // Check if there's a matching billpaymentinvoice for this order/vehicle
+      const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
+        if (!bill.lines || !Array.isArray(bill.lines)) return false;
+        return bill.lines.some((line: any) =>
+          !line.isAdditionalLine &&
+          (line.vehicleNo === selectedVehicleNo || line.orderNo === orderNo)
+        );
+      });
+
+      // If matching billpayment found, calculate amount after Munshyana deduction
+      if (matchingBillPayment && matchingBillPayment.lines) {
+        const mainLine = matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
+        
+        if (mainLine) {
+          // Start with charge amount
+          const chargeAmount = Number(charge.amount) || 0;
+          
+          // Get munshyana deduction from bill payment invoice
+          const munshayanaDeduction = Number(mainLine.munshayana) || 0;
+          
+          // Calculate final amount after munshyana deduction
+          finalAmount = chargeAmount - munshayanaDeduction;
+          
+          console.log('Amount calculation with Munshyana:', {
+            originalChargeAmount: chargeAmount,
+            munshayanaDeduction: munshayanaDeduction,
+            finalAmount: finalAmount
+          });
+        }
+      }
 
       setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
@@ -676,6 +710,27 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       toast.warning('Could not check payment history. Proceeding with charge selection.');
       
       let finalAmount = charge.amount || null;
+      
+      // Try to apply Munshyana deduction in error case too
+      const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
+      const orderNo = charge.orderNo || '';
+      const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
+        if (!bill.lines || !Array.isArray(bill.lines)) return false;
+        return bill.lines.some((line: any) =>
+          !line.isAdditionalLine &&
+          (line.vehicleNo === selectedVehicleNo || line.orderNo === orderNo)
+        );
+      });
+      
+      if (matchingBillPayment && matchingBillPayment.lines) {
+        const mainLine = matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
+        if (mainLine) {
+          const chargeAmount = Number(charge.amount) || 0;
+          const munshayanaDeduction = Number(mainLine.munshayana) || 0;
+          finalAmount = chargeAmount - munshayanaDeduction;
+        }
+      }
+      
       setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.chargeNo`, String(charge.chargeNo || ''), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
