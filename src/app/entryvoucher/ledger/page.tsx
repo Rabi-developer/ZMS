@@ -797,7 +797,13 @@ const LedgerPage: React.FC = () => {
 
         groupMap[key].rows.push({
           _idx: groupMap[key].rows.length,
-          voucherDate: v.voucherDate || '-',
+          voucherDate: v.voucherDate ? (() => {
+            const date = new Date(v.voucherDate);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}-${month}-${year}`;
+          })() : '-',
           voucherNo: v.voucherNo || '-',
           chequeNo: v.chequeNo || '-',
           depositSlipNo: v.depositSlipNo || '-',
@@ -849,9 +855,18 @@ const LedgerPage: React.FC = () => {
         groupMap[key].totals.debit1 += debit;
         groupMap[key].totals.credit1 += credit;
 
+        // Format date to DD-MM-YYYY
+        const formattedDate = date ? (() => {
+          const dateObj = new Date(date);
+          const day = String(dateObj.getDate()).padStart(2, '0');
+          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+          const year = dateObj.getFullYear();
+          return `${day}-${month}-${year}`;
+        })() : '-';
+
         groupMap[key].rows.push({
           _idx: groupMap[key].rows.length,
-          voucherDate: date || '-',
+          voucherDate: formattedDate,
           voucherNo: voucherNo || '-',
           chequeNo: chequeNo || '-',
           depositSlipNo: '-',
@@ -881,27 +896,33 @@ const LedgerPage: React.FC = () => {
         const receiptAmount = Number(receipt.receiptAmount || 0);
         if (receiptAmount === 0) return;
         
-        // Determine account name based on payment mode
-        const accountName = receipt.paymentMode === 'Cash' 
-          ? 'Petty Cash' 
-          : (receipt.paymentMode === 'Cheque' || receipt.paymentMode === 'Bank Transfer') 
-            ? receipt.bankName || receipt.paymentMode 
-            : 'Cash';
+        // Determine account ID and name based on payment mode
+        let cashAccountId = '';
+        let accountDisplayName = '';
         
-        const narration = `[${accountName}] Receipt from ${receipt.party || 'Party'} - ${receipt.remarks || ''}`;
+        if (receipt.paymentMode === 'Cash') {
+          cashAccountId = 'Petty Cash'; // Use account name as ID for now
+          accountDisplayName = 'Petty Cash';
+        } else if (receipt.paymentMode === 'Cheque' || receipt.paymentMode === 'Bank Transfer') {
+          // Use bank name as account ID
+          cashAccountId = receipt.bankName || receipt.paymentMode;
+          accountDisplayName = receipt.bankName || receipt.paymentMode;
+        } else {
+          cashAccountId = 'Cash';
+          accountDisplayName = 'Cash';
+        }
         
-        // Find the cash/bank account ID (you may need to adjust this based on your account structure)
-        // For now, we'll use a placeholder - you should map this to actual account IDs
-        const cashAccountId = 'assets'; // This should be mapped to actual Petty Cash or Bank account
+        const narration = `Receipt from Party - ${receipt.remarks || ''}`;
         
+        // Debit cash/bank account (cash increases)
         pushSimpleRow(
           cashAccountId,
           receipt.receiptDate,
           receipt.receiptNo || 'Receipt',
           receipt.chequeNo || '',
-          narration,
-          receiptAmount, // Debit (cash/bank increases)
-          0 // Credit
+          `[${accountDisplayName}] ${narration}`,
+          receiptAmount,
+          0
         );
         
         // Credit to party account (if party account exists)
@@ -912,8 +933,8 @@ const LedgerPage: React.FC = () => {
             receipt.receiptNo || 'Receipt',
             receipt.chequeNo || '',
             `Receipt - ${receipt.remarks || ''}`,
-            0, // Debit
-            receiptAmount // Credit (party liability decreases)
+            0,
+            receiptAmount
           );
         }
       });
@@ -925,26 +946,33 @@ const LedgerPage: React.FC = () => {
         const paymentAmount = Number(payment.paymentAmount || 0);
         if (paymentAmount === 0) return;
         
-        // Determine account name based on payment mode
-        const accountName = payment.paymentMode === 'Cash' 
-          ? 'Petty Cash' 
-          : (payment.paymentMode === 'Cheque' || payment.paymentMode === 'Bank Transfer') 
-            ? payment.bankName || payment.paymentMode 
-            : 'Cash';
+        // Determine account ID and name based on payment mode
+        let cashAccountId = '';
+        let accountDisplayName = '';
         
-        const narration = `[${accountName}] Payment to ${payment.paidTo || 'Vendor'} - ${payment.remarks || ''}`;
+        if (payment.paymentMode === 'Cash') {
+          cashAccountId = 'Petty Cash'; // Use account name as ID for now
+          accountDisplayName = 'Petty Cash';
+        } else if (payment.paymentMode === 'Cheque' || payment.paymentMode === 'Bank Transfer') {
+          // Use bank name as account ID
+          cashAccountId = payment.bankName || payment.paymentMode;
+          accountDisplayName = payment.bankName || payment.paymentMode;
+        } else {
+          cashAccountId = 'Cash';
+          accountDisplayName = 'Cash';
+        }
         
-        // Find the cash/bank account ID
-        const cashAccountId = 'assets'; // This should be mapped to actual Petty Cash or Bank account
+        const narration = `Payment to Vendor - ${payment.remarks || ''}`;
         
+        // Credit cash/bank account (cash decreases)
         pushSimpleRow(
           cashAccountId,
           payment.paymentDate,
           payment.paymentNo || 'Payment',
           payment.chequeNo || '',
-          narration,
-          0, // Debit
-          paymentAmount // Credit (cash/bank decreases)
+          `[${accountDisplayName}] ${narration}`,
+          0,
+          paymentAmount
         );
         
         // Debit to vendor/expense account (if paidTo exists)
@@ -955,8 +983,8 @@ const LedgerPage: React.FC = () => {
             payment.paymentNo || 'Payment',
             payment.chequeNo || '',
             `Payment - ${payment.remarks || ''}`,
-            paymentAmount, // Debit (expense increases)
-            0 // Credit
+            paymentAmount,
+            0
           );
         }
       });
@@ -1006,9 +1034,18 @@ const LedgerPage: React.FC = () => {
           const credit = obEntry.credit;
           const balance = debit - credit;
           
+          // Format date to DD-MM-YYYY
+          const formattedDate = obEntry.date ? (() => {
+            const dateObj = new Date(obEntry.date);
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const year = dateObj.getFullYear();
+            return `${day}-${month}-${year}`;
+          })() : '-';
+          
           groupMap[accountId].rows.push({
             _idx: -1,
-            voucherDate: obEntry.date || '-',
+            voucherDate: formattedDate,
             voucherNo: 'Opening Balance',
             chequeNo: '-',
             depositSlipNo: '-',
@@ -1080,8 +1117,16 @@ const LedgerPage: React.FC = () => {
   };
 
   const titleLine = useMemo(() => {
-    const f = fromDate ? new Date(fromDate).toLocaleDateString('en-GB').split('/').join('-') : '-';
-    const t = toDate ? new Date(toDate).toLocaleDateString('en-GB').split('/').join('-') : '-';
+    const formatDate = (dateStr: string) => {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    };
+    const f = fromDate ? formatDate(fromDate) : '-';
+    const t = toDate ? formatDate(toDate) : '-';
     return `General Ledger From ${f} To ${t}`;
   }, [fromDate, toDate]);
 
