@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { getAllEntryVoucher } from '@/apis/entryvoucher';
 import { getAllAccountOpeningBalance } from '@/apis/accountopeningbalance';
+import { getAllReceipt } from '@/apis/receipt';
+import { getAllPaymentABL } from '@/apis/paymentABL';
 import { getAllAblAssests } from '@/apis/ablAssests';
 import { getAllAblRevenue } from '@/apis/ablRevenue';
 import { getAllAblLiabilities } from '@/apis/ablliabilities';
@@ -594,6 +596,34 @@ const LedgerPage: React.FC = () => {
         pageIndex += 1;
       } while (pageIndex <= totalPages);
 
+      // Fetch all receipts
+      const allReceipts: any[] = [];
+      let receiptPageIndex = 1;
+      let receiptTotalPages = 1;
+      do {
+        const res: any = await getAllReceipt(receiptPageIndex, 100);
+        const data = res?.data || [];
+        allReceipts.push(...data);
+        receiptTotalPages = res?.misc?.totalPages || 1;
+        receiptPageIndex += 1;
+      } while (receiptPageIndex <= receiptTotalPages);
+      
+      console.log('Loaded receipts:', allReceipts.length);
+
+      // Fetch all payment ABL
+      const allPaymentsABL: any[] = [];
+      let paymentPageIndex = 1;
+      let paymentTotalPages = 1;
+      do {
+        const res: any = await getAllPaymentABL(paymentPageIndex, 100);
+        const data = res?.data || [];
+        allPaymentsABL.push(...data);
+        paymentTotalPages = res?.misc?.totalPages || 1;
+        paymentPageIndex += 1;
+      } while (paymentPageIndex <= paymentTotalPages);
+      
+      console.log('Loaded payments ABL:', allPaymentsABL.length);
+
       // Fetch all account opening balances
       const openingBalanceEntries: Array<{ 
         accountId: string; 
@@ -789,6 +819,52 @@ const LedgerPage: React.FC = () => {
         });
       };
 
+      // Helper function to add Receipt/PaymentABL entries
+      const pushSimpleRow = (accountId: string, date: string, voucherNo: string, chequeNo: string, narration: string, debit: number, credit: number) => {
+        let accInfo = accountIndex[accountId];
+        if (!accInfo) {
+          const foundAccount = findAccountById(accountId, topLevelAccounts);
+          if (foundAccount) {
+            accInfo = { 
+              id: foundAccount.id, 
+              listid: foundAccount.listid || foundAccount.id, 
+              description: foundAccount.description || foundAccount.id 
+            };
+          } else {
+            accInfo = { id: accountId, listid: accountId, description: accountId };
+          }
+        }
+        
+        const key = accountId;
+        if (!groupMap[key]) {
+          groupMap[key] = {
+            accountId,
+            description: accInfo.description,
+            listid: accInfo.listid,
+            rows: [],
+            totals: { credit1: 0, debit1: 0, pb1: 0 },
+          };
+        }
+
+        groupMap[key].totals.debit1 += debit;
+        groupMap[key].totals.credit1 += credit;
+
+        groupMap[key].rows.push({
+          _idx: groupMap[key].rows.length,
+          voucherDate: date || '-',
+          voucherNo: voucherNo || '-',
+          chequeNo: chequeNo || '-',
+          depositSlipNo: '-',
+          narration: narration || '-',
+          debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+          pb1: '0.00',
+          debit1Num: debit,
+          credit1Num: credit,
+          pb1Num: 0,
+        });
+      };
+
       filteredVouchers.forEach((v) => {
         (v.voucherDetails || []).forEach((r) => {
           const inSel1 = selectedKeys.size === 0 || selectedKeys.has(normalize(r.account1));
@@ -796,6 +872,93 @@ const LedgerPage: React.FC = () => {
           if (inSel1 && r.account1) pushRow(r.account1, v, r);
           if (inSel2 && r.account2) pushRow(r.account2, v, r);
         });
+      });
+
+      // Process Receipts
+      allReceipts.forEach((receipt: any) => {
+        if (!withinDate(receipt.receiptDate) || !matchesStatus(receipt.status)) return;
+        
+        const receiptAmount = Number(receipt.receiptAmount || 0);
+        if (receiptAmount === 0) return;
+        
+        // Determine account name based on payment mode
+        const accountName = receipt.paymentMode === 'Cash' 
+          ? 'Petty Cash' 
+          : (receipt.paymentMode === 'Cheque' || receipt.paymentMode === 'Bank Transfer') 
+            ? receipt.bankName || receipt.paymentMode 
+            : 'Cash';
+        
+        const narration = `[${accountName}] Receipt from ${receipt.party || 'Party'} - ${receipt.remarks || ''}`;
+        
+        // Find the cash/bank account ID (you may need to adjust this based on your account structure)
+        // For now, we'll use a placeholder - you should map this to actual account IDs
+        const cashAccountId = 'assets'; // This should be mapped to actual Petty Cash or Bank account
+        
+        pushSimpleRow(
+          cashAccountId,
+          receipt.receiptDate,
+          receipt.receiptNo || 'Receipt',
+          receipt.chequeNo || '',
+          narration,
+          receiptAmount, // Debit (cash/bank increases)
+          0 // Credit
+        );
+        
+        // Credit to party account (if party account exists)
+        if (receipt.party) {
+          pushSimpleRow(
+            receipt.party,
+            receipt.receiptDate,
+            receipt.receiptNo || 'Receipt',
+            receipt.chequeNo || '',
+            `Receipt - ${receipt.remarks || ''}`,
+            0, // Debit
+            receiptAmount // Credit (party liability decreases)
+          );
+        }
+      });
+
+      // Process Payment ABL
+      allPaymentsABL.forEach((payment: any) => {
+        if (!withinDate(payment.paymentDate) || !matchesStatus(payment.status)) return;
+        
+        const paymentAmount = Number(payment.paymentAmount || 0);
+        if (paymentAmount === 0) return;
+        
+        // Determine account name based on payment mode
+        const accountName = payment.paymentMode === 'Cash' 
+          ? 'Petty Cash' 
+          : (payment.paymentMode === 'Cheque' || payment.paymentMode === 'Bank Transfer') 
+            ? payment.bankName || payment.paymentMode 
+            : 'Cash';
+        
+        const narration = `[${accountName}] Payment to ${payment.paidTo || 'Vendor'} - ${payment.remarks || ''}`;
+        
+        // Find the cash/bank account ID
+        const cashAccountId = 'assets'; // This should be mapped to actual Petty Cash or Bank account
+        
+        pushSimpleRow(
+          cashAccountId,
+          payment.paymentDate,
+          payment.paymentNo || 'Payment',
+          payment.chequeNo || '',
+          narration,
+          0, // Debit
+          paymentAmount // Credit (cash/bank decreases)
+        );
+        
+        // Debit to vendor/expense account (if paidTo exists)
+        if (payment.paidTo) {
+          pushSimpleRow(
+            payment.paidTo,
+            payment.paymentDate,
+            payment.paymentNo || 'Payment',
+            payment.chequeNo || '',
+            `Payment - ${payment.remarks || ''}`,
+            paymentAmount, // Debit (expense increases)
+            0 // Credit
+          );
+        }
       });
 
       // Add opening balance entries as separate rows
