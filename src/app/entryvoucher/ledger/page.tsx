@@ -795,27 +795,27 @@ const LedgerPage: React.FC = () => {
         groupMap[key].totals.debit1 += debit;
         groupMap[key].totals.credit1 += credit;
 
+        // Determine display name based on payment mode for Voucher Date column
+        let voucherDateDisplay = '';
+        if (v.paymentMode && v.paymentMode.toLowerCase() === 'cash') {
+          voucherDateDisplay = 'Petty Cash';
+        } else if (v.paymentMode && (v.paymentMode.toLowerCase() === 'cheque' || v.paymentMode.toLowerCase() === 'bank transfer')) {
+          voucherDateDisplay = v.bankName || 'Petty Cash';
+        } else if (v.bankName) {
+          // If bankName exists but no payment mode, show bank name
+          voucherDateDisplay = v.bankName;
+        } else {
+          // Default: show Petty Cash
+          voucherDateDisplay = 'Petty Cash';
+        }
+
         groupMap[key].rows.push({
           _idx: groupMap[key].rows.length,
-          voucherDate: v.voucherDate ? (() => {
-            const date = new Date(v.voucherDate);
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}-${month}-${year}`;
-          })() : '-',
+          voucherDate: voucherDateDisplay,
           voucherNo: v.voucherNo || '-',
           chequeNo: v.chequeNo || '-',
           depositSlipNo: v.depositSlipNo || '-',
-          narration: (() => {
-            const paymentDetail = v.paymentMode === 'Cash' 
-              ? 'Petty Cash' 
-              : (v.paymentMode === 'Cheque' || v.paymentMode === 'Bank Transfer') 
-                ? v.bankName || v.paymentMode 
-                : '';
-            const baseNarration = v.narration || v.description || r.narration || '-';
-            return paymentDetail ? `[${paymentDetail}] ${baseNarration}` : baseNarration;
-          })(),
+          narration: v.narration || v.description || r.narration || '-',
           debit1: debit ? debit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           credit1: credit ? credit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
           pb1: pb.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
@@ -826,7 +826,7 @@ const LedgerPage: React.FC = () => {
       };
 
       // Helper function to add Receipt/PaymentABL entries
-      const pushSimpleRow = (accountId: string, date: string, voucherNo: string, chequeNo: string, narration: string, debit: number, credit: number) => {
+      const pushSimpleRow = (accountId: string, date: string, voucherNo: string, chequeNo: string, narration: string, debit: number, credit: number, paymentMode?: string, bankName?: string) => {
         let accInfo = accountIndex[accountId];
         if (!accInfo) {
           const foundAccount = findAccountById(accountId, topLevelAccounts);
@@ -855,18 +855,21 @@ const LedgerPage: React.FC = () => {
         groupMap[key].totals.debit1 += debit;
         groupMap[key].totals.credit1 += credit;
 
-        // Format date to DD-MM-YYYY
-        const formattedDate = date ? (() => {
-          const dateObj = new Date(date);
-          const day = String(dateObj.getDate()).padStart(2, '0');
-          const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-          const year = dateObj.getFullYear();
-          return `${day}-${month}-${year}`;
-        })() : '-';
+        // Determine display for Voucher Date column
+        let voucherDateDisplay = '';
+        if (paymentMode && paymentMode.toLowerCase() === 'cash') {
+          voucherDateDisplay = 'Petty Cash';
+        } else if (paymentMode && (paymentMode.toLowerCase() === 'cheque' || paymentMode.toLowerCase() === 'bank transfer')) {
+          voucherDateDisplay = bankName || 'Petty Cash';
+        } else if (bankName) {
+          voucherDateDisplay = bankName;
+        } else {
+          voucherDateDisplay = 'Petty Cash';
+        }
 
         groupMap[key].rows.push({
           _idx: groupMap[key].rows.length,
-          voucherDate: formattedDate,
+          voucherDate: voucherDateDisplay,
           voucherNo: voucherNo || '-',
           chequeNo: chequeNo || '-',
           depositSlipNo: '-',
@@ -920,9 +923,11 @@ const LedgerPage: React.FC = () => {
           receipt.receiptDate,
           receipt.receiptNo || 'Receipt',
           receipt.chequeNo || '',
-          `[${accountDisplayName}] ${narration}`,
+          narration,
           receiptAmount,
-          0
+          0,
+          receipt.paymentMode,
+          receipt.bankName
         );
         
         // Credit to party account (if party account exists)
@@ -934,7 +939,9 @@ const LedgerPage: React.FC = () => {
             receipt.chequeNo || '',
             `Receipt - ${receipt.remarks || ''}`,
             0,
-            receiptAmount
+            receiptAmount,
+            receipt.paymentMode,
+            receipt.bankName
           );
         }
       });
@@ -970,9 +977,11 @@ const LedgerPage: React.FC = () => {
           payment.paymentDate,
           payment.paymentNo || 'Payment',
           payment.chequeNo || '',
-          `[${accountDisplayName}] ${narration}`,
+          narration,
           0,
-          paymentAmount
+          paymentAmount,
+          payment.paymentMode,
+          payment.bankName
         );
         
         // Debit to vendor/expense account (if paidTo exists)
@@ -984,7 +993,9 @@ const LedgerPage: React.FC = () => {
             payment.chequeNo || '',
             `Payment - ${payment.remarks || ''}`,
             paymentAmount,
-            0
+            0,
+            payment.paymentMode,
+            payment.bankName
           );
         }
       });
