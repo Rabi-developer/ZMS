@@ -19,6 +19,12 @@ export interface Receipt {
   status: string;
   orderNo?: string;
   remarks?: string;
+  items?: Array<{
+    biltyNo: string;
+    vehicleNo: string;
+    balance: number;
+    receiptAmount: number;
+  }>;
 }
 
 export const getStatusStyles = (status: string) => {
@@ -63,21 +69,91 @@ export const columns = (
     header: 'Receipt No',
     accessorKey: 'receiptNo',
     enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Receipt Date',
     accessorKey: 'receiptDate',
     enableColumnFilter: true,
+    filterFn: 'includesString',
+  },
+  {
+    header: 'Bilty No',
+    accessorKey: 'biltyNo',
+    cell: ({ row }: { row: Row<Receipt> }) => {
+      const biltyNos = row.original.items?.map(item => item.biltyNo).filter(Boolean) || [];
+      const displayCount = 2;
+      const remaining = biltyNos.length - displayCount;
+      
+      if (biltyNos.length === 0) {
+        return <span className="text-sm font-medium text-gray-700 dark:text-gray-300">-</span>;
+      }
+      
+      const displayItems = biltyNos.slice(0, displayCount).join(', ');
+      
+      return (
+        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          {displayItems}
+          {remaining > 0 && (
+            <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 font-semibold">
+              ... +{remaining} more
+            </span>
+          )}
+        </span>
+      );
+    },
+    enableColumnFilter: true,
+    filterFn: (row, columnId, filterValue) => {
+      // Search through ALL bilty numbers, not just visible ones
+      const biltyNos = row.original.items?.map(item => item.biltyNo).filter(Boolean) || [];
+      const searchTerm = filterValue.toLowerCase();
+      return biltyNos.some(bilty => bilty.toLowerCase().includes(searchTerm));
+    },
+  },
+  {
+    header: 'Vehicle No',
+    accessorKey: 'vehicleNo',
+    cell: ({ row }: { row: Row<Receipt> }) => {
+      const vehicleNos = row.original.items?.map(item => item.vehicleNo).filter(Boolean) || [];
+      const displayCount = 2;
+      const remaining = vehicleNos.length - displayCount;
+      
+      if (vehicleNos.length === 0) {
+        return <span className="text-sm text-gray-600 dark:text-gray-400">-</span>;
+      }
+      
+      const displayItems = vehicleNos.slice(0, displayCount).join(', ');
+      
+      return (
+        <span className="text-sm text-gray-600 dark:text-gray-400">
+          {displayItems}
+          {remaining > 0 && (
+            <span className="ml-1 text-xs text-blue-600 dark:text-blue-400 font-semibold">
+              ... +{remaining} more
+            </span>
+          )}
+        </span>
+      );
+    },
+    enableColumnFilter: true,
+    filterFn: (row, columnId, filterValue) => {
+      // Search through ALL vehicle numbers, not just visible ones
+      const vehicleNos = row.original.items?.map(item => item.vehicleNo).filter(Boolean) || [];
+      const searchTerm = filterValue.toLowerCase();
+      return vehicleNos.some(vehicle => vehicle.toLowerCase().includes(searchTerm));
+    },
   },
   {
     header: 'Bank Name',
     accessorKey: 'bankName',
     enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Party',
     accessorKey: 'party',
     enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Receipt Amount',
@@ -91,16 +167,27 @@ export const columns = (
       );
     },
     enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
-    header: 'Payment Mode',
-    accessorKey: 'paymentMode',
+    header: 'Balance',
+    accessorKey: 'balance',
+    cell: ({ row }: { row: Row<Receipt> }) => {
+      const totalBalance = row.original.items?.reduce((sum, item) => sum + (item.balance || 0), 0) || 0;
+      return (
+        <span className={`font-medium ${totalBalance > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+          {totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+      );
+    },
     enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   // {
-  //   header: 'Cheque No',
-  //   accessorKey: 'chequeNo',
+  //   header: 'Payment Mode',
+  //   accessorKey: 'paymentMode',
   //   enableColumnFilter: true,
+  //   filterFn: 'includesString',
   // },
   {
     header: 'Remarks',
@@ -111,6 +198,7 @@ export const columns = (
       </span>
     ),
     enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Status',
@@ -121,6 +209,7 @@ export const columns = (
       </span>
     ),
     enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Actions',

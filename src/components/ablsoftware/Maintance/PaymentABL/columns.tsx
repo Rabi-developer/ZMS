@@ -68,46 +68,85 @@ export const columns = (
   {
     header: 'Payment No',
     accessorKey: 'paymentNo',
-    // cell: ({ row }: { row: Row<PaymentABL> }) => (
-    //   <span>{row.index + 1}</span>
-    // ),
+    enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Payment Date',
     accessorKey: 'paymentDate',
+    enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Paid To',
     accessorKey: 'paidTo',
+    enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Payment Mode',
     accessorKey: 'paymentMode',
+    enableColumnFilter: true,
+    filterFn: 'includesString',
+  },
+  {
+    header: 'Bank Name',
+    accessorKey: 'bankName',
+    enableColumnFilter: true,
+    filterFn: 'includesString',
+  },
+  {
+    header: 'Cheque No',
+    accessorKey: 'chequeNo',
+    enableColumnFilter: true,
+    filterFn: 'includesString',
+  },
+  {
+    header: 'Paid Amount',
+    accessorKey: 'paidAmount',
+    cell: ({ row }: { row: Row<PaymentABL> }) => {
+      const amount = Number(row.original.paidAmount) || 0;
+      return (
+        <span className="font-medium">
+          {amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </span>
+      );
+    },
+    enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Order No',
+    accessorKey: 'orderNo',
     cell: ({ row }: { row: Row<PaymentABL> }) => {
       const items = row.original.PaymentABLItem ?? row.original.paymentABLItem ?? [];
       const orderNos = Array.isArray(items) ? items.map((item: any) => item.orderNo).filter(Boolean) : [];
-      return <span>{orderNos.join(', ')}</span>;
+      return <span className="text-sm text-gray-700 dark:text-gray-300">{orderNos.join(', ') || '-'}</span>;
     },
+    enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Vehicle No',
+    accessorKey: 'vehicleNo',
     cell: ({ row }: { row: Row<PaymentABL> }) => {
       const items = row.original.PaymentABLItem ?? row.original.paymentABLItem ?? [];
       const vehicleNos = Array.isArray(items) ? items.map((item: any) => item.vehicleNo).filter(Boolean) : [];
-      return <span>{vehicleNos.join(', ')}</span>;
+      return <span className="text-sm text-gray-600 dark:text-gray-400">{vehicleNos.join(', ') || '-'}</span>;
     },
+    enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Status',
     accessorKey: 'status',
     cell: ({ row }: { row: Row<PaymentABL> }) => (
-      <span className={`px-2 py-1 rounded-full ${getStatusStyles(row.original.status || 'Pending')}`}>
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusStyles(row.original.status || 'Pending')}`}>
         {row.original.status || 'Pending'}
       </span>
     ),
+    enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   {
     header: 'Actions',

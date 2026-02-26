@@ -79,6 +79,7 @@ const ReceiptList = () => {
         ...receipt,
         orderNo: receipt.items?.[0]?.vehicleNo || receipt.orderNo || '-',
         files: receipt.files || '', // Preserve files field
+        items: receipt.items || [], // Preserve items array with biltyNo, vehicleNo, balance
       }));
 
       setReceipts(transformedReceipts);
