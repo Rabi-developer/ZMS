@@ -770,7 +770,12 @@ const BookingOrderReportExport: React.FC = () => {
       return found?.mobile || '-';
     };
 
-    const paidByOrderNo = paymentABL.reduce((acc: Record<string, number>, p: any) => {
+    // Filter paymentABL to only include approved payments
+    const approvedPayments = paymentABL.filter((p: any) => 
+      String(p?.status ?? p?.Status ?? "").toLowerCase() === 'approved'
+    );
+
+    const paidByOrderNo = approvedPayments.reduce((acc: Record<string, number>, p: any) => {
       const items = p?.paymentABLItems || p?.paymentABLItem || [];
       if (!Array.isArray(items) || items.length === 0) {
         const key = String(p?.orderNo ?? p?.OrderNo ?? "").trim();
@@ -786,7 +791,7 @@ const BookingOrderReportExport: React.FC = () => {
       return acc;
     }, {});
 
-    const paidByChargeNo = paymentABL.reduce((acc: Record<string, number>, p: any) => {
+    const paidByChargeNo = approvedPayments.reduce((acc: Record<string, number>, p: any) => {
       const items = p?.paymentABLItems || p?.paymentABLItem || [];
       if (!Array.isArray(items) || items.length === 0) {
         const key = String(p?.charges ?? p?.chargeNo ?? p?.ChargeNo ?? "").trim();
@@ -820,7 +825,7 @@ const BookingOrderReportExport: React.FC = () => {
       return acc;
     }, {});
 
-    const paidByBiltyNo = paymentABL.reduce((acc: Record<string, number>, p: any) => {
+    const paidByBiltyNo = approvedPayments.reduce((acc: Record<string, number>, p: any) => {
       const items = p?.paymentABLItems || p?.paymentABLItem || [];
       if (!Array.isArray(items) || items.length === 0) {
         const key = String(p?.biltyNo ?? p?.BiltyNo ?? "").trim();
@@ -863,38 +868,76 @@ const BookingOrderReportExport: React.FC = () => {
         const brokerMobile = findBrokerMobile(brokerField);
         const dueDate = line.dueDate || inv.dueDate || undefined;
         const biltyNo = String(line.biltyNo ?? line.BiltyNo ?? "").trim();
+        const vehicleNo = line.vehicleNo || '-';
 
         // Filter by broker if selected
         if (selectedBroker !== 'All' && brokerName !== selectedBroker) return;
 
-        // Find matching payment in PaymentABL
+        // Find matching payment in PaymentABL - try multiple matching strategies
         const totalPaidByOrder = orderNo ? (paidByOrderNo[orderNo] || 0) : 0;
         const totalPaidByBilty = biltyNo ? (paidByBiltyNo[biltyNo] || 0) : 0;
         const chargeNos = orderNo ? (chargeNosByOrder[orderNo] || []) : [];
         const totalPaidByCharges = chargeNos.reduce((sum, ch) => sum + (paidByChargeNo[ch] || 0), 0);
-        const totalPaid = totalPaidByCharges > 0
-          ? totalPaidByCharges
-          : Math.max(totalPaidByOrder, totalPaidByBilty);
+        
+        // Try to find payment by matching orderNo + vehicleNo combination
+        let totalPaidByOrderVehicle = 0;
+        if (orderNo && vehicleNo && vehicleNo !== '-') {
+          approvedPayments.forEach((p: any) => {
+            const items = p?.paymentABLItems || p?.paymentABLItem || [];
+            if (Array.isArray(items)) {
+              items.forEach((item: any) => {
+                const itemOrderNo = String(item?.orderNo ?? item?.OrderNo ?? "").trim();
+                const itemVehicleNo = String(item?.vehicleNo ?? item?.VehicleNo ?? "").trim();
+                if (itemOrderNo === orderNo && itemVehicleNo === vehicleNo) {
+                  totalPaidByOrderVehicle += Number(item?.paidAmount ?? item?.PaidAmount ?? 0) || 0;
+                }
+              });
+            }
+          });
+        }
+        
+        // Use the best matching strategy
+        const totalPaid = totalPaidByOrderVehicle > 0
+          ? totalPaidByOrderVehicle
+          : (totalPaidByCharges > 0
+            ? totalPaidByCharges
+            : Math.max(totalPaidByOrder, totalPaidByBilty));
 
         const balance = invoiceAmount - totalPaid;
-        const includeInPaid = totalPaid > 0; // include partial payments in Paid
-        const includeInUnpaid = totalPaid === 0; // unpaid means no payment at all
-
-        if ((type === 'Paid' && includeInPaid) || (type === 'Unpaid' && includeInUnpaid)) {
+        
+        // For Paid report: show if any payment made (show paid amount)
+        // For Unpaid report: show if any balance remaining (show balance amount)
+        if (type === 'Paid' && totalPaid > 0) {
           brokerBillRows.push({
             serial: serial++,
             orderNo: orderNo,
             invoiceNo: inv.invoiceNo|| '-',
             vehicleNo: line.vehicleNo || '-',
-            amount: invoiceAmount,
+            amount: totalPaid, // Show paid amount in Paid report
             dueDate: dueDate,
             paidAmount: totalPaid,
-            balance: balance,
+            balance: 0, // No balance in Paid report (already paid)
             brokerName: brokerName || '-',
             brokerMobile: brokerMobile,
             remarks: line.remarks || '',
-            munshyana: munshayanaDeduction,
-            otherCharges: totalAdditional,
+            munshyana: 0, // Don't show munshyana in Paid report
+            otherCharges: 0, // Don't show other charges in Paid report
+          });
+        } else if (type === 'Unpaid' && balance > 0) {
+          brokerBillRows.push({
+            serial: serial++,
+            orderNo: orderNo,
+            invoiceNo: inv.invoiceNo|| '-',
+            vehicleNo: line.vehicleNo || '-',
+            amount: balance, // Show remaining balance in Unpaid report
+            dueDate: dueDate,
+            paidAmount: totalPaid, // Show what was already paid
+            balance: balance, // Show remaining balance
+            brokerName: brokerName || '-',
+            brokerMobile: brokerMobile,
+            remarks: line.remarks || '',
+            munshyana: 0, // Don't show munshyana in Unpaid report
+            otherCharges: 0, // Don't show other charges in Unpaid report
           });
         }
       });
@@ -919,7 +962,7 @@ const BookingOrderReportExport: React.FC = () => {
 
       const paymentOnlyRows = new Set<string>();
 
-      paymentABL.forEach((p: any) => {
+      approvedPayments.forEach((p: any) => {
         const items = p?.paymentABLItems || p?.paymentABLItem || [];
         const basePaid = Number(p?.paidAmount ?? p?.PaidAmount) || 0;
         const basePaidTo = p?.paidTo ?? p?.PaidTo ?? '';
@@ -1005,9 +1048,9 @@ const BookingOrderReportExport: React.FC = () => {
             const paidAmount = paidByBiltyNo[biltyNo] || 0;
             const balance = entry.credit - paidAmount;
             
-            // For Paid report, only include if paidAmount > 0
-            // For Unpaid report, only include if balance > 0
-            if ((type === 'Paid' && paidAmount > 0) || (type === 'Unpaid' && balance > 0)) {
+            // For Paid report: show if any payment made (show paid amount)
+            // For Unpaid report: show if any balance remaining (show balance amount)
+            if (type === 'Paid' && paidAmount > 0) {
               const brokerName = entry.broker || 'Opening Balance';
               
               // Filter by broker if selected
@@ -1015,13 +1058,34 @@ const BookingOrderReportExport: React.FC = () => {
               
               brokerBillRows.push({
                 serial: serial++,
-                orderNo: `OB-${ob.openingNo}`,
-                invoiceNo: biltyNo,
-                vehicleNo: entry.vehicleNo || 'N/A',
-                amount: entry.credit,
+                orderNo: entry.vehicleNo || 'N/A', // Vehicle No goes to Order No column
+                invoiceNo: biltyNo, // Bilty No goes to Bill No column
+                vehicleNo: `OB-${ob.openingNo}`, // Opening No goes to Vehicle No column
+                amount: paidAmount, // Show paid amount in Paid report
                 dueDate: entry.biltyDate || ob.openingDate,
                 paidAmount: paidAmount,
-                balance: balance,
+                balance: 0, // No balance in Paid report
+                brokerName: brokerName,
+                brokerMobile: findBrokerMobile(brokerName),
+                remarks: entry.chargeType ? `Charge Type: ${entry.chargeType}` : 'Opening Balance',
+                munshyana: 0,
+                otherCharges: 0,
+              });
+            } else if (type === 'Unpaid' && balance > 0) {
+              const brokerName = entry.broker || 'Opening Balance';
+              
+              // Filter by broker if selected
+              if (selectedBroker !== 'All' && brokerName !== selectedBroker) return;
+              
+              brokerBillRows.push({
+                serial: serial++,
+                orderNo: entry.vehicleNo || 'N/A', // Vehicle No goes to Order No column
+                invoiceNo: biltyNo, // Bilty No goes to Bill No column
+                vehicleNo: `OB-${ob.openingNo}`, // Opening No goes to Vehicle No column
+                amount: balance, // Show remaining balance in Unpaid report
+                dueDate: entry.biltyDate || ob.openingDate,
+                paidAmount: paidAmount, // Show what was already paid
+                balance: balance, // Show remaining balance
                 brokerName: brokerName,
                 brokerMobile: findBrokerMobile(brokerName),
                 remarks: entry.chargeType ? `Charge Type: ${entry.chargeType}` : 'Opening Balance',
