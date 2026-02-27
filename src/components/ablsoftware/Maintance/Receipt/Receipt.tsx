@@ -459,19 +459,71 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   }
 };
 
-  const selectOpeningBalance = (index: number, ob: any) => {
-    setValue(`items.${index}.biltyNo`, ob.biltyNo, { shouldValidate: true });
-    setValue(`items.${index}.consignmentId`, ob.id, { shouldValidate: true });
-    setValue(`items.${index}.vehicleNo`, ob.vehicleNo, { shouldValidate: true });
-    setValue(`items.${index}.biltyDate`, ob.biltyDate, { shouldValidate: true });
-    setValue(`items.${index}.biltyAmount`, ob.totalAmount, { shouldValidate: true });
-    setValue(`items.${index}.srbAmount`, 0, { shouldValidate: true });
-    setValue(`items.${index}.balance`, ob.totalAmount, { shouldValidate: true });
-    setValue(`items.${index}.initialBalance`, ob.totalAmount, { shouldValidate: true });
-    setValue(`items.${index}.isOpeningBalance`, true, { shouldValidate: true });
-    setValue(`items.${index}.openingBalanceId`, ob.openingBalanceId, { shouldValidate: true });
-    setShowConsignmentPopup(null);
-    setSearchQuery('');
+  const selectOpeningBalance = async (index: number, ob: any) => {
+    try {
+      const biltyNo = ob.biltyNo || '';
+
+      // Check balance for opening balance using getBiltyBalance
+      if (biltyNo) {
+        try {
+          // Check bilty balance for this opening balance
+          const balanceData = await getBiltyBalance(biltyNo);
+          const remainingBalance = balanceData.balance || balanceData.remainingBalance || 0;
+          
+          console.log('Opening Balance - getBiltyBalance Response:', {
+            biltyNo,
+            balanceData,
+            remainingBalance
+          });
+
+          // If balance is 0 or negative, show error and prevent selection
+          if (remainingBalance <= 0) {
+            toast.error(`This opening balance has been fully paid. No remaining balance to receive.`);
+            console.log('Opening Balance fully paid - preventing selection');
+            return; // Don't allow selection
+          }
+
+          // If balance > 0, use that balance
+          console.log('✓ Opening Balance has remaining balance:', remainingBalance);
+          toast.info(`Opening Balance: Remaining balance is ${remainingBalance.toLocaleString()}.`);
+          
+          setValue(`items.${index}.biltyNo`, ob.biltyNo, { shouldValidate: true });
+          setValue(`items.${index}.consignmentId`, ob.id, { shouldValidate: true });
+          setValue(`items.${index}.vehicleNo`, ob.vehicleNo, { shouldValidate: true });
+          setValue(`items.${index}.biltyDate`, ob.biltyDate, { shouldValidate: true });
+          setValue(`items.${index}.biltyAmount`, remainingBalance, { shouldValidate: true });
+          setValue(`items.${index}.srbAmount`, 0, { shouldValidate: true });
+          setValue(`items.${index}.balance`, remainingBalance, { shouldValidate: true });
+          setValue(`items.${index}.initialBalance`, remainingBalance, { shouldValidate: true });
+          setValue(`items.${index}.isOpeningBalance`, true, { shouldValidate: true });
+          setValue(`items.${index}.openingBalanceId`, ob.openingBalanceId, { shouldValidate: true });
+          setShowConsignmentPopup(null);
+          setSearchQuery('');
+          return;
+        } catch (balanceError) {
+          console.warn('Opening Balance: Balance check failed, continuing with normal flow:', balanceError);
+          // Continue with normal flow if balance check fails
+        }
+      }
+
+      // No balance check or balance check failed - use opening balance amount
+      console.log('Opening Balance: Using original amount');
+      setValue(`items.${index}.biltyNo`, ob.biltyNo, { shouldValidate: true });
+      setValue(`items.${index}.consignmentId`, ob.id, { shouldValidate: true });
+      setValue(`items.${index}.vehicleNo`, ob.vehicleNo, { shouldValidate: true });
+      setValue(`items.${index}.biltyDate`, ob.biltyDate, { shouldValidate: true });
+      setValue(`items.${index}.biltyAmount`, ob.totalAmount, { shouldValidate: true });
+      setValue(`items.${index}.srbAmount`, 0, { shouldValidate: true });
+      setValue(`items.${index}.balance`, ob.totalAmount, { shouldValidate: true });
+      setValue(`items.${index}.initialBalance`, ob.totalAmount, { shouldValidate: true });
+      setValue(`items.${index}.isOpeningBalance`, true, { shouldValidate: true });
+      setValue(`items.${index}.openingBalanceId`, ob.openingBalanceId, { shouldValidate: true });
+      setShowConsignmentPopup(null);
+      setSearchQuery('');
+    } catch (error) {
+      console.error('Error selecting opening balance:', error);
+      toast.error('An error occurred while selecting opening balance');
+    }
   };
 
   const addTableRow = (e?: React.MouseEvent<HTMLButtonElement>) => {

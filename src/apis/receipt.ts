@@ -151,4 +151,5 @@ const getBiltyBalance = async (biltyNo: string) => {
     throw error;
   }
 };
+
 export { createReceipt , getAllReceipt , getAllReceiptPositions , getSingleReceipt , updateReceipt , deleteReceipt, updateReceiptStatus, updateReceiptFiles , getBiltyBalance};
