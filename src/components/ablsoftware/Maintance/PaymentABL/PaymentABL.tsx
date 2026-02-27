@@ -591,60 +591,75 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             isArray: Array.isArray(historyRes?.data)
           });
           
-          // History API returns data directly, not wrapped in .data
-          const historyData = Array.isArray(historyRes) ? historyRes : (historyRes?.data && Array.isArray(historyRes.data) ? historyRes.data : (historyRes ? [historyRes] : []));
-          console.log('Processed History Data:', historyData);
-          
-          const historyRecord = historyData.find((h: any) => {
-            console.log('Comparing:', {
-              historyVehicle: h.vehicleNo,
-              searchVehicle: vehicleNo,
-              vehicleMatch: h.vehicleNo === vehicleNo,
-              historyCharges: h.charges,
-              searchCharges: chargeNo,
-              chargesMatch: h.charges === chargeNo || h.charges === String(chargeNo),
-              historyOrder: h.orderNo,
-              searchOrder: orderNo,
-              orderMatch: h.orderNo === orderNo || h.orderNo === String(orderNo)
-            });
-            return (h.vehicleNo === vehicleNo || h.charges === chargeNo || h.charges === String(chargeNo)) && 
-                   (h.orderNo === orderNo || h.orderNo === String(orderNo));
-          });
-
-          console.log('History Record Found:', historyRecord);
-
-          // If history exists and balance is 0, show error
-          if (historyRecord && Number(historyRecord.balance) === 0) {
-            toast.error(`Payment already completed for Vehicle ${vehicleNo}. Balance is clear (0).`);
-            return; // Don't allow selection
-          }
-
-          // If history exists with balance > 0, use that balance
-          if (historyRecord && Number(historyRecord.balance) > 0) {
-            const remainingBalance = Number(historyRecord.balance);
-            console.log('✓ History found:', {
-              vehicleNo,
-              orderNo,
-              chargeNo,
-              historyBalance: remainingBalance,
-              historyPaidAmount: historyRecord.paidAmount
-            });
-            toast.info(`Previous balance found: ${remainingBalance.toLocaleString()}. Showing remaining balance.`);
+          // Handle null data case - if data is null, treat as no history
+          if (historyRes?.data === null) {
+            console.log('History data is null - no previous payment history, using charge amount');
+            // Fall through to use charge amount
+          } else {
+            // History API can return data as array or single object
+            let historyData = [];
+            if (Array.isArray(historyRes)) {
+              historyData = historyRes;
+            } else if (Array.isArray(historyRes?.data)) {
+              historyData = historyRes.data;
+            } else if (historyRes?.data && typeof historyRes.data === 'object') {
+              // Single object returned, wrap it in array
+              historyData = [historyRes.data];
+            }
             
-            setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
-            setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
-            setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
-            setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
-            // Set expense amount to the remaining balance from history
-            setValue(`paymentABLItems.${index}.expenseAmount`, remainingBalance, { shouldValidate: false });
-            // Set initial balance to the same as expense amount (will update when user enters paid amount)
-            setValue(`paymentABLItems.${index}.balance`, remainingBalance, { shouldValidate: false });
-            // Reset paid amount to null for new payment entry
-            setValue(`paymentABLItems.${index}.paidAmount`, null, { shouldValidate: false });
-            setValue('paidTo', charge.paidTo || watch('paidTo'), { shouldValidate: false });
-            setShowChargePopup(null);
-            setChargeSearch('');
-            return;
+            console.log('Processed History Data:', historyData);
+            
+            const historyRecord = historyData.find((h: any) => {
+              console.log('Comparing:', {
+                historyVehicle: h.vehicleNo,
+                searchVehicle: vehicleNo,
+                vehicleMatch: h.vehicleNo === vehicleNo,
+                historyCharges: h.charges,
+                searchCharges: chargeNo,
+                chargesMatch: h.charges === chargeNo || h.charges === String(chargeNo),
+                historyOrder: h.orderNo,
+                searchOrder: orderNo,
+                orderMatch: h.orderNo === orderNo || h.orderNo === String(orderNo)
+              });
+              return (h.vehicleNo === vehicleNo || h.charges === chargeNo || h.charges === String(chargeNo)) && 
+                     (h.orderNo === orderNo || h.orderNo === String(orderNo));
+            });
+
+            console.log('History Record Found:', historyRecord);
+
+            // If history exists and balance is 0, show error
+            if (historyRecord && Number(historyRecord.balance) === 0) {
+              toast.error(`Payment already completed for Vehicle ${vehicleNo}. Balance is clear (0).`);
+              return; // Don't allow selection
+            }
+
+            // If history exists with balance > 0, use that balance
+            if (historyRecord && Number(historyRecord.balance) > 0) {
+              const remainingBalance = Number(historyRecord.balance);
+              console.log('✓ History found:', {
+                vehicleNo,
+                orderNo,
+                chargeNo,
+                historyBalance: remainingBalance,
+                historyPaidAmount: historyRecord.paidAmount
+              });
+              toast.info(`Previous balance found: ${remainingBalance.toLocaleString()}. Showing remaining balance.`);
+              
+              setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
+              setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
+              setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
+              setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
+              // Set expense amount to the remaining balance from history
+              setValue(`paymentABLItems.${index}.expenseAmount`, remainingBalance, { shouldValidate: false });
+              // Set initial balance to the same as expense amount (will update when user enters paid amount)
+              setValue(`paymentABLItems.${index}.balance`, remainingBalance, { shouldValidate: false });
+              // Reset paid amount to null for new payment entry
+              setValue(`paymentABLItems.${index}.paidAmount`, null, { shouldValidate: false });
+              setValue('paidTo', charge.paidTo || watch('paidTo'), { shouldValidate: false });
+              setShowChargePopup(null);
+              setChargeSearch('');
+              return;
+            }
           }
         } catch (historyError) {
           console.warn('History check failed, continuing with normal flow:', historyError);
@@ -661,14 +676,35 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       // Use vehicle number from the already selected booking order
       const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
 
+      console.log('Looking for BillPaymentInvoice match:', {
+        selectedVehicleNo,
+        orderNo,
+        chargeNo,
+        totalBillPayments: billPaymentInvoices.length
+      });
+
       // Check if there's a matching billpaymentinvoice for this order/vehicle
       const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
         if (!bill.lines || !Array.isArray(bill.lines)) return false;
-        return bill.lines.some((line: any) =>
-          !line.isAdditionalLine &&
-          (line.vehicleNo === selectedVehicleNo || line.orderNo === orderNo)
-        );
+        const hasMatch = bill.lines.some((line: any) => {
+          const vehicleMatch = line.vehicleNo === selectedVehicleNo;
+          const orderMatch = line.orderNo === orderNo || line.orderNo === String(orderNo);
+          console.log('Checking bill line:', {
+            billId: bill.id,
+            lineVehicle: line.vehicleNo,
+            lineOrder: line.orderNo,
+            vehicleMatch,
+            orderMatch,
+            isAdditionalLine: line.isAdditionalLine,
+            bothMatch: vehicleMatch && orderMatch
+          });
+          // MUST match BOTH vehicle AND order (not just one)
+          return !line.isAdditionalLine && vehicleMatch && orderMatch;
+        });
+        return hasMatch;
       });
+
+      console.log('Matching BillPayment found:', matchingBillPayment ? 'Yes' : 'No', matchingBillPayment?.id);
 
       // If matching billpayment found, calculate amount after Munshyana deduction
       if (matchingBillPayment && matchingBillPayment.lines) {
@@ -687,9 +723,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           console.log('Amount calculation with Munshyana:', {
             originalChargeAmount: chargeAmount,
             munshayanaDeduction: munshayanaDeduction,
-            finalAmount: finalAmount
+            finalAmount: finalAmount,
+            mainLine: mainLine
           });
         }
+      } else {
+        console.log('No matching BillPayment - using charge amount as-is:', finalAmount);
       }
 
       setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
@@ -714,12 +753,20 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       // Try to apply Munshyana deduction in error case too
       const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
       const orderNo = charge.orderNo || '';
+      
+      console.log('Error case - checking for BillPaymentInvoice:', {
+        selectedVehicleNo,
+        orderNo
+      });
+      
       const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
         if (!bill.lines || !Array.isArray(bill.lines)) return false;
-        return bill.lines.some((line: any) =>
-          !line.isAdditionalLine &&
-          (line.vehicleNo === selectedVehicleNo || line.orderNo === orderNo)
-        );
+        return bill.lines.some((line: any) => {
+          const vehicleMatch = line.vehicleNo === selectedVehicleNo;
+          const orderMatch = line.orderNo === orderNo || line.orderNo === String(orderNo);
+          // MUST match BOTH vehicle AND order (not just one)
+          return !line.isAdditionalLine && vehicleMatch && orderMatch;
+        });
       });
       
       if (matchingBillPayment && matchingBillPayment.lines) {
@@ -728,6 +775,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           const chargeAmount = Number(charge.amount) || 0;
           const munshayanaDeduction = Number(mainLine.munshayana) || 0;
           finalAmount = chargeAmount - munshayanaDeduction;
+          
+          console.log('Error case - Munshyana deduction applied:', {
+            chargeAmount,
+            munshayanaDeduction,
+            finalAmount
+          });
         }
       }
       
