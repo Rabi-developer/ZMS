@@ -1,7 +1,7 @@
 import apiFetch from "@/components/utils/fetchInstance";
 
 // PaymentABL History - Get payment history for a vehicle/charge
-const getPaymentABLHistory = async (params?: { vehicleNo?: string; orderNo?: string; charges?: string }) => {
+const getPaymentABLHistory = async (params?: { vehicleNo?: string; orderNo?: string; charges?: string; isOpeningBalance?: boolean }) => {
   try {
     // Build query string if params provided
     let queryString = '';
@@ -10,6 +10,7 @@ const getPaymentABLHistory = async (params?: { vehicleNo?: string; orderNo?: str
       if (params.vehicleNo) queryParams.append('VehicleNo', params.vehicleNo);
       if (params.orderNo) queryParams.append('OrderNo', params.orderNo);
       if (params.charges) queryParams.append('Charges', params.charges);
+      if (params.isOpeningBalance) queryParams.append('IsOpeningBalance', 'true');
       queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
     }
     

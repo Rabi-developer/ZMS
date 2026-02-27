@@ -550,19 +550,119 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     setOrderSearch('');
   };
 
-  const selectOpeningBalance = (index: number, ob: any) => {
-    setValue(`paymentABLItems.${index}.vehicleNo`, ob.vehicleNo, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.orderNo`, ob.biltyNo, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.orderDate`, ob.biltyDate, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.expenseAmount`, ob.amount, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.balance`, ob.amount, { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.charges`, ob.broker || ob.chargeType || 'Opening Balance', { shouldValidate: true });
-    setValue(`paymentABLItems.${index}.chargeNo`, ob.openingBalanceId, { shouldValidate: true });
-    if (ob.broker) {
-      setValue('paidTo', ob.broker, { shouldValidate: true });
+  const selectOpeningBalance = async (index: number, ob: any) => {
+    try {
+      const vehicleNo = ob.vehicleNo || '';
+      const orderNo = ob.biltyNo || '';
+      const chargeNo = ob.openingBalanceId || '';
+
+      // Check history for opening balance if all required fields are present
+      if (vehicleNo && orderNo && chargeNo) {
+        try {
+          // Check payment history for this opening balance
+          const historyRes = await getPaymentABLHistory({
+            vehicleNo: vehicleNo,
+            orderNo: orderNo,
+            charges: chargeNo,
+            isOpeningBalance: true
+          });
+          
+          console.log('Opening Balance History API Response:', {
+            vehicleNo,
+            orderNo,
+            chargeNo,
+            fullResponse: historyRes,
+            dataArray: historyRes?.data
+          });
+          
+          // Handle null data case - if data is null, treat as no history
+          if (historyRes?.data === null) {
+            console.log('Opening Balance: No previous payment history, using opening balance amount');
+            // Fall through to use opening balance amount
+          } else {
+            // History API can return data as array or single object
+            let historyData = [];
+            if (Array.isArray(historyRes)) {
+              historyData = historyRes;
+            } else if (Array.isArray(historyRes?.data)) {
+              historyData = historyRes.data;
+            } else if (historyRes?.data && typeof historyRes.data === 'object') {
+              // Single object returned, wrap it in array
+              historyData = [historyRes.data];
+            }
+            
+            console.log('Opening Balance: Processed History Data:', historyData);
+            
+            const historyRecord = historyData.find((h: any) => {
+              return (h.vehicleNo === vehicleNo || h.charges === chargeNo || h.charges === String(chargeNo)) && 
+                     (h.orderNo === orderNo || h.orderNo === String(orderNo));
+            });
+
+            console.log('Opening Balance: History Record Found:', historyRecord);
+
+            // If history exists and balance is 0, show error and prevent selection
+            if (historyRecord && Number(historyRecord.balance) === 0) {
+              toast.error(`This opening balance has been fully paid. No remaining balance to pay.`);
+              console.log('Opening Balance fully paid - preventing selection');
+              setShowOrderPopup(null);
+              setOrderSearch('');
+              return; // Don't allow selection
+            }
+
+            // If history exists with balance > 0, use that balance
+            if (historyRecord && Number(historyRecord.balance) > 0) {
+              const remainingBalance = Number(historyRecord.balance);
+              console.log('✓ Opening Balance History found:', {
+                vehicleNo,
+                orderNo,
+                chargeNo,
+                historyBalance: remainingBalance,
+                historyPaidAmount: historyRecord.paidAmount
+              });
+              toast.info(`Opening Balance: Remaining balance is ${remainingBalance.toLocaleString()}.`);
+              
+              setValue(`paymentABLItems.${index}.vehicleNo`, ob.vehicleNo, { shouldValidate: true });
+              setValue(`paymentABLItems.${index}.orderNo`, ob.biltyNo, { shouldValidate: true });
+              setValue(`paymentABLItems.${index}.orderDate`, ob.biltyDate, { shouldValidate: true });
+              setValue(`paymentABLItems.${index}.expenseAmount`, remainingBalance, { shouldValidate: true });
+              setValue(`paymentABLItems.${index}.balance`, remainingBalance, { shouldValidate: true });
+              setValue(`paymentABLItems.${index}.charges`, ob.broker || ob.chargeType || 'Opening Balance', { shouldValidate: true });
+              setValue(`paymentABLItems.${index}.chargeNo`, ob.openingBalanceId, { shouldValidate: true });
+              setValue(`paymentABLItems.${index}.paidAmount`, null, { shouldValidate: true });
+              if (ob.broker) {
+                setValue('paidTo', ob.broker, { shouldValidate: true });
+              }
+              setShowOrderPopup(null);
+              setOrderSearch('');
+              return;
+            }
+          }
+        } catch (historyError) {
+          console.warn('Opening Balance: History check failed, continuing with normal flow:', historyError);
+          // Continue with normal flow if history check fails
+        }
+      }
+
+      // No history or history check skipped - use opening balance amount
+      console.log('Opening Balance: Using original amount');
+      setValue(`paymentABLItems.${index}.vehicleNo`, ob.vehicleNo, { shouldValidate: true });
+      setValue(`paymentABLItems.${index}.orderNo`, ob.biltyNo, { shouldValidate: true });
+      setValue(`paymentABLItems.${index}.orderDate`, ob.biltyDate, { shouldValidate: true });
+      setValue(`paymentABLItems.${index}.expenseAmount`, ob.amount, { shouldValidate: true });
+      setValue(`paymentABLItems.${index}.balance`, ob.amount, { shouldValidate: true });
+      setValue(`paymentABLItems.${index}.charges`, ob.broker || ob.chargeType || 'Opening Balance', { shouldValidate: true });
+      setValue(`paymentABLItems.${index}.chargeNo`, ob.openingBalanceId, { shouldValidate: true });
+      if (ob.broker) {
+        setValue('paidTo', ob.broker, { shouldValidate: true });
+      }
+      setShowOrderPopup(null);
+      setOrderSearch('');
+    } catch (error) {
+      console.error('Error selecting opening balance:', error);
+      toast.error('An error occurred while selecting opening balance');
+      setShowOrderPopup(null);
+      setOrderSearch('');
     }
-    setShowOrderPopup(null);
-    setOrderSearch('');
   };
 
   const selectCharge = async (index: number, charge: any) => {
