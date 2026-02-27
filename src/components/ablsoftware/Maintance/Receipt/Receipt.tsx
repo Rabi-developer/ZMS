@@ -725,7 +725,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 register={register}
                 error={errors.receiptAmount?.message}
                 id="receiptAmount"
-                disabled={isViewMode}
+                disabled
+                
                 
               />
               <ABLCustomInput
