@@ -898,7 +898,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                           {items.reduce((sum, row) => sum + (row.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base">
-                          disabled={isViewMode}
+                         
                           {items.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3"></td>
