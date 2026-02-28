@@ -76,7 +76,7 @@ export const exportBiltiesReceivableToPDF = ({
   exportType = "bilty",
   partyType = "consignor",
 }: BiltiesReceivablePdfParams) => {
-  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "A4" });
+  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "A4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
   let headerShown = false;

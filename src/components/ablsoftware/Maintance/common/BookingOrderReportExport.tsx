@@ -188,6 +188,7 @@ const BookingOrderReportExport: React.FC = () => {
   const [selectedBiltyNo, setSelectedBiltyNo] = useState<string[]>([]);
   const [selectedPartyFilter, setSelectedPartyFilter] = useState<string[]>([]);
   const [allParties, setAllParties] = useState<{ id: string; name: string }[]>([]);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
 
   const generateData = useCallback(async (isGeneral: boolean): Promise<RowData[]> => {
     setIsLoading(true);
@@ -1173,6 +1174,24 @@ const BookingOrderReportExport: React.FC = () => {
       return selectedPartyFilter.includes(partyName);
     };
 
+    // Filter by payment status
+    const matchesPaymentStatus = (row: RowData) => {
+      if (paymentStatusFilter === 'all') return true;
+      
+      const hasPendingAmount = (row.pendingAmount || 0) > 0;
+      const hasReceivedAmount = (row.receivedAmount || 0) > 0;
+      
+      if (paymentStatusFilter === 'paid') {
+        // Paid: has received some payment (receivedAmount > 0)
+        return hasReceivedAmount;
+      } else if (paymentStatusFilter === 'unpaid') {
+        // Unpaid: has pending amount and no received payment
+        return hasPendingAmount && !hasReceivedAmount;
+      }
+      
+      return true;
+    };
+
     // Receivable: orders that have at least one consignment with bilty no AND matching freightFrom (partyType)
     const receivable: RowData[] = [];
     groups.forEach(g => {
@@ -1181,7 +1200,8 @@ const BookingOrderReportExport: React.FC = () => {
           if (partyType === 'all') return true;
           return String(c.freightFrom || "").trim().toLowerCase() === partyType.toLowerCase();
         })
-        .filter(matchesPartyFilter);
+        .filter(matchesPartyFilter)
+        .filter(matchesPaymentStatus);
       if (consignmentsWithBilty.length > 0) {
         receivable.push(g.order);
         receivable.push(...consignmentsWithBilty);
@@ -1197,7 +1217,7 @@ const BookingOrderReportExport: React.FC = () => {
     );
 
     return { receivableOrders: receivableFiltered, nonReceivableOrders: nonReceivable };
-  }, [receivableData, selectedBiltyNo, partyType, selectedPartyFilter]);
+  }, [receivableData, selectedBiltyNo, partyType, selectedPartyFilter, paymentStatusFilter]);
 
   useEffect(() => {
     setSelectedPartyFilter([]);
@@ -1830,6 +1850,42 @@ const BookingOrderReportExport: React.FC = () => {
                       Party Wise
                     </label>
                   </div>
+                  
+                  {/* Payment Status Filter */}
+                  <div className="flex items-center gap-3 mb-2 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+                    <span className="text-sm font-medium text-gray-700">Payment Status:</span>
+                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="paymentStatus"
+                        checked={paymentStatusFilter === 'all'} 
+                        onChange={() => setPaymentStatusFilter('all')}
+                        className="h-4 w-4 border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      All
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-green-700 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="paymentStatus"
+                        checked={paymentStatusFilter === 'paid'} 
+                        onChange={() => setPaymentStatusFilter('paid')}
+                        className="h-4 w-4 border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                      Paid
+                    </label>
+                    <label className="flex items-center gap-2 text-sm text-red-700 cursor-pointer">
+                      <input 
+                        type="radio" 
+                        name="paymentStatus"
+                        checked={paymentStatusFilter === 'unpaid'} 
+                        onChange={() => setPaymentStatusFilter('unpaid')}
+                        className="h-4 w-4 border-gray-300 text-red-600 focus:ring-red-500"
+                      />
+                      Unpaid
+                    </label>
+                  </div>
+                  
                   <Button
                     onClick={exportReceivable}
                     disabled={receivableLoading}
@@ -1843,7 +1899,11 @@ const BookingOrderReportExport: React.FC = () => {
                 {receivableOrders.length ? (
                   receivableExportType === 'party' ? (
                     // Party Wise View - Group by selected party type
-                    <div className="space-y-6">
+                    <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2"
+                         style={{
+                           scrollbarWidth: 'thin',
+                           scrollbarColor: '#9ca3af #f3f4f6'
+                         }}>
                       {(() => {
                         if (partyType === 'all') {
                           // Build groups based on freightFrom so each bilty appears only under its freight party
@@ -1890,10 +1950,16 @@ const BookingOrderReportExport: React.FC = () => {
                                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Amount</th>
                                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Received</th>
                                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Pending</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
-                                    {sortedRows.map((row, idx) => (
+                                    {sortedRows.map((row, idx) => {
+                                      const isPaid = (row.receivedAmount || 0) > 0;
+                                      const isFullyPaid = (row.pendingAmount || 0) === 0 && isPaid;
+                                      const isPartiallyPaid = isPaid && (row.pendingAmount || 0) > 0;
+                                      
+                                      return (
                                       <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
@@ -1902,21 +1968,32 @@ const BookingOrderReportExport: React.FC = () => {
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.qty || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.biltyAmount)}</td>
-                                        <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.receivedAmount)}</td>
-                                        <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(row.pendingAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-green-600 font-semibold">{formatNumber(row.receivedAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-red-600 font-bold">{formatNumber(row.pendingAmount)}</td>
+                                        <td className="px-4 py-2 text-xs">
+                                          {isFullyPaid ? (
+                                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Paid</span>
+                                          ) : isPartiallyPaid ? (
+                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">Partial</span>
+                                          ) : (
+                                            <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Unpaid</span>
+                                          )}
+                                        </td>
                                       </tr>
-                                    ))}
+                                      );
+                                    })}
                                     <tr className="bg-gray-50 font-bold">
                                       <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
                                       <td className="px-4 py-2 text-xs text-gray-900">
                                         {formatNumber(sortedRows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
                                       </td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">
+                                      <td className="px-4 py-2 text-xs text-green-600">
                                         {formatNumber(sortedRows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
                                       </td>
                                       <td className="px-4 py-2 text-xs text-red-600">
                                         {formatNumber(sortedRows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
                                       </td>
+                                      <td></td>
                                     </tr>
                                   </tbody>
                                 </table>
@@ -1945,10 +2022,16 @@ const BookingOrderReportExport: React.FC = () => {
                                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Bilty Amount</th>
                                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Received</th>
                                       <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Pending</th>
+                                      <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase">Status</th>
                                     </tr>
                                   </thead>
                                   <tbody className="bg-white divide-y divide-gray-200">
-                                    {sortedRows.map((row, idx) => (
+                                    {sortedRows.map((row, idx) => {
+                                      const isPaid = (row.receivedAmount || 0) > 0;
+                                      const isFullyPaid = (row.pendingAmount || 0) === 0 && isPaid;
+                                      const isPartiallyPaid = isPaid && (row.pendingAmount || 0) > 0;
+                                      
+                                      return (
                                       <tr key={idx} className="hover:bg-gray-50">
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.vehicleNo || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.biltyNo || ''}</td>
@@ -1957,21 +2040,32 @@ const BookingOrderReportExport: React.FC = () => {
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.article || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{row.qty || '-'}</td>
                                         <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.biltyAmount)}</td>
-                                        <td className="px-4 py-2 text-xs text-gray-900">{formatNumber(row.receivedAmount)}</td>
-                                        <td className="px-4 py-2 text-xs text-gray-900 font-bold text-red-600">{formatNumber(row.pendingAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-green-600 font-semibold">{formatNumber(row.receivedAmount)}</td>
+                                        <td className="px-4 py-2 text-xs text-red-600 font-bold">{formatNumber(row.pendingAmount)}</td>
+                                        <td className="px-4 py-2 text-xs">
+                                          {isFullyPaid ? (
+                                            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">Paid</span>
+                                          ) : isPartiallyPaid ? (
+                                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">Partial</span>
+                                          ) : (
+                                            <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">Unpaid</span>
+                                          )}
+                                        </td>
                                       </tr>
-                                    ))}
+                                      );
+                                    })}
                                     <tr className="bg-gray-50 font-bold">
                                       <td colSpan={6} className="px-4 py-2 text-xs text-right">Total:</td>
                                       <td className="px-4 py-2 text-xs text-gray-900">
                                         {formatNumber(sortedRows.reduce((sum, r) => sum + (r.biltyAmount || 0), 0))}
                                       </td>
-                                      <td className="px-4 py-2 text-xs text-gray-900">
+                                      <td className="px-4 py-2 text-xs text-green-600">
                                         {formatNumber(sortedRows.reduce((sum, r) => sum + (r.receivedAmount || 0), 0))}
                                       </td>
                                       <td className="px-4 py-2 text-xs text-red-600">
                                         {formatNumber(sortedRows.reduce((sum, r) => sum + (r.pendingAmount || 0), 0))}
                                       </td>
+                                      <td></td>
                                     </tr>
                                   </tbody>
                                 </table>
