@@ -239,6 +239,25 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const salesTaxRate = watch('salesTaxRate');
   const whtOnSbr = watch('whtOnSbr');
 
+  // Initialize selected tax percentages when salesTaxRate or whtOnSbr changes
+  useEffect(() => {
+    if (salesTaxRate && saleTaxes.length > 0) {
+      const selectedTax = saleTaxes.find(tax => tax.id === salesTaxRate);
+      if (selectedTax && 'percentage' in selectedTax) {
+        setselectedSaleTaxes(selectedTax.percentage as string);
+      }
+    }
+  }, [salesTaxRate, saleTaxes]);
+
+  useEffect(() => {
+    if (whtOnSbr && saleTaxes.length > 0) {
+      const selectedTax = saleTaxes.find(tax => tax.id === whtOnSbr);
+      if (selectedTax && 'percentage' in selectedTax) {
+        setselectedWHTTaxes(selectedTax.percentage as string);
+      }
+    }
+  }, [whtOnSbr, saleTaxes]);
+
   // Filter consignments and opening balances based on search query
   const filteredConsignments = consignments.filter((consignment) =>
     `${consignment.biltyNo} ${consignment.id}`.toLowerCase().includes(searchQuery.toLowerCase())
