@@ -190,6 +190,32 @@ const BookingOrderReportExport: React.FC = () => {
   const [allParties, setAllParties] = useState<{ id: string; name: string }[]>([]);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
 
+  // Add custom scrollbar styles
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f3f4f6;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #9ca3af;
+        border-radius: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   const generateData = useCallback(async (isGeneral: boolean): Promise<RowData[]> => {
     setIsLoading(true);
     try {
@@ -1899,11 +1925,7 @@ const BookingOrderReportExport: React.FC = () => {
                 {receivableOrders.length ? (
                   receivableExportType === 'party' ? (
                     // Party Wise View - Group by selected party type
-                    <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2"
-                         style={{
-                           scrollbarWidth: 'thin',
-                           scrollbarColor: '#9ca3af #f3f4f6'
-                         }}>
+                    <div className="space-y-6 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                       {(() => {
                         if (partyType === 'all') {
                           // Build groups based on freightFrom so each bilty appears only under its freight party

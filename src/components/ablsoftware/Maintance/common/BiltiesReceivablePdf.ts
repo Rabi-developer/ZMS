@@ -245,7 +245,7 @@ export const exportBiltiesReceivableToPDF = ({
       head,
       body,
       theme: "grid",
-      styles: { fontSize: 8, cellPadding: 5, lineWidth: 0.4, lineColor: [180, 180, 180] },
+      styles: { fontSize: 7, cellPadding: 3, lineWidth: 0.4, lineColor: [180, 180, 180] },
       headStyles: {
         fillColor: [41, 128, 185],
         textColor: [255, 255, 255] as [number, number, number],
@@ -253,27 +253,27 @@ export const exportBiltiesReceivableToPDF = ({
         halign: "center",
       },
       columnStyles: partyType === 'all' ? {
-        0: { cellWidth: 70 },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 70 },
-        3: { cellWidth: 160 },
-        4: { cellWidth: 140 },
-        5: { cellWidth: 70 },
-        6: { halign: "right", cellWidth: 80 },
-        7: { halign: "right", cellWidth: 70 },
-        8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] as [number, number, number] },
+        0: { cellWidth: 50 },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 50 },
+        3: { cellWidth: 80 },
+        4: { cellWidth: 80 },
+        5: { cellWidth: 40 },
+        6: { halign: "right", cellWidth: 55 },
+        7: { halign: "right", cellWidth: 50 },
+        8: { halign: "right", cellWidth: 50, textColor: [220, 53, 69] as [number, number, number] },
       } : {
-        0: { cellWidth: 70 },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 70 },
-        3: { cellWidth: 140 },
-        4: { cellWidth: 140 },
-        5: { cellWidth: 70 },
-        6: { halign: "right", cellWidth: 80 },
-        7: { halign: "right", cellWidth: 70 },
-        8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] as [number, number, number] },
+        0: { cellWidth: 50 },
+        1: { cellWidth: 50 },
+        2: { cellWidth: 50 },
+        3: { cellWidth: 70 },
+        4: { cellWidth: 80 },
+        5: { cellWidth: 40 },
+        6: { halign: "right", cellWidth: 55 },
+        7: { halign: "right", cellWidth: 50 },
+        8: { halign: "right", cellWidth: 50, textColor: [220, 53, 69] as [number, number, number] },
       },
-      margin: { left: 40, right: 40 },
+      margin: { left: 30, right: 30 },
       didDrawPage: () => {
         if (!headerShown) {
           headerShown = true;
@@ -428,7 +428,7 @@ export const exportBiltiesReceivableToPDF = ({
         head: head, // Always show header for each party table
         body,
         theme: "grid",
-        styles: { fontSize: 8, cellPadding: 5, lineWidth: 0.4, lineColor: [190, 190, 190] },
+        styles: { fontSize: 7, cellPadding: 3, lineWidth: 0.4, lineColor: [190, 190, 190] },
         headStyles: {
           fillColor: [41, 128, 185],
           textColor: 255,
@@ -436,17 +436,17 @@ export const exportBiltiesReceivableToPDF = ({
           halign: "center",
         },
         columnStyles: {
-          0: { cellWidth: 80 },
-          1: { cellWidth: 80 },
-          2: { cellWidth: 70 },
-          3: { cellWidth: 90 },
-          4: { cellWidth: 140 },
-          5: { cellWidth: 80 },
-          6: { halign: "right", cellWidth: 80 },
-          7: { halign: "right", cellWidth: 70 },
-          8: { halign: "right", cellWidth: 70, textColor: [220, 53, 69] as [number, number, number] },
+          0: { cellWidth: 50 },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 60 },
+          4: { cellWidth: 80 },
+          5: { cellWidth: 40 },
+          6: { halign: "right", cellWidth: 55 },
+          7: { halign: "right", cellWidth: 50 },
+          8: { halign: "right", cellWidth: 50, textColor: [220, 53, 69] as [number, number, number] },
         },
-        margin: { left: 40, right: 40 },
+        margin: { left: 30, right: 30 },
         didParseCell: (data) => {
           if (data.row.index === body.length - 1 && data.column.index >= 6) {
             data.cell.styles.fillColor = [245, 247, 250];
@@ -503,10 +503,10 @@ export const exportBiltiesReceivableToPDF = ({
       theme: "grid",
       styles: { fontSize: 10, cellPadding: 8, lineWidth: 0.4, lineColor: [190, 190, 190] },
       columnStyles: {
-        0: { cellWidth: 200, halign: "right" },
+        0: { cellWidth: 150, halign: "right" },
         1: { cellWidth: 100, halign: "right" },
       },
-      margin: { left: 40, right: 40 },
+      margin: { left: 30, right: 30 },
     });
 
     addFooter(pageNum, pageNum);
