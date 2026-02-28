@@ -189,6 +189,8 @@ const BookingOrderReportExport: React.FC = () => {
   const [selectedPartyFilter, setSelectedPartyFilter] = useState<string[]>([]);
   const [allParties, setAllParties] = useState<{ id: string; name: string }[]>([]);
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<'all' | 'paid' | 'unpaid'>('all');
+  const [biltySearchQuery, setBiltySearchQuery] = useState<string>('');
+  const [partySearchQuery, setPartySearchQuery] = useState<string>('');
 
   // Add custom scrollbar styles
   React.useEffect(() => {
@@ -1208,11 +1210,11 @@ const BookingOrderReportExport: React.FC = () => {
       const hasReceivedAmount = (row.receivedAmount || 0) > 0;
       
       if (paymentStatusFilter === 'paid') {
-        // Paid: has received some payment (receivedAmount > 0)
+        // Paid: show if ANY payment has been received (includes both fully paid and partially paid)
         return hasReceivedAmount;
       } else if (paymentStatusFilter === 'unpaid') {
-        // Unpaid: has pending amount and no received payment
-        return hasPendingAmount && !hasReceivedAmount;
+        // Unpaid: show if ANY balance is remaining (includes both partially paid and completely unpaid)
+        return hasPendingAmount;
       }
       
       return true;
@@ -1236,11 +1238,10 @@ const BookingOrderReportExport: React.FC = () => {
     
     const receivableFiltered = filterByBiltyNo(receivable);
     
-    // Non-Receivable: orders without any consignment with bilty no
-    const nonReceivable = filterByBiltyNo(groups
+    // Non-Receivable: orders without any consignment with bilty no (don't filter by biltyNo)
+    const nonReceivable = groups
       .filter(g => !g.consignments.some(c => c.biltyNo && c.biltyNo !== "" && c.biltyNo !== "-"))
-      .map(g => g.order)
-    );
+      .map(g => g.order);
 
     return { receivableOrders: receivableFiltered, nonReceivableOrders: nonReceivable };
   }, [receivableData, selectedBiltyNo, partyType, selectedPartyFilter, paymentStatusFilter]);
@@ -1283,6 +1284,21 @@ const BookingOrderReportExport: React.FC = () => {
     });
     return Array.from(names).map(name => ({ value: name, label: name }));
   }, [receivableData, partyType]);
+
+  // Filtered bilty options based on search
+  const filteredBiltyOptions = useMemo(() => {
+    const allBilties = Array.from(new Set(receivableData.filter(d => d.biltyNo).map(d => d.biltyNo))).sort();
+    if (!biltySearchQuery.trim()) return allBilties;
+    return allBilties.filter(b => b.toLowerCase().includes(biltySearchQuery.toLowerCase()));
+  }, [receivableData, biltySearchQuery]);
+
+  // Filtered party options based on search
+  const filteredPartyOptions = useMemo(() => {
+    if (!partySearchQuery.trim()) return partyFilterOptions;
+    return partyFilterOptions.filter(opt => 
+      opt.label.toLowerCase().includes(partySearchQuery.toLowerCase())
+    );
+  }, [partyFilterOptions, partySearchQuery]);
 
   const exportReceivable = useCallback(async () => {
     if (!receivableOrders.length) {
@@ -1799,6 +1815,14 @@ const BookingOrderReportExport: React.FC = () => {
                       </label>
                       <span className="text-xs text-gray-500">{selectedBiltyNo.length} selected</span>
                     </div>
+                    {/* Search Input */}
+                    <input
+                      type="text"
+                      placeholder="Search bilty number..."
+                      value={biltySearchQuery}
+                      onChange={(e) => setBiltySearchQuery(e.target.value)}
+                      className="w-full px-3 py-2 mb-2 border-2 border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-sm"
+                    />
                     <select
                       multiple
                       value={selectedBiltyNo}
@@ -1808,13 +1832,21 @@ const BookingOrderReportExport: React.FC = () => {
                       }}
                       className="w-full min-h-[7.5rem] px-4 py-2 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-gradient-to-b from-white to-gray-50 hover:border-purple-300 group-hover:shadow-md"
                     >
-                      {Array.from(new Set(receivableData.filter(d => d.biltyNo).map(d => d.biltyNo)))
-                        .sort()
-                        .map((b, idx) => (
-                          <option key={idx} value={b}>{b}</option>
-                        ))}
+                      {filteredBiltyOptions.map((b, idx) => (
+                        <option key={idx} value={b}>{b}</option>
+                      ))}
                     </select>
-                    <div className="mt-2 text-xs text-gray-500">Tip: Hold Ctrl/Cmd to select multiple.</div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Tip: Hold Ctrl/Cmd to select multiple.</span>
+                      {biltySearchQuery && (
+                        <button
+                          onClick={() => setBiltySearchQuery('')}
+                          className="text-xs text-purple-600 hover:text-purple-800 underline"
+                        >
+                          Clear search
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Party Name Dropdown */}
@@ -1828,6 +1860,14 @@ const BookingOrderReportExport: React.FC = () => {
                       </label>
                       <span className="text-xs text-gray-500">{selectedPartyFilter.length} selected</span>
                     </div>
+                    {/* Search Input */}
+                    <input
+                      type="text"
+                      placeholder="Search party name..."
+                      value={partySearchQuery}
+                      onChange={(e) => setPartySearchQuery(e.target.value)}
+                      className="w-full px-3 py-2 mb-2 border-2 border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-sm"
+                    />
                     <select
                       multiple
                       value={selectedPartyFilter}
@@ -1837,11 +1877,21 @@ const BookingOrderReportExport: React.FC = () => {
                       }}
                       className="w-full min-h-[7.5rem] px-4 py-2 border-2 border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 bg-gradient-to-b from-white to-gray-50 hover:border-indigo-300 group-hover:shadow-md"
                     >
-                      {partyFilterOptions.map((opt, idx) => (
+                      {filteredPartyOptions.map((opt, idx) => (
                         <option key={idx} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
-                    <div className="mt-2 text-xs text-gray-500">Tip: Hold Ctrl/Cmd to select multiple.</div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">Tip: Hold Ctrl/Cmd to select multiple.</span>
+                      {partySearchQuery && (
+                        <button
+                          onClick={() => setPartySearchQuery('')}
+                          className="text-xs text-indigo-600 hover:text-indigo-800 underline"
+                        >
+                          Clear search
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

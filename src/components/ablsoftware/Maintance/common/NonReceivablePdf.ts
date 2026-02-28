@@ -42,7 +42,7 @@ export const exportNonReceivableToPDF = ({
   startDate,
   endDate,
 }: NonReceivablePdfParams) => {
-  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "A4" });
+  const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "A4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
   let headerShown = false;
@@ -126,9 +126,7 @@ export const exportNonReceivableToPDF = ({
       "Order Date",
       "Vehicle No",
       "Vendor",
-      "Departure",
-      "Destination",
-      "Vehicle Munshyana",
+      "Route (From → To)",
     ],
   ];
 
@@ -138,9 +136,7 @@ export const exportNonReceivableToPDF = ({
     formatDisplayDate(r.orderDate),
     r.vehicleNo || "-",
     r.vendor || "-",
-    r.departure || "-",
-    r.destination || "-",
-    r.vehicleMunshyana || "-",
+    `${r.departure || "-"} → ${r.destination || "-"}`,
   ]);
 
   // Add note about non-receivable orders
@@ -148,18 +144,19 @@ export const exportNonReceivableToPDF = ({
   doc.setFontSize(9);
   doc.setTextColor(220, 53, 69);
   doc.setFont("helvetica", "bold");
-//   doc.text(
-//     `⚠ Note: These are orders without any consignments/bilties added.`,
-//     40,
-//     noteStartY
-//   );
+  doc.text(
+    `⚠ Note: These are orders without any consignments/bilties added.`,
+    pageWidth / 2,
+    noteStartY,
+    { align: "center" }
+  );
 
   autoTable(doc, {
     startY: noteStartY + 15,
     head,
     body,
     theme: "grid",
-    styles: { fontSize: 9, cellPadding: 6, lineWidth: 0.4, lineColor: [180, 180, 180] },
+    styles: { fontSize: 8, cellPadding: 5, lineWidth: 0.4, lineColor: [180, 180, 180] },
     headStyles: {
       fillColor: [25, 135, 84],
       textColor: [255, 255, 255],
@@ -167,16 +164,14 @@ export const exportNonReceivableToPDF = ({
       halign: "center",
     },
     columnStyles: {
-      0: { cellWidth: 60, halign: "center" },
+      0: { cellWidth: 40, halign: "center" },
       1: { cellWidth: 90 },
-      2: { cellWidth: 80, halign: "center" },
-      3: { cellWidth: 80 },
-      4: { cellWidth: 120 },
-      5: { cellWidth: 90 },
-      6: { cellWidth: 90 },
-      7: { cellWidth: 130 },
+      2: { cellWidth: 75, halign: "center" },
+      3: { cellWidth: 75 },
+      4: { cellWidth: 100 },
+      5: { cellWidth: 155 },
     },
-    margin: { left: 50, right: 50 },
+    margin: { left: 30, right: 30 },
     didDrawPage: (data) => {
       if (data.pageNumber > 1) {
         // Re-add header on new pages
@@ -185,11 +180,12 @@ export const exportNonReceivableToPDF = ({
         doc.setFontSize(9);
         doc.setTextColor(220, 53, 69);
         doc.setFont("helvetica", "bold");
-        // doc.text(
-        //   `⚠ Note: These are orders without any consignments/bilties added.`,
-        //   40,
-        //   noteStartY
-        // );
+        doc.text(
+          `⚠ Note: These are orders without any consignments/bilties added.`,
+          pageWidth / 2,
+          noteStartY,
+          { align: "center" }
+        );
       }
       addFooter(data.pageNumber, doc.internal.pages.length - 1);
     },
