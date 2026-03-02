@@ -79,7 +79,7 @@ export const exportBiltiesReceivableToPDF = ({
   const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "A4" });
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  let headerShown = false;
+  // headerShown flag removed; we redraw header on every page instead
 
   const addCompanyHeader = () => {
     doc.setFillColor(41, 128, 185);
@@ -276,13 +276,12 @@ export const exportBiltiesReceivableToPDF = ({
       margin: { left: 40, right: 40 },
       didDrawPage: (data) => {
         const total = doc.getNumberOfPages();
-        addFooter(data.pageNumber, total);
-      },
-      willDrawPage: (data) => {
-        if (data.pageNumber > 1 && !headerShown) {
+        // draw header again on every page except first (first already rendered above)
+        if (data.pageNumber > 1) {
           addCompanyHeader();
           addReportTitleAndDate();
         }
+        addFooter(data.pageNumber, total);
       },
     });
 
@@ -361,8 +360,9 @@ export const exportBiltiesReceivableToPDF = ({
       // Page break handling remains but footer is updated in bulk afterwards
       if (currentY > doc.internal.pageSize.height - 140) {
         doc.addPage();
-        // new page not adding company header (handled globally by willDrawPage below)
-        currentY = 40;
+        addCompanyHeader();
+        addReportTitleAndDate();
+        currentY = 125; // start after header
       }
 
       // Party name header
@@ -447,6 +447,12 @@ export const exportBiltiesReceivableToPDF = ({
             data.cell.styles.fillColor = [245, 247, 250];
           }
         },
+        didDrawPage: (data) => {
+          if (data.pageNumber > 1) {
+            addCompanyHeader();
+            addReportTitleAndDate();
+          }
+        },
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 18;
@@ -455,7 +461,9 @@ export const exportBiltiesReceivableToPDF = ({
     // Add Grand Total at the end for party-wise view
     if (currentY > doc.internal.pageSize.height - 100) {
       doc.addPage();
-      currentY = 40;
+      addCompanyHeader();
+      addReportTitleAndDate();
+      currentY = 125;
     }
 
     const grandTotal = rows.reduce(
@@ -500,6 +508,12 @@ export const exportBiltiesReceivableToPDF = ({
         1: { cellWidth: 100, halign: "right" },
       },
       margin: { left: 40, right: 40 },
+      didDrawPage: (data) => {
+        if (data.pageNumber > 1) {
+          addCompanyHeader();
+          addReportTitleAndDate();
+        }
+      },
     });
 
     // After drawing everything, stamp accurate footers
