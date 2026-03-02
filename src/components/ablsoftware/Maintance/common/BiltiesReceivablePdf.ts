@@ -245,7 +245,7 @@ export const exportBiltiesReceivableToPDF = ({
       head,
       body,
       theme: "grid",
-      styles: { fontSize: 7, cellPadding: 3, lineWidth: 0.4, lineColor: [180, 180, 180] },
+      styles: { fontSize: 6, cellPadding: 2, lineWidth: 0.4, lineColor: [180, 180, 180] },
       headStyles: {
         fillColor: [41, 128, 185],
         textColor: [255, 255, 255] as [number, number, number],
@@ -266,18 +266,17 @@ export const exportBiltiesReceivableToPDF = ({
         0: { cellWidth: 50 },
         1: { cellWidth: 50 },
         2: { cellWidth: 50 },
-        3: { cellWidth: 70 },
-        4: { cellWidth: 80 },
+        3: { cellWidth: 90 },
+        4: { cellWidth: 90 },
         5: { cellWidth: 40 },
         6: { halign: "right", cellWidth: 55 },
         7: { halign: "right", cellWidth: 50 },
         8: { halign: "right", cellWidth: 50, textColor: [220, 53, 69] as [number, number, number] },
       },
-      margin: { left: 30, right: 30 },
-      didDrawPage: () => {
-        if (!headerShown) {
-          headerShown = true;
-        }
+      margin: { left: 40, right: 40 },
+      didDrawPage: (data) => {
+        const total = doc.getNumberOfPages();
+        addFooter(data.pageNumber, total);
       },
       willDrawPage: (data) => {
         if (data.pageNumber > 1 && !headerShown) {
@@ -287,8 +286,12 @@ export const exportBiltiesReceivableToPDF = ({
       },
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY;
-    addFooter(1, 1); // will be updated later if needed
+    // add accurate footers after table is built
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addFooter(i, totalPages);
+    }
   }
 
   // ────────────────────────────────────────────────
@@ -347,25 +350,19 @@ export const exportBiltiesReceivableToPDF = ({
       });
     }
 
-    let pageNum = 1;
-    let totalPagesEstimate = 1;
-    let isFirstPage = true; // Track if it's the first page
+    // we will rely on autoTable to paginate for us and add actual footers later
 
-    // Add header only on first page
     addCompanyHeader();
     addReportTitleAndDate();
 
     let currentY = 125;
 
     Object.entries(grouped).forEach(([partyName, partyRows], groupIndex) => {
-      // Page break check
+      // Page break handling remains but footer is updated in bulk afterwards
       if (currentY > doc.internal.pageSize.height - 140) {
-        addFooter(pageNum, totalPagesEstimate);
         doc.addPage();
-        pageNum++;
-        isFirstPage = false; // Not first page anymore
-        // Don't add company header on new pages
-        currentY = 40; // Start from top on new pages
+        // new page not adding company header (handled globally by willDrawPage below)
+        currentY = 40;
       }
 
       // Party name header
@@ -375,7 +372,6 @@ export const exportBiltiesReceivableToPDF = ({
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(41, 128, 185);
-      // When partyType is 'all', partyName already contains "Consignor: " or "Consignee: " prefix
       const displayPartyName = partyType === 'all' ? partyName : `${partyType === "consignor" ? "Consignor" : "Consignee"}: ${partyName}`;
       doc.text(displayPartyName, 50, currentY + 3);
 
@@ -392,7 +388,6 @@ export const exportBiltiesReceivableToPDF = ({
           "Bilty Amount (PKR)",
           "Received (PKR)",
           "Pending (PKR)",
-          "Status",
         ],
       ];
 
@@ -406,10 +401,6 @@ export const exportBiltiesReceivableToPDF = ({
         formatCurrency(r.biltyAmount),
         formatCurrency(r.receivedAmount),
         formatCurrency(r.pendingAmount),
-        numberOr0(r.pendingAmount) === 0          ? "Fully Paid"
-          : numberOr0(r.receivedAmount) === 0
-          ? "Unpaid"
-          : "Partial",
         ]);
 
       const subtotal = partyRows.reduce(
@@ -433,8 +424,7 @@ export const exportBiltiesReceivableToPDF = ({
         head: head, // Always show header for each party table
         body,
         theme: "grid",
-        styles: { fontSize: 7, cellPadding: 3, lineWidth: 0.4, lineColor: [190, 190, 190] },
-        headStyles: {
+        styles: { fontSize: 7, cellPadding: 3, lineWidth: 0.4, lineColor: [180, 180, 180] },        headStyles: {
           fillColor: [41, 128, 185],
           textColor: 255,
           fontStyle: "bold",
@@ -444,13 +434,12 @@ export const exportBiltiesReceivableToPDF = ({
           0: { cellWidth: 50 },
           1: { cellWidth: 50 },
           2: { cellWidth: 50 },
-          3: { cellWidth: 60 },
-          4: { cellWidth: 80 },
+          3: { cellWidth: 80 },
+          4: { cellWidth: 90 },
           5: { cellWidth: 40 },
           6: { halign: "right", cellWidth: 55 },
           7: { halign: "right", cellWidth: 50, textColor: [34, 139, 34] as [number, number, number] },
           8: { halign: "right", cellWidth: 50, textColor: [220, 53, 69] as [number, number, number] },
-          9: { halign: "center",cellWidth: 35, textColor: [41, 128, 185] as [number, number, number], fontStyle: "bold" as const },
         },
         margin: { left: 40, right: 40 },
         didParseCell: (data) => {
@@ -465,9 +454,7 @@ export const exportBiltiesReceivableToPDF = ({
 
     // Add Grand Total at the end for party-wise view
     if (currentY > doc.internal.pageSize.height - 100) {
-      addFooter(pageNum, totalPagesEstimate);
       doc.addPage();
-      pageNum++;
       currentY = 40;
     }
 
@@ -515,7 +502,12 @@ export const exportBiltiesReceivableToPDF = ({
       margin: { left: 40, right: 40 },
     });
 
-    addFooter(pageNum, pageNum);
+    // After drawing everything, stamp accurate footers
+    const finalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= finalPages; i++) {
+      doc.setPage(i);
+      addFooter(i, finalPages);
+    }
   }
 
   const filename = `Al_Nasar_Basheer_Logistics_Receivable_${exportType === "party" ? "PartyWise" : "BiltyWise"}_${new Date().toISOString().slice(0, 10)}.pdf`;

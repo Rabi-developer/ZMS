@@ -102,16 +102,17 @@ export const exportBrokerBillStatusToPDF = async (
     }
   };
 
-  const addFooter = (pageNumber: number) => {
+  const addFooter = (pageNumber: number, totalPages?: number) => {
     const footerY = pageHeight - 40;
     doc.setFillColor(245, 245, 245);
     doc.rect(0, footerY - 10, pageWidth, 50, "F");
 
     doc.setFont("times", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
     doc.text(`Generated on: ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })}`, 40, footerY);
-    doc.text(`Page ${pageNumber}`, pageWidth - 40, footerY, { align: "right" });
+    const pageText = totalPages ? `Page ${pageNumber} of ${totalPages}` : `Page ${pageNumber}`;
+    doc.text(pageText, pageWidth - 40, footerY, { align: "right" });
   };
 
   addHeader();
@@ -228,8 +229,8 @@ export const exportBrokerBillStatusToPDF = async (
     ]],
     styles: {
       font: "times",
-      fontSize: 9,
-      cellPadding: 5,
+      fontSize: 8,
+      cellPadding: 3,
       lineColor: [180, 180, 180],
       lineWidth: 0.25,
       textColor: [0, 0, 0],
@@ -238,7 +239,7 @@ export const exportBrokerBillStatusToPDF = async (
       fillColor: [240, 240, 240],
       textColor: [0, 0, 0],
       fontStyle: "bold",
-      fontSize: 10,
+      fontSize: 9,
       halign: "center",
     },
     footStyles: {
@@ -255,13 +256,13 @@ export const exportBrokerBillStatusToPDF = async (
     alternateRowStyles: {
       fillColor: [250, 250, 250],
     },
-    margin: { top: 110, left: 40, right: 40, bottom: 60 },
+    margin: { top: 110, left: 30, right: 30, bottom: 50 },
     theme: "grid",
     willDrawPage: () => {
       addHeader();
     },
     didDrawPage: (d) => {
-      addFooter(d.pageNumber);
+      // leave numeric footer until all pages are counted
     },
   });
 
@@ -299,6 +300,13 @@ export const exportBrokerBillStatusToPDF = async (
     theme: 'grid',
     margin: { left: 40, right: 100 },
   });
+
+  // add proper footer numbers after the table has finished rendering
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    addFooter(i, totalPages);
+  }
 
   const filename = `Broker_${reportType}_Bills_Report_${new Date().getTime()}.pdf`;
   doc.save(filename);

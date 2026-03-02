@@ -618,6 +618,10 @@ const BookingOrderReportExport: React.FC = () => {
             const freightFrom = String(entry.freightFrom || entry.FreightFrom || "").trim().toLowerCase() || "consignee";
             const isConsignorFreight = freightFrom === "consignor";
             
+            // Resolve customer ID to name
+            const customerVal = String(entry.customer || "");
+            const customerName = partyMap.get(customerVal) || customerVal || '-';
+            
             rows.push({
               serial: serialCounter++,
               orderNo: `OB-${ob.openingNo}`,
@@ -627,8 +631,8 @@ const BookingOrderReportExport: React.FC = () => {
               biltyNo: biltyNo,
               biltyAmount: entry.debit,
               consignmentFreight: entry.debit,
-              consignor: isConsignorFreight ? (entry.customer || '-') : '-',
-              consignee: isConsignorFreight ? '-' : (entry.customer || '-'),
+              consignor: isConsignorFreight ? customerName : '-',
+              consignee: isConsignorFreight ? '-' : customerName,
               article: 'Opening Balance',
               qty: '-',
               departure: entry.city || '-',
