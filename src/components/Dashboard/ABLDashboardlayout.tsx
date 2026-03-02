@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import FuelUsageGraph from '@/components/Design/Graph/FuelUsageGraph';
 import MaintenanceGraph from '@/components/Design/Graph/MaintenanceGraph';
 import DeliveryGraph from '@/components/Design/Graph/DeliveryGraph';
@@ -123,6 +123,7 @@ const getReceiptAmount = (receipt: any): number =>
 
 const ABLDashboardlayout = () => {
   const pathname = usePathname() || '';
+  const router = useRouter();
   
   // All hooks must be called before any conditional returns
   const [topAccounts, setTopAccounts] = useState<Account[]>([]);
@@ -894,6 +895,23 @@ const ABLDashboardlayout = () => {
   return (
     <div className="pb-4 grid rounded bg-white mt-20 h-[100vh] overflow-y-auto gap-5 dark:bg-[#1a2a22] p-4">
       {renderDetailModal()}
+      
+      {/* Header Section with Report Link */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Monitor your bookings, charges, and payments</p>
+        </div>
+        <button
+          onClick={() => router.push('/ablorderreport')}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors duration-200 shadow-md hover:shadow-lg dark:bg-emerald-700 dark:hover:bg-emerald-800"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>View Report</span>
+        </button>
+      </div>
       
       {/* Overdue Notifications Banner */}
       {overdueItems.length > 0 && (
