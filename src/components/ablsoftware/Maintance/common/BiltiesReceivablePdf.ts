@@ -392,6 +392,7 @@ export const exportBiltiesReceivableToPDF = ({
           "Bilty Amount (PKR)",
           "Received (PKR)",
           "Pending (PKR)",
+          "Status",
         ],
       ];
 
@@ -405,7 +406,11 @@ export const exportBiltiesReceivableToPDF = ({
         formatCurrency(r.biltyAmount),
         formatCurrency(r.receivedAmount),
         formatCurrency(r.pendingAmount),
-      ]);
+        numberOr0(r.pendingAmount) === 0          ? "Fully Paid"
+          : numberOr0(r.receivedAmount) === 0
+          ? "Unpaid"
+          : "Partial",
+        ]);
 
       const subtotal = partyRows.reduce(
         (acc, r) => ({
@@ -443,10 +448,11 @@ export const exportBiltiesReceivableToPDF = ({
           4: { cellWidth: 80 },
           5: { cellWidth: 40 },
           6: { halign: "right", cellWidth: 55 },
-          7: { halign: "right", cellWidth: 50 },
+          7: { halign: "right", cellWidth: 50, textColor: [34, 139, 34] as [number, number, number] },
           8: { halign: "right", cellWidth: 50, textColor: [220, 53, 69] as [number, number, number] },
+          9: { halign: "center",cellWidth: 35, textColor: [41, 128, 185] as [number, number, number], fontStyle: "bold" as const },
         },
-        margin: { left: 30, right: 30 },
+        margin: { left: 40, right: 40 },
         didParseCell: (data) => {
           if (data.row.index === body.length - 1 && data.column.index >= 6) {
             data.cell.styles.fillColor = [245, 247, 250];
@@ -506,7 +512,7 @@ export const exportBiltiesReceivableToPDF = ({
         0: { cellWidth: 150, halign: "right" },
         1: { cellWidth: 100, halign: "right" },
       },
-      margin: { left: 30, right: 30 },
+      margin: { left: 40, right: 40 },
     });
 
     addFooter(pageNum, pageNum);
