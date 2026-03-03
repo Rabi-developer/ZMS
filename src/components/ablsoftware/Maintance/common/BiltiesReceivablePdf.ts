@@ -273,7 +273,7 @@ export const exportBiltiesReceivableToPDF = ({
         7: { halign: "right", cellWidth: 50 },
         8: { halign: "right", cellWidth: 50, textColor: [220, 53, 69] as [number, number, number] },
       },
-      margin: { left: 40, right: 40 },
+      margin: { left: 40, right: 40, top: 125 },
       didDrawPage: (data) => {
         const total = doc.getNumberOfPages();
         // draw header again on every page except first (first already rendered above)
@@ -441,7 +441,7 @@ export const exportBiltiesReceivableToPDF = ({
           7: { halign: "right", cellWidth: 50, textColor: [34, 139, 34] as [number, number, number] },
           8: { halign: "right", cellWidth: 50, textColor: [220, 53, 69] as [number, number, number] },
         },
-        margin: { left: 40, right: 40 },
+        margin: { left: 40, right: 40, top: 125 },
         didParseCell: (data) => {
           if (data.row.index === body.length - 1 && data.column.index >= 6) {
             data.cell.styles.fillColor = [245, 247, 250];
@@ -507,7 +507,7 @@ export const exportBiltiesReceivableToPDF = ({
         0: { cellWidth: 150, halign: "right" },
         1: { cellWidth: 100, halign: "right" },
       },
-      margin: { left: 40, right: 40 },
+      margin: { left: 40, right: 40, top: 125 },
       didDrawPage: (data) => {
         if (data.pageNumber > 1) {
           addCompanyHeader();

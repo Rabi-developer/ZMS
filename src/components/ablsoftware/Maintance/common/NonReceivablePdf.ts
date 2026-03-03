@@ -171,7 +171,7 @@ export const exportNonReceivableToPDF = ({
       4: { cellWidth: 100 },
       5: { cellWidth: 155 },
     },
-    margin: { left: 30, right: 30 },
+    margin: { left: 30, right: 30, top: noteStartY + 15 },
     didDrawPage: (data) => {
       if (data.pageNumber > 1) {
         // Re-add header on new pages
