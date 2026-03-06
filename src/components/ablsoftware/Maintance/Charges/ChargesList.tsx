@@ -16,6 +16,7 @@ import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/booki
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllBusinessAssociate, getSingleBusinessAssociate } from '@/apis/businessassociate';
 import { getAllOpeningBalance } from '@/apis/openingbalance';
+import { getAllPaymentABL } from '@/apis/paymentABL';
 import { columns, Charge } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 import { exportChargesReportToPDF, ChargeReportRow } from '@/components/ablsoftware/Maintance/common/ChargesReportPdf';
@@ -66,6 +67,7 @@ const ChargesList = () => {
   const [reportSelectedChargeTypes, setReportSelectedChargeTypes] = useState<string[]>([]);
   const [reportSelectedOrderNos, setReportSelectedOrderNos] = useState<string[]>([]);
   const [reportSelectedPaidToPersons, setReportSelectedPaidToPersons] = useState<string[]>([]);
+  const [reportPaymentStatus, setReportPaymentStatus] = useState<'All' | 'Paid' | 'Unpaid'>('All');
   const [chargeTypeSearchTerm, setChargeTypeSearchTerm] = useState('');
   const [orderNoSearchTerm, setOrderNoSearchTerm] = useState('');
   const [paidToSearchTerm, setPaidToSearchTerm] = useState('');
@@ -482,6 +484,43 @@ const ChargesList = () => {
       return;
     }
 
+    // Load payment records to compute paid/unpaid status per charge
+    let paymentABL: any[] = [];
+    try {
+      const payRes = await getAllPaymentABL(1, 10000);
+      paymentABL = payRes?.data || [];
+    } catch (err) {
+      console.warn('Failed to load payments for report, proceeding without payment filtering', err);
+      paymentABL = [];
+    }
+
+    const approvedPayments = (paymentABL || []).filter((p: any) => String(p?.status ?? p?.Status ?? '').toLowerCase() === 'approved');
+
+    const paidByChargeNo = approvedPayments.reduce((acc: Record<string, number>, p: any) => {
+      const items = p?.paymentABLItems || p?.paymentABLItem || [];
+      if (!Array.isArray(items) || items.length === 0) {
+        const key = String(p?.charges ?? p?.chargeNo ?? p?.ChargeNo ?? '').trim();
+        if (key) acc[key] = (acc[key] || 0) + (Number(p?.paidAmount ?? p?.PaidAmount) || 0);
+        return acc;
+      }
+      items.forEach((item: any) => {
+        const key = String(item?.charges ?? item?.chargeNo ?? item?.ChargeNo ?? item?.charge_no ?? '').trim();
+        if (!key) return;
+        const amt = Number(item?.paidAmount ?? item?.PaidAmount ?? p?.paidAmount ?? p?.PaidAmount) || 0;
+        acc[key] = (acc[key] || 0) + amt;
+      });
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Build charge total amounts map
+    const chargeAmountByChargeNo = (chargesRaw || []).reduce((acc: Record<string, number>, c: any) => {
+      const key = String(c?.chargeNo ?? c?.ChargeNo ?? '').trim();
+      if (!key) return acc;
+      const total = (Array.isArray(c?.lines) ? c.lines : []).reduce((s: number, l: any) => s + (Number(l?.amount) || 0), 0);
+      acc[key] = (acc[key] || 0) + total;
+      return acc;
+    }, {} as Record<string, number>);
+
     // Collect rows into a temp array containing ISO dates for correct sorting,
     // then map to `ChargeReportRow` with formatted dates for export.
     let filteredRowsTemp: Array<any> = [];
@@ -523,6 +562,22 @@ const ChargesList = () => {
         // Check all conditions
         if (withinDate(l.date) && chargeTypeMatches(l) && paidToMatches(l)) {
           const iso = l.date ? new Date(l.date).toISOString() : '';
+
+          // Payment-status filtering (reportPaymentStatus):
+          const chNo = String(c?.chargeNo ?? '').trim();
+          const totalChargeAmt = chargeAmountByChargeNo[chNo] || 0;
+          const paidAmt = paidByChargeNo[chNo] || 0;
+          const remaining = Math.max(0, totalChargeAmt - paidAmt);
+
+          let includeByPaymentStatus = true;
+          if (reportPaymentStatus === 'Paid') {
+            includeByPaymentStatus = paidAmt > 0; // include partial and full payments
+          } else if (reportPaymentStatus === 'Unpaid') {
+            includeByPaymentStatus = remaining > 0; // include partial and fully unpaid
+          }
+
+          if (!includeByPaymentStatus) return;
+
           filteredRowsTemp.push({
             chargeNo: c.chargeNo,
             chargeName: getChargeTypeName(l.charge),
@@ -570,8 +625,8 @@ const ChargesList = () => {
     // Sort by date (chronological). Empty/invalid dates will be treated as earliest.
     const sortedTemp = filteredRowsTemp.sort((a, b) => {
       if (!a.dateISO && !b.dateISO) return 0;
-      if (!a.dateISO) return -1;
-      if (!b.dateISO) return 1;
+      if (!a.dateISO) return 1; // treat missing dates as latest (appear at end)
+      if (!b.dateISO) return -1;
       return new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime();
     });
 
@@ -777,6 +832,8 @@ const ChargesList = () => {
               {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
+
+              
           <button onClick={fetchCharges} className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm">
             Refresh
           </button>
@@ -884,6 +941,8 @@ const ChargesList = () => {
                   ))}
                 </div>
               </div>
+
+              
             ) : (
               <p className="text-center text-gray-500 my-8 italic">No files uploaded yet.</p>
             )}
@@ -1113,6 +1172,21 @@ const ChargesList = () => {
                 <p className="mt-1 text-xs text-gray-500 italic">Select order numbers or leave empty to include all orders</p>
                 </div>
               )}
+
+              {/* Payment Status Filter (inside modal) */}
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Status</label>
+                <select
+                  value={reportPaymentStatus}
+                  onChange={e => setReportPaymentStatus(e.target.value as any)}
+                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
+                >
+                  <option value="All">All</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Unpaid">Unpaid</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500 italic">Choose to include Paid, Unpaid, or All (partial payments appear in both).</p>
+              </div>
 
               {/* Paid To Person Filter - Always visible */}
               <div>

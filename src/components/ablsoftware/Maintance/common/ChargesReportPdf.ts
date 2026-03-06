@@ -24,6 +24,8 @@ export interface ChargeReportRow {
   orderNo: string;
   vehicleNo: string;
   amount: number;
+  received?: number;
+  pending?: number;
   isOrderHeader?: boolean;
 }
 
@@ -60,17 +62,21 @@ export const exportChargesReportToPDF = async (
   const dateLine = `Period: ${startDate ? formatDisplayDate(startDate) : "Start"} to ${endDate ? formatDisplayDate(endDate) : "End"}`;
   doc.text(dateLine, 40, 120);
 
-  const head = [["Charges No", "Charge Name", "Date", "Order No", "Vehicle No", "Amount"]];
+  const head = [["Charges No", "Charge Name", "Date", "Order No", "Vehicle No", "Amount (PKR)", "Received (PKR)", "Pending (PKR)"]];
   const body = data.map(row => [
     row.chargeNo,
     row.chargeName,
     row.date,
     row.orderNo,
     row.vehicleNo,
-    row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })
-  ]);''
+    (row.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    (row.received || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }),
+    (row.pending || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })
+  ]);
   const totalAmount = data.reduce((sum, row) => sum + (row.amount || 0), 0);
-  body.push(["", "", "", "", "Total", totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })]);
+  const totalReceived = data.reduce((sum, row) => sum + (row.received || 0), 0);
+  const totalPending = data.reduce((sum, row) => sum + (row.pending || 0), 0);
+  body.push(["", "", "", "", "Total", totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 }), totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2 }), totalPending.toLocaleString(undefined, { minimumFractionDigits: 2 })]);
 
   autoTable(doc, {
     startY: 135,
