@@ -482,7 +482,9 @@ const ChargesList = () => {
       return;
     }
 
-    let filteredRows: ChargeReportRow[] = [];
+    // Collect rows into a temp array containing ISO dates for correct sorting,
+    // then map to `ChargeReportRow` with formatted dates for export.
+    let filteredRowsTemp: Array<any> = [];
     
     // Date filter
     const withinDate = (d: string) => {
@@ -520,10 +522,11 @@ const ChargesList = () => {
       (c.lines || []).forEach((l: any) => {
         // Check all conditions
         if (withinDate(l.date) && chargeTypeMatches(l) && paidToMatches(l)) {
-          filteredRows.push({
+          const iso = l.date ? new Date(l.date).toISOString() : '';
+          filteredRowsTemp.push({
             chargeNo: c.chargeNo,
             chargeName: getChargeTypeName(l.charge),
-            date: l.date ? new Date(l.date).toLocaleDateString('en-GB') : '-',
+            dateISO: iso,
             orderNo: c.orderNo,
             vehicleNo: l.vehicle || '-',
             amount: Number(l.amount) || 0
@@ -548,10 +551,11 @@ const ChargesList = () => {
             // Apply charge type filter
             if (reportSelectedChargeTypes.length > 0 && !reportSelectedChargeTypes.includes(String(entry.chargeType))) return;
             
-            filteredRows.push({
+            const iso = entryDate ? new Date(entryDate).toISOString() : '';
+            filteredRowsTemp.push({
               chargeNo: `OB-${ob.openingNo}`,
               chargeName: getChargeTypeName(entry.chargeType) || 'Opening Balance',
-              date: entryDate ? new Date(entryDate).toLocaleDateString('en-GB') : '-',
+              dateISO: iso,
               orderNo: `OB-${ob.openingNo}`,
               vehicleNo: entry.vehicleNo || 'N/A',
               amount: Number(entry.credit) || 0
@@ -562,6 +566,24 @@ const ChargesList = () => {
     } catch (err) {
       console.error('Failed to load opening balance for charges report:', err);
     }
+
+    // Sort by date (chronological). Empty/invalid dates will be treated as earliest.
+    const sortedTemp = filteredRowsTemp.sort((a, b) => {
+      if (!a.dateISO && !b.dateISO) return 0;
+      if (!a.dateISO) return -1;
+      if (!b.dateISO) return 1;
+      return new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime();
+    });
+
+    // Map to typed rows with formatted date string for export
+    const filteredRows: ChargeReportRow[] = sortedTemp.map(r => ({
+      chargeNo: r.chargeNo,
+      chargeName: r.chargeName,
+      date: r.dateISO ? new Date(r.dateISO).toLocaleDateString('en-GB') : '-',
+      orderNo: r.orderNo,
+      vehicleNo: r.vehicleNo,
+      amount: r.amount
+    }));
 
     if (filteredRows.length === 0) {
       toast.info('No data found for the selected criteria');
