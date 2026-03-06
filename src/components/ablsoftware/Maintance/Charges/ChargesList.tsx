@@ -578,13 +578,20 @@ const ChargesList = () => {
 
           if (!includeByPaymentStatus) return;
 
+          // Calculate received and pending for this specific line
+          const lineAmount = Number(l.amount) || 0;
+          const lineReceived = paidAmt > 0 ? Math.min(lineAmount, paidAmt) : 0;
+          const linePending = Math.max(0, lineAmount - lineReceived);
+
           filteredRowsTemp.push({
             chargeNo: c.chargeNo,
             chargeName: getChargeTypeName(l.charge),
             dateISO: iso,
             orderNo: c.orderNo,
             vehicleNo: l.vehicle || '-',
-            amount: Number(l.amount) || 0
+            amount: lineAmount,
+            received: lineReceived,
+            pending: linePending
           });
         }
       });
@@ -607,13 +614,22 @@ const ChargesList = () => {
             if (reportSelectedChargeTypes.length > 0 && !reportSelectedChargeTypes.includes(String(entry.chargeType))) return;
             
             const iso = entryDate ? new Date(entryDate).toISOString() : '';
+            const biltyNo = entry.biltyNo || `OB-${ob.openingNo}`;
+            
+            // Check if this opening balance has been paid
+            const obReceived = paidByChargeNo[`OB-${ob.openingNo}`] || 0;
+            const obAmount = Number(entry.credit) || 0;
+            const obPending = Math.max(0, obAmount - obReceived);
+            
             filteredRowsTemp.push({
               chargeNo: `OB-${ob.openingNo}`,
               chargeName: getChargeTypeName(entry.chargeType) || 'Opening Balance',
               dateISO: iso,
               orderNo: `OB-${ob.openingNo}`,
               vehicleNo: entry.vehicleNo || 'N/A',
-              amount: Number(entry.credit) || 0
+              amount: obAmount,
+              received: obReceived,
+              pending: obPending
             });
           }
         });
@@ -637,7 +653,9 @@ const ChargesList = () => {
       date: r.dateISO ? new Date(r.dateISO).toLocaleDateString('en-GB') : '-',
       orderNo: r.orderNo,
       vehicleNo: r.vehicleNo,
-      amount: r.amount
+      amount: r.amount,
+      received: r.received || 0,
+      pending: r.pending || 0
     }));
 
     if (filteredRows.length === 0) {

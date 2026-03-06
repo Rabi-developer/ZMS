@@ -24,8 +24,8 @@ export interface ChargeReportRow {
   orderNo: string;
   vehicleNo: string;
   amount: number;
-  received?: number;
-  pending?: number;
+  received: number;
+  pending: number;
   isOrderHeader?: boolean;
 }
 
