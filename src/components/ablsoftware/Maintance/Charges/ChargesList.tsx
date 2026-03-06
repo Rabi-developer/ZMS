@@ -496,21 +496,33 @@ const ChargesList = () => {
 
     const approvedPayments = (paymentABL || []).filter((p: any) => String(p?.status ?? p?.Status ?? '').toLowerCase() === 'approved');
 
+    console.log('[Charges Report] Total payments:', paymentABL.length, 'Approved:', approvedPayments.length);
+
     const paidByChargeNo = approvedPayments.reduce((acc: Record<string, number>, p: any) => {
       const items = p?.paymentABLItems || p?.paymentABLItem || [];
       if (!Array.isArray(items) || items.length === 0) {
         const key = String(p?.charges ?? p?.chargeNo ?? p?.ChargeNo ?? '').trim();
-        if (key) acc[key] = (acc[key] || 0) + (Number(p?.paidAmount ?? p?.PaidAmount) || 0);
+        const amt = Number(p?.paidAmount ?? p?.PaidAmount) || 0;
+        if (key && amt > 0) {
+          acc[key] = (acc[key] || 0) + amt;
+          console.log(`[Payment] Charge ${key}: +${amt} = ${acc[key]}`);
+        }
         return acc;
       }
       items.forEach((item: any) => {
         const key = String(item?.charges ?? item?.chargeNo ?? item?.ChargeNo ?? item?.charge_no ?? '').trim();
         if (!key) return;
         const amt = Number(item?.paidAmount ?? item?.PaidAmount ?? p?.paidAmount ?? p?.PaidAmount) || 0;
-        acc[key] = (acc[key] || 0) + amt;
+        if (amt > 0) {
+          acc[key] = (acc[key] || 0) + amt;
+          console.log(`[Payment Item] Charge ${key}: +${amt} = ${acc[key]}`);
+        }
       });
       return acc;
     }, {} as Record<string, number>);
+
+    console.log('[Charges Report] Payment totals by charge:', paidByChargeNo);
+    console.log('[Charges Report] Charges with payments:', Object.keys(paidByChargeNo).length);
 
     // Build charge total amounts map
     const chargeAmountByChargeNo = (chargesRaw || []).reduce((acc: Record<string, number>, c: any) => {
@@ -520,6 +532,10 @@ const ChargesList = () => {
       acc[key] = (acc[key] || 0) + total;
       return acc;
     }, {} as Record<string, number>);
+
+    console.log('[Charges Report] Total charges:', Object.keys(chargeAmountByChargeNo).length);
+    console.log('[Charges Report] Sample charge numbers:', Object.keys(chargeAmountByChargeNo).slice(0, 5));
+    console.log('[Charges Report] Sample charge amounts:', Object.keys(chargeAmountByChargeNo).slice(0, 5).map(k => ({ [k]: chargeAmountByChargeNo[k] })));
 
     // Collect rows into a temp array containing ISO dates for correct sorting,
     // then map to `ChargeReportRow` with formatted dates for export.
@@ -558,29 +574,42 @@ const ChargesList = () => {
       // First check if order matches (if filter is active)
       if (!orderNoMatches(c)) return;
       
-      (c.lines || []).forEach((l: any) => {
-        // Check all conditions
+      // Calculate payment status at charge level FIRST
+      const chNo = String(c?.chargeNo ?? '').trim();
+      const totalChargeAmt = chargeAmountByChargeNo[chNo] || 0;
+      const paidAmt = paidByChargeNo[chNo] || 0;
+      const remaining = Math.max(0, totalChargeAmt - paidAmt);
+
+      if (chNo) {
+        console.log(`[Charge ${chNo}] Total: ${totalChargeAmt}, Paid: ${paidAmt}, Remaining: ${remaining}`);
+      }
+
+      // Check payment status filter at charge level
+      let includeByPaymentStatus = true;
+      if (reportPaymentStatus === 'Paid') {
+        // Paid: show charges where ANY payment has been received (includes partial and full)
+        includeByPaymentStatus = paidAmt > 0;
+      } else if (reportPaymentStatus === 'Unpaid') {
+        // Unpaid: show charges where ANY balance remains (includes partial and fully unpaid)
+        includeByPaymentStatus = remaining > 0;
+      }
+
+      // If charge doesn't match payment status filter, skip all its lines
+      if (!includeByPaymentStatus) return;
+      
+      // Now process lines for this charge
+      const lines = c.lines || [];
+      const totalLines = lines.length || 1;
+      
+      lines.forEach((l: any, lineIndex: number) => {
+        // Check all line-level conditions
         if (withinDate(l.date) && chargeTypeMatches(l) && paidToMatches(l)) {
           const iso = l.date ? new Date(l.date).toISOString() : '';
-
-          // Payment-status filtering (reportPaymentStatus):
-          const chNo = String(c?.chargeNo ?? '').trim();
-          const totalChargeAmt = chargeAmountByChargeNo[chNo] || 0;
-          const paidAmt = paidByChargeNo[chNo] || 0;
-          const remaining = Math.max(0, totalChargeAmt - paidAmt);
-
-          let includeByPaymentStatus = true;
-          if (reportPaymentStatus === 'Paid') {
-            includeByPaymentStatus = paidAmt > 0; // include partial and full payments
-          } else if (reportPaymentStatus === 'Unpaid') {
-            includeByPaymentStatus = remaining > 0; // include partial and fully unpaid
-          }
-
-          if (!includeByPaymentStatus) return;
-
-          // Calculate received and pending for this specific line
           const lineAmount = Number(l.amount) || 0;
-          const lineReceived = paidAmt > 0 ? Math.min(lineAmount, paidAmt) : 0;
+          
+          // Distribute payment proportionally across lines
+          const lineRatio = totalChargeAmt > 0 ? lineAmount / totalChargeAmt : 0;
+          const lineReceived = paidAmt * lineRatio;
           const linePending = Math.max(0, lineAmount - lineReceived);
 
           filteredRowsTemp.push({
@@ -615,17 +644,28 @@ const ChargesList = () => {
             
             const iso = entryDate ? new Date(entryDate).toISOString() : '';
             const biltyNo = entry.biltyNo || `OB-${ob.openingNo}`;
+            const obChargeNo = `OB-${ob.openingNo}`;
             
             // Check if this opening balance has been paid
-            const obReceived = paidByChargeNo[`OB-${ob.openingNo}`] || 0;
+            const obReceived = paidByChargeNo[obChargeNo] || 0;
             const obAmount = Number(entry.credit) || 0;
             const obPending = Math.max(0, obAmount - obReceived);
             
+            // Apply payment status filter
+            let includeOB = true;
+            if (reportPaymentStatus === 'Paid') {
+              includeOB = obReceived > 0; // show if any payment received
+            } else if (reportPaymentStatus === 'Unpaid') {
+              includeOB = obPending > 0; // show if any balance remaining
+            }
+            
+            if (!includeOB) return;
+            
             filteredRowsTemp.push({
-              chargeNo: `OB-${ob.openingNo}`,
+              chargeNo: obChargeNo,
               chargeName: getChargeTypeName(entry.chargeType) || 'Opening Balance',
               dateISO: iso,
-              orderNo: `OB-${ob.openingNo}`,
+              orderNo: obChargeNo,
               vehicleNo: entry.vehicleNo || 'N/A',
               amount: obAmount,
               received: obReceived,
