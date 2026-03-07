@@ -16,7 +16,7 @@ import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/booki
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllBusinessAssociate, getSingleBusinessAssociate } from '@/apis/businessassociate';
 import { getAllOpeningBalance } from '@/apis/openingbalance';
-import { getAllPaymentABL } from '@/apis/paymentABL';
+import { getAllPaymentABL, getPaymentABLHistory } from '@/apis/paymentABL';
 import { columns, Charge } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 import { exportChargesReportToPDF, ChargeReportRow } from '@/components/ablsoftware/Maintance/common/ChargesReportPdf';
@@ -501,28 +501,128 @@ const ChargesList = () => {
       console.log('[Charges Report] Sample payment record:', JSON.stringify(approvedPayments[0], null, 2));
     }
 
-    const paidByChargeNo = approvedPayments.reduce((acc: Record<string, number>, p: any) => {
+    // Build comprehensive payment tracking by charge
+    // This tracks: total paid, expense amount, and balance from payment records
+    const paymentTrackingByCharge = approvedPayments.reduce((acc: Record<string, any>, p: any) => {
       const items = p?.paymentABLItems || p?.paymentABLItem || [];
+      
       if (!Array.isArray(items) || items.length === 0) {
         const key = String(p?.charges ?? p?.chargeNo ?? p?.ChargeNo ?? '').trim();
-        const amt = Number(p?.paidAmount ?? p?.PaidAmount) || 0;
-        if (key && amt > 0) {
-          acc[key] = (acc[key] || 0) + amt;
-          console.log(`[Payment] Charge ${key}: +${amt} = ${acc[key]}`);
+        const paidAmt = Number(p?.paidAmount ?? p?.PaidAmount) || 0;
+        const expenseAmt = Number(p?.expenseAmount ?? p?.ExpenseAmount) || 0;
+        const balance = Number(p?.balance ?? p?.Balance) || 0;
+        
+        if (key && paidAmt > 0) {
+          if (!acc[key]) {
+            acc[key] = { totalPaid: 0, expenseAmount: 0, balance: 0 };
+          }
+          acc[key].totalPaid += paidAmt;
+          acc[key].expenseAmount = Math.max(acc[key].expenseAmount, expenseAmt);
+          acc[key].balance = balance; // Use latest balance
+          console.log(`[Payment] Charge ${key}: Paid +${paidAmt}, Expense: ${expenseAmt}, Balance: ${balance}`);
         }
         return acc;
       }
+      
       items.forEach((item: any) => {
         const key = String(item?.charges ?? item?.chargeNo ?? item?.ChargeNo ?? item?.charge_no ?? '').trim();
         if (!key) return;
-        const amt = Number(item?.paidAmount ?? item?.PaidAmount ?? p?.paidAmount ?? p?.PaidAmount) || 0;
-        if (amt > 0) {
-          acc[key] = (acc[key] || 0) + amt;
-          console.log(`[Payment Item] Charge ${key}: +${amt} = ${acc[key]}`);
+        
+        const paidAmt = Number(item?.paidAmount ?? item?.PaidAmount) || 0;
+        const expenseAmt = Number(item?.expenseAmount ?? item?.ExpenseAmount) || 0;
+        const balance = Number(item?.balance ?? item?.Balance) || 0;
+        
+        if (paidAmt > 0) {
+          if (!acc[key]) {
+            acc[key] = { totalPaid: 0, expenseAmount: 0, balance: 0 };
+          }
+          acc[key].totalPaid += paidAmt;
+          acc[key].expenseAmount = Math.max(acc[key].expenseAmount, expenseAmt);
+          acc[key].balance = balance; // Use latest balance
+          console.log(`[Payment Item] Charge ${key}: Paid +${paidAmt}, Expense: ${expenseAmt}, Balance: ${balance}`);
         }
       });
       return acc;
+    }, {} as Record<string, any>);
+
+    console.log('[Charges Report] Payment tracking by charge:', paymentTrackingByCharge);
+
+    // Keep the old paidByChargeNo for backward compatibility
+    const paidByChargeNo = Object.keys(paymentTrackingByCharge).reduce((acc: Record<string, number>, key) => {
+      acc[key] = paymentTrackingByCharge[key].totalPaid;
+      return acc;
     }, {} as Record<string, number>);
+
+    // Fetch payment history for each charge to get accurate balance
+    console.log('[Charges Report] Fetching payment history for each charge...');
+    const historyByChargeNo: Record<string, any> = {};
+    
+    // Build a map of payments by vehicleNo + orderNo for better matching
+    const paymentsByVehicleOrder: Record<string, any> = {};
+    approvedPayments.forEach((p: any) => {
+      const items = p?.paymentABLItems || p?.paymentABLItem || [];
+      items.forEach((item: any) => {
+        const vehicleNo = String(item?.vehicleNo ?? '').trim();
+        const orderNo = String(item?.orderNo ?? '').trim();
+        const key = `${vehicleNo}|${orderNo}`;
+        
+        if (!paymentsByVehicleOrder[key]) {
+          paymentsByVehicleOrder[key] = {
+            totalPaid: 0,
+            expenseAmount: 0,
+            balance: 0,
+            payments: []
+          };
+        }
+        
+        paymentsByVehicleOrder[key].totalPaid += Number(item?.paidAmount ?? 0);
+        paymentsByVehicleOrder[key].expenseAmount = Math.max(
+          paymentsByVehicleOrder[key].expenseAmount,
+          Number(item?.expenseAmount ?? 0)
+        );
+        paymentsByVehicleOrder[key].balance = Number(item?.balance ?? 0); // Use latest balance
+        paymentsByVehicleOrder[key].payments.push(item);
+      });
+    });
+    
+    console.log('[Charges Report] Payments by vehicle+order:', Object.keys(paymentsByVehicleOrder).length, 'combinations');
+    console.log('[Charges Report] Sample payment keys:', Object.keys(paymentsByVehicleOrder).slice(0, 5));
+    
+    // Now map charges to payments using vehicleNo + orderNo
+    chargesRaw.forEach((c: any) => {
+      const chargeNo = String(c?.chargeNo ?? '').trim();
+      const orderNo = String(c?.orderNo ?? '').trim();
+      const lines = c.lines || [];
+      
+      lines.forEach((l: any) => {
+        const vehicleNo = String(l?.vehicle ?? '').trim();
+        const key = `${vehicleNo}|${orderNo}`;
+        
+        if (paymentsByVehicleOrder[key]) {
+          // Found matching payment for this vehicle+order
+          if (!historyByChargeNo[chargeNo]) {
+            historyByChargeNo[chargeNo] = {
+              totalPaid: 0,
+              balance: 0,
+              expenseAmount: 0
+            };
+          }
+          
+          // Aggregate payments for this charge
+          historyByChargeNo[chargeNo].totalPaid += paymentsByVehicleOrder[key].totalPaid;
+          historyByChargeNo[chargeNo].balance = paymentsByVehicleOrder[key].balance;
+          historyByChargeNo[chargeNo].expenseAmount = Math.max(
+            historyByChargeNo[chargeNo].expenseAmount,
+            paymentsByVehicleOrder[key].expenseAmount
+          );
+          
+          console.log(`[Mapping] Charge ${chargeNo} <- Vehicle ${vehicleNo}, Order ${orderNo}: Paid=${paymentsByVehicleOrder[key].totalPaid}, Balance=${paymentsByVehicleOrder[key].balance}`);
+        }
+      });
+    });
+    
+    console.log(`[Charges Report] Mapped payments to ${Object.keys(historyByChargeNo).length} charges`);
+    console.log('[Charges Report] History data:', historyByChargeNo);
 
     console.log('[Charges Report] Payment totals by charge:', paidByChargeNo);
     console.log('[Charges Report] Charges with payments:', Object.keys(paidByChargeNo).length);
@@ -583,11 +683,33 @@ const ChargesList = () => {
       // Calculate payment status at charge level FIRST
       const chNo = String(c?.chargeNo ?? '').trim();
       const totalChargeAmt = chargeAmountByChargeNo[chNo] || 0;
-      const paidAmt = paidByChargeNo[chNo] || 0;
-      const remaining = Math.max(0, totalChargeAmt - paidAmt);
+      
+      // Priority: Use payment history API data (most accurate), then payment tracking, then calculate
+      let paidAmt = 0;
+      let remaining = 0;
+      
+      if (historyByChargeNo[chNo]) {
+        // Use payment history API data - most accurate
+        const history = historyByChargeNo[chNo];
+        paidAmt = history.totalPaid;
+        remaining = history.balance;
+        console.log(`[Charge ${chNo}] Using HISTORY API - Paid: ${paidAmt}, Balance: ${remaining}`);
+      } else if (paymentTrackingByCharge[chNo]) {
+        // Use payment tracking data which includes balance from payment records
+        const tracking = paymentTrackingByCharge[chNo];
+        paidAmt = tracking.totalPaid;
+        // If balance is recorded in payment, use it; otherwise calculate
+        remaining = tracking.balance > 0 ? tracking.balance : Math.max(0, totalChargeAmt - paidAmt);
+        console.log(`[Charge ${chNo}] Using TRACKING - Total: ${totalChargeAmt}, Paid: ${paidAmt}, Balance: ${remaining}`);
+      } else {
+        // No payment records, so full amount is pending
+        paidAmt = 0;
+        remaining = totalChargeAmt;
+        console.log(`[Charge ${chNo}] NO PAYMENTS - Total: ${totalChargeAmt}, Paid: 0, Remaining: ${remaining}`);
+      }
 
       if (chNo) {
-        console.log(`[Charge ${chNo}] Total: ${totalChargeAmt}, Paid: ${paidAmt}, Remaining: ${remaining}`);
+        console.log(`[Charge ${chNo}] Final - Total: ${totalChargeAmt}, Paid: ${paidAmt}, Remaining: ${remaining}`);
       }
 
       // Check payment status filter at charge level
