@@ -501,128 +501,145 @@ const ChargesList = () => {
       console.log('[Charges Report] Sample payment record:', JSON.stringify(approvedPayments[0], null, 2));
     }
 
-    // Build comprehensive payment tracking by charge
-    // This tracks: total paid, expense amount, and balance from payment records
-    const paymentTrackingByCharge = approvedPayments.reduce((acc: Record<string, any>, p: any) => {
+    // Build payment tracking using hybrid approach with munsyana matching
+    // Payment items have inconsistent "charges" field:
+    // - Sometimes it's chargeNo (e.g., "27", "48")
+    // - Sometimes it's munsyana ID (e.g., "254e5b2e-184e-433c-a184-b7a21b1908de")
+    // - Sometimes it's person name (e.g., "Muhammad Kaleem")
+    
+    // Strategy 1: Index payments by chargeNo (for direct matches)
+    const paymentsByChargeNo: Record<string, any> = {};
+    
+    // Strategy 2: Index payments by vehicle+order+munsyana (for precise indirect matches)
+    const paymentsByVehicleOrderMunsyana: Record<string, any> = {};
+    
+    approvedPayments.forEach((p: any) => {
       const items = p?.paymentABLItems || p?.paymentABLItem || [];
       
-      if (!Array.isArray(items) || items.length === 0) {
-        const key = String(p?.charges ?? p?.chargeNo ?? p?.ChargeNo ?? '').trim();
-        const paidAmt = Number(p?.paidAmount ?? p?.PaidAmount) || 0;
-        const expenseAmt = Number(p?.expenseAmount ?? p?.ExpenseAmount) || 0;
-        const balance = Number(p?.balance ?? p?.Balance) || 0;
-        
-        if (key && paidAmt > 0) {
-          if (!acc[key]) {
-            acc[key] = { totalPaid: 0, expenseAmount: 0, balance: 0 };
-          }
-          acc[key].totalPaid += paidAmt;
-          acc[key].expenseAmount = Math.max(acc[key].expenseAmount, expenseAmt);
-          acc[key].balance = balance; // Use latest balance
-          console.log(`[Payment] Charge ${key}: Paid +${paidAmt}, Expense: ${expenseAmt}, Balance: ${balance}`);
-        }
-        return acc;
-      }
+      if (!Array.isArray(items) || items.length === 0) return;
       
       items.forEach((item: any) => {
-        const key = String(item?.charges ?? item?.chargeNo ?? item?.ChargeNo ?? item?.charge_no ?? '').trim();
-        if (!key) return;
-        
+        const chargesField = String(item?.charges ?? item?.chargeNo ?? item?.ChargeNo ?? '').trim();
+        const vehicleNo = String(item?.vehicleNo ?? '').trim();
+        const orderNo = String(item?.orderNo ?? '').trim();
         const paidAmt = Number(item?.paidAmount ?? item?.PaidAmount) || 0;
         const expenseAmt = Number(item?.expenseAmount ?? item?.ExpenseAmount) || 0;
         const balance = Number(item?.balance ?? item?.Balance) || 0;
         
-        if (paidAmt > 0) {
-          if (!acc[key]) {
-            acc[key] = { totalPaid: 0, expenseAmount: 0, balance: 0 };
+        if (paidAmt <= 0) return;
+        
+        // Check if charges field looks like a chargeNo (numeric or small number)
+        const isChargeNo = /^\d+$/.test(chargesField) && parseInt(chargesField) < 1000;
+        
+        if (isChargeNo) {
+          // Strategy 1: Direct chargeNo match
+          if (!paymentsByChargeNo[chargesField]) {
+            paymentsByChargeNo[chargesField] = {
+              totalPaid: 0,
+              expenseAmount: 0,
+              balance: 0,
+              payments: []
+            };
           }
-          acc[key].totalPaid += paidAmt;
-          acc[key].expenseAmount = Math.max(acc[key].expenseAmount, expenseAmt);
-          acc[key].balance = balance; // Use latest balance
-          console.log(`[Payment Item] Charge ${key}: Paid +${paidAmt}, Expense: ${expenseAmt}, Balance: ${balance}`);
+          
+          paymentsByChargeNo[chargesField].totalPaid += paidAmt;
+          paymentsByChargeNo[chargesField].expenseAmount = Math.max(
+            paymentsByChargeNo[chargesField].expenseAmount,
+            expenseAmt
+          );
+          paymentsByChargeNo[chargesField].balance = balance;
+          paymentsByChargeNo[chargesField].payments.push(item);
+          
+          console.log(`[Payment Direct] Charge ${chargesField}: Paid +${paidAmt}, Total=${paymentsByChargeNo[chargesField].totalPaid}`);
+        } else if (vehicleNo && orderNo && chargesField) {
+          // Strategy 2: Index by vehicle+order+munsyana for precise matching
+          // chargesField here is likely a munsyana ID or name
+          const key = `${vehicleNo}|${orderNo}|${chargesField}`;
+          
+          if (!paymentsByVehicleOrderMunsyana[key]) {
+            paymentsByVehicleOrderMunsyana[key] = {
+              totalPaid: 0,
+              expenseAmount: 0,
+              balance: 0,
+              payments: [],
+              munshyanaId: chargesField
+            };
+          }
+          
+          paymentsByVehicleOrderMunsyana[key].totalPaid += paidAmt;
+          paymentsByVehicleOrderMunsyana[key].expenseAmount = Math.max(
+            paymentsByVehicleOrderMunsyana[key].expenseAmount,
+            expenseAmt
+          );
+          paymentsByVehicleOrderMunsyana[key].balance = balance;
+          paymentsByVehicleOrderMunsyana[key].payments.push(item);
+          
+          console.log(`[Payment Indexed] ${key}: Paid +${paidAmt}, Total=${paymentsByVehicleOrderMunsyana[key].totalPaid}`);
         }
-      });
-      return acc;
-    }, {} as Record<string, any>);
-
-    console.log('[Charges Report] Payment tracking by charge:', paymentTrackingByCharge);
-
-    // Keep the old paidByChargeNo for backward compatibility
-    const paidByChargeNo = Object.keys(paymentTrackingByCharge).reduce((acc: Record<string, number>, key) => {
-      acc[key] = paymentTrackingByCharge[key].totalPaid;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Fetch payment history for each charge to get accurate balance
-    console.log('[Charges Report] Fetching payment history for each charge...');
-    const historyByChargeNo: Record<string, any> = {};
-    
-    // Build a map of payments by vehicleNo + orderNo for better matching
-    const paymentsByVehicleOrder: Record<string, any> = {};
-    approvedPayments.forEach((p: any) => {
-      const items = p?.paymentABLItems || p?.paymentABLItem || [];
-      items.forEach((item: any) => {
-        const vehicleNo = String(item?.vehicleNo ?? '').trim();
-        const orderNo = String(item?.orderNo ?? '').trim();
-        const key = `${vehicleNo}|${orderNo}`;
-        
-        if (!paymentsByVehicleOrder[key]) {
-          paymentsByVehicleOrder[key] = {
-            totalPaid: 0,
-            expenseAmount: 0,
-            balance: 0,
-            payments: []
-          };
-        }
-        
-        paymentsByVehicleOrder[key].totalPaid += Number(item?.paidAmount ?? 0);
-        paymentsByVehicleOrder[key].expenseAmount = Math.max(
-          paymentsByVehicleOrder[key].expenseAmount,
-          Number(item?.expenseAmount ?? 0)
-        );
-        paymentsByVehicleOrder[key].balance = Number(item?.balance ?? 0); // Use latest balance
-        paymentsByVehicleOrder[key].payments.push(item);
       });
     });
     
-    console.log('[Charges Report] Payments by vehicle+order:', Object.keys(paymentsByVehicleOrder).length, 'combinations');
-    console.log('[Charges Report] Sample payment keys:', Object.keys(paymentsByVehicleOrder).slice(0, 5));
+    console.log('[Charges Report] Direct chargeNo matches:', Object.keys(paymentsByChargeNo).length);
+    console.log('[Charges Report] Vehicle+Order+Munsyana combinations:', Object.keys(paymentsByVehicleOrderMunsyana).length);
     
-    // Now map charges to payments using vehicleNo + orderNo
+    // Now match charges to payments using both strategies
+    const historyByChargeNo: Record<string, any> = {};
+    
     chargesRaw.forEach((c: any) => {
       const chargeNo = String(c?.chargeNo ?? '').trim();
       const orderNo = String(c?.orderNo ?? '').trim();
       const lines = c.lines || [];
       
+      if (!chargeNo) return;
+      
+      // Strategy 1: Try direct chargeNo match first
+      if (paymentsByChargeNo[chargeNo]) {
+        historyByChargeNo[chargeNo] = paymentsByChargeNo[chargeNo];
+        console.log(`[Match Direct] Charge ${chargeNo}: Paid=${paymentsByChargeNo[chargeNo].totalPaid}`);
+        return; // Found direct match, no need to check vehicle+order
+      }
+      
+      // Strategy 2: Try vehicle+order+munsyana match for each line
       lines.forEach((l: any) => {
         const vehicleNo = String(l?.vehicle ?? '').trim();
-        const key = `${vehicleNo}|${orderNo}`;
+        const munshyanaId = String(l?.charge ?? '').trim();
         
-        if (paymentsByVehicleOrder[key]) {
-          // Found matching payment for this vehicle+order
+        if (!vehicleNo || !orderNo || !munshyanaId) return;
+        
+        // Create key with vehicle+order+munsyana for EXACT match
+        const key = `${vehicleNo}|${orderNo}|${munshyanaId}`;
+        
+        if (paymentsByVehicleOrderMunsyana[key]) {
           if (!historyByChargeNo[chargeNo]) {
             historyByChargeNo[chargeNo] = {
               totalPaid: 0,
+              expenseAmount: 0,
               balance: 0,
-              expenseAmount: 0
+              payments: []
             };
           }
           
-          // Aggregate payments for this charge
-          historyByChargeNo[chargeNo].totalPaid += paymentsByVehicleOrder[key].totalPaid;
-          historyByChargeNo[chargeNo].balance = paymentsByVehicleOrder[key].balance;
+          const paymentData = paymentsByVehicleOrderMunsyana[key];
+          historyByChargeNo[chargeNo].totalPaid += paymentData.totalPaid;
           historyByChargeNo[chargeNo].expenseAmount = Math.max(
             historyByChargeNo[chargeNo].expenseAmount,
-            paymentsByVehicleOrder[key].expenseAmount
+            paymentData.expenseAmount
           );
+          historyByChargeNo[chargeNo].balance = paymentData.balance;
+          historyByChargeNo[chargeNo].payments.push(...paymentData.payments);
           
-          console.log(`[Mapping] Charge ${chargeNo} <- Vehicle ${vehicleNo}, Order ${orderNo}: Paid=${paymentsByVehicleOrder[key].totalPaid}, Balance=${paymentsByVehicleOrder[key].balance}`);
+          console.log(`[Match Precise] Charge ${chargeNo} <- ${key}: Paid=${paymentData.totalPaid}`);
         }
       });
     });
     
-    console.log(`[Charges Report] Mapped payments to ${Object.keys(historyByChargeNo).length} charges`);
-    console.log('[Charges Report] History data:', historyByChargeNo);
+    console.log(`[Charges Report] Total charges matched: ${Object.keys(historyByChargeNo).length}`);
+    
+    const paymentTrackingByCharge = historyByChargeNo;
+    const paidByChargeNo = Object.keys(historyByChargeNo).reduce((acc: Record<string, number>, key) => {
+      acc[key] = historyByChargeNo[key].totalPaid;
+      return acc;
+    }, {} as Record<string, number>);
 
     console.log('[Charges Report] Payment totals by charge:', paidByChargeNo);
     console.log('[Charges Report] Charges with payments:', Object.keys(paidByChargeNo).length);
