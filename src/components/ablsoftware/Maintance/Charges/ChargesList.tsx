@@ -497,6 +497,9 @@ const ChargesList = () => {
     const approvedPayments = (paymentABL || []).filter((p: any) => String(p?.status ?? p?.Status ?? '').toLowerCase() === 'approved');
 
     console.log('[Charges Report] Total payments:', paymentABL.length, 'Approved:', approvedPayments.length);
+    if (approvedPayments.length > 0) {
+      console.log('[Charges Report] Sample payment record:', JSON.stringify(approvedPayments[0], null, 2));
+    }
 
     const paidByChargeNo = approvedPayments.reduce((acc: Record<string, number>, p: any) => {
       const items = p?.paymentABLItems || p?.paymentABLItem || [];
@@ -536,6 +539,9 @@ const ChargesList = () => {
     console.log('[Charges Report] Total charges:', Object.keys(chargeAmountByChargeNo).length);
     console.log('[Charges Report] Sample charge numbers:', Object.keys(chargeAmountByChargeNo).slice(0, 5));
     console.log('[Charges Report] Sample charge amounts:', Object.keys(chargeAmountByChargeNo).slice(0, 5).map(k => ({ [k]: chargeAmountByChargeNo[k] })));
+    if (chargesRaw.length > 0) {
+      console.log('[Charges Report] Sample charge record:', JSON.stringify(chargesRaw[0], null, 2));
+    }
 
     // Collect rows into a temp array containing ISO dates for correct sorting,
     // then map to `ChargeReportRow` with formatted dates for export.
