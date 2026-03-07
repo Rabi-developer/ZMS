@@ -103,7 +103,11 @@ export const columns = (
   },
   {
     header: 'Paid Amount',
-    accessorKey: 'paidAmount',
+    id: 'paidAmount',
+    accessorFn: (row) => {
+      const amount = Number(row.paidAmount) || 0;
+      return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
     cell: ({ row }: { row: Row<PaymentABL> }) => {
       const amount = Number(row.original.paidAmount) || 0;
       return (
@@ -117,7 +121,12 @@ export const columns = (
   },
   {
     header: 'Order No',
-    accessorKey: 'orderNo',
+    id: 'orderNo',
+    accessorFn: (row) => {
+      const items = row.PaymentABLItem ?? row.paymentABLItem ?? [];
+      const orderNos = Array.isArray(items) ? items.map((item: any) => item.orderNo).filter(Boolean) : [];
+      return orderNos.join(', ') || '-';
+    },
     cell: ({ row }: { row: Row<PaymentABL> }) => {
       const items = row.original.PaymentABLItem ?? row.original.paymentABLItem ?? [];
       const orderNos = Array.isArray(items) ? items.map((item: any) => item.orderNo).filter(Boolean) : [];
@@ -128,7 +137,12 @@ export const columns = (
   },
   {
     header: 'Vehicle No',
-    accessorKey: 'vehicleNo',
+    id: 'vehicleNo',
+    accessorFn: (row) => {
+      const items = row.PaymentABLItem ?? row.paymentABLItem ?? [];
+      const vehicleNos = Array.isArray(items) ? items.map((item: any) => item.vehicleNo).filter(Boolean) : [];
+      return vehicleNos.join(', ') || '-';
+    },
     cell: ({ row }: { row: Row<PaymentABL> }) => {
       const items = row.original.PaymentABLItem ?? row.original.paymentABLItem ?? [];
       const vehicleNos = Array.isArray(items) ? items.map((item: any) => item.vehicleNo).filter(Boolean) : [];
