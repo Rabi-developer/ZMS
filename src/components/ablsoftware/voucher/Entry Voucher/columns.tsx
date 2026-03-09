@@ -1,7 +1,7 @@
 import { Edit, Trash, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ColumnDef } from '@tanstack/react-table';
+import { ColumnDef, Row } from '@tanstack/react-table';
 import { MdReceipt } from 'react-icons/md';
 
 export interface Voucher {
@@ -92,6 +92,14 @@ export const columns = (
   {
     header: 'Voucher Date',
     accessorKey: 'voucherDate',
+     cell: ({ row }: { row: Row<Voucher> }) => {
+          if (!row.original.voucherDate) return '-';
+          const date = new Date(row.original.voucherDate);
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const year = date.getFullYear();
+          return `${day}/${month}/${year}`;
+        },
     enableColumnFilter: true,
   },
 
