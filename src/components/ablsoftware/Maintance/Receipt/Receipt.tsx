@@ -575,12 +575,15 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     console.log('isEdit:', isEdit);
     console.log('initialData:', initialData);
     
-    // Validate receipt amounts against balances
-    for (const row of data.items) {
-      if (row.biltyNo && (row.receiptAmount || 0) > (row.initialBalance || 0)) {
-        console.log('Validation failed for bilty:', row.biltyNo);
-        toast.error(`Receipt amount for bilty ${row.biltyNo} exceeds the remaining balance.`);
-        return;
+    // Only validate receipt amounts against balances in create mode
+    // In edit mode, the balance calculation is different because we're updating existing receipts
+    if (!isEdit) {
+      for (const row of data.items) {
+        if (row.biltyNo && (row.receiptAmount || 0) > (row.initialBalance || 0)) {
+          console.log('Validation failed for bilty:', row.biltyNo);
+          toast.error(`Receipt amount for bilty ${row.biltyNo} exceeds the remaining balance.`);
+          return;
+        }
       }
     }
 
@@ -589,7 +592,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     
     try {
       // Ensure we have a valid ID for edit mode
-      const receiptId = isEdit ? (initialData?.id || '') : null;
+      const receiptId = isEdit ? (initialData?.id || '') : undefined;
       console.log('Receipt ID:', receiptId);
       
       if (isEdit && !receiptId) {
@@ -599,14 +602,13 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         return;
       }
 
-      const payload = {
-        id: receiptId,
+      const payload: any = {
+        ...(receiptId && { id: receiptId }), // Only include id if it exists
         isActive: initialData?.isActive ?? true,
         isDeleted: initialData?.isDeleted ?? false,
-        createdDateTime: initialData?.createdDateTime || new Date().toISOString(),
-        createdBy: initialData?.createdBy || '',
-        modifiedDateTime: new Date().toISOString(),
-        modifiedBy: '',
+        ...(isEdit && initialData?.createdDateTime && { createdDateTime: initialData.createdDateTime }),
+        ...(isEdit && initialData?.createdBy && { createdBy: initialData.createdBy }),
+        ...(isEdit && { modifiedDateTime: new Date().toISOString() }),
         receiptNo: String(data.receiptNo) || `REC${Date.now()}${Math.floor(Math.random() * 1000)}`,
         receiptDate: data.receiptDate,
         paymentMode: data.paymentMode,
@@ -618,20 +620,26 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         remarks: data.remarks || '',
         items: data.items
           .filter(row => row.biltyNo && row.biltyNo.trim() !== '') // Filter out empty rows
-          .map(row => ({
-            id: row.id || null,
-            biltyNo: row.biltyNo || '',
-            consignmentId: row.consignmentId || '',
-            vehicleNo: row.vehicleNo || '',
-            biltyDate: row.biltyDate || '',
-            biltyAmount: row.biltyAmount || 0,
-            srbAmount: row.srbAmount || 0,
-            totalAmount: row.totalAmount || 0,
-            balance: row.balance || 0,
-            receiptAmount: row.receiptAmount || 0,
-            isOpeningBalance: row.isOpeningBalance || false,
-            openingBalanceId: row.openingBalanceId || '',
-          })),
+          .map(row => {
+            const item: any = {
+              biltyNo: row.biltyNo || '',
+              consignmentId: row.consignmentId || '',
+              vehicleNo: row.vehicleNo || '',
+              biltyDate: row.biltyDate || '',
+              biltyAmount: row.biltyAmount || 0,
+              srbAmount: row.srbAmount || 0,
+              totalAmount: row.totalAmount || 0,
+              balance: row.balance || 0,
+              receiptAmount: row.receiptAmount || 0,
+              isOpeningBalance: row.isOpeningBalance || false,
+              openingBalanceId: row.openingBalanceId || '',
+            };
+            // Only include id if it's a valid GUID (not null, not empty string)
+            if (row.id && row.id.trim() !== '' && row.id !== 'null') {
+              item.id = row.id;
+            }
+            return item;
+          }),
         salesTaxOption: data.salesTaxOption || 'without',
         salesTaxRate: data.salesTaxRate || '',
         whtOnSbr: data.whtOnSbr || '',
