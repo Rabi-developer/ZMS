@@ -71,14 +71,14 @@ const receiptSchema = z.object({
   items: z.array(
     z.object({
       id: z.string().optional().nullable(),
-      biltyNo: z.string().min(1, 'Bilty No is required'),
+      biltyNo: z.string().optional(), // Changed from .min(1) to .optional() to allow empty rows
       consignmentId: z.string().optional(),
       vehicleNo: z.string().optional(),
       biltyDate: z.string().optional(),
-      biltyAmount: z.number().min(0, 'Bilty Amount must be non-negative').optional(),
-      srbAmount: z.number().min(0, 'SRB Amount must be non-negative').optional(),
-      totalAmount: z.number().min(0, 'Total Amount must be non-negative').optional(),
-      balance: z.number().min(0, 'Balance must be non-negative').optional(),
+      biltyAmount: z.number().optional(), // Allow any number including negative
+      srbAmount: z.number().optional(), // Allow any number including negative
+      totalAmount: z.number().optional(), // Allow any number including negative
+      balance: z.number().optional(), // Allow any number including negative (can be negative if overpaid)
       initialBalance: z.number().optional(),
       receiptAmount: z.number().min(0, 'Receipt Amount must be non-negative').optional(),
       isOpeningBalance: z.boolean().optional(),
@@ -86,6 +86,9 @@ const receiptSchema = z.object({
       freightPaidBy: z.enum(['consignor', 'consignee']).optional().nullable(),
       customerName: z.string().optional().nullable(),
     })
+  ).refine(
+    (items) => items.some(item => item.biltyNo && item.biltyNo.trim() !== ''),
+    { message: 'At least one item with a Bilty No is required' }
   ),
   salesTaxOption: z.string().optional(),
   salesTaxRate: z.string().optional(),
@@ -567,22 +570,43 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   };
 
   const onSubmit = async (data: ReceiptFormData) => {
+    console.log('=== onSubmit called ===');
+    console.log('Form data:', data);
+    console.log('isEdit:', isEdit);
+    console.log('initialData:', initialData);
+    
     // Validate receipt amounts against balances
     for (const row of data.items) {
       if (row.biltyNo && (row.receiptAmount || 0) > (row.initialBalance || 0)) {
+        console.log('Validation failed for bilty:', row.biltyNo);
         toast.error(`Receipt amount for bilty ${row.biltyNo} exceeds the remaining balance.`);
         return;
       }
     }
 
+    console.log('Validation passed, setting isSubmitting to true');
     setIsSubmitting(true);
+    
     try {
+      // Ensure we have a valid ID for edit mode
+      const receiptId = isEdit ? (initialData?.id || '') : null;
+      console.log('Receipt ID:', receiptId);
+      
+      if (isEdit && !receiptId) {
+        console.error('Missing receipt ID in edit mode');
+        toast.error('Receipt ID is missing. Cannot update receipt.');
+        setIsSubmitting(false);
+        return;
+      }
+
       const payload = {
-        id: isEdit
-          ? initialData?.id || window.location.pathname.split('/').pop() || ''
-          : null,
-        isActive: true,
-        isDeleted: false,
+        id: receiptId,
+        isActive: initialData?.isActive ?? true,
+        isDeleted: initialData?.isDeleted ?? false,
+        createdDateTime: initialData?.createdDateTime || new Date().toISOString(),
+        createdBy: initialData?.createdBy || '',
+        modifiedDateTime: new Date().toISOString(),
+        modifiedBy: '',
         receiptNo: String(data.receiptNo) || `REC${Date.now()}${Math.floor(Math.random() * 1000)}`,
         receiptDate: data.receiptDate,
         paymentMode: data.paymentMode,
@@ -592,40 +616,52 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         party: data.party,
         receiptAmount: data.receiptAmount || 0,
         remarks: data.remarks || '',
-        items: data.items.map(row => ({
-          id: row.id || null,
-          biltyNo: row.biltyNo || '',
-          consignmentId: row.consignmentId || '',
-          vehicleNo: row.vehicleNo || '',
-          biltyDate: row.biltyDate || '',
-          biltyAmount: row.biltyAmount || 0,
-          srbAmount: row.srbAmount || 0,
-          totalAmount: row.totalAmount || 0,
-          balance: row.balance || 0,
-          receiptAmount: row.receiptAmount || 0,
-          isOpeningBalance: row.isOpeningBalance || false,
-          openingBalanceId: row.openingBalanceId || '',
-        })),
+        items: data.items
+          .filter(row => row.biltyNo && row.biltyNo.trim() !== '') // Filter out empty rows
+          .map(row => ({
+            id: row.id || null,
+            biltyNo: row.biltyNo || '',
+            consignmentId: row.consignmentId || '',
+            vehicleNo: row.vehicleNo || '',
+            biltyDate: row.biltyDate || '',
+            biltyAmount: row.biltyAmount || 0,
+            srbAmount: row.srbAmount || 0,
+            totalAmount: row.totalAmount || 0,
+            balance: row.balance || 0,
+            receiptAmount: row.receiptAmount || 0,
+            isOpeningBalance: row.isOpeningBalance || false,
+            openingBalanceId: row.openingBalanceId || '',
+          })),
         salesTaxOption: data.salesTaxOption || 'without',
         salesTaxRate: data.salesTaxRate || '',
         whtOnSbr: data.whtOnSbr || '',
       };
 
+      console.log('Payload prepared:', payload);
+      console.log('About to call API...');
+
       // Save receipt
       if (isEdit) {
-        await updateReceipt(payload);
+        console.log('Calling updateReceipt API...');
+        const response = await updateReceipt(payload);
+        console.log('Update response:', response);
         toast.success('Receipt updated successfully');
       } else {
-        await createReceipt(payload);
+        console.log('Calling createReceipt API...');
+        const response = await createReceipt(payload);
+        console.log('Create response:', response);
         toast.success('Receipt created successfully');
       }
 
-      // Navigate back to receipt list
+      console.log('API call successful, navigating to /receipt');
+      // Navigate back to receipt list after successful save
       router.push('/receipt');
     } catch (error) {
-      console.error('Error saving receipt:', error);
-      toast.error('An error occurred while saving the receipt');
+      console.error('Error in onSubmit:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to ${isEdit ? 'update' : 'create'} receipt: ${errorMessage}`);
     } finally {
+      console.log('Setting isSubmitting to false');
       setIsSubmitting(false);
     }
   };
@@ -679,7 +715,36 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         </div>
       )}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="p-4">
+          <form onSubmit={handleSubmit(onSubmit, (errors) => {
+            console.log('Form validation errors:', errors);
+            console.log('Current form values:', watch());
+            toast.error('Please fix form validation errors');
+          })} className="p-4">
+            {Object.keys(errors).length > 0 && (
+              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <h4 className="text-red-800 dark:text-red-200 font-semibold mb-2">Form Validation Errors:</h4>
+                <ul className="list-disc list-inside text-sm text-red-700 dark:text-red-300">
+                  {Object.entries(errors).map(([key, error]: [string, any]) => {
+                    if (key === 'items' && Array.isArray(error)) {
+                      return error.map((itemError, index) => 
+                        itemError ? (
+                          <li key={`${key}-${index}`}>
+                            Item {index + 1}: {Object.entries(itemError).map(([field, err]: [string, any]) => 
+                              `${field}: ${err?.message || 'Invalid'}`
+                            ).join(', ')}
+                          </li>
+                        ) : null
+                      );
+                    }
+                    return (
+                      <li key={key}>
+                        {key}: {error?.message || 'Invalid value'}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               <div className="relative">
                 <ABLCustomInput
@@ -908,7 +973,6 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               type="number"
                               min="0"
                               step="0.01"
-                              value={row.receiptAmount ?? 0}
                               disabled={isViewMode || !row.biltyNo}
                             />
                             {errors.items?.[index]?.receiptAmount && (
