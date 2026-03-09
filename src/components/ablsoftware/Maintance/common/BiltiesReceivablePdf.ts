@@ -451,7 +451,7 @@ export const exportBiltiesReceivableToPDF = ({
         },
         didDrawPage: (data) => {
           // Always redraw company header and report title on new pages
-          if (data.pageNumber > 1 || data.pageCount > 1) {
+          if (data.pageNumber > 1) {
             addCompanyHeader();
             addReportTitleAndDate();
           }
