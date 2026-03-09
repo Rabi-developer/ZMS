@@ -809,6 +809,7 @@ const LedgerPage: React.FC = () => {
         groupMap[key].rows.push({
           _idx: groupMap[key].rows.length,
           voucherDate: formatDate(v.voucherDate),
+          voucherDateRaw: v.voucherDate, // Store raw date for sorting
           voucherNo: v.voucherNo || '-',
           chequeNo: v.chequeNo || '-',
           depositSlipNo: v.depositSlipNo || '-',
@@ -872,6 +873,7 @@ const LedgerPage: React.FC = () => {
         groupMap[key].rows.push({
           _idx: groupMap[key].rows.length,
           voucherDate: formatDate(date),
+          voucherDateRaw: date, // Store raw date for sorting
           voucherNo: voucherNo || '-',
           chequeNo: chequeNo || '-',
           depositSlipNo: '-',
@@ -1055,6 +1057,7 @@ const LedgerPage: React.FC = () => {
           groupMap[accountId].rows.push({
             _idx: -1,
             voucherDate: formattedDate,
+            voucherDateRaw: obEntry.date, // Store raw date for sorting
             voucherNo: 'Opening Balance',
             chequeNo: '-',
             depositSlipNo: '-',
@@ -1079,13 +1082,9 @@ const LedgerPage: React.FC = () => {
             if (r1.isOpeningBalance && !r2.isOpeningBalance) return -1;
             if (!r1.isOpeningBalance && r2.isOpeningBalance) return 1;
             
-            const d1 = new Date(r1.voucherDate || '0000-00-00');
-            const d2 = new Date(r2.voucherDate || '0000-00-00');
-            if (d1 < d2) return -1;
-            if (d1 > d2) return 1;
-            const v1 = (r1.voucherNo || '').toString();
-            const v2 = (r2.voucherNo || '').toString();
-            return v1.localeCompare(v2, undefined, { numeric: true, sensitivity: 'base' });
+            // Sort by the order they were added (oldest saved first)
+            // Use _idx which represents the order they were pushed into the array
+            return r1._idx - r2._idx;
           });
           
           // Calculate running balance
