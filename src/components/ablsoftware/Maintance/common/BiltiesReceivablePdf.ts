@@ -227,13 +227,13 @@ export const exportBiltiesReceivableToPDF = ({
     body.push(
       partyType === 'all'
         ? [
-            { content: "GRAND TOTAL", colSpan: 4, styles: { halign: "right" as const, fontStyle: "bold" as const } },
+            { content: "GRAND TOTAL", colSpan: 6, styles: { halign: "right" as const, fontStyle: "bold" as const } },
             { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" as const } },
             { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" as const } },
             { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold" as const, textColor: [220, 53, 69] as [number, number, number] } },
           ]
         : [
-            { content: "GRAND TOTAL", colSpan: 4, styles: { halign: "right" as const, fontStyle: "bold" as const } },
+            { content: "GRAND TOTAL", colSpan: 6, styles: { halign: "right" as const, fontStyle: "bold" as const } },
             { content: formatCurrency(grandTotal.bilty), styles: { fontStyle: "bold" as const } },
             { content: formatCurrency(grandTotal.received), styles: { fontStyle: "bold" as const } },
             { content: formatCurrency(grandTotal.pending), styles: { fontStyle: "bold" as const, textColor: [220, 53, 69] as [number, number, number] } },
@@ -424,7 +424,8 @@ export const exportBiltiesReceivableToPDF = ({
         head: head, // Always show header for each party table
         body,
         theme: "grid",
-        styles: { fontSize: 7, cellPadding: 3, lineWidth: 0.4, lineColor: [180, 180, 180] },        headStyles: {
+        styles: { fontSize: 7, cellPadding: 3, lineWidth: 0.4, lineColor: [180, 180, 180] },
+        headStyles: {
           fillColor: [41, 128, 185],
           textColor: 255,
           fontStyle: "bold",
@@ -442,13 +443,15 @@ export const exportBiltiesReceivableToPDF = ({
           8: { halign: "right", cellWidth: 50, textColor: [220, 53, 69] as [number, number, number] },
         },
         margin: { left: 40, right: 40, top: 125 },
+        showHead: 'everyPage', // Show header on every page
         didParseCell: (data) => {
           if (data.row.index === body.length - 1 && data.column.index >= 6) {
             data.cell.styles.fillColor = [245, 247, 250];
           }
         },
         didDrawPage: (data) => {
-          if (data.pageNumber > 1) {
+          // Always redraw company header and report title on new pages
+          if (data.pageNumber > 1 || data.pageCount > 1) {
             addCompanyHeader();
             addReportTitleAndDate();
           }
