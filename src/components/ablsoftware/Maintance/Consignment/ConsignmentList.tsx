@@ -134,18 +134,30 @@ const ConsignmentList = () => {
   const fetchConsignments = useCallback(async () => {
     try {
       setLoading(true);
-      const [consRes, custRes, partyRes, vendRes, transRes] = await Promise.all([
+      const [consRes, custRes, partyRes, vendRes, transRes, bookingRes] = await Promise.all([
         getAllConsignment(pageIndex + 1, pageSize, selectedStatusFilter !== 'All' ? { status: selectedStatusFilter } : {}),
         getAllCustomers(1, 1000).catch(() => ({ data: [] })),
         getAllPartys(1, 1000).catch(() => ({ data: [] })),
         getAllVendor(1, 1000).catch(() => ({ data: [] })),
         getAllTransporter(1, 1000).catch(() => ({ data: [] })),
+        getAllBookingOrder(1, 10000).catch(() => ({ data: [] })),
       ]);
 
       const customersData = custRes?.data?.map((c: any) => ({ id: c.id, name: c.name || c.customerName || c.title || '-' })) || [];
       const partiesData = partyRes?.data?.map((p: any) => ({ id: p.id, name: p.name || p.partyName || p.title || '-' })) || [];
       const vendorsData = vendRes?.data?.map((v: any) => ({ id: v.id, name: v.name || v.vendorName || v.title || '-' })) || [];
       const transportersData = transRes?.data?.map((t: any) => ({ id: t.id, name: t.name || t.transporterName || t.title || '-' })) || [];
+      const bookingOrdersData = bookingRes?.data || [];
+
+      // Create a map for faster lookup: bookingOrderId -> booking order
+      const bookingOrderMap = new Map();
+      bookingOrdersData.forEach((b: any) => {
+        bookingOrderMap.set(b.id, b);
+        // Also map by orderNo for fallback
+        if (b.orderNo) {
+          bookingOrderMap.set(`orderNo_${b.orderNo}`, b);
+        }
+      });
 
       setCustomers(customersData);
       setParties(partiesData);
@@ -153,11 +165,26 @@ const ConsignmentList = () => {
       setTransporters(transportersData);
 
       if (consRes?.data) {
-        const resolved = consRes.data.map((c: any) => ({
-          ...c,
-          consignor: resolvePartyName(c.consignor || c.consignorId, { customers: customersData, parties: partiesData, vendors: vendorsData, transporters: transportersData }),
-          consignee: resolvePartyName(c.consignee || c.consigneeId, { customers: customersData, parties: partiesData, vendors: vendorsData, transporters: transportersData }),
-        }));
+        const resolved = consRes.data.map((c: any) => {
+          // Try to find matching booking order by bookingOrderId first, then by orderNo
+          let matchingBooking = null;
+          
+          if (c.bookingOrderId) {
+            matchingBooking = bookingOrderMap.get(c.bookingOrderId);
+          }
+          
+          if (!matchingBooking && c.orderNo) {
+            matchingBooking = bookingOrderMap.get(`orderNo_${c.orderNo}`);
+          }
+          
+          return {
+            ...c,
+            consignor: resolvePartyName(c.consignor || c.consignorId, { customers: customersData, parties: partiesData, vendors: vendorsData, transporters: transportersData }),
+            consignee: resolvePartyName(c.consignee || c.consigneeId, { customers: customersData, parties: partiesData, vendors: vendorsData, transporters: transportersData }),
+            // Use vehicle number from booking order if available, otherwise use consignment's own vehicleNo
+            vehicleNo: matchingBooking?.vehicleNo || c.vehicleNo || '-',
+          };
+        });
         setConsignments(resolved);
 
         const misc = consRes.misc || {};

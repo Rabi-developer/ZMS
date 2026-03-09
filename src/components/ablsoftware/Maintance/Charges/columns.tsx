@@ -97,14 +97,14 @@ export const columns = (
     header: 'Amount',
     accessorKey: 'amount',
   },
-  {
-    header: 'Unpaid Charges',
-    accessorKey: 'unpaidCharges',
-  },
-  {
-    header: 'Payment',
-    accessorKey: 'payment',
-  },
+  // {
+  //   header: 'Unpaid Charges',
+  //   accessorKey: 'unpaidCharges',
+  // },
+  // {
+  //   header: 'Payment',
+  //   accessorKey: 'payment',
+  // },
   // {
   //   header: '',
   //   accessorKey: 'name',

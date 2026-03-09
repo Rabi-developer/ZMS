@@ -21,6 +21,7 @@ export const getStatusStyles = (status: string) => {
 };
 
 export interface Consignment {
+  vehicleNo: string;
   files: any;
   id: string;
   receiptNo: string;
@@ -114,6 +115,17 @@ export const columns = (
   {
     header: 'Vehicle No',
     accessorKey: 'vehicleNo',
+    cell: ({ row }: { row: Row<Consignment> }) => {
+      // Display vehicle number from consignment or booking order
+      const vehicleNo = row.original.vehicleNo || '-';
+      return (
+        <span className="text-sm text-gray-700 dark:text-gray-300">
+          {vehicleNo}
+        </span>
+      );
+    },
+    enableColumnFilter: true,
+    filterFn: 'includesString',
   },
   // {
   //   header: 'Freight From',
