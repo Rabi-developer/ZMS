@@ -571,7 +571,6 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     for (const row of data.items) {
       if (row.biltyNo && (row.receiptAmount || 0) > (row.initialBalance || 0)) {
         toast.error(`Receipt amount for bilty ${row.biltyNo} exceeds the remaining balance.`);
-        setIsSubmitting(false);
         return;
       }
     }
@@ -615,41 +614,19 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       // Save receipt
       if (isEdit) {
         await updateReceipt(payload);
-         router.push('/receipt');
-        toast.success('Updated successfully');
-        
-
+        toast.success('Receipt updated successfully');
       } else {
         await createReceipt(payload);
-         router.push('/receipt');
         toast.success('Receipt created successfully');
-    
       }
 
-      // // Update consignment receivedAmount
-      // const updates = data.items
-      //   .filter(row => row.consignmentId && (row.receiptAmount ?? 0) > 0)
-      //   .map(async row => {
-      //     try {
-      //       await updateConsignment({
-      //         id: row.consignmentId,
-      //         receivedAmount: row.receiptAmount ?? 0,
-      //       });
-      //     } catch (error) {
-      //       console.error(`Failed to update consignment ${row.consignmentId}:`, error);
-      //     }
-      //   });
-      // await Promise.all(updates);
-
+      // Navigate back to receipt list
       router.push('/receipt');
-      window.location.href = '/receipt';
     } catch (error) {
       console.error('Error saving receipt:', error);
       toast.error('An error occurred while saving the receipt');
-       router.push('/receipt');
     } finally {
       setIsSubmitting(false);
-       router.push('/receipt');
     }
   };
 
