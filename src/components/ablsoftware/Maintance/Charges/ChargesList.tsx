@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
-import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash, FaFilePdf } from 'react-icons/fa';
+import { FaFileExcel, FaCheck, FaFileUpload, FaEye, FaTrash, FaFilePdf, FaWallet, FaHandHoldingUsd, FaExclamationCircle } from 'react-icons/fa';
 import * as XLSX from 'xlsx';
 import { DataTable } from '@/components/ui/CommissionTable';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
@@ -71,6 +71,8 @@ const ChargesList = () => {
   const [chargeTypeSearchTerm, setChargeTypeSearchTerm] = useState('');
   const [orderNoSearchTerm, setOrderNoSearchTerm] = useState('');
   const [paidToSearchTerm, setPaidToSearchTerm] = useState('');
+  const [reportPreviewData, setReportPreviewData] = useState<ChargeReportRow[]>([]);
+  const [reportDataLoading, setReportDataLoading] = useState(false);
 
   // File Upload States
   const [openFileUploadModal, setOpenFileUploadModal] = useState(false);
@@ -353,6 +355,7 @@ const ChargesList = () => {
     setChargeTypeSearchTerm('');
     setOrderNoSearchTerm('');
     setPaidToSearchTerm('');
+    setReportPreviewData([]);
   };
 
   // --- REPORTING LOGIC ---
@@ -476,15 +479,12 @@ const ChargesList = () => {
     }
   }, [uniquePaidToPersons, fetchingBAIds]);
 
-  const handleExportReport = async (format: 'PDF' | 'EXCEL') => {
+  const getFilteredReportRows = useCallback(async () => {
     // Check if any data is still loading
     const hasLoadingData = uniquePaidToPersons.some(p => p.name === 'Loading...');
-    if (hasLoadingData) {
-      toast.warning('Please wait, loading business associate names...');
-      return;
-    }
+    if (hasLoadingData) return [];
 
-    // Load payment records to compute paid/unpaid status per charge
+    setReportDataLoading(true);
     let paymentABL: any[] = [];
     try {
       const payRes = await getAllPaymentABL(1, 10000);
@@ -496,11 +496,6 @@ const ChargesList = () => {
 
     const approvedPayments = (paymentABL || []).filter((p: any) => String(p?.status ?? p?.Status ?? '').toLowerCase() === 'approved');
 
-    console.log('[Charges Report] Total payments:', paymentABL.length, 'Approved:', approvedPayments.length);
-    if (approvedPayments.length > 0) {
-      console.log('[Charges Report] Sample payment record:', JSON.stringify(approvedPayments[0], null, 2));
-    }
-
     const paidByChargeNo = approvedPayments.reduce((acc: Record<string, number>, p: any) => {
       const items = p?.paymentABLItems || p?.paymentABLItem || [];
       if (!Array.isArray(items) || items.length === 0) {
@@ -508,7 +503,6 @@ const ChargesList = () => {
         const amt = Number(p?.paidAmount ?? p?.PaidAmount) || 0;
         if (key && amt > 0) {
           acc[key] = (acc[key] || 0) + amt;
-          console.log(`[Payment] Charge ${key}: +${amt} = ${acc[key]}`);
         }
         return acc;
       }
@@ -518,16 +512,11 @@ const ChargesList = () => {
         const amt = Number(item?.paidAmount ?? item?.PaidAmount ?? p?.paidAmount ?? p?.PaidAmount) || 0;
         if (amt > 0) {
           acc[key] = (acc[key] || 0) + amt;
-          console.log(`[Payment Item] Charge ${key}: +${amt} = ${acc[key]}`);
         }
       });
       return acc;
     }, {} as Record<string, number>);
 
-    console.log('[Charges Report] Payment totals by charge:', paidByChargeNo);
-    console.log('[Charges Report] Charges with payments:', Object.keys(paidByChargeNo).length);
-
-    // Build charge total amounts map
     const chargeAmountByChargeNo = (chargesRaw || []).reduce((acc: Record<string, number>, c: any) => {
       const key = String(c?.chargeNo ?? c?.ChargeNo ?? '').trim();
       if (!key) return acc;
@@ -536,18 +525,8 @@ const ChargesList = () => {
       return acc;
     }, {} as Record<string, number>);
 
-    console.log('[Charges Report] Total charges:', Object.keys(chargeAmountByChargeNo).length);
-    console.log('[Charges Report] Sample charge numbers:', Object.keys(chargeAmountByChargeNo).slice(0, 5));
-    console.log('[Charges Report] Sample charge amounts:', Object.keys(chargeAmountByChargeNo).slice(0, 5).map(k => ({ [k]: chargeAmountByChargeNo[k] })));
-    if (chargesRaw.length > 0) {
-      console.log('[Charges Report] Sample charge record:', JSON.stringify(chargesRaw[0], null, 2));
-    }
-
-    // Collect rows into a temp array containing ISO dates for correct sorting,
-    // then map to `ChargeReportRow` with formatted dates for export.
     let filteredRowsTemp: Array<any> = [];
     
-    // Date filter
     const withinDate = (d: string) => {
       if (!reportStartDate && !reportEndDate) return true;
       const dt = new Date(d).getTime();
@@ -556,64 +535,46 @@ const ChargesList = () => {
       return dt >= start && dt <= end;
     };
     
-    // Paid To filter - check if line's paidTo matches any selected person
     const paidToMatches = (line: any) => {
       if (reportSelectedPaidToPersons.length === 0) return true;
       const paidToId = String(line.paidTo || '');
       return reportSelectedPaidToPersons.includes(paidToId);
     };
     
-    // Charge Type filter
     const chargeTypeMatches = (line: any) => {
       if (reportSelectedChargeTypes.length === 0) return true;
       return reportSelectedChargeTypes.includes(String(line.charge));
     };
     
-    // Order Number filter
     const orderNoMatches = (charge: any) => {
       if (reportSelectedOrderNos.length === 0) return true;
       return reportSelectedOrderNos.includes(charge.orderNo);
     };
 
-    // Apply all filters together
     chargesRaw.forEach((c: any) => {
-      // First check if order matches (if filter is active)
       if (!orderNoMatches(c)) return;
       
-      // Calculate payment status at charge level FIRST
       const chNo = String(c?.chargeNo ?? '').trim();
       const totalChargeAmt = chargeAmountByChargeNo[chNo] || 0;
       const paidAmt = paidByChargeNo[chNo] || 0;
       const remaining = Math.max(0, totalChargeAmt - paidAmt);
 
-      if (chNo) {
-        console.log(`[Charge ${chNo}] Total: ${totalChargeAmt}, Paid: ${paidAmt}, Remaining: ${remaining}`);
-      }
-
-      // Check payment status filter at charge level
       let includeByPaymentStatus = true;
       if (reportPaymentStatus === 'Paid') {
-        // Paid: show charges where ANY payment has been received (includes partial and full)
         includeByPaymentStatus = paidAmt > 0;
       } else if (reportPaymentStatus === 'Unpaid') {
-        // Unpaid: show charges where ANY balance remains (includes partial and fully unpaid)
         includeByPaymentStatus = remaining > 0;
       }
 
-      // If charge doesn't match payment status filter, skip all its lines
       if (!includeByPaymentStatus) return;
       
-      // Now process lines for this charge
       const lines = c.lines || [];
-      const totalLines = lines.length || 1;
       
-      lines.forEach((l: any, lineIndex: number) => {
-        // Check all line-level conditions
+      lines.forEach((l: any) => {
         if (withinDate(l.date) && chargeTypeMatches(l) && paidToMatches(l)) {
           const iso = l.date ? new Date(l.date).toISOString() : '';
           const lineAmount = Number(l.amount) || 0;
           
-          // Distribute payment proportionally across lines
           const lineRatio = totalChargeAmt > 0 ? lineAmount / totalChargeAmt : 0;
           const lineReceived = paidAmt * lineRatio;
           const linePending = Math.max(0, lineAmount - lineReceived);
@@ -632,7 +593,6 @@ const ChargesList = () => {
       });
     });
 
-    // Add opening balance entries for charges (credit > 0 with chargeType)
     try {
       const openingBalanceRes = await getAllOpeningBalance(1, 10000);
       const openingBalances: any[] = openingBalanceRes?.data || [];
@@ -641,30 +601,22 @@ const ChargesList = () => {
         (ob.openingBalanceEntrys || []).forEach((entry: any) => {
           if (entry.credit > 0 && entry.chargeType) {
             const entryDate = entry.biltyDate || ob.openingDate;
-            
-            // Apply date filter
             if (!withinDate(entryDate)) return;
-            
-            // Apply charge type filter
             if (reportSelectedChargeTypes.length > 0 && !reportSelectedChargeTypes.includes(String(entry.chargeType))) return;
             
             const iso = entryDate ? new Date(entryDate).toISOString() : '';
-            const biltyNo = entry.biltyNo || `OB-${ob.openingNo}`;
             const obChargeNo = `OB-${ob.openingNo}`;
             
-            // Check if this opening balance has been paid
             const obReceived = paidByChargeNo[obChargeNo] || 0;
             const obAmount = Number(entry.credit) || 0;
             const obPending = Math.max(0, obAmount - obReceived);
             
-            // Apply payment status filter
             let includeOB = true;
             if (reportPaymentStatus === 'Paid') {
-              includeOB = obReceived > 0; // show if any payment received
+              includeOB = obReceived > 0;
             } else if (reportPaymentStatus === 'Unpaid') {
-              includeOB = obPending > 0; // show if any balance remaining
+              includeOB = obPending > 0;
             }
-            
             if (!includeOB) return;
             
             filteredRowsTemp.push({
@@ -684,27 +636,44 @@ const ChargesList = () => {
       console.error('Failed to load opening balance for charges report:', err);
     }
 
-    // Sort by date (chronological). Empty/invalid dates will be treated as earliest.
     const sortedTemp = filteredRowsTemp.sort((a, b) => {
       if (!a.dateISO && !b.dateISO) return 0;
-      if (!a.dateISO) return 1; // treat missing dates as latest (appear at end)
+      if (!a.dateISO) return 1;
       if (!b.dateISO) return -1;
       return new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime();
     });
 
-    // Map to typed rows with formatted date string for export
-    const filteredRows: ChargeReportRow[] = sortedTemp.map(r => ({
-      chargeNo: r.chargeNo,
+    const result: ChargeReportRow[] = sortedTemp.map(r => ({
+      chargeNo: String(r.chargeNo),
       chargeName: r.chargeName,
       date: r.dateISO ? new Date(r.dateISO).toLocaleDateString('en-GB') : '-',
-      orderNo: r.orderNo,
+      orderNo: String(r.orderNo),
       vehicleNo: r.vehicleNo,
       amount: r.amount,
       received: r.received || 0,
       pending: r.pending || 0
     }));
 
-    if (filteredRows.length === 0) {
+    setReportDataLoading(false);
+    return result;
+  }, [
+    uniquePaidToPersons, reportStartDate, reportEndDate, reportSelectedChargeTypes,
+    reportSelectedOrderNos, reportSelectedPaidToPersons, reportPaymentStatus,
+    chargesRaw, getChargeTypeName, businessAssociates
+  ]);
+
+  useEffect(() => {
+    if (openReportModal) {
+      getFilteredReportRows().then(setReportPreviewData);
+    }
+  }, [
+    openReportModal, getFilteredReportRows, reportStartDate, reportEndDate,
+    reportSelectedChargeTypes, reportSelectedOrderNos, reportSelectedPaidToPersons,
+    reportPaymentStatus
+  ]);
+
+  const handleExportReport = async (format: 'PDF' | 'EXCEL') => {
+    if (reportPreviewData.length === 0) {
       toast.info('No data found for the selected criteria');
       return;
     }
@@ -735,9 +704,9 @@ const ChargesList = () => {
     const typeLabel = filterParts.length > 0 ? filterParts.join(' | ') : 'ALL CHARGES';
     
     if (format === 'PDF') {
-      await exportChargesReportToPDF(filteredRows, typeLabel, reportStartDate, reportEndDate);
+      await exportChargesReportToPDF(reportPreviewData, typeLabel, reportStartDate, reportEndDate);
     } else {
-      await exportChargesReportToExcel(filteredRows, typeLabel, reportStartDate, reportEndDate);
+      await exportChargesReportToExcel(reportPreviewData, typeLabel, reportStartDate, reportEndDate);
     }
   };
 
@@ -1033,7 +1002,7 @@ const ChargesList = () => {
       {/* REPORT MODAL */}
       {openReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4" onClick={(e) => e.target === e.currentTarget && handleCloseReportModal()}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[75vw] max-h-[95vh] flex flex-col animate-in fade-in zoom-in duration-200">
             {/* Header - Fixed */}
             <div className="flex justify-between items-center p-6 border-b flex-shrink-0">
               <h3 className="text-2xl font-bold text-gray-800">Generate Charges Report</h3>
@@ -1046,7 +1015,7 @@ const ChargesList = () => {
                 {/* Date Range Section */}
                 <div className="bg-gray-50 p-4 rounded-xl">
                 <h4 className="text-sm font-bold text-gray-700 mb-3">Date Range (Optional)</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
                     <input type="date" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all" />
@@ -1055,11 +1024,7 @@ const ChargesList = () => {
                     <label className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
                     <input type="date" value={reportEndDate} onChange={e => setReportEndDate(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all" />
                   </div>
-                </div>
-              </div>
-
-              {/* Filter Type Dropdown */}
-              <div>
+                  <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Filter Type</label>
                   {(reportSelectedChargeTypes.length > 0 || reportSelectedOrderNos.length > 0) && (
@@ -1090,7 +1055,11 @@ const ChargesList = () => {
                   <option value="OrderNo">By Order Number</option>
                   <option value="ChargeType">By Charge Type</option>
                 </select>
+                  </div>
+                </div>
               </div>
+
+              
 
               {/* Charge Type Filter - Only show when selected */}
               {reportFilterType === 'ChargeType' && (
@@ -1237,101 +1206,226 @@ const ChargesList = () => {
                 </div>
               )}
 
-              {/* Payment Status Filter (inside modal) */}
-              <div className="mb-4">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Status</label>
-                <select
-                  value={reportPaymentStatus}
-                  onChange={e => setReportPaymentStatus(e.target.value as any)}
-                  className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all"
-                >
-                  <option value="All">All</option>
-                  <option value="Paid">Paid</option>
-                  <option value="Unpaid">Unpaid</option>
-                </select>
-                <p className="mt-1 text-xs text-gray-500 italic">Choose to include Paid, Unpaid, or All (partial payments appear in both).</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Payment Status Filter */}
+                <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Status</label>
+                  <select
+                    value={reportPaymentStatus}
+                    onChange={e => setReportPaymentStatus(e.target.value as any)}
+                    className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none transition-all bg-white"
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                  </select>
+                  <p className="mt-2 text-xs text-gray-400 italic">Filter by payment collection status.</p>
+                </div>
+
+                {/* Paid To Person Filter */}
+                <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
+                      Paid To Person
+                      {reportSelectedPaidToPersons.length > 0 && (
+                        <span className="ml-2 text-rose-600 font-normal">({reportSelectedPaidToPersons.length})</span>
+                      )}
+                    </label>
+                    {reportSelectedPaidToPersons.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setReportSelectedPaidToPersons([])}
+                        className="text-xs text-red-600 hover:text-red-800 font-semibold"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="border border-gray-300 rounded-xl overflow-hidden bg-white shadow-sm">
+                    <div className="p-2 border-b bg-gray-50">
+                      <input
+                        type="text"
+                        placeholder="Search persons..."
+                        value={paidToSearchTerm}
+                        onChange={(e) => setPaidToSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none"
+                      />
+                    </div>
+                    <div className="p-2 border-b bg-white flex justify-between items-center px-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const filtered = uniquePaidToPersons.filter(p => 
+                            p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase())
+                          );
+                          const filteredIds = filtered.map(p => p.id);
+                          const allSelected = filteredIds.every(id => reportSelectedPaidToPersons.includes(id));
+                          
+                          if (allSelected) {
+                            setReportSelectedPaidToPersons(reportSelectedPaidToPersons.filter(id => !filteredIds.includes(id)));
+                          } else {
+                            setReportSelectedPaidToPersons([...new Set([...reportSelectedPaidToPersons, ...filteredIds])]);
+                          }
+                        }}
+                        className="text-[10px] text-blue-600 hover:text-blue-800 font-bold uppercase tracking-tighter"
+                      >
+                        {uniquePaidToPersons.filter(p => 
+                          p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase())
+                        ).every(p => reportSelectedPaidToPersons.includes(p.id)) && uniquePaidToPersons.filter(p => 
+                          p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase())
+                        ).length > 0 ? 'Deselect All' : 'Select All'}
+                      </button>
+                      <span className="text-[10px] text-gray-400 font-medium uppercase">{uniquePaidToPersons.length} Total</span>
+                    </div>
+                    <div className="p-2 max-h-32 overflow-y-auto custom-scrollbar">
+                      {uniquePaidToPersons
+                        .filter(p => p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase()))
+                        .map(p => (
+                          <label key={p.id} className="flex items-center p-2 hover:bg-rose-50 rounded cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={reportSelectedPaidToPersons.includes(p.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setReportSelectedPaidToPersons([...reportSelectedPaidToPersons, p.id]);
+                                } else {
+                                  setReportSelectedPaidToPersons(reportSelectedPaidToPersons.filter(id => id !== p.id));
+                                }
+                              }}
+                              className="w-4 h-4 text-rose-600 border-gray-300 rounded focus:ring-rose-500"
+                            />
+                            <span className="ml-3 text-sm text-gray-700 truncate">{p.name}</span>
+                          </label>
+                        ))}
+                      {uniquePaidToPersons.filter(p => p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase())).length === 0 && (
+                        <p className="text-center text-gray-500 text-xs py-4">No persons found</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Paid To Person Filter - Always visible */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Filter by Paid To Person
-                    {reportSelectedPaidToPersons.length > 0 && (
-                      <span className="ml-2 text-rose-600 font-normal">({reportSelectedPaidToPersons.length} selected)</span>
-                    )}
-                  </label>
-                  {reportSelectedPaidToPersons.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setReportSelectedPaidToPersons([])}
-                      className="text-xs text-red-600 hover:text-red-800 font-semibold"
-                    >
-                      Clear
-                    </button>
-                  )}
+
+              {/* Preview Table Section */}
+              <div className="mt-8 border-t pt-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h4 className="text-lg font-bold text-gray-700 uppercase tracking-wider">Data Preview</h4>
+                  <span className="text-sm font-semibold text-rose-600 bg-rose-50 px-4 py-1.5 rounded-full border border-rose-100 shadow-sm">
+                    {reportPreviewData.length} Records Found
+                  </span>
                 </div>
-                <div className="border border-gray-300 rounded-xl overflow-hidden bg-white">
-                  <div className="p-2 border-b bg-gray-50">
-                    <input
-                      type="text"
-                      placeholder="Search persons..."
-                      value={paidToSearchTerm}
-                      onChange={(e) => setPaidToSearchTerm(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none"
-                    />
+
+                {/* Summary Cards */}
+                {reportPreviewData.length > 0 && !reportDataLoading && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-2xl border border-blue-200 shadow-sm transition-all hover:shadow-md">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-500 rounded-xl text-white shadow-lg shadow-blue-200">
+                          <FaWallet size={24} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Total Amount</p>
+                          <p className="text-xl font-black text-blue-900">
+                            PKR {reportPreviewData.reduce((sum, r) => sum + r.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-2xl border border-green-200 shadow-sm transition-all hover:shadow-md">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-green-500 rounded-xl text-white shadow-lg shadow-green-200">
+                          <FaHandHoldingUsd size={24} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-green-600 uppercase tracking-wider">Total Received</p>
+                          <p className="text-xl font-black text-green-900">
+                            PKR {reportPreviewData.reduce((sum, r) => sum + r.received, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-rose-50 to-rose-100 p-5 rounded-2xl border border-rose-200 shadow-sm transition-all hover:shadow-md">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-rose-500 rounded-xl text-white shadow-lg shadow-rose-200">
+                          <FaExclamationCircle size={24} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-rose-600 uppercase tracking-wider">Total Pending</p>
+                          <p className="text-xl font-black text-rose-900">
+                            PKR {reportPreviewData.reduce((sum, r) => sum + r.pending, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="p-2 border-b bg-white">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const filtered = uniquePaidToPersons.filter(p => 
-                          p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase())
-                        );
-                        const filteredIds = filtered.map(p => p.id);
-                        const allSelected = filteredIds.every(id => reportSelectedPaidToPersons.includes(id));
-                        
-                        if (allSelected) {
-                          setReportSelectedPaidToPersons(reportSelectedPaidToPersons.filter(id => !filteredIds.includes(id)));
-                        } else {
-                          setReportSelectedPaidToPersons([...new Set([...reportSelectedPaidToPersons, ...filteredIds])]);
-                        }
-                      }}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-semibold"
-                    >
-                      {uniquePaidToPersons.filter(p => 
-                        p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase())
-                      ).every(p => reportSelectedPaidToPersons.includes(p.id)) && uniquePaidToPersons.filter(p => 
-                        p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase())
-                      ).length > 0 ? 'Deselect All' : 'Select All'}
-                    </button>
+                )}
+                
+                {reportDataLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-100">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mb-4"></div>
+                    <p className="text-gray-600 font-bold animate-pulse">Recalculating report data...</p>
+                    <p className="text-xs text-gray-400 mt-2 italic">This may take a moment depending on your connection</p>
                   </div>
-                  <div className="p-2 max-h-48 overflow-y-auto">
-                    {uniquePaidToPersons
-                      .filter(p => p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase()))
-                      .map(p => (
-                        <label key={p.id} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                          <input
-                            type="checkbox"
-                            checked={reportSelectedPaidToPersons.includes(p.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setReportSelectedPaidToPersons([...reportSelectedPaidToPersons, p.id]);
-                              } else {
-                                setReportSelectedPaidToPersons(reportSelectedPaidToPersons.filter(id => id !== p.id));
-                              }
-                            }}
-                            className="w-4 h-4 text-rose-600 border-gray-300 rounded focus:ring-rose-500"
-                          />
-                          <span className="ml-3 text-sm text-gray-700">{p.name}</span>
-                        </label>
-                      ))}
-                    {uniquePaidToPersons.filter(p => p.name.toLowerCase().includes(paidToSearchTerm.toLowerCase())).length === 0 && (
-                      <p className="text-center text-gray-500 text-sm py-4">No persons found</p>
-                    )}
+                ) : reportPreviewData.length > 0 ? (
+                  <div className="border border-gray-200 rounded-2xl shadow-sm overflow-hidden bg-white">
+                    <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
+                      <table className="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead className="bg-gray-50 sticky top-0 z-10">
+                          <tr>
+                            <th className="px-4 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider border-b">Charge No</th>
+                            <th className="px-4 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider border-b">Date</th>
+                            <th className="px-4 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider border-b">Order No</th>
+                            <th className="px-4 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-wider border-b">Charge Name</th>
+                            <th className="px-4 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-wider border-b">Amount (PKR)</th>
+                            <th className="px-4 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-wider border-b">Received (PKR)</th>
+                            <th className="px-4 py-4 text-right text-xs font-black text-gray-500 uppercase tracking-wider border-b">Pending (PKR)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                          {reportPreviewData.map((row, idx) => (
+                            <tr key={idx} className="hover:bg-blue-50/30 transition-colors group">
+                              <td className="px-4 py-3 text-gray-900 font-bold group-hover:text-blue-700">{row.chargeNo}</td>
+                              <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{row.date}</td>
+                              <td className="px-4 py-3 text-gray-600 font-medium">{row.orderNo}</td>
+                              <td className="px-4 py-3 text-gray-600 max-w-xs truncate" title={row.chargeName}>{row.chargeName}</td>
+                              <td className="px-4 py-3 text-right text-gray-900 font-bold border-l bg-gray-50/30">
+                                {row.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="px-4 py-3 text-right text-green-700 font-bold bg-green-50/10">
+                                {row.received.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="px-4 py-3 text-right text-rose-600 font-bold bg-rose-50/10">
+                                {row.pending.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-gray-50 font-black sticky bottom-0 z-10 border-t-2">
+                          <tr>
+                            <td colSpan={4} className="px-4 py-4 text-right text-gray-700 uppercase tracking-widest text-xs">Total Summary</td>
+                            <td className="px-4 py-4 text-right text-blue-900 border-l bg-blue-50/20">
+                              {reportPreviewData.reduce((sum, r) => sum + r.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-4 py-4 text-right text-green-800 bg-green-50/20">
+                              {reportPreviewData.reduce((sum, r) => sum + r.received, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-4 py-4 text-right text-rose-700 bg-rose-50/20">
+                              {reportPreviewData.reduce((sum, r) => sum + r.pending, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   </div>
-                </div>
-                <p className="mt-1 text-xs text-gray-500 italic">Select one or multiple persons, or leave empty for all</p>
+                ) : (
+                  <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                    <FaExclamationCircle className="mx-auto text-gray-300 mb-4" size={48} />
+                    <p className="text-gray-500 font-medium">No records match the current filters.</p>
+                    <p className="text-xs text-gray-400 mt-1 italic">Try adjusting your date range or filter selections</p>
+                  </div>
+                )}
               </div>
               </div>
             </div>
