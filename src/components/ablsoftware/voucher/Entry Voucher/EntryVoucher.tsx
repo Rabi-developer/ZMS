@@ -39,13 +39,17 @@ interface DropdownOption {
 }
 
 interface TableRow {
-  account1: string;
-  debit1: number;
-  credit1: number;
+  account1Columns: Array<{
+    account: string;
+    debit: number;
+    credit: number;
+  }>;
+  account2Columns: Array<{
+    account: string;
+    debit: number;
+    credit: number;
+  }>;
   narration: string;
-  account2: string;
-  debit2: number;
-  credit2: number;
 }
 
 type ApiResponse<T> = {
@@ -76,71 +80,73 @@ const voucherSchema = z.object({
   narration: z.string().optional(),
   description: z.string().optional(),
   tableData: z.array(
-    z
-      .object({
-        account1: z.string().min(1, 'Account is required'),
-        debit1: z.number().min(0, 'Debit must be non-negative').optional(),
-        credit1: z.number().min(0, 'Credit must be non-negative').optional(),
-        narration: z.string().optional(),
-        account2: z.string().min(1, 'Account is required'),
-        debit2: z.number().min(0, 'Debit must be non-negative').optional(),
-        credit2: z.number().min(0, 'Credit must be non-negative').optional(),
-      })
-      .superRefine((row, ctx) => {
-        const d1 = Number(row.debit1 ?? 0);
-        const c1 = Number(row.credit1 ?? 0);
-        const d2 = Number(row.debit2 ?? 0);
-        const c2 = Number(row.credit2 ?? 0);
-
-        // Only one of debit/credit should be > 0 per account column
-        if (d1 > 0 && c1 > 0) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Only one of Debit 1 or Credit 1 can be greater than zero',
-            path: ['debit1'],
-          });
-        }
-        if (d2 > 0 && c2 > 0) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Only one of Debit 2 or Credit 2 can be greater than zero',
-            path: ['debit2'],
-          });
-        }
-
-        // Enforce cross-equality between columns
-        if (d1 > 0 && c2 !== d1) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Credit 2 must equal Debit 1',
-            path: ['credit2'],
-          });
-        }
-        if (c1 > 0 && d2 !== c1) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Debit 2 must equal Credit 1',
-            path: ['debit2'],
-          });
-        }
-        if (d2 > 0 && c1 !== d2) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Credit 1 must equal Debit 2',
-            path: ['credit1'],
-          });
-        }
-        if (c2 > 0 && d1 !== c2) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'Debit 1 must equal Credit 2',
-            path: ['debit1'],
-          });
-        }
-      })
+    z.object({
+      account1Columns: z.array(
+        z.object({
+          account: z.string().min(1, 'Account is required'),
+          debit: z.number().min(0, 'Debit must be non-negative').optional(),
+          credit: z.number().min(0, 'Credit must be non-negative').optional(),
+        })
+      ).min(1, 'At least one Account 1 column is required'),
+      account2Columns: z.array(
+        z.object({
+          account: z.string().min(1, 'Account is required'),
+          debit: z.number().min(0, 'Debit must be non-negative').optional(),
+          credit: z.number().min(0, 'Credit must be non-negative').optional(),
+        })
+      ).min(1, 'At least one Account 2 column is required'),
+      narration: z.string().optional(),
+    })
   ),
 });
 type VoucherFormData = z.infer<typeof voucherSchema>;
+
+// Helper functions
+const findAccountById = (id: string, accounts: Account[]): Account | null => {
+  const walk = (nodes: Account[]): Account | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children.length > 0) {
+        const found = walk(node.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return walk(accounts);
+};
+
+const findAccountByDescription = (description: string, accounts: Account[]): Account | null => {
+  const walk = (nodes: Account[]): Account | null => {
+    for (const node of nodes) {
+      if (node.description === description) return node;
+      if (node.children.length > 0) {
+        const found = walk(node.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return walk(accounts);
+};
+
+const getAccountType = (id: string, accounts: Account[]): string | null => {
+  const walk = (nodes: Account[], parentType: string): string | null => {
+    for (const node of nodes) {
+      if (node.id === id) return parentType;
+      if (node.children.length > 0) {
+        const found = walk(node.children, parentType);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  for (const root of accounts) {
+    const found = walk(root.children, root.id);
+    if (found) return found;
+  }
+  return null;
+};
 
 // Hierarchical Dropdown Component
 interface HierarchicalDropdownProps {
@@ -148,12 +154,14 @@ interface HierarchicalDropdownProps {
   onSelect: (id: string, account: Account | null) => void;
   setValue: UseFormSetValue<VoucherFormData>;
   name: string;
-  index?: number;
+  rowIndex?: number;
+  columnIndex?: number;
+  section?: 'account1' | 'account2';
   initialAccountId?: string;
   disabled?: boolean;
 }
 
-const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, onSelect, setValue, name, index, initialAccountId }) => {
+const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, onSelect, setValue, name, rowIndex, columnIndex, section, initialAccountId, disabled }) => {
   const [selectionPath, setSelectionPath] = useState<string[]>([]); // Tracks selected IDs at each level
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearchList, setShowSearchList] = useState(false);
@@ -253,15 +261,15 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
 
     // If the selected account has no children, set it as the final selection
     if (selectedAccount && selectedAccount.children.length === 0) {
-      if (index !== undefined) {
-        setValue(`tableData.${index}.${name}` as Path<VoucherFormData>, id, { shouldValidate: true });
+      if (rowIndex !== undefined && columnIndex !== undefined && section) {
+        setValue(`tableData.${rowIndex}.${section}Columns.${columnIndex}.${name}` as Path<VoucherFormData>, id, { shouldValidate: true });
       } else {
         setValue(name as Path<VoucherFormData>, id, { shouldValidate: true });
       }
       onSelect(id, selectedAccount);
     } else {
-      if (index !== undefined) {
-        setValue(`tableData.${index}.${name}` as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
+      if (rowIndex !== undefined && columnIndex !== undefined && section) {
+        setValue(`tableData.${rowIndex}.${section}Columns.${columnIndex}.${name}` as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
       } else {
         setValue(name as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
       }
@@ -303,8 +311,8 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
   const handlePickFromSearch = (leaf: FlatLeaf) => {
     setSelectionPath(leaf.pathIds);
     const selected = findAccountByPath(leaf.pathIds);
-    if (index !== undefined) {
-      setValue(`tableData.${index}.${name}` as Path<VoucherFormData>, leaf.id, { shouldValidate: true });
+    if (rowIndex !== undefined && columnIndex !== undefined && section) {
+      setValue(`tableData.${rowIndex}.${section}Columns.${columnIndex}.${name}` as Path<VoucherFormData>, leaf.id, { shouldValidate: true });
     } else {
       setValue(name as Path<VoucherFormData>, leaf.id, { shouldValidate: true });
     }
@@ -316,8 +324,8 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
 
   const clearSelection = () => {
     setSelectionPath([]);
-    if (index !== undefined) {
-      setValue(`tableData.${index}.${name}` as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
+    if (rowIndex !== undefined && columnIndex !== undefined && section) {
+      setValue(`tableData.${rowIndex}.${section}Columns.${columnIndex}.${name}` as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
     } else {
       setValue(name as Path<VoucherFormData>, '' as unknown as string, { shouldValidate: true });
     }
@@ -458,52 +466,6 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
   );
 };
 
-const findAccountById = (id: string, accounts: Account[]): Account | null => {
-  const walk = (nodes: Account[]): Account | null => {
-    for (const node of nodes) {
-      if (node.id === id) return node;
-      if (node.children.length > 0) {
-        const found = walk(node.children);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-  return walk(accounts);
-};
-
-const findAccountByDescription = (description: string, accounts: Account[]): Account | null => {
-  const walk = (nodes: Account[]): Account | null => {
-    for (const node of nodes) {
-      if (node.description === description) return node;
-      if (node.children.length > 0) {
-        const found = walk(node.children);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-  return walk(accounts);
-};
-
-const getAccountType = (id: string, accounts: Account[]): string | null => {
-  const walk = (nodes: Account[], parentType: string): string | null => {
-    for (const node of nodes) {
-      if (node.id === id) return parentType;
-      if (node.children.length > 0) {
-        const found = walk(node.children, parentType);
-        if (found) return found;
-      }
-    }
-    return null;
-  };
-  for (const root of accounts) {
-    const found = walk(root.children, root.id);
-    if (found) return found;
-  }
-  return null;
-};
-
 const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -529,7 +491,11 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
       paidTo: '',
       narration: '',
       description: '',
-      tableData: [{ account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 }],
+      tableData: [{
+        account1Columns: [{ account: '', debit: 0, credit: 0 }],
+        account2Columns: [{ account: '', debit: 0, credit: 0 }],
+        narration: ''
+      }],
     },
   });
 
@@ -537,7 +503,10 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [topLevelAccounts, setTopLevelAccounts] = useState<Account[]>([]);
   const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
-  const [selectedAccounts, setSelectedAccounts] = useState<Array<{account1: Account | null, account2: Account | null}>>([{account1: null, account2: null}]);
+  const [selectedAccounts, setSelectedAccounts] = useState<Array<{
+    account1: Array<Account | null>;
+    account2: Array<Account | null>;
+  }>>([{ account1: [null], account2: [null] }]);
   const [bankNames, setBankNames] = useState<DropdownOption[]>([
     { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
     { id: 'MCB', name: 'MCB Bank Limited' },
@@ -579,51 +548,21 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const tableData = watch('tableData');
   const paymentMode = watch('paymentMode');
 
-  // Auto-mirror debit/credit between Account 1 and Account 2 within each row
-  useEffect(() => {
-    if (!Array.isArray(tableData)) return;
-    tableData.forEach((row, idx) => {
-      const d1 = Number(row.debit1 ?? 0);
-      const c1 = Number(row.credit1 ?? 0);
-      const d2 = Number(row.debit2 ?? 0);
-      const c2 = Number(row.credit2 ?? 0);
-
-      if (d1 > 0 && c2 !== d1) {
-        setValue(`tableData.${idx}.credit2`, d1, { shouldValidate: true });
-      }
-      if (c1 > 0 && d2 !== c1) {
-        setValue(`tableData.${idx}.debit2`, c1, { shouldValidate: true });
-      }
-      if (d2 > 0 && c1 !== d2) {
-        setValue(`tableData.${idx}.credit1`, d2, { shouldValidate: true });
-      }
-      if (c2 > 0 && d1 !== c2) {
-        setValue(`tableData.${idx}.debit1`, c2, { shouldValidate: true });
-      }
+  // Calculate totals
+  const totals = useMemo(() => {
+    let totalDebit1 = 0, totalCredit1 = 0, totalDebit2 = 0, totalCredit2 = 0;
+    tableData.forEach((row) => {
+      row.account1Columns.forEach((acc) => {
+        totalDebit1 += acc.debit || 0;
+        totalCredit1 += acc.credit || 0;
+      });
+      row.account2Columns.forEach((acc) => {
+        totalDebit2 += acc.debit || 0;
+        totalCredit2 += acc.credit || 0;
+      });
     });
-  }, [tableData, setValue]);
-
-  const nets = useMemo(() => {
-    const map = new Map<string, { net_debit: number; net_credit: number }>();
-    tableData.forEach((row, idx) => {
-      const sel = selectedAccounts[idx];
-      if (sel.account1 && row.account1) {
-        const id = sel.account1.id;
-        const entry = map.get(id) || { net_debit: 0, net_credit: 0 };
-        entry.net_debit += row.debit1 || 0;
-        entry.net_credit += row.credit1 || 0;
-        map.set(id, entry);
-      }
-      if (sel.account2 && row.account2) {
-        const id = sel.account2.id;
-        const entry = map.get(id) || { net_debit: 0, net_credit: 0 };
-        entry.net_debit += row.debit2 || 0;
-        entry.net_credit += row.credit2 || 0;
-        map.set(id, entry);
-      }
-    });
-    return map;
-  }, [tableData, selectedAccounts]);
+    return { totalDebit1, totalCredit1, totalDebit2, totalCredit2 };
+  }, [tableData]);
 
   // Build hierarchy
   const buildHierarchy = (accounts: Account[]): Account[] => {
@@ -728,34 +667,51 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             setValue('narration', voucher.narration || '');
             setValue('description', voucher.description || '');
 
-            const loadedTableData = (voucher.voucherDetails && voucher.voucherDetails.length
-              ? voucher.voucherDetails
-              : [{ account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 }]
-            ).map((d: any) => {
-              // Try to find account by description first, then by ID
-              const acc1 = findAccountByDescription(d.account1, topLevelAccounts) || findAccountById(d.account1, topLevelAccounts);
-              const acc2 = findAccountByDescription(d.account2, topLevelAccounts) || findAccountById(d.account2, topLevelAccounts);
+            // Group voucher details by narration to reconstruct rows
+            const rowsMap = new Map<string, { account1: any[], account2: any[] }>();
+            (voucher.voucherDetails || []).forEach((d: any) => {
+              const key = d.narration || 'default';
+              if (!rowsMap.has(key)) {
+                rowsMap.set(key, { account1: [], account2: [] });
+              }
+              const row = rowsMap.get(key)!;
               
-              console.log('Loading account1:', d.account1, 'Found:', acc1);
-              console.log('Loading account2:', d.account2, 'Found:', acc2);
+              if (d.account1) {
+                const acc1 = findAccountByDescription(d.account1, topLevelAccounts) || findAccountById(d.account1, topLevelAccounts);
+                row.account1.push({
+                  account: acc1?.id || '',
+                  debit: Number(d.debit1 || 0),
+                  credit: Number(d.credit1 || 0),
+                });
+              }
               
-              return {
-                account1: acc1?.id || '',
-                debit1: Number(d.debit1 || 0),
-                credit1: Number(d.credit1 || 0),
-                narration: d.narration || '',
-                account2: acc2?.id || '',
-                debit2: Number(d.debit2 || 0),
-                credit2: Number(d.credit2 || 0),
-              };
+              if (d.account2) {
+                const acc2 = findAccountByDescription(d.account2, topLevelAccounts) || findAccountById(d.account2, topLevelAccounts);
+                row.account2.push({
+                  account: acc2?.id || '',
+                  debit: Number(d.debit2 || 0),
+                  credit: Number(d.credit2 || 0),
+                });
+              }
             });
-            setValue('tableData', loadedTableData);
 
-            const loadedSelected = loadedTableData.map((row: any) => ({
-              account1: findAccountById(row.account1, topLevelAccounts),
-              account2: findAccountById(row.account2, topLevelAccounts),
+            const loadedTableData = Array.from(rowsMap.entries()).map(([narration, cols]) => ({
+              account1Columns: cols.account1.length > 0 ? cols.account1 : [{ account: '', debit: 0, credit: 0 }],
+              account2Columns: cols.account2.length > 0 ? cols.account2 : [{ account: '', debit: 0, credit: 0 }],
+              narration: narration === 'default' ? '' : narration,
             }));
-            setSelectedAccounts(loadedSelected);
+
+            setValue('tableData', loadedTableData.length > 0 ? loadedTableData : [{
+              account1Columns: [{ account: '', debit: 0, credit: 0 }],
+              account2Columns: [{ account: '', debit: 0, credit: 0 }],
+              narration: ''
+            }]);
+
+            const loadedSelected = loadedTableData.map((row) => ({
+              account1: row.account1Columns.map((acc) => findAccountById(acc.account, topLevelAccounts)),
+              account2: row.account2Columns.map((acc) => findAccountById(acc.account, topLevelAccounts)),
+            }));
+            setSelectedAccounts(loadedSelected.length > 0 ? loadedSelected : [{ account1: [null], account2: [null] }]);
           } catch (error) {
             toast.error('Failed to load voucher data');
             console.error('Error fetching voucher:', error);
@@ -768,12 +724,15 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     }
   }, [isEdit, setValue, topLevelAccounts]);
 
-  const handleAccountSelect = (index: number, isFirst: boolean) => (id: string, account: Account | null) => {
+  const handleAccountSelect = (rowIndex: number, section: 'account1' | 'account2', columnIndex: number) => (id: string, account: Account | null) => {
     const updatedSelectedAccounts = [...selectedAccounts];
-    if (isFirst) {
-      updatedSelectedAccounts[index] = { ...updatedSelectedAccounts[index], account1: account };
+    if (!updatedSelectedAccounts[rowIndex]) {
+      updatedSelectedAccounts[rowIndex] = { account1: [], account2: [] };
+    }
+    if (section === 'account1') {
+      updatedSelectedAccounts[rowIndex].account1[columnIndex] = account;
     } else {
-      updatedSelectedAccounts[index] = { ...updatedSelectedAccounts[index], account2: account };
+      updatedSelectedAccounts[rowIndex].account2[columnIndex] = account;
     }
     setSelectedAccounts(updatedSelectedAccounts);
   };
@@ -781,9 +740,13 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const addTableRow = () => {
     setValue('tableData', [
       ...tableData,
-      { account1: '', debit1: 0, credit1: 0, narration: '', account2: '', debit2: 0, credit2: 0 },
+      {
+        account1Columns: [{ account: '', debit: 0, credit: 0 }],
+        account2Columns: [{ account: '', debit: 0, credit: 0 }],
+        narration: ''
+      },
     ]);
-    setSelectedAccounts([...selectedAccounts, {account1: null, account2: null}]);
+    setSelectedAccounts([...selectedAccounts, { account1: [null], account2: [null] }]);
   };
 
   const deleteTableRow = (index: number) => {
@@ -797,47 +760,148 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
     setSelectedAccounts(newSelectedAccounts);
   };
 
+  const addAccount1Column = (rowIndex: number) => {
+    const updatedTableData = [...tableData];
+    const row = updatedTableData[rowIndex];
+    
+    // Determine if we should add debit or credit based on existing entries
+    // If first column has debit, new columns should also have debit
+    const firstCol = row.account1Columns[0];
+    const hasDebit = firstCol && firstCol.debit != null && firstCol.debit > 0;
+    const hasCredit = firstCol && firstCol.credit != null && firstCol.credit > 0;
+    
+    updatedTableData[rowIndex].account1Columns.push({ 
+      account: '', 
+      debit: hasDebit ? 0 : 0, 
+      credit: hasCredit ? 0 : 0 
+    });
+    setValue('tableData', updatedTableData);
+    
+    const updatedSelectedAccounts = [...selectedAccounts];
+    updatedSelectedAccounts[rowIndex].account1.push(null);
+    setSelectedAccounts(updatedSelectedAccounts);
+  };
+
+  const deleteAccount1Column = (rowIndex: number, columnIndex: number) => {
+    const updatedTableData = [...tableData];
+    if (updatedTableData[rowIndex].account1Columns.length <= 1) {
+      toast.warn('At least one Account 1 column is required');
+      return;
+    }
+    updatedTableData[rowIndex].account1Columns = updatedTableData[rowIndex].account1Columns.filter((_, i) => i !== columnIndex);
+    setValue('tableData', updatedTableData);
+    
+    const updatedSelectedAccounts = [...selectedAccounts];
+    updatedSelectedAccounts[rowIndex].account1 = updatedSelectedAccounts[rowIndex].account1.filter((_, i) => i !== columnIndex);
+    setSelectedAccounts(updatedSelectedAccounts);
+  };
+
+  const addAccount2Column = (rowIndex: number) => {
+    const updatedTableData = [...tableData];
+    const row = updatedTableData[rowIndex];
+    
+    // Determine if we should add debit or credit based on existing entries
+    // If first column has credit, new columns should also have credit
+    const firstCol = row.account2Columns[0];
+    const hasDebit = firstCol && firstCol.debit != null && firstCol.debit > 0;
+    const hasCredit = firstCol && firstCol.credit != null && firstCol.credit > 0;
+    
+    updatedTableData[rowIndex].account2Columns.push({ 
+      account: '', 
+      debit: hasDebit ? 0 : 0, 
+      credit: hasCredit ? 0 : 0 
+    });
+    setValue('tableData', updatedTableData);
+    
+    const updatedSelectedAccounts = [...selectedAccounts];
+    updatedSelectedAccounts[rowIndex].account2.push(null);
+    setSelectedAccounts(updatedSelectedAccounts);
+  };
+
+  const deleteAccount2Column = (rowIndex: number, columnIndex: number) => {
+    const updatedTableData = [...tableData];
+    if (updatedTableData[rowIndex].account2Columns.length <= 1) {
+      toast.warn('At least one Account 2 column is required');
+      return;
+    }
+    updatedTableData[rowIndex].account2Columns = updatedTableData[rowIndex].account2Columns.filter((_, i) => i !== columnIndex);
+    setValue('tableData', updatedTableData);
+    
+    const updatedSelectedAccounts = [...selectedAccounts];
+    updatedSelectedAccounts[rowIndex].account2 = updatedSelectedAccounts[rowIndex].account2.filter((_, i) => i !== columnIndex);
+    setSelectedAccounts(updatedSelectedAccounts);
+  };
+
   
 
   const onSubmit = async (data: VoucherFormData) => {
     setIsSubmitting(true);
     try {
-        // Validate net balances (uncomment check if needed)
-        for (const [id, { net_debit, net_credit }] of nets.entries()) {
-            const acc = findAccountById(id, topLevelAccounts);
-            if (acc) {
-                const current_balance = parseFloat(acc.fixedAmount || '0') - parseFloat(acc.paid || '0');
-                const new_balance = current_balance + net_debit - net_credit;
-                // if (new_balance < 0) {
-                //     throw new Error(`Insufficient balance for account ${acc.description}. Would result in negative balance: ${new_balance}`);
-                // }
-            }
+      // Calculate totals for validation
+      let totalDebit1 = 0, totalCredit1 = 0, totalDebit2 = 0, totalCredit2 = 0;
+      data.tableData.forEach((row) => {
+        row.account1Columns.forEach((acc) => {
+          totalDebit1 += acc.debit || 0;
+          totalCredit1 += acc.credit || 0;
+        });
+        row.account2Columns.forEach((acc) => {
+          totalDebit2 += acc.debit || 0;
+          totalCredit2 += acc.credit || 0;
+        });
+      });
+
+      // Calculate net amounts for each account
+      const account1Total = totalDebit1 - totalCredit1;
+      const account2Total = totalDebit2 - totalCredit2;
+
+      // Check if totals are balanced (Account 1 net should equal negative of Account 2 net)
+      const totalDebit = totalDebit1 + totalDebit2;
+      const totalCredit = totalCredit1 + totalCredit2;
+      const difference = Math.abs(totalDebit - totalCredit);
+
+      if (difference >= 0.01) {
+        toast.error(`Accounts are not balanced! Total Debit (${totalDebit.toFixed(2)}) must equal Total Credit (${totalCredit.toFixed(2)}). Difference: ${difference.toFixed(2)}`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Build backend payload - create separate entries for each account column
+      const voucherDetails: any[] = [];
+      
+      data.tableData.forEach((row) => {
+        // Get max columns between account1 and account2
+        const maxCols = Math.max(row.account1Columns.length, row.account2Columns.length);
+        
+        for (let i = 0; i < maxCols; i++) {
+          const acc1 = row.account1Columns[i] || { account: '', debit: 0, credit: 0 };
+          const acc2 = row.account2Columns[i] || { account: '', debit: 0, credit: 0 };
+          
+          // Only add entry if both accounts are selected
+          if (acc1.account && acc2.account) {
+            voucherDetails.push({
+              account1: acc1.account,
+              debit1: Number(acc1.debit || 0),
+              credit1: Number(acc1.credit || 0),
+              currentBalance1: 0,
+              projectedBalance1: 0,
+              narration: row.narration || '',
+              account2: acc2.account,
+              debit2: Number(acc2.debit || 0),
+              credit2: Number(acc2.credit || 0),
+              currentBalance2: 0,
+              projectedBalance2: 0,
+            });
+          }
         }
+      });
 
-      // // Update balances with nets
-      // for (const [id, { net_debit, net_credit }] of nets.entries()) {
-      //   const acc = findAccountById(id, topLevelAccounts);
-      //   const type = getAccountType(id, topLevelAccounts);
-      //   if (acc && type) {
-      //     const new_fixed = parseFloat(acc.fixedAmount || '0') + net_debit;
-      //     const new_paid = parseFloat(acc.paid || '0') + net_credit;
-      //     const updateData = { ...acc, fixedAmount: new_fixed.toString(), paid: new_paid.toString() };
+      // Validate that we have at least one valid entry
+      if (voucherDetails.length === 0) {
+        toast.error('Please select both Account 1 and Account 2 for at least one entry');
+        setIsSubmitting(false);
+        return;
+      }
 
-      //     if (type === 'assets') {
-      //       await updateAblAssests(id, updateData);
-      //     } else if (type === 'revenues') {
-      //       await updateAblRevenue(id, updateData);
-      //     } else if (type === 'liabilities') {
-      //       await updateAblLiabilities(id, updateData);
-      //     } else if (type === 'expenses') {
-      //       await updateAblExpense(id, updateData);
-      //     } else if (type === 'equities') {
-      //       await updateEquality(id, updateData);
-      //     }
-      //   }
-      // }
-
-      // Build backend payload
       const payload = {
         voucherNo: data.voucherNo || '',
         voucherDate: data.voucherDate || '',
@@ -850,25 +914,10 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         paidTo: data.paidTo || '',
         narration: data.narration || '',
         description: data.description || '',
-        // audit fields may be set by backend; send empty if not available
-        // createdBy: '',
         creationDate: '',
-        // updatedBy: '',
         updationDate: '',
         status: 'Active',
-        voucherDetails: (data.tableData || []).map((r) => ({
-          account1: r.account1 || '',
-          debit1: Number(r.debit1 || 0),
-          credit1: Number(r.credit1 || 0),
-          currentBalance1: 0,
-          projectedBalance1: 0,
-          narration: r.narration || '',
-          account2: r.account2 || '',
-          debit2: Number(r.debit2 || 0),
-          credit2: Number(r.credit2 || 0),
-          currentBalance2: 0,
-          projectedBalance2: 0,
-        })),
+        voucherDetails,
       } as any;
 
       if (isEdit) {
@@ -1069,208 +1118,336 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             </div>
 
             {/* Voucher Details Table */}
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
-              <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 rounded-t-lg">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 mb-6">
+              <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FaFileInvoice className="text-lg" />
                   <h3 className="text-base font-semibold">Voucher Details</h3>
                 </div>
+                <span className="text-xs bg-white/20 px-3 py-1 rounded-full">{tableData.length} Row{tableData.length !== 1 ? 's' : ''}</span>
               </div>
               <div className="p-4">
                 <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm border-collapse">
                     <thead>
-                      <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600">
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[200px]">
+                      <tr className="bg-gray-50 dark:bg-gray-700">
+                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-500 min-w-[250px]">
                           Account 1
                         </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Debit 1
+                        <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-500 min-w-[100px]">
+                          Debit
                         </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Credit 1
+                        <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-500 min-w-[100px]">
+                          Credit
                         </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[200px]">
+                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-500 min-w-[180px]">
                           Narration
                         </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[200px]">
+                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-500 min-w-[250px]">
                           Account 2
                         </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Debit 2
+                        <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-500 min-w-[100px]">
+                          Debit
                         </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Credit 2
+                        <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-700 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-500 min-w-[100px]">
+                          Credit
                         </th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-gray-200 min-w-[80px]">
-                          Action
-                        </th>
+                        {!isViewMode && (
+                          <th className="px-3 py-2.5 text-center text-xs font-semibold text-gray-700 dark:text-gray-200 border-b-2 border-gray-300 dark:border-gray-500 min-w-[80px]">
+                            Action
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800">
-                      {tableData.map((row, index) => (
-                        <tr
-                          key={index}
-                          className={`border-b border-gray-200 dark:border-gray-600 transition-colors ${
-                            index % 2 === 0
-                              ? 'bg-white dark:bg-gray-800'
-                              : 'bg-gray-50 dark:bg-gray-700/50'
-                          } hover:bg-gray-100 dark:hover:bg-gray-600/50`}
-                          
-                        >
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
-                            <HierarchicalDropdown
-                              accounts={topLevelAccounts}
-                              onSelect={handleAccountSelect(index, true)}
-                              setValue={setValue}
-                              name="account1"
-                              index={index}
-                              initialAccountId={row.account1}
-                              disabled={isViewMode}            
-                            />
-                            {errors.tableData?.[index]?.account1 && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account1?.message}</p>
+                      {tableData.map((row, rowIndex) => {
+                        const maxCols = Math.max(row.account1Columns.length, row.account2Columns.length);
+                        
+                        return (
+                          <React.Fragment key={rowIndex}>
+                            {/* Add buttons row - shown at the top of each row group */}
+                            {!isViewMode && (
+                              <tr className="bg-blue-50 dark:bg-gray-700/50">
+                                <td colSpan={3} className="px-2 py-2 border-b border-gray-200 dark:border-gray-600">
+                                  <button
+                                    type="button"
+                                    onClick={() => addAccount1Column(rowIndex)}
+                                    className="w-full px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                                    title="Add Account 1"
+                                  >
+                                    <span className="text-sm font-bold">+</span>
+                                    <span>Add Account 1</span>
+                                  </button>
+                                </td>
+                                <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600 text-center">
+                                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">Row {rowIndex + 1}</span>
+                                </td>
+                                <td colSpan={3} className="px-2 py-2 border-b border-gray-200 dark:border-gray-600">
+                                  <button
+                                    type="button"
+                                    onClick={() => addAccount2Column(rowIndex)}
+                                    className="w-full px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                                    title="Add Account 2"
+                                  >
+                                    <span className="text-sm font-bold">+</span>
+                                    <span>Add Account 2</span>
+                                  </button>
+                                </td>
+                                <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600 text-center">
+                                  {tableData.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteTableRow(rowIndex)}
+                                      className="inline-flex items-center justify-center p-1.5 bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
+                                      title="Delete Row"
+                                    >
+                                      <MdDelete className="text-base" />
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
                             )}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
-                            <input
-                              {...register(`tableData.${index}.debit1`, { valueAsNumber: true })}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
-                              placeholder="0.00"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              disabled={isViewMode}
-                            />
-                            {errors.tableData?.[index]?.debit1 && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].debit1?.message}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
-                            <input
-                              {...register(`tableData.${index}.credit1`, { valueAsNumber: true })}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
-                              placeholder="0.00"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              disabled={isViewMode}
-                            />
-                            {errors.tableData?.[index]?.credit1 && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].credit1?.message}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
-                            <input
-                              {...register(`tableData.${index}.narration`)}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white transition-all duration-200"
-                              placeholder="Enter narration"
-                              disabled={isViewMode}
-                            />
-                            {errors.tableData?.[index]?.narration && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].narration?.message}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
-                            <HierarchicalDropdown
-                              accounts={topLevelAccounts}
-                              onSelect={handleAccountSelect(index, false)}
-                              setValue={setValue}
-                              name="account2"
-                              index={index}
-                              initialAccountId={row.account2}
-                              disabled={isViewMode}
+                            
+                            {/* Data rows */}
+                            {Array.from({ length: maxCols }).map((_, colIndex) => {
+                              const acc1 = row.account1Columns[colIndex];
+                              const acc2 = row.account2Columns[colIndex];
+                              const isFirstCol = colIndex === 0;
                               
-                            />
-                            {errors.tableData?.[index]?.account2 && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].account2?.message}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
-                            <input
-                              {...register(`tableData.${index}.debit2`, { valueAsNumber: true })}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
-                              placeholder="0.00"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              disabled={isViewMode}
-                            />
-                            {errors.tableData?.[index]?.debit2 && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].debit2?.message}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 align-top">
-                            <input
-                              {...register(`tableData.${index}.credit2`, { valueAsNumber: true })}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
-                              placeholder="0.00"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              disabled={isViewMode}
-                            />
-                            {errors.tableData?.[index]?.credit2 && (
-                              <p className="text-red-500 text-xs mt-1">{errors.tableData[index].credit2?.message}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 text-center align-middle">
-                            {tableData.length > 1 && (
-                              <Button
-                                type="button"
-                                onClick={() => deleteTableRow(index)}
-                                className="bg-red-500 hover:bg-red-600 text-white rounded-md p-2 transition-all duration-200"
-                                title="Delete Row"
-                                disabled={isViewMode}
-                              >
-                                <MdDelete className="text-lg" />
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                              return (
+                                <tr
+                                  key={`${rowIndex}-${colIndex}`}
+                                  className={`${
+                                    rowIndex % 2 === 0
+                                      ? 'bg-white dark:bg-gray-800'
+                                      : 'bg-gray-50 dark:bg-gray-750'
+                                  } hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
+                                >
+                                  {/* Account 1 */}
+                                  <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600">
+                                    {acc1 && (
+                                      <div className="flex items-start gap-1">
+                                        <div className="flex-1">
+                                          <HierarchicalDropdown
+                                            accounts={topLevelAccounts}
+                                            onSelect={handleAccountSelect(rowIndex, 'account1', colIndex)}
+                                            setValue={setValue}
+                                            name="account"
+                                            rowIndex={rowIndex}
+                                            columnIndex={colIndex}
+                                            section="account1"
+                                            initialAccountId={acc1.account}
+                                            disabled={isViewMode}
+                                          />
+                                          {errors.tableData?.[rowIndex]?.account1Columns?.[colIndex]?.account && (
+                                            <p className="text-red-500 text-xs mt-1">
+                                              {errors.tableData[rowIndex].account1Columns?.[colIndex]?.account?.message}
+                                            </p>
+                                          )}
+                                        </div>
+                                        {row.account1Columns.length > 1 && !isViewMode && (
+                                          <button
+                                            type="button"
+                                            onClick={() => deleteAccount1Column(rowIndex, colIndex)}
+                                            className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                                            title="Delete"
+                                          >
+                                            <MdDelete className="text-base" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </td>
+                                  
+                                  {/* Debit 1 */}
+                                  <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600">
+                                    {acc1 && (
+                                      <input
+                                        {...register(`tableData.${rowIndex}.account1Columns.${colIndex}.debit`, { valueAsNumber: true })}
+                                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-500 rounded text-xs focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-right"
+                                        placeholder="0.00"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        disabled={isViewMode}
+                                      />
+                                    )}
+                                  </td>
+                                  
+                                  {/* Credit 1 */}
+                                  <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600">
+                                    {acc1 && (
+                                      <input
+                                        {...register(`tableData.${rowIndex}.account1Columns.${colIndex}.credit`, { valueAsNumber: true })}
+                                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-500 rounded text-xs focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-right"
+                                        placeholder="0.00"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        disabled={isViewMode}
+                                      />
+                                    )}
+                                  </td>
+
+                                  {/* Narration - Only show on first column */}
+                                  {isFirstCol ? (
+                                    <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600" rowSpan={maxCols}>
+                                      <input
+                                        {...register(`tableData.${rowIndex}.narration`)}
+                                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-500 rounded text-xs focus:ring-1 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
+                                        placeholder="Enter narration"
+                                        disabled={isViewMode}
+                                      />
+                                    </td>
+                                  ) : null}
+
+                                  {/* Account 2 */}
+                                  <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600">
+                                    {acc2 && (
+                                      <div className="flex items-start gap-1">
+                                        <div className="flex-1">
+                                          <HierarchicalDropdown
+                                            accounts={topLevelAccounts}
+                                            onSelect={handleAccountSelect(rowIndex, 'account2', colIndex)}
+                                            setValue={setValue}
+                                            name="account"
+                                            rowIndex={rowIndex}
+                                            columnIndex={colIndex}
+                                            section="account2"
+                                            initialAccountId={acc2.account}
+                                            disabled={isViewMode}
+                                          />
+                                          {errors.tableData?.[rowIndex]?.account2Columns?.[colIndex]?.account && (
+                                            <p className="text-red-500 text-xs mt-1">
+                                              {errors.tableData[rowIndex].account2Columns?.[colIndex]?.account?.message}
+                                            </p>
+                                          )}
+                                        </div>
+                                        {row.account2Columns.length > 1 && !isViewMode && (
+                                          <button
+                                            type="button"
+                                            onClick={() => deleteAccount2Column(rowIndex, colIndex)}
+                                            className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors"
+                                            title="Delete"
+                                          >
+                                            <MdDelete className="text-base" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </td>
+                                  
+                                  {/* Debit 2 */}
+                                  <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600">
+                                    {acc2 && (
+                                      <input
+                                        {...register(`tableData.${rowIndex}.account2Columns.${colIndex}.debit`, { valueAsNumber: true })}
+                                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-500 rounded text-xs focus:ring-1 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white text-right"
+                                        placeholder="0.00"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        disabled={isViewMode}
+                                      />
+                                    )}
+                                  </td>
+                                  
+                                  {/* Credit 2 */}
+                                  <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600">
+                                    {acc2 && (
+                                      <input
+                                        {...register(`tableData.${rowIndex}.account2Columns.${colIndex}.credit`, { valueAsNumber: true })}
+                                        className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-500 rounded text-xs focus:ring-1 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white text-right"
+                                        placeholder="0.00"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        disabled={isViewMode}
+                                      />
+                                    )}
+                                  </td>
+
+                                  {/* Action column */}
+                                  {!isViewMode && isFirstCol ? (
+                                    <td className="px-2 py-2 border-b border-gray-200 dark:border-gray-600 text-center" rowSpan={maxCols}>
+                                      {/* Empty - actions are in the button row above */}
+                                    </td>
+                                  ) : null}
+                                </tr>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600">
-                        <td className="px-4 py-3 text-right font-bold text-base">TOTALS:</td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
-                          {tableData
-                            .reduce((sum, row) => sum + (row.debit1 || 0), 0)
-                            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <tr className="bg-gray-100 dark:bg-gray-700 border-t-2 border-gray-300 dark:border-gray-600">
+                        {/* Account 1 Totals */}
+                        <td className="px-2 py-2.5 text-xs font-semibold text-blue-700 dark:text-blue-400">
+                          Account 1 Total
                         </td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
-                          {tableData
-                            .reduce((sum, row) => sum + (row.credit1 || 0), 0)
-                            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <td className="px-2 py-2.5 text-right text-sm font-bold text-gray-900 dark:text-white">
+                          {totals.totalDebit1.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-500"></td>
-                        <td className="px-4 py-3 text-right font-bold text-base"></td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
-                          {tableData
-                            .reduce((sum, row) => sum + (row.debit2 || 0), 0)
-                            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <td className="px-2 py-2.5 text-right text-sm font-bold text-gray-900 dark:text-white">
+                          {totals.totalCredit1.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-500">
-                          {tableData
-                            .reduce((sum, row) => sum + (row.credit2 || 0), 0)
-                            .toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        
+                        {/* Balance Status */}
+                        <td className="px-2 py-2.5 text-center">
+                          {(() => {
+                            const totalDebit = totals.totalDebit1 + totals.totalDebit2;
+                            const totalCredit = totals.totalCredit1 + totals.totalCredit2;
+                            const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
+                            const difference = Math.abs(totalDebit - totalCredit);
+                            
+                            return isBalanced ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded text-xs font-semibold">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Balanced
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded text-xs font-semibold">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                                Off by {difference.toFixed(2)}
+                              </span>
+                            );
+                          })()}
                         </td>
-                        <td className="px-4 py-3"></td>
+                        
+                        {/* Account 2 Totals */}
+                        <td className="px-2 py-2.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                          Account 2 Total
+                        </td>
+                        <td className="px-2 py-2.5 text-right text-sm font-bold text-gray-900 dark:text-white">
+                          {totals.totalDebit2.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-2 py-2.5 text-right text-sm font-bold text-gray-900 dark:text-white">
+                          {totals.totalCredit2.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </td>
+                        
+                        {/* Empty Action */}
+                        {!isViewMode && <td className="px-2 py-2.5"></td>}
                       </tr>
                     </tfoot>
                   </table>
                 </div>
-                <div className="mt-4 flex justify-between items-center">
-                  <Button
+                <div className="mt-3 flex justify-between items-center">
+                  <button
                     type="button"
                     onClick={addTableRow}
-                    className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg"
                     disabled={isViewMode}
-                    >
-                    + Add New Row
-                  </Button>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Total Rows: {tableData.length}
+                    className="px-5 py-2 bg-[#3a614c] hover:bg-[#2d4d3a] text-white rounded text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-lg font-bold">+</span>
+                    <span>Add New Row</span>
+                  </button>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    Total: <span className="font-semibold">{tableData.length}</span> row{tableData.length !== 1 ? 's' : ''}
                   </div>
                 </div>
               </div>
