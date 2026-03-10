@@ -397,7 +397,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               srbAmount: row.srbAmount || 0,
               totalAmount: row.totalAmount || 0,
               balance: row.balance || 0,
-              initialBalance: row.initialBalance || row.balance || 0,
+              // Calculate initialBalance: current balance + current receiptAmount = original balance before this receipt
+              initialBalance: (row.balance || 0) + (row.receiptAmount || 0),
               receiptAmount: row.receiptAmount || 0,
             }))
           : [{ ...emptyItemRow }],
@@ -411,8 +412,20 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   // Update table calculations
   useEffect(() => {
     const updateditems = items.map((row) => {
-      const totalAmount = (row.biltyAmount || 0) + (row.srbAmount || 0);
-      const balance = row.biltyNo ? (row.initialBalance || 0) - (row.receiptAmount || 0) : totalAmount - (row.receiptAmount || 0);
+      // Calculate totalAmount
+      // In edit mode with existing biltyNo, preserve the original totalAmount
+      let totalAmount;
+      if (isEdit && row.biltyNo && row.initialBalance) {
+        // Use initialBalance as the original total amount
+        totalAmount = row.initialBalance;
+      } else {
+        // Calculate from biltyAmount + srbAmount
+        totalAmount = (row.biltyAmount || 0) + (row.srbAmount || 0);
+      }
+      
+      // Calculate balance: totalAmount - receiptAmount
+      const balance = totalAmount - (row.receiptAmount || 0);
+      
       return { ...row, totalAmount, balance };
     });
     
@@ -431,7 +444,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     if (currentReceiptAmount !== totalReceiptAmount) {
       setValue('receiptAmount', totalReceiptAmount, { shouldValidate: false });
     }
-  }, [items, setValue, watch]);
+  }, [items, setValue, watch, isEdit]);
 
   const selectConsignment = async (index: number, consignment: any) => {
   setSelectingConsignment(true);
@@ -621,6 +634,11 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         items: data.items
           .filter(row => row.biltyNo && row.biltyNo.trim() !== '') // Filter out empty rows
           .map(row => {
+            // Calculate correct balance for payload
+            const totalAmount = row.totalAmount || 0;
+            const receiptAmount = row.receiptAmount || 0;
+            const calculatedBalance = totalAmount - receiptAmount;
+            
             const item: any = {
               biltyNo: row.biltyNo || '',
               consignmentId: row.consignmentId || '',
@@ -628,9 +646,9 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               biltyDate: row.biltyDate || '',
               biltyAmount: row.biltyAmount || 0,
               srbAmount: row.srbAmount || 0,
-              totalAmount: row.totalAmount || 0,
-              balance: row.balance || 0,
-              receiptAmount: row.receiptAmount || 0,
+              totalAmount: totalAmount,
+              balance: calculatedBalance, // Use calculated balance
+              receiptAmount: receiptAmount,
               isOpeningBalance: row.isOpeningBalance || false,
               openingBalanceId: row.openingBalanceId || '',
             };
@@ -638,6 +656,15 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
             if (row.id && row.id.trim() !== '' && row.id !== 'null') {
               item.id = row.id;
             }
+            
+            console.log('Item payload:', {
+              biltyNo: item.biltyNo,
+              totalAmount: item.totalAmount,
+              receiptAmount: item.receiptAmount,
+              calculatedBalance: item.balance,
+              originalBalance: row.balance
+            });
+            
             return item;
           }),
         salesTaxOption: data.salesTaxOption || 'without',
