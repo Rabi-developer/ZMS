@@ -157,6 +157,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
   const [selectionPath, setSelectionPath] = useState<string[]>([]); // Tracks selected IDs at each level
   const [searchTerm, setSearchTerm] = useState('');
   const [showSearchList, setShowSearchList] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   // Build path to an account by ID
   const buildPathToAccount = (targetId: string, nodes: Account[], currentPath: string[] = []): string[] | null => {
@@ -183,29 +184,44 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
     }
   }, [initialAccountId, accounts]);
 
-  // Build a flat list of leaf accounts for fast searching
-  type FlatLeaf = { id: string; label: string; pathIds: string[]; pathLabels: string[] };
+  // Build a flat list of leaf accounts for fast searching (excluding main category headers)
+  type FlatLeaf = { id: string; label: string; pathIds: string[]; pathLabels: string[]; category: string; listid: string; description: string };
   const flatLeaves: FlatLeaf[] = useMemo(() => {
     const leaves: FlatLeaf[] = [];
-    const walk = (node: Account, pathIds: string[], pathLabels: string[]) => {
+    const walk = (node: Account, pathIds: string[], pathLabels: string[], categoryName: string) => {
       const newPathIds = [...pathIds, node.id];
       const newPathLabels = [...pathLabels, node.description];
       if (!node.children || node.children.length === 0) {
-        leaves.push({ id: node.id, label: newPathLabels.join(' / '), pathIds: newPathIds, pathLabels: newPathLabels });
+        leaves.push({ 
+          id: node.id, 
+          label: newPathLabels.join(' / '), 
+          pathIds: newPathIds, 
+          pathLabels: newPathLabels,
+          category: categoryName,
+          listid: node.listid,
+          description: node.description
+        });
       } else {
-        node.children.forEach((child) => walk(child, newPathIds, newPathLabels));
+        node.children.forEach((child) => walk(child, newPathIds, newPathLabels, categoryName));
       }
     };
-    accounts.forEach((root) => walk(root, [], []));
+    // Skip the main category headers and start from their children
+    accounts.forEach((root) => {
+      if (root.children && root.children.length > 0) {
+        root.children.forEach((child) => walk(child, [], [], root.description));
+      }
+    });
     return leaves;
   }, [accounts]);
 
   const filteredLeaves = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    if (!q) return [] as FlatLeaf[];
-    return flatLeaves
-      .filter((leaf) => leaf.label.toLowerCase().includes(q))
-      .slice(0, 12);
+    if (!q) return flatLeaves; // Show all accounts when no search term
+    return flatLeaves.filter((leaf) => 
+      leaf.label.toLowerCase().includes(q) || 
+      leaf.listid.toLowerCase().includes(q) ||
+      leaf.description.toLowerCase().includes(q)
+    );
   }, [searchTerm, flatLeaves]);
 
   const findAccountByPath = (pathIds: string[]): Account | null => {
@@ -278,11 +294,10 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
     }
   }
 
-  // Build selected breadcrumb labels
+  // Build selected breadcrumb labels with listid
   const selectionLabels = selectionPath.map((id, idx) => {
-    const options = getOptionsAtLevel(idx);
-    const found = options.find((a) => a.id === id);
-    return found?.description || id;
+    const acc = findAccountById(id, accounts);
+    return acc ? `${acc.listid} ${acc.description}` : id;
   });
 
   const handlePickFromSearch = (leaf: FlatLeaf) => {
@@ -296,6 +311,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
     onSelect(leaf.id, selected);
     setSearchTerm('');
     setShowSearchList(false);
+    setShowModal(false);
   };
 
   const clearSelection = () => {
@@ -310,36 +326,20 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Search Input */}
+      {/* Search Input - Opens Modal */}
       <div className="relative">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setShowSearchList(true);
-              }}
-              onFocus={() => setShowSearchList(true)}
-              placeholder="Search account (e.g., Cash, Bank)"
-              className="w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition"
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => setShowModal(true)}
+              onClick={() => setShowModal(true)}
+              placeholder="Click to search and select account"
+              className="w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition cursor-pointer"
+              readOnly
             />
-            {showSearchList && searchTerm && filteredLeaves.length > 0 && (
-              <div className="absolute z-20 mt-1 w-full max-h-60 overflow-auto rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
-                {filteredLeaves.map((leaf) => (
-                  <button
-                    type="button"
-                    key={leaf.id + leaf.label}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handlePickFromSearch(leaf)}
-                    className="block w-full text-left px-3 py-2 text-sm hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-gray-700"
-                  >
-                    {leaf.label}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
           <button
             type="button"
@@ -351,46 +351,106 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
         </div>
       </div>
 
-      {/* Horizontal selects */}
-      <div className="flex flex-row flex-wrap gap-3 overflow-x-auto py-1">
-        {Array.from({ length: showLevels }).map((_, level) => {
-          const options = getOptionsAtLevel(level);
-          const selected = selectionPath[level] || '';
-          return (
-            <div key={level} className="min-w-[220px]">
-              <label className="block text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">
-                {level === 0 ? 'Account' : `Sub-Account ${level}`}
-              </label>
-              <select
-                value={selected}
-                onChange={(e) => handleSelect(level, e.target.value)}
-                className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 shadow-sm"
+      {/* Modal for Account Selection */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-4 rounded-t-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FiSearch className="text-xl" />
+                <h3 className="text-lg font-semibold">Select Account</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  setSearchTerm('');
+                }}
+                className="text-white hover:bg-white/20 rounded-full p-1 transition"
               >
-                <option value="">Select {level === 0 ? 'Account' : 'Sub-Account'}</option>
-                {options.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.description}
-                  </option>
-                ))}
-              </select>
+                <FiX className="text-xl" />
+              </button>
             </div>
-          );
-        })}
-      </div>
+
+            {/* Search Input in Modal */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-600">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search accounts by name..."
+                  className="w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Showing {filteredLeaves.length} account{filteredLeaves.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+
+            {/* Account List */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {filteredLeaves.length > 0 ? (
+                <div className="space-y-1">
+                  {filteredLeaves.map((leaf) => (
+                    <button
+                      type="button"
+                      key={leaf.id + leaf.label}
+                      onClick={() => handlePickFromSearch(leaf)}
+                      className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-emerald-50 hover:border-emerald-300 dark:hover:bg-gray-700 dark:hover:border-emerald-500 transition-all duration-200 group"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded">
+                            {leaf.listid}
+                          </span>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">
+                            {leaf.description}
+                          </p>
+                        </div>
+                        <div className="text-emerald-600 dark:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FiSearch className="mx-auto text-4xl text-gray-300 dark:text-gray-600 mb-3" />
+                  <p className="text-gray-500 dark:text-gray-400">No accounts found</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Try a different search term</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-600 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  setSearchTerm('');
+                }}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Breadcrumb of selection */}
       {selectionLabels.length > 0 && (
         <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
           <span className="font-medium">Selected:</span>
-          <div className="flex flex-wrap items-center gap-1">
-            {selectionLabels.map((label, idx) => (
-              <React.Fragment key={label + idx}>
-                <span className="px-2 py-0.5 rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-gray-700 dark:text-emerald-300">
-                  {label}
-                </span>
-                {idx < selectionLabels.length - 1 && <span className="text-gray-400">/</span>}
-              </React.Fragment>
-            ))}
+          <div className="px-3 py-1 rounded-md border border-emerald-200 text-emerald-700 bg-emerald-50 dark:bg-gray-700 dark:text-emerald-300 font-medium">
+            {selectionLabels[selectionLabels.length - 1]}
           </div>
         </div>
       )}
