@@ -18,8 +18,8 @@ const createEntryVoucher = async (EntryVoucher : any) => {
 const getAllEntryVoucher  = async (pageIndex: any = 1, pageSize: any = 10000, filters: any = {}) => {
   try {
     let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
-    if (filters.EntryVoucherNo) {
-      queryParams += `&EntryVoucherNo=${filters.EntryVoucherNo}`;
+    if (filters.voucherNo) {
+      queryParams += `&voucherNo=${filters.voucherNo}`;
     }
     const response = await apiFetch(`EntryVoucher?${queryParams}`, {
       method: 'GET',
@@ -29,8 +29,8 @@ const getAllEntryVoucher  = async (pageIndex: any = 1, pageSize: any = 10000, fi
      // Sort by receiptNo on frontend
     if (response?.data && Array.isArray(response.data)) {
       response.data.sort((a: any, b: any) => {
-        const receiptA = a.EntryVoucherNo || 0;
-        const receiptB = b.EntryVoucherNo || 0;
+        const receiptA = a.voucherNo || 0;
+        const receiptB = b.voucherNo || 0;
         return receiptA - receiptB;
       });
     }
