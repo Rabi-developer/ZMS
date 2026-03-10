@@ -675,7 +675,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-1 sm:p-2 md:p-4">
       <div className="h-full w-full flex flex-col">
         {isLoading && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -688,35 +688,35 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           </div>
         )}
 
-        <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="w-full lg:max-w-6xl mx-auto bg-white dark:bg-gray-800 rounded-lg sm:rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           {!isViewMode && (
-          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3">
+          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-3 sm:px-4 py-2 sm:py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="bg-white/20 p-1.5 rounded-md">
-                  <FaFileInvoice className="text-lg" />
+                <div className="bg-white/20 p-1 sm:p-1.5 rounded-md">
+                  <FaFileInvoice className="text-base sm:text-lg" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-semibold">{isEdit ? 'Edit Receipt' : 'Add New Receipt'}</h1>
-                  <p className="text-white/80 text-xs">{isEdit ? 'Update receipt record' : 'Create a new receipt record'}</p>
+                  <h1 className="text-base sm:text-lg font-semibold">{isEdit ? 'Edit Receipt' : 'Add New Receipt'}</h1>
+                  <p className="text-white/80 text-xs hidden sm:block">{isEdit ? 'Update receipt record' : 'Create a new receipt record'}</p>
                 </div>
               </div>
               <Link href="/receipt">
                 <Button
                   type="button"
-                  className="bg-white/10 hover:bg-white/20 text-white rounded-md transition-all duration-200 border border-white/20 px-3 py-1 text-sm"
+                  className="bg-white/10 hover:bg-white/20 text-white rounded-md transition-all duration-200 border border-white/20 px-2 sm:px-3 py-1 text-xs sm:text-sm"
                 >
-                  <FiX className="mr-1" /> Cancel
+                  <FiX className="sm:mr-1" /> <span className="hidden sm:inline">Cancel</span>
                 </Button>
               </Link>
             </div>
           </div>
           )}
           {isViewMode && (
-        <div className="m-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl flex items-center gap-3">
+        <div className="m-3 sm:m-6 p-3 sm:p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg sm:rounded-xl flex items-center gap-3">
           <div>
-            <p className="font-medium text-amber-800 dark:text-amber-200">View Only Mode</p>
-            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+            <p className="font-medium text-sm sm:text-base text-amber-800 dark:text-amber-200">View Only Mode</p>
+            <p className="text-xs sm:text-sm text-amber-700 dark:text-amber-300 mt-1">
               This Receipt record is read-only. No changes can be made.
             </p>
           </div>
@@ -727,11 +727,11 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
             console.log('Form validation errors:', errors);
             console.log('Current form values:', watch());
             toast.error('Please fix form validation errors');
-          })} className="p-4">
+          })} className="p-2 sm:p-4">
             {Object.keys(errors).length > 0 && (
-              <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <h4 className="text-red-800 dark:text-red-200 font-semibold mb-2">Form Validation Errors:</h4>
-                <ul className="list-disc list-inside text-sm text-red-700 dark:text-red-300">
+              <div className="mb-3 sm:mb-4 p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <h4 className="text-red-800 dark:text-red-200 font-semibold mb-2 text-sm sm:text-base">Form Validation Errors:</h4>
+                <ul className="list-disc list-inside text-xs sm:text-sm text-red-700 dark:text-red-300">
                   {Object.entries(errors).map(([key, error]: [string, any]) => {
                     if (key === 'items' && Array.isArray(error)) {
                       return error.map((itemError, index) => 
@@ -753,7 +753,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 </ul>
               </div>
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 px-2 sm:px-0">
               <div className="relative">
                 <ABLCustomInput
                   label="Receipt #"
@@ -861,21 +861,23 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               />
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
-              <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 rounded-t-lg">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mb-4 sm:mb-6">
+              <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-3 sm:px-4 py-2 sm:py-3 rounded-t-lg">
                 <div className="flex items-center gap-2">
-                  <FaMoneyBillWave className="text-lg" />
-                  <h3 className="text-base font-semibold">Consignment Details</h3>
+                  <FaMoneyBillWave className="text-base sm:text-lg" />
+                  <h3 className="text-sm sm:text-base font-semibold">Consignment Details</h3>
                 </div>
               </div>
 
-              <div className="p-4 ">
+              <div className="p-2 sm:p-4">
                 <div
                   ref={consignmentTableRef}
-                  className="overflow-x-auto overflow-y-auto max-h-[420px] rounded-lg border border-gray-200 dark:border-gray-600"
+                  className="overflow-x-auto overflow-y-auto max-h-[420px] rounded-lg border border-gray-200 dark:border-gray-600 -mx-4 sm:mx-0"
+                  style={{ WebkitOverflowScrolling: 'touch' }}
                 >
-                  <table className="w-full text-sm ">
-                    <thead className='sticky top-0 '>
+                  <div className="min-w-[1200px]">
+                  <table className="w-full text-sm">
+                    <thead className='sticky top-0 z-10'>
                       <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
                         <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
                           Bilty #
@@ -913,7 +915,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                             <Button
                               type="button"
                               onClick={() => setShowConsignmentPopup(index)}
-                              className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
+                              className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap"
                               disabled={isViewMode}
                             >
                               {row.biltyNo || 'Select Bilty'}
@@ -1000,21 +1002,21 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
-                      <tr className="text-black">
+                    <tfoot className="sticky bottom-0 bg-white dark:bg-gray-800">
+                      <tr className="text-black dark:text-white border-t-2 border-gray-300 dark:border-gray-600">
                         <td colSpan={3} className="px-4 py-3 text-right font-bold text-base">
                           TOTALS:
                         </td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
+                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-600">
                           {items.reduce((sum, row) => sum + (row.biltyAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
+                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-600">
                           {items.reduce((sum, row) => sum + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
+                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-600">
                           {items.reduce((sum, row) => sum + (row.totalAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
+                        <td className="px-4 py-3 font-bold text-right text-base border-r border-gray-200 dark:border-gray-600">
                           {items.reduce((sum, row) => sum + (row.balance || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td className="px-4 py-3 font-bold text-right text-base">
@@ -1025,14 +1027,15 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                       </tr>
                     </tfoot>
                   </table>
+                  </div>
                 </div>
 
-                <div className="mt-4 flex justify-between items-center">
+                <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3">
                   <Button
                     type="button"
                     onClick={addTableRow}
                     onAuxClick={addTableRow}
-                    className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg"
+                    className="w-full sm:w-auto bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg"
                     disabled={isViewMode}
                   >
                     + Add New Row
@@ -1044,22 +1047,22 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mb-6">
-              <div className="px-4 py-3 rounded-t-lg">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mb-4 sm:mb-6">
+              <div className="px-3 sm:px-4 py-2 sm:py-3 rounded-t-lg">
                 <div className="flex items-center gap-2">
-                  <FaMoneyBillWave className="text-lg" />
-                  <h3 className="text-base font-semibold">Tax & Calculations</h3>
+                  <FaMoneyBillWave className="text-base sm:text-lg" />
+                  <h3 className="text-sm sm:text-base font-semibold">Tax & Calculations</h3>
                 </div>
               </div>
 
-              <div className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4">
+              <div className="p-4 sm:p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-3 sm:space-y-4">
                     <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-600 pb-2">
                       Tax Configuration
                     </h4>
 
-                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <div className="bg-gray-50 dark:bg-gray-700 p-3 sm:p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                       <Controller
                         name="salesTaxOption"
                         control={control}
@@ -1077,7 +1080,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                     </div>
 
                     {salesTaxOption === 'with' && (
-                      <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                      <div className="bg-gray-50 dark:bg-gray-700 p-3 sm:p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                         <Controller
                           name="salesTaxRate"
                           control={control}
@@ -1101,7 +1104,7 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                       </div>
                     )}
 
-                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <div className="bg-gray-50 dark:bg-gray-700 p-3 sm:p-4 rounded-lg border border-gray-200 dark:border-gray-600">
                       <Controller
                         name="whtOnSbr"
                         control={control}
@@ -1125,32 +1128,32 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                     </div>
                   </div>
 
-  <div className="space-y-4">
+  <div className="space-y-3 sm:space-y-4">
   <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 border-b border-gray-200 dark:border-gray-600 pb-2">
     Amount Summary
   </h4>
 
-  <div className="space-y-3">
+  <div className="space-y-2 sm:space-y-3">
     {/* Receipt Amount Total */}
-    <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
-      <span className="font-medium text-sm text-blue-700 dark:text-blue-300">Receipt Amount Total</span>
-      <span className="text-sm font-bold text-blue-800 dark:text-blue-200">
+    <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-3 sm:p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+      <span className="font-medium text-xs sm:text-sm text-blue-700 dark:text-blue-300">Receipt Amount Total</span>
+      <span className="text-xs sm:text-sm font-bold text-blue-800 dark:text-blue-200">
         {items.reduce((sum, row) => sum + (row.receiptAmount ?? 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
     </div>
 
     {/* Total SBR Amount */}
-    <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-4 rounded-lg border border-purple-200 dark:border-purple-700">
-      <span className="font-medium text-sm text-purple-700 dark:text-purple-300">Total SBR Amount</span>
-      <span className="text-sm font-bold text-purple-800 dark:text-purple-200">
+    <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-3 sm:p-4 rounded-lg border border-purple-200 dark:border-purple-700">
+      <span className="font-medium text-xs sm:text-sm text-purple-700 dark:text-purple-300">Total SBR Amount</span>
+      <span className="text-xs sm:text-sm font-bold text-purple-800 dark:text-purple-200">
         {items.reduce((sum, row) => sum + (row.srbAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
     </div>
 
     {/* Subtotal Amount */}
-    <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-4 rounded-lg border border-green-200 dark:border-green-700">
-      <span className="font-medium text-sm text-green-700 dark:text-green-300">Subtotal Amount</span>
-      <span className="text-sm font-bold text-green-800 dark:text-green-200">
+    <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-3 sm:p-4 rounded-lg border border-green-200 dark:border-green-700">
+      <span className="font-medium text-xs sm:text-sm text-green-700 dark:text-green-300">Subtotal Amount</span>
+      <span className="text-xs sm:text-sm font-bold text-green-800 dark:text-green-200">
         {(() => {
           const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
           return subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1159,9 +1162,9 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     </div>
 
     {/* Sales Tax Amount */}
-    <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 p-4 rounded-lg border border-indigo-200 dark:border-indigo-700">
-      <span className="font-medium text-sm text-indigo-700 dark:text-indigo-300">Sales Tax Amount</span>
-      <span className="text-sm font-bold text-indigo-800 dark:text-indigo-200">
+    <div className="flex items-center justify-between bg-gradient-to-r from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 p-3 sm:p-4 rounded-lg border border-indigo-200 dark:border-indigo-700">
+      <span className="font-medium text-xs sm:text-sm text-indigo-700 dark:text-indigo-300">Sales Tax Amount</span>
+      <span className="text-xs sm:text-sm font-bold text-indigo-800 dark:text-indigo-200">
         {(() => {
           const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
           if (salesTaxOption === 'with' && salesTaxRate) {
@@ -1176,9 +1179,9 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     </div>
 
     {/* Total After Sales Tax (Subtotal - Sales Tax) */}
-    <div className="flex items-center justify-between bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-4 rounded-lg shadow-md">
-      <span className="font-semibold text-sm">Total After Sales Tax</span>
-      <span className="text-lg font-bold">
+    <div className="flex items-center justify-between bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-3 sm:p-4 rounded-lg shadow-md">
+      <span className="font-semibold text-xs sm:text-sm">Total After Sales Tax</span>
+      <span className="text-base sm:text-lg font-bold">
         {(() => {
           const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
           let totalAfterSalesTax = subtotal;
@@ -1193,9 +1196,9 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     </div>
 
     {/* WHT Deduction Amount */}
-    <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-4 rounded-lg border border-orange-200 dark:border-orange-700">
-      <span className="font-medium text-sm text-orange-700 dark:text-orange-300">WHT Deduction Amount</span>
-      <span className="text-sm font-bold text-orange-800 dark:text-orange-200">
+    <div className="flex items-center justify-between bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 p-3 sm:p-4 rounded-lg border border-orange-200 dark:border-orange-700">
+      <span className="font-medium text-xs sm:text-sm text-orange-700 dark:text-orange-300">WHT Deduction Amount</span>
+      <span className="text-xs sm:text-sm font-bold text-orange-800 dark:text-orange-200">
         {(() => {
           const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
           let totalAfterSalesTax = subtotal;
@@ -1214,9 +1217,9 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     </div>
 
     {/* Final Cheque Amount */}
-    <div className="flex items-center justify-between bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 p-4 rounded-lg border-2 border-gray-300 dark:border-gray-500">
-      <span className="font-bold text-base text-gray-800 dark:text-gray-200">Final Cheque Amount</span>
-      <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+    <div className="flex items-center justify-between bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 p-3 sm:p-4 rounded-lg border-2 border-gray-300 dark:border-gray-500">
+      <span className="font-bold text-sm sm:text-base text-gray-800 dark:text-gray-200">Final Cheque Amount</span>
+      <span className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
         {(() => {
           const subtotal = items.reduce((sum, row) => sum + (row.receiptAmount || 0) + (row.srbAmount || 0), 0);
           let totalAfterSalesTax = subtotal;
@@ -1241,14 +1244,14 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
               </div>
             </div>
 
-      <div className="flex justify-end gap-4 pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">
+      <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700 mt-3 sm:mt-4">
       {isViewMode ? (
     <Button
       type="button"
       onClick={() => router.back()} 
-      className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2 text-sm font-medium"
+      className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-md transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
     >
-      <FiX className="text-base" />
+      <FiX className="text-sm sm:text-base" />
       Back
      </Button>
       ) : (
@@ -1256,16 +1259,16 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="px-6 py-2.5 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center gap-2 text-sm font-medium"
+        className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
       >
         {isSubmitting ? (
           <>
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             <span>Saving...</span>
           </>
         ) : (
           <>
-            <FiSave className="text-base" />
+            <FiSave className="text-sm sm:text-base" />
             <span>{isEdit ? 'Update Receipt' : 'Create Receipt'}</span>
           </>
         )}
@@ -1274,9 +1277,9 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
       <Button
         type="button"
         onClick={() => router.back()}
-        className="px-6 py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2 text-sm font-medium"
+        className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-2.5 bg-gray-500 hover:bg-gray-600 text-white rounded-md transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2 text-xs sm:text-sm font-medium"
       >
-        <FiX className="text-base" />
+        <FiX className="text-sm sm:text-base" />
         Cancel
       </Button>
       </>
@@ -1285,13 +1288,13 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
           </form>
         </div>
 
-        <div className="mt-4 bg-white dark:bg-gray-800 rounded-md shadow-md p-3 border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300 text-sm">
-              <MdInfo className="text-[#3a614c]" />
+        <div className="mt-3 sm:mt-4 bg-white dark:bg-gray-800 rounded-md shadow-md p-2 sm:p-3 border border-gray-100 dark:border-gray-700">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300 text-xs sm:text-sm">
+              <MdInfo className="text-[#3a614c] flex-shrink-0" />
               <span>Fill in all required fields marked with an asterisk (*)</span>
             </div>
-            <Link href="/receipt" className="text-[#3a614c] hover:text-[#6e997f] text-sm font-medium">
+            <Link href="/receipt" className="text-[#3a614c] hover:text-[#6e997f] text-xs sm:text-sm font-medium whitespace-nowrap">
               Back to Receipts
             </Link>
           </div>
