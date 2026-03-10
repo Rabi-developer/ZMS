@@ -15,16 +15,25 @@ const createEntryVoucher = async (EntryVoucher : any) => {
 };
 
 // EntryVoucher-list
-const getAllEntryVoucher  = async (pageIndex: any = 1, pageSize: any = 10, filters: any = {}) => {
+const getAllEntryVoucher  = async (pageIndex: any = 1, pageSize: any = 10000, filters: any = {}) => {
   try {
     let queryParams = `PageIndex=${pageIndex}&PageSize=${pageSize}`;
-    if (filters.orderNo) {
-      queryParams += `&OrderNo=${filters.orderNo}`;
+    if (filters.EntryVoucherNo) {
+      queryParams += `&EntryVoucherNo=${filters.EntryVoucherNo}`;
     }
     const response = await apiFetch(`EntryVoucher?${queryParams}`, {
       method: 'GET',
       headers: {}, 
     }, true);
+
+     // Sort by receiptNo on frontend
+    if (response?.data && Array.isArray(response.data)) {
+      response.data.sort((a: any, b: any) => {
+        const receiptA = a.EntryVoucherNo || 0;
+        const receiptB = b.EntryVoucherNo || 0;
+        return receiptA - receiptB;
+      });
+    }
     return response;
   } catch (error: any) {
     throw error;
