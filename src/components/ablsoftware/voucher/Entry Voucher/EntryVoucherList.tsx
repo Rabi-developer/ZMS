@@ -89,7 +89,59 @@ const EntryVoucherList = () => {
     try {
       setLoading(true);
       const response = await getAllEntryVoucher(pageIndex + 1, pageSize);
-      const data = (response?.data || []).map((v: any) => ({ ...v, files: v.files || '' }));
+      
+      // Calculate totals from comma-separated values in voucherDetails
+      const data = (response?.data || []).map((v: any) => {
+        let totalDebit = 0;
+        let totalCredit = 0;
+        
+        // Parse each voucher detail and sum up all debits and credits
+        (v.voucherDetails || []).forEach((detail: any) => {
+          // Parse comma-separated debit1 values
+          if (detail.debit1) {
+            const debit1Values = String(detail.debit1).split(',').map((s: string) => s.trim());
+            debit1Values.forEach((val: string) => {
+              const num = Number(val);
+              if (!isNaN(num)) totalDebit += num;
+            });
+          }
+          
+          // Parse comma-separated credit1 values
+          if (detail.credit1) {
+            const credit1Values = String(detail.credit1).split(',').map((s: string) => s.trim());
+            credit1Values.forEach((val: string) => {
+              const num = Number(val);
+              if (!isNaN(num)) totalCredit += num;
+            });
+          }
+          
+          // Parse comma-separated debit2 values
+          if (detail.debit2) {
+            const debit2Values = String(detail.debit2).split(',').map((s: string) => s.trim());
+            debit2Values.forEach((val: string) => {
+              const num = Number(val);
+              if (!isNaN(num)) totalDebit += num;
+            });
+          }
+          
+          // Parse comma-separated credit2 values
+          if (detail.credit2) {
+            const credit2Values = String(detail.credit2).split(',').map((s: string) => s.trim());
+            credit2Values.forEach((val: string) => {
+              const num = Number(val);
+              if (!isNaN(num)) totalCredit += num;
+            });
+          }
+        });
+        
+        return {
+          ...v,
+          files: v.files || '',
+          totalDebit: totalDebit.toFixed(2),
+          totalCredit: totalCredit.toFixed(2),
+        };
+      });
+      
       setVouchers(data);
       setTotalRows(response.misc?.total || 0);
     } catch (error) {
@@ -418,6 +470,7 @@ const EntryVoucherList = () => {
           handlePdf,
           selectedVoucherIds,
           handleCheckboxChange,
+          displayPaidTo
         )}
         data={filteredVouchers}
         loading={loading}
@@ -451,28 +504,50 @@ const EntryVoucherList = () => {
                         <th className="border px-3 py-2 text-left">Account 1</th>
                         <th className="border px-3 py-2 text-right">Debit</th>
                         <th className="border px-3 py-2 text-right">Credit</th>
+                        <th className="border px-3 py-2 text-left">Narration</th>
                         <th className="border px-3 py-2 text-left">Account 2</th>
                         <th className="border px-3 py-2 text-right">Debit</th>
                         <th className="border px-3 py-2 text-right">Credit</th>
-                        <th className="border px-3 py-2 text-left">Narration</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {(expandedVoucherDetails.voucherDetails || []).map((d: any, i: number) => {
-                        const debit1 = Number(d.debit1 || 0);
-                        const credit1 = Number(d.credit1 || 0);
-                        const debit2 = Number(d.debit2 || 0);
-                        const credit2 = Number(d.credit2 || 0);
+                      {(expandedVoucherDetails.voucherDetails || []).map((detail: any, detailIndex: number) => {
+                        // Parse comma-separated values
+                        const account1Ids = detail.account1 ? detail.account1.split(',').map((s: string) => s.trim()) : [];
+                        const debit1Values = detail.debit1 ? detail.debit1.split(',').map((s: string) => s.trim()) : [];
+                        const credit1Values = detail.credit1 ? detail.credit1.split(',').map((s: string) => s.trim()) : [];
+                        const account2Ids = detail.account2 ? detail.account2.split(',').map((s: string) => s.trim()) : [];
+                        const debit2Values = detail.debit2 ? detail.debit2.split(',').map((s: string) => s.trim()) : [];
+                        const credit2Values = detail.credit2 ? detail.credit2.split(',').map((s: string) => s.trim()) : [];
+                        
+                        const maxCols = Math.max(account1Ids.length, account2Ids.length);
+                        
                         return (
-                          <tr key={i}>
-                            <td className="border px-3 py-2">{displayAccount(d.account1)}</td>
-                            <td className="border px-3 py-2 text-right">{debit1 ? debit1.toLocaleString() : ''}</td>
-                            <td className="border px-3 py-2 text-right">{credit1 ? credit1.toLocaleString() : ''}</td>
-                            <td className="border px-3 py-2">{displayAccount(d.account2)}</td>
-                            <td className="border px-3 py-2 text-right">{debit2 ? debit2.toLocaleString() : ''}</td>
-                            <td className="border px-3 py-2 text-right">{credit2 ? credit2.toLocaleString() : ''}</td>
-                            <td className="border px-3 py-2">{d.narration || '-'}</td>
-                          </tr>
+                          <React.Fragment key={detailIndex}>
+                            {Array.from({ length: maxCols }).map((_, colIndex) => {
+                              const account1 = account1Ids[colIndex] || '';
+                              const debit1 = debit1Values[colIndex] ? Number(debit1Values[colIndex]) : 0;
+                              const credit1 = credit1Values[colIndex] ? Number(credit1Values[colIndex]) : 0;
+                              const account2 = account2Ids[colIndex] || '';
+                              const debit2 = debit2Values[colIndex] ? Number(debit2Values[colIndex]) : 0;
+                              const credit2 = credit2Values[colIndex] ? Number(credit2Values[colIndex]) : 0;
+                              const isFirstCol = colIndex === 0;
+                              
+                              return (
+                                <tr key={`${detailIndex}-${colIndex}`} className="hover:bg-gray-50">
+                                  <td className="border px-3 py-2">{displayAccount(account1)}</td>
+                                  <td className="border px-3 py-2 text-right">{debit1 ? debit1.toLocaleString() : ''}</td>
+                                  <td className="border px-3 py-2 text-right">{credit1 ? credit1.toLocaleString() : ''}</td>
+                                  {isFirstCol ? (
+                                    <td className="border px-3 py-2" rowSpan={maxCols}>{detail.narration || '-'}</td>
+                                  ) : null}
+                                  <td className="border px-3 py-2">{displayAccount(account2)}</td>
+                                  <td className="border px-3 py-2 text-right">{debit2 ? debit2.toLocaleString() : ''}</td>
+                                  <td className="border px-3 py-2 text-right">{credit2 ? credit2.toLocaleString() : ''}</td>
+                                </tr>
+                              );
+                            })}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>

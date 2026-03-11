@@ -889,10 +889,49 @@ const LedgerPage: React.FC = () => {
 
       filteredVouchers.forEach((v) => {
         (v.voucherDetails || []).forEach((r) => {
-          const inSel1 = selectedKeys.size === 0 || selectedKeys.has(normalize(r.account1));
-          const inSel2 = selectedKeys.size === 0 || selectedKeys.has(normalize(r.account2));
-          if (inSel1 && r.account1) pushRow(r.account1, v, r);
-          if (inSel2 && r.account2) pushRow(r.account2, v, r);
+          // Parse comma-separated values for Account 1
+          const account1Ids = r.account1 ? String(r.account1).split(',').map(s => s.trim()).filter(Boolean) : [];
+          const debit1Values = r.debit1 ? String(r.debit1).split(',').map(s => s.trim()) : [];
+          const credit1Values = r.credit1 ? String(r.credit1).split(',').map(s => s.trim()) : [];
+          const pb1Values = r.projectedBalance1 ? String(r.projectedBalance1).split(',').map(s => s.trim()) : [];
+
+          // Parse comma-separated values for Account 2
+          const account2Ids = r.account2 ? String(r.account2).split(',').map(s => s.trim()).filter(Boolean) : [];
+          const debit2Values = r.debit2 ? String(r.debit2).split(',').map(s => s.trim()) : [];
+          const credit2Values = r.credit2 ? String(r.credit2).split(',').map(s => s.trim()) : [];
+          const pb2Values = r.projectedBalance2 ? String(r.projectedBalance2).split(',').map(s => s.trim()) : [];
+
+          // Process each Account 1 column
+          account1Ids.forEach((accountId, index) => {
+            if (!accountId) return;
+            const inSel = selectedKeys.size === 0 || selectedKeys.has(normalize(accountId));
+            if (inSel) {
+              const rowData = {
+                ...r,
+                account1: accountId,
+                debit1: Number(debit1Values[index] || 0),
+                credit1: Number(credit1Values[index] || 0),
+                projectedBalance1: Number(pb1Values[index] || 0),
+              };
+              pushRow(accountId, v, rowData);
+            }
+          });
+
+          // Process each Account 2 column
+          account2Ids.forEach((accountId, index) => {
+            if (!accountId) return;
+            const inSel = selectedKeys.size === 0 || selectedKeys.has(normalize(accountId));
+            if (inSel) {
+              const rowData = {
+                ...r,
+                account2: accountId,
+                debit2: Number(debit2Values[index] || 0),
+                credit2: Number(credit2Values[index] || 0),
+                projectedBalance2: Number(pb2Values[index] || 0),
+              };
+              pushRow(accountId, v, rowData);
+            }
+          });
         });
       });
 

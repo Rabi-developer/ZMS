@@ -34,7 +34,8 @@ export const columns = (
   handleDeleteOpen: (id: string) => void,
   handlePdf: (id: string) => void,
   selectedVoucherIds: string[],
-  onCheckboxChange: (id: string, checked: boolean) => void
+  onCheckboxChange: (id: string, checked: boolean) => void,
+  displayPaidTo?: (val?: string) => string
 ): ColumnDef<Voucher>[] => [
   // Checkbox Column
   {
@@ -121,6 +122,10 @@ export const columns = (
   {
     header: 'Paid To',
     accessorKey: 'paidTo',
+    cell: ({ row }) => {
+      const value = row.original.paidTo;
+      return displayPaidTo ? displayPaidTo(value) : value || '-';
+    },
     enableColumnFilter: true,
   },
 
