@@ -667,39 +667,38 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
             setValue('narration', voucher.narration || '');
             setValue('description', voucher.description || '');
 
-            // Group voucher details by narration to reconstruct rows
-            const rowsMap = new Map<string, { account1: any[], account2: any[] }>();
-            (voucher.voucherDetails || []).forEach((d: any) => {
-              const key = d.narration || 'default';
-              if (!rowsMap.has(key)) {
-                rowsMap.set(key, { account1: [], account2: [] });
-              }
-              const row = rowsMap.get(key)!;
-              
-              if (d.account1) {
-                const acc1 = findAccountByDescription(d.account1, topLevelAccounts) || findAccountById(d.account1, topLevelAccounts);
-                row.account1.push({
-                  account: acc1?.id || '',
-                  debit: Number(d.debit1 || 0),
-                  credit: Number(d.credit1 || 0),
-                });
-              }
-              
-              if (d.account2) {
-                const acc2 = findAccountByDescription(d.account2, topLevelAccounts) || findAccountById(d.account2, topLevelAccounts);
-                row.account2.push({
-                  account: acc2?.id || '',
-                  debit: Number(d.debit2 || 0),
-                  credit: Number(d.credit2 || 0),
-                });
-              }
-            });
+            // Parse VoucherDetails - each detail is one row with comma-separated columns
+            const loadedTableData = (voucher.voucherDetails || []).map((detail: any) => {
+              // Parse comma-separated values for Account 1
+              const account1Ids = detail.account1 ? detail.account1.split(',') : [];
+              const debit1Values = detail.debit1 ? detail.debit1.split(',') : [];
+              const credit1Values = detail.credit1 ? detail.credit1.split(',') : [];
 
-            const loadedTableData = Array.from(rowsMap.entries()).map(([narration, cols]) => ({
-              account1Columns: cols.account1.length > 0 ? cols.account1 : [{ account: '', debit: 0, credit: 0 }],
-              account2Columns: cols.account2.length > 0 ? cols.account2 : [{ account: '', debit: 0, credit: 0 }],
-              narration: narration === 'default' ? '' : narration,
-            }));
+              // Parse comma-separated values for Account 2
+              const account2Ids = detail.account2 ? detail.account2.split(',') : [];
+              const debit2Values = detail.debit2 ? detail.debit2.split(',') : [];
+              const credit2Values = detail.credit2 ? detail.credit2.split(',') : [];
+
+              // Build account1Columns array
+              const account1Columns = account1Ids.map((accId: string, index: string | number) => ({
+                account: accId.trim(),
+                debit: Number(debit1Values[index] || 0),
+                credit: Number(credit1Values[index] || 0),
+              }));
+
+              // Build account2Columns array
+              const account2Columns = account2Ids.map((accId: string, index: string | number) => ({
+                account: accId.trim(),
+                debit: Number(debit2Values[index] || 0),
+                credit: Number(credit2Values[index] || 0),
+              }));
+
+              return {
+                account1Columns: account1Columns.length > 0 ? account1Columns : [{ account: '', debit: 0, credit: 0 }],
+                account2Columns: account2Columns.length > 0 ? account2Columns : [{ account: '', debit: 0, credit: 0 }],
+                narration: detail.narration || ''
+              };
+            });
 
             setValue('tableData', loadedTableData.length > 0 ? loadedTableData : [{
               account1Columns: [{ account: '', debit: 0, credit: 0 }],
@@ -707,9 +706,9 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
               narration: ''
             }]);
 
-            const loadedSelected = loadedTableData.map((row) => ({
-              account1: row.account1Columns.map((acc) => findAccountById(acc.account, topLevelAccounts)),
-              account2: row.account2Columns.map((acc) => findAccountById(acc.account, topLevelAccounts)),
+            const loadedSelected = loadedTableData.map((row: { account1Columns: any[]; account2Columns: any[]; }) => ({
+              account1: row.account1Columns.map((acc: { account: string; }) => findAccountById(acc.account, topLevelAccounts)),
+              account2: row.account2Columns.map((acc: { account: string; }) => findAccountById(acc.account, topLevelAccounts)),
             }));
             setSelectedAccounts(loadedSelected.length > 0 ? loadedSelected : [{ account1: [null], account2: [null] }]);
           } catch (error) {
@@ -850,11 +849,7 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         });
       });
 
-      // Calculate net amounts for each account
-      const account1Total = totalDebit1 - totalCredit1;
-      const account2Total = totalDebit2 - totalCredit2;
-
-      // Check if totals are balanced (Account 1 net should equal negative of Account 2 net)
+      // Check if totals are balanced
       const totalDebit = totalDebit1 + totalDebit2;
       const totalCredit = totalCredit1 + totalCredit2;
       const difference = Math.abs(totalDebit - totalCredit);
@@ -865,39 +860,57 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
         return;
       }
 
-      // Build backend payload - create separate entries for each account column
+      // Build VoucherDetails array - one detail per row with comma-separated values
       const voucherDetails: any[] = [];
-      
+
       data.tableData.forEach((row) => {
-        // Get max columns between account1 and account2
-        const maxCols = Math.max(row.account1Columns.length, row.account2Columns.length);
-        
-        for (let i = 0; i < maxCols; i++) {
-          const acc1 = row.account1Columns[i] || { account: '', debit: 0, credit: 0 };
-          const acc2 = row.account2Columns[i] || { account: '', debit: 0, credit: 0 };
-          
-          // Only add entry if both accounts are selected
-          if (acc1.account && acc2.account) {
-            voucherDetails.push({
-              account1: acc1.account,
-              debit1: Number(acc1.debit || 0),
-              credit1: Number(acc1.credit || 0),
-              currentBalance1: 0,
-              projectedBalance1: 0,
-              narration: row.narration || '',
-              account2: acc2.account,
-              debit2: Number(acc2.debit || 0),
-              credit2: Number(acc2.credit || 0),
-              currentBalance2: 0,
-              projectedBalance2: 0,
-            });
+        // Build comma-separated strings for this row
+        const account1Ids: string[] = [];
+        const debit1Values: string[] = [];
+        const credit1Values: string[] = [];
+        const account2Ids: string[] = [];
+        const debit2Values: string[] = [];
+        const credit2Values: string[] = [];
+
+        // Collect Account 1 columns
+        row.account1Columns.forEach((acc) => {
+          if (acc.account) {
+            account1Ids.push(acc.account);
+            debit1Values.push(String(acc.debit || 0));
+            credit1Values.push(String(acc.credit || 0));
           }
+        });
+
+        // Collect Account 2 columns
+        row.account2Columns.forEach((acc) => {
+          if (acc.account) {
+            account2Ids.push(acc.account);
+            debit2Values.push(String(acc.debit || 0));
+            credit2Values.push(String(acc.credit || 0));
+          }
+        });
+
+        // Only add if we have at least one account
+        if (account1Ids.length > 0 || account2Ids.length > 0) {
+          voucherDetails.push({
+            account1: account1Ids.join(','),
+            debit1: debit1Values.join(','),
+            credit1: credit1Values.join(','),
+            account2: account2Ids.join(','),
+            debit2: debit2Values.join(','),
+            credit2: credit2Values.join(','),
+            narration: row.narration || '',
+            currentBalance1: '0',
+            projectedBalance1: '0',
+            currentBalance2: '0',
+            projectedBalance2: '0',
+          });
         }
       });
 
-      // Validate that we have at least one valid entry
+      // Validate that we have at least one detail
       if (voucherDetails.length === 0) {
-        toast.error('Please select both Account 1 and Account 2 for at least one entry');
+        toast.error('Please add at least one row with accounts');
         setIsSubmitting(false);
         return;
       }
