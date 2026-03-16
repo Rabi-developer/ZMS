@@ -942,6 +942,9 @@ const LedgerPage: React.FC = () => {
         const receiptAmount = Number(receipt.receiptAmount || 0);
         if (receiptAmount === 0) return;
         
+        // Skip if neither payment mode nor bank name is selected
+        if (!receipt.paymentMode && !receipt.bankName) return;
+        
         // Determine account ID and display name based on payment mode and bank name
         let cashAccountId = '';
         let accountDisplayName = '';
@@ -995,6 +998,9 @@ const LedgerPage: React.FC = () => {
         
         const paymentAmount = Number(payment.paymentAmount || 0);
         if (paymentAmount === 0) return;
+        
+        // Skip if neither payment mode nor bank name is selected
+        if (!payment.paymentMode && !payment.bankName) return;
         
         // Determine account ID and display name based on payment mode and bank name
         let cashAccountId = '';

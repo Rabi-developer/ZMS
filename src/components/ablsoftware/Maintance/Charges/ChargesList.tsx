@@ -16,7 +16,7 @@ import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/booki
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllBusinessAssociate, getSingleBusinessAssociate } from '@/apis/businessassociate';
 import { getAllOpeningBalance } from '@/apis/openingbalance';
-import { getAllPaymentABL } from '@/apis/paymentABL';
+import { getAllPaymentABL, getPaymentABLHistory } from '@/apis/paymentABL';
 import { columns, Charge } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 import { exportChargesReportToPDF, ChargeReportRow } from '@/components/ablsoftware/Maintance/common/ChargesReportPdf';
@@ -551,6 +551,69 @@ const ChargesList = () => {
       return reportSelectedOrderNos.includes(charge.orderNo);
     };
 
+    // Build a map of payment history for each charge line to get accurate balance
+    const paymentHistoryMap: Record<string, { received: number; balance: number }> = {};
+    
+    // Collect all unique charge lines that need history lookup
+    const chargeLinesToCheck: Array<{ chargeNo: string; vehicleNo: string; orderNo: string }> = [];
+    chargesRaw.forEach((c: any) => {
+      if (!orderNoMatches(c)) return;
+      const lines = c.lines || [];
+      lines.forEach((l: any) => {
+        if (withinDate(l.date) && chargeTypeMatches(l) && paidToMatches(l)) {
+          const vehicleNo = l.vehicle || '';
+          const orderNo = c.orderNo || '';
+          const chargeNo = String(c?.chargeNo ?? '').trim();
+          if (vehicleNo && orderNo && chargeNo) {
+            chargeLinesToCheck.push({ chargeNo, vehicleNo, orderNo });
+          }
+        }
+      });
+    });
+
+    // Fetch payment history for all charge lines in parallel
+    await Promise.all(
+      chargeLinesToCheck.map(async ({ chargeNo, vehicleNo, orderNo }) => {
+        try {
+          const historyRes = await getPaymentABLHistory({
+            vehicleNo,
+            orderNo,
+            charges: chargeNo
+          });
+          
+          // Handle null data case
+          if (historyRes?.data === null) {
+            return;
+          }
+          
+          // History API can return data as array or single object
+          let historyData = [];
+          if (Array.isArray(historyRes)) {
+            historyData = historyRes;
+          } else if (Array.isArray(historyRes?.data)) {
+            historyData = historyRes.data;
+          } else if (historyRes?.data && typeof historyRes.data === 'object') {
+            historyData = [historyRes.data];
+          }
+          
+          const historyRecord = historyData.find((h: any) => {
+            return (h.vehicleNo === vehicleNo || h.charges === chargeNo || h.charges === String(chargeNo)) && 
+                   (h.orderNo === orderNo || h.orderNo === String(orderNo));
+          });
+
+          if (historyRecord) {
+            const key = `${chargeNo}-${vehicleNo}-${orderNo}`;
+            paymentHistoryMap[key] = {
+              received: Number(historyRecord.paidAmount) || 0,
+              balance: Number(historyRecord.balance) || 0
+            };
+          }
+        } catch (error) {
+          console.warn('Failed to fetch payment history for charge:', chargeNo, error);
+        }
+      })
+    );
+
     chargesRaw.forEach((c: any) => {
       if (!orderNoMatches(c)) return;
       
@@ -574,17 +637,43 @@ const ChargesList = () => {
         if (withinDate(l.date) && chargeTypeMatches(l) && paidToMatches(l)) {
           const iso = l.date ? new Date(l.date).toISOString() : '';
           const lineAmount = Number(l.amount) || 0;
+          const vehicleNo = l.vehicle || '';
+          const orderNo = c.orderNo || '';
           
-          const lineRatio = totalChargeAmt > 0 ? lineAmount / totalChargeAmt : 0;
-          const lineReceived = paidAmt * lineRatio;
-          const linePending = Math.max(0, lineAmount - lineReceived);
+          // Check if we have payment history for this specific charge line
+          const historyKey = `${chNo}-${vehicleNo}-${orderNo}`;
+          const history = paymentHistoryMap[historyKey];
+          
+          let lineReceived = 0;
+          let linePending = lineAmount;
+          
+          if (history) {
+            // Use actual payment history data
+            lineReceived = history.received;
+            linePending = history.balance;
+          } else {
+            // Fallback to proportional distribution if no history found
+            const lineRatio = totalChargeAmt > 0 ? lineAmount / totalChargeAmt : 0;
+            lineReceived = paidAmt * lineRatio;
+            linePending = Math.max(0, lineAmount - lineReceived);
+          }
+
+          // Skip this line if it's fully paid and we're filtering for Unpaid only
+          if (reportPaymentStatus === 'Unpaid' && linePending === 0) {
+            return;
+          }
+
+          // Skip this line if it has no payment and we're filtering for Paid only
+          if (reportPaymentStatus === 'Paid' && lineReceived === 0) {
+            return;
+          }
 
           filteredRowsTemp.push({
             chargeNo: c.chargeNo,
             chargeName: getChargeTypeName(l.charge),
             dateISO: iso,
             orderNo: c.orderNo,
-            vehicleNo: l.vehicle || '-',
+            vehicleNo: vehicleNo || '-',
             amount: lineAmount,
             received: lineReceived,
             pending: linePending
