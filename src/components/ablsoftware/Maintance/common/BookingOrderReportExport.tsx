@@ -880,21 +880,8 @@ const BookingOrderReportExport: React.FC = () => {
 
         const orderNo = String(line.orderNo ?? line.OrderNo ?? inv.orderNo ?? inv.OrderNo ?? "").trim();
         
-        // Calculate total amount including munshyana and additional charges
-        const baseAmount = Number(line.amount) || 0;
-        
-        // Sum all additional charges for this invoice
-        const totalAdditional = (inv.lines || []).reduce((sum: number, l: any) => 
-          sum + (l.isAdditionalLine ? (Number(l.amountCharges) || 0) : 0), 0
-        );
-        
-        // Sum munshyana deduction for this invoice
-        const munshayanaDeduction = (inv.lines || []).reduce((sum: number, l: any) => 
-          sum + (!l.isAdditionalLine ? (Number(l.munshayana) || 0) : 0), 0
-        );
-        
-        // Calculate final total (same as BillPaymentInvoice)
-        const invoiceAmount = baseAmount + totalAdditional - munshayanaDeduction;
+        // Use the line amount directly (don't add invoice-level charges to each line)
+        const invoiceAmount = Number(line.amount) || 0;
         
         const brokerField = line.broker || '-';
         const brokerName = typeof brokerField === 'string' ? brokerField : (brokers.find((b:any)=>b.id===brokerField)?.name || '-');

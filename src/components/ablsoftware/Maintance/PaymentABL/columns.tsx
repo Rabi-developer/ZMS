@@ -20,10 +20,12 @@ export interface PaymentABL {
   PaymentABLItem?: Array<{
     orderNo: string;
     vehicleNo: string;
+    biltyNo?: string;
   }>;
   paymentABLItem?: Array<{
     orderNo: string;
     vehicleNo: string;
+    biltyNo?: string;
 }>;
 }
 
@@ -171,6 +173,22 @@ export const columns = (
       const items = row.original.PaymentABLItem ?? row.original.paymentABLItem ?? [];
       const vehicleNos = Array.isArray(items) ? items.map((item: any) => item.vehicleNo).filter(Boolean) : [];
       return <span className="text-sm text-gray-600 dark:text-gray-400">{vehicleNos.join(', ') || '-'}</span>;
+    },
+    enableColumnFilter: true,
+    filterFn: 'includesString',
+  },
+  {
+    header: 'Bilty No',
+    id: 'biltyNo',
+    accessorFn: (row) => {
+      const items = row.PaymentABLItem ?? row.paymentABLItem ?? [];
+      const biltyNos = Array.isArray(items) ? items.map((item: any) => item.biltyNo).filter(Boolean) : [];
+      return biltyNos.join(', ') || '-';
+    },
+    cell: ({ row }: { row: Row<PaymentABL> }) => {
+      const items = row.original.PaymentABLItem ?? row.original.paymentABLItem ?? [];
+      const biltyNos = Array.isArray(items) ? items.map((item: any) => item.biltyNo).filter(Boolean) : [];
+      return <span className="text-sm text-gray-700 dark:text-gray-300">{biltyNos.join(', ') || '-'}</span>;
     },
     enableColumnFilter: true,
     filterFn: 'includesString',
