@@ -618,19 +618,6 @@ const ChargesList = () => {
       if (!orderNoMatches(c)) return;
       
       const chNo = String(c?.chargeNo ?? '').trim();
-      const totalChargeAmt = chargeAmountByChargeNo[chNo] || 0;
-      const paidAmt = paidByChargeNo[chNo] || 0;
-      const remaining = Math.max(0, totalChargeAmt - paidAmt);
-
-      let includeByPaymentStatus = true;
-      if (reportPaymentStatus === 'Paid') {
-        includeByPaymentStatus = paidAmt > 0;
-      } else if (reportPaymentStatus === 'Unpaid') {
-        includeByPaymentStatus = remaining > 0;
-      }
-
-      if (!includeByPaymentStatus) return;
-      
       const lines = c.lines || [];
       
       lines.forEach((l: any) => {
@@ -653,20 +640,26 @@ const ChargesList = () => {
             linePending = history.balance;
           } else {
             // Fallback to proportional distribution if no history found
+            const totalChargeAmt = chargeAmountByChargeNo[chNo] || 0;
+            const paidAmt = paidByChargeNo[chNo] || 0;
             const lineRatio = totalChargeAmt > 0 ? lineAmount / totalChargeAmt : 0;
             lineReceived = paidAmt * lineRatio;
             linePending = Math.max(0, lineAmount - lineReceived);
           }
 
-          // Skip this line if it's fully paid and we're filtering for Unpaid only
-          if (reportPaymentStatus === 'Unpaid' && linePending === 0) {
-            return;
+          // Apply payment status filter at LINE level (not charge level)
+          if (reportPaymentStatus === 'Unpaid') {
+            // Only show lines with pending balance > 0
+            if (linePending <= 0) {
+              return; // Skip fully paid lines
+            }
+          } else if (reportPaymentStatus === 'Paid') {
+            // Only show lines that have received payment
+            if (lineReceived <= 0) {
+              return; // Skip unpaid lines
+            }
           }
-
-          // Skip this line if it has no payment and we're filtering for Paid only
-          if (reportPaymentStatus === 'Paid' && lineReceived === 0) {
-            return;
-          }
+          // If 'All', show everything regardless of payment status
 
           filteredRowsTemp.push({
             chargeNo: c.chargeNo,
