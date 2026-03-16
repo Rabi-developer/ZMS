@@ -152,6 +152,12 @@ export const columns = (
     },
   },
   {
+    header: 'Payment Mode',
+    accessorKey: 'paymentMode',
+    enableColumnFilter: true,
+    filterFn: 'includesString',
+  },
+  {
     header: 'Bank Name',
     accessorKey: 'bankName',
     enableColumnFilter: true,
