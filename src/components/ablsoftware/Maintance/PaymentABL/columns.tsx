@@ -105,13 +105,37 @@ export const columns = (
     header: 'Paid Amount',
     id: 'paidAmount',
     accessorFn: (row) => {
-      const amount = Number(row.paidAmount) || 0;
+      // Try to get paidAmount from the row directly first
+      let amount = Number(row.paidAmount) || 0;
+      
+      // If paidAmount is 0 or not present, calculate from paymentABLItem
+      if (amount === 0) {
+        const items = row.PaymentABLItem ?? row.paymentABLItem ?? [];
+        if (Array.isArray(items) && items.length > 0) {
+          amount = items.reduce((sum: number, item: any) => {
+            return sum + (Number(item.paidAmount) || 0);
+          }, 0);
+        }
+      }
+      
       return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     },
     cell: ({ row }: { row: Row<PaymentABL> }) => {
-      const amount = Number(row.original.paidAmount) || 0;
+      // Try to get paidAmount from the row directly first
+      let amount = Number(row.original.paidAmount) || 0;
+      
+      // If paidAmount is 0 or not present, calculate from paymentABLItem
+      if (amount === 0) {
+        const items = row.original.PaymentABLItem ?? row.original.paymentABLItem ?? [];
+        if (Array.isArray(items) && items.length > 0) {
+          amount = items.reduce((sum: number, item: any) => {
+            return sum + (Number(item.paidAmount) || 0);
+          }, 0);
+        }
+      }
+      
       return (
-        <span className="font-medium">
+        <span className="font-medium text-gray-900 dark:text-gray-100">
           {amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
       );
