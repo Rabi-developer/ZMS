@@ -951,8 +951,9 @@ const LedgerPage: React.FC = () => {
           accountDisplayName = 'Petty Cash';
         } else if (receipt.paymentMode === 'Cheque' || receipt.paymentMode === 'Bank Transfer') {
           // Use bank name as both ID and display name
-          cashAccountId = receipt.bankName || 'Bank';
-          accountDisplayName = receipt.bankName || 'Bank';
+          const bankName = receipt.bankName || 'Bank';
+          cashAccountId = bankName;
+          accountDisplayName = bankName;
         } else {
           cashAccountId = 'Petty Cash';
           accountDisplayName = 'Petty Cash';
@@ -1003,8 +1004,9 @@ const LedgerPage: React.FC = () => {
           accountDisplayName = 'Petty Cash';
         } else if (payment.paymentMode === 'Cheque' || payment.paymentMode === 'Bank Transfer') {
           // Use bank name as both ID and display name
-          cashAccountId = payment.bankName || 'Bank';
-          accountDisplayName = payment.bankName || 'Bank';
+          const bankName = payment.bankName || 'Bank';
+          cashAccountId = bankName;
+          accountDisplayName = bankName;
         } else {
           cashAccountId = 'Petty Cash';
           accountDisplayName = 'Petty Cash';
