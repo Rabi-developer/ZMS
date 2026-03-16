@@ -589,7 +589,7 @@ const LedgerPage: React.FC = () => {
       let pageIndex = 1;
       let totalPages = 1;
       do {
-        const res: any = await getAllEntryVoucher(pageIndex, 100, {});
+        const res: any = await getAllEntryVoucher(pageIndex, 100000, {});
         const data: VoucherItem[] = res?.data || [];
         all.push(...data);
         totalPages = res?.misc?.totalPages || 1;
@@ -939,7 +939,15 @@ const LedgerPage: React.FC = () => {
       allReceipts.forEach((receipt: any) => {
         if (!withinDate(receipt.receiptDate) || !matchesStatus(receipt.status)) return;
         
-        const receiptAmount = Number(receipt.receiptAmount || 0);
+        let receiptAmount = Number(receipt.receiptAmount || 0);
+        
+        // If receiptAmount is 0, calculate from items array
+        if (receiptAmount === 0 && receipt.items && Array.isArray(receipt.items)) {
+          receiptAmount = receipt.items.reduce((sum: number, item: any) => {
+            return sum + (Number(item.receiptAmount) || 0);
+          }, 0);
+        }
+        
         if (receiptAmount === 0) return;
         
         // Skip if neither payment mode nor bank name is selected
@@ -949,7 +957,7 @@ const LedgerPage: React.FC = () => {
         let cashAccountId = '';
         let accountDisplayName = '';
         
-        // Check if payment mode is Cash OR bank name is PettyCash
+        // Check if payment mode is Cash (regardless of bankName) OR bank name is PettyCash
         if (receipt.paymentMode === 'Cash' || receipt.bankName === 'PettyCash') {
           cashAccountId = 'Petty Cash';
           accountDisplayName = 'Petty Cash';
@@ -959,6 +967,7 @@ const LedgerPage: React.FC = () => {
           cashAccountId = bankName;
           accountDisplayName = bankName;
         } else {
+          // Default to Petty Cash for any other payment mode
           cashAccountId = 'Petty Cash';
           accountDisplayName = 'Petty Cash';
         }
@@ -996,8 +1005,19 @@ const LedgerPage: React.FC = () => {
       allPaymentsABL.forEach((payment: any) => {
         if (!withinDate(payment.paymentDate) || !matchesStatus(payment.status)) return;
         
-        const paymentAmount = Number(payment.paymentAmount || 0);
+        let paymentAmount = Number(payment.paymentAmount || 0);
+        
+        // If paymentAmount is 0 or null, calculate from paymentABLItem array
+        if (paymentAmount === 0 && payment.paymentABLItem && Array.isArray(payment.paymentABLItem)) {
+          paymentAmount = payment.paymentABLItem.reduce((sum: number, item: any) => {
+            return sum + (Number(item.paidAmount) || 0);
+          }, 0);
+          console.log(`Payment ${payment.paymentNo}: Calculated amount from items: ${paymentAmount}`);
+        }
+        
         if (paymentAmount === 0) return;
+        
+        console.log(`Processing Payment ${payment.paymentNo}: Mode=${payment.paymentMode}, BankName="${payment.bankName}", Amount=${paymentAmount}`);
         
         // Skip if neither payment mode nor bank name is selected
         if (!payment.paymentMode && !payment.bankName) return;
@@ -1006,18 +1026,22 @@ const LedgerPage: React.FC = () => {
         let cashAccountId = '';
         let accountDisplayName = '';
         
-        // Check if payment mode is Cash OR bank name is PettyCash
+        // Check if payment mode is Cash (regardless of bankName) OR bank name is PettyCash
         if (payment.paymentMode === 'Cash' || payment.bankName === 'PettyCash') {
           cashAccountId = 'Petty Cash';
           accountDisplayName = 'Petty Cash';
+          console.log(`Payment ${payment.paymentNo}: Mapped to Petty Cash`);
         } else if (payment.paymentMode === 'Cheque' || payment.paymentMode === 'Bank Transfer') {
           // Use bank name as both ID and display name
           const bankName = payment.bankName || 'Bank';
           cashAccountId = bankName;
           accountDisplayName = bankName;
+          console.log(`Payment ${payment.paymentNo}: Mapped to ${bankName}`);
         } else {
+          // Default to Petty Cash for any other payment mode
           cashAccountId = 'Petty Cash';
           accountDisplayName = 'Petty Cash';
+          console.log(`Payment ${payment.paymentNo}: Default mapped to Petty Cash`);
         }
         
         const narration = `Payment to Vendor - ${payment.remarks || ''}`;

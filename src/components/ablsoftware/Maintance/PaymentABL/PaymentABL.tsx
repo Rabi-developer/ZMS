@@ -255,6 +255,14 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   ];
 
   const paymentABLItems = watch('paymentABLItems');
+  const paymentMode = watch('paymentMode');
+
+  // Automatically set bankName to PettyCash when paymentMode is Cash
+  useEffect(() => {
+    if (paymentMode === 'Cash') {
+      setValue('bankName', 'PettyCash', { shouldValidate: false });
+    }
+  }, [paymentMode, setValue]);
 
   // Custom deep comparison function (use instead of lodash.isEqual if preferred)
   const areItemsEqual = (items1: PaymentABLItem[], items2: PaymentABLItem[]) => {

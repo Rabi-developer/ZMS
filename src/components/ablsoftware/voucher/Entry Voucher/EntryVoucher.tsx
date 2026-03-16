@@ -548,6 +548,13 @@ const EntryVoucherForm = ({ isEdit = false }: { isEdit?: boolean }) => {
   const tableData = watch('tableData');
   const paymentMode = watch('paymentMode');
 
+  // Automatically set bankName to PettyCash when paymentMode is Petty Cash
+  useEffect(() => {
+    if (paymentMode === 'Petty Cash') {
+      setValue('bankName', 'PettyCash', { shouldValidate: false });
+    }
+  }, [paymentMode, setValue]);
+
   // Calculate totals
   const totals = useMemo(() => {
     let totalDebit1 = 0, totalCredit1 = 0, totalDebit2 = 0, totalCredit2 = 0;
