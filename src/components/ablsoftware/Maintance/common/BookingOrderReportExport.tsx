@@ -938,9 +938,14 @@ const BookingOrderReportExport: React.FC = () => {
 
         const balance = invoiceAmount - totalPaid;
         
+        // Use tolerance for floating-point comparison (0.01 = 1 paisa)
+        const TOLERANCE = 0.01;
+        const hasBalance = balance > TOLERANCE;
+        const hasPaid = totalPaid > TOLERANCE;
+        
         // For Paid report: show if any payment made (show paid amount)
         // For Unpaid report: show if any balance remaining (show balance amount)
-        if (type === 'Paid' && totalPaid > 0) {
+        if (type === 'Paid' && hasPaid) {
           brokerBillRows.push({
             serial: serial++,
             orderNo: orderNo,
@@ -956,7 +961,7 @@ const BookingOrderReportExport: React.FC = () => {
             munshyana: 0, // Don't show munshyana in Paid report
             otherCharges: 0, // Don't show other charges in Paid report
           });
-        } else if (type === 'Unpaid' && balance > 0) {
+        } else if (type === 'Unpaid' && hasBalance) {
           brokerBillRows.push({
             serial: serial++,
             orderNo: orderNo,
@@ -1081,9 +1086,14 @@ const BookingOrderReportExport: React.FC = () => {
             const paidAmount = paidByBiltyNo[biltyNo] || 0;
             const balance = entry.credit - paidAmount;
             
+            // Use tolerance for floating-point comparison
+            const TOLERANCE = 0.01;
+            const hasBalance = balance > TOLERANCE;
+            const hasPaid = paidAmount > TOLERANCE;
+            
             // For Paid report: show if any payment made (show paid amount)
             // For Unpaid report: show if any balance remaining (show balance amount)
-            if (type === 'Paid' && paidAmount > 0) {
+            if (type === 'Paid' && hasPaid) {
               const brokerName = entry.broker || 'Opening Balance';
               
               // Filter by broker if selected
@@ -1104,7 +1114,7 @@ const BookingOrderReportExport: React.FC = () => {
                 munshyana: 0,
                 otherCharges: 0,
               });
-            } else if (type === 'Unpaid' && balance > 0) {
+            } else if (type === 'Unpaid' && hasBalance) {
               const brokerName = entry.broker || 'Opening Balance';
               
               // Filter by broker if selected
