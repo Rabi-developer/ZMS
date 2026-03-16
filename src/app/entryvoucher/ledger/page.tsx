@@ -942,11 +942,12 @@ const LedgerPage: React.FC = () => {
         const receiptAmount = Number(receipt.receiptAmount || 0);
         if (receiptAmount === 0) return;
         
-        // Determine account ID and display name based on payment mode
+        // Determine account ID and display name based on payment mode and bank name
         let cashAccountId = '';
         let accountDisplayName = '';
         
-        if (receipt.paymentMode === 'Cash') {
+        // Check if payment mode is Cash OR bank name is PettyCash
+        if (receipt.paymentMode === 'Cash' || receipt.bankName === 'PettyCash') {
           cashAccountId = 'Petty Cash';
           accountDisplayName = 'Petty Cash';
         } else if (receipt.paymentMode === 'Cheque' || receipt.paymentMode === 'Bank Transfer') {
@@ -995,11 +996,12 @@ const LedgerPage: React.FC = () => {
         const paymentAmount = Number(payment.paymentAmount || 0);
         if (paymentAmount === 0) return;
         
-        // Determine account ID and display name based on payment mode
+        // Determine account ID and display name based on payment mode and bank name
         let cashAccountId = '';
         let accountDisplayName = '';
         
-        if (payment.paymentMode === 'Cash') {
+        // Check if payment mode is Cash OR bank name is PettyCash
+        if (payment.paymentMode === 'Cash' || payment.bankName === 'PettyCash') {
           cashAccountId = 'Petty Cash';
           accountDisplayName = 'Petty Cash';
         } else if (payment.paymentMode === 'Cheque' || payment.paymentMode === 'Bank Transfer') {
