@@ -16,7 +16,7 @@ import { getAllCharges } from '@/apis/charges';
 import { getAllPartys } from '@/apis/party';
 import { getAllUnitOfMeasures } from '@/apis/unitofmeasure';
 import { getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
-import { getAllPaymentABL } from '@/apis/paymentABL';
+import { getAllPaymentABL, getPaymentABLHistory } from '@/apis/paymentABL';
 import { getAllBrooker } from '@/apis/brooker';
 import { getAllVendor } from '@/apis/vendors';
 import { getAllReceipt } from '@/apis/receipt';
