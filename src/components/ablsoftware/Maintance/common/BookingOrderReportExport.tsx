@@ -132,9 +132,6 @@ const DETAIL_COLUMNS: ColumnKey[] = [
   "consignee",
   "article",
   "qty",
-  "departure",
-  "destination",
-  "vendor",
 ];
 
 const labelFor = (key: ColumnKey): string => ALL_COLUMNS.find(c => c.key === key)?.label || key;
@@ -389,10 +386,10 @@ const BookingOrderReportExport: React.FC = () => {
               consignee,
               article,
               qty,
-              departure: "",
-              destination: "",
-              vendor: "",
-              carrier: "",
+              departure,
+              destination,
+              vendor,
+              carrier,
               isOrderRow: false,
               ablDate: formatDate(odate),
               receivedAmount,
@@ -413,10 +410,10 @@ const BookingOrderReportExport: React.FC = () => {
             consignee: "",
             article: "-",
             qty: "-",
-            departure: "",
-            destination: "",
-            vendor: "",
-            carrier: "",
+            departure,
+            destination,
+            vendor,
+            carrier,
             isOrderRow: false,
             ablDate: formatDate(odate),
             receivedAmount: 0,
@@ -594,8 +591,8 @@ const BookingOrderReportExport: React.FC = () => {
             qty,
             departure: departure, // Use parent order's departure
             destination: destination, // Use parent order's destination
-            vendor: "",
-            carrier: "",
+            vendor: vendor,
+            carrier: carrier,
             isOrderRow: false,
             ablDate: formatDate(odate),
             receivedAmount,
@@ -672,7 +669,7 @@ const BookingOrderReportExport: React.FC = () => {
     const vehicleKeys = ['vehicleNo', 'bookingAmount'] as const;
     const biltyKeys = ['biltyNo', 'biltyAmount'] as const;
     const partyKeys = ['consignor', 'consignee'] as const;
-    const tailKeys = ['article', 'qty', 'departure', 'destination', 'vendor'] as const;
+    const tailKeys = ['article', 'qty', 'departure', 'destination', 'vendor', 'carrier'] as const;
 
     const fixed = fixedKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
     const contractSubs = contractKeys.filter(k => selectedSet.has(k)) as ColumnKey[];
@@ -683,7 +680,7 @@ const BookingOrderReportExport: React.FC = () => {
 
     const colOrder: ColumnKey[] = isGeneral 
       ? [...fixed, ...contractSubs, ...vehicleSubs, 'departure', 'destination', 'vendor']
-      : [...fixed, ...contractSubs, ...vehicleSubs, ...biltySubs, ...partySubs, ...tail.filter(k => k !== 'departure' && k !== 'destination' && k !== 'vendor')];
+      : [...fixed, ...contractSubs, ...vehicleSubs, ...biltySubs, ...partySubs, ...tail];
 
     if (isGeneral) {
       const topRow: any[] = [{ content: "General Contract", colSpan: colOrder.length }];
@@ -743,16 +740,22 @@ const BookingOrderReportExport: React.FC = () => {
       toast.error("No data to export.");
       return;
     }
-    const columnsToUse = [...DETAIL_COLUMNS, 'carrier'] as ColumnKey[];
+    const columnsToUse = DETAIL_COLUMNS;
     const { colOrder, headRows } = buildStructure(columnsToUse, false);
     const pdfData = data.map(row => ({
       ...row,
-      biltyAmount: row.isOrderRow ? row.biltyAmount : row.consignmentFreight,
+      biltyAmount: row.isOrderRow ? row.biltyAmount : (row.biltyAmount || row.consignmentFreight || 0),
     }));
     const filterLine = computeFilterLine();
     const reportTypeLabel = "DETAIL REPORT";
-    exportDetailBookingOrderToPDF(pdfData, columnsToUse, `${reportTypeLabel} | ${filterLine}`, colOrder, headRows, fromDate, toDate);
-    toast.success("PDF generated");
+    
+    try {
+      await exportDetailBookingOrderToPDF(pdfData, columnsToUse, `${reportTypeLabel} | ${filterLine}`, colOrder, headRows, fromDate, toDate);
+      toast.success("PDF generated");
+    } catch (error) {
+      console.error("PDF Export Error:", error);
+      toast.error("Failed to generate PDF. Check console for details.");
+    }
   }, [data, fromDate, toDate]);
 
   const exportExcel = useCallback(async (isGeneral: boolean) => {
@@ -760,7 +763,7 @@ const BookingOrderReportExport: React.FC = () => {
       toast.error("No data to export.");
       return;
     }
-    const columnsToUse = isGeneral ? GENERAL_COLUMNS : [...DETAIL_COLUMNS, 'carrier'] as ColumnKey[];
+    const columnsToUse = isGeneral ? GENERAL_COLUMNS : DETAIL_COLUMNS;
     const { colOrder, headRows, drawSeparators } = buildStructure(columnsToUse, isGeneral);
     exportBookingOrderToExcel(data, columnsToUse, computeFilterLine(), colOrder, headRows);
     toast.success("Excel generated");
