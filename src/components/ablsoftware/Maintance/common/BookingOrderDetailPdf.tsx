@@ -125,17 +125,17 @@ export const exportDetailBookingOrderToPDF = async (
 
   // Table header config
   const defaultTableHeader: { key: ColumnKey; label: string; width: number }[] = [
-    { key: 'serial', label: 'S.No', width: 20 },
+    { key: 'serial', label: 'S.No', width: 30 },
     { key: 'orderNo', label: 'Order No', width: 65 },
     { key: 'orderDate', label: 'Order Date', width: 55 },
     { key: 'vehicleNo', label: 'Vehicle No', width: 55 },
     { key: 'bookingAmount', label: 'Freight', width: 60 },
-    { key: 'biltyNo', label: 'Bilty No', width: 55 },
+    { key: 'biltyNo', label: 'Bilty No', width: 50 },
     { key: 'biltyAmount', label: 'Bilty Amount', width: 60 },
     { key: 'consignor', label: 'Consignor', width: 125 },
     { key: 'consignee', label: 'Consignee', width: 125 },
     { key: 'article', label: 'Article', width: 125 },
-    { key: 'qty', label: 'Qty', width: 35 },
+    { key: 'qty', label: 'Qty', width: 50 },
   ];
 
   // Filter and order columns based on selectedColumns and colOrder

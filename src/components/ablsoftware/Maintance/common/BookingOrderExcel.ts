@@ -25,12 +25,17 @@ export const exportBookingOrderToExcel = (
   wsData.push([filterLine]);
   wsData.push([]); // spacer row to keep header area clear
 
-  // Table header (grouped)
+  // Table header (grouped or simple)
   const headerStart = wsData.length;
-  const topRow = headRows[0].map((cell: any) => typeof cell === "string" ? cell : cell.content);
-  wsData.push(topRow);
-  if (headRows.length > 1) {
-    wsData.push(headRows[1]);
+  if (headRows && headRows.length > 0) {
+    const topRow = headRows[0].map((cell: any) => typeof cell === "string" ? cell : cell.content);
+    wsData.push(topRow);
+    if (headRows.length > 1) {
+      wsData.push(headRows[1]);
+    }
+  } else {
+    // Generate simple header from colOrder
+    wsData.push(colOrder.map(labelFor));
   }
 
   // Data rows
@@ -53,23 +58,25 @@ export const exportBookingOrderToExcel = (
     { s: { r: 4, c: 0 }, e: { r: 4, c: Math.max(colCount - 1, 0) } },
   ];
 
-  // Grouped header merges
-  const hdrTopRowIndex = headerStart; // top header row index
-  const hdrSubExists = headRows.length > 1;
-  let colPointer = 0;
-  headRows[0].forEach((cell: any, idx: number) => {
-    if (typeof cell === "string") {
-      // Single column with rowSpan 2 => merge vertically if sub-header exists
-      if (hdrSubExists) merges.push({ s: { r: hdrTopRowIndex, c: colPointer }, e: { r: hdrTopRowIndex + 1, c: colPointer } });
-      colPointer += 1;
-    } else if (cell && typeof cell === "object" && cell.colSpan) {
-      // Group header => merge horizontally across colSpan
-      merges.push({ s: { r: hdrTopRowIndex, c: colPointer }, e: { r: hdrTopRowIndex, c: colPointer + cell.colSpan - 1 } });
-      colPointer += cell.colSpan;
-    } else {
-      colPointer += 1;
-    }
-  });
+  // Grouped header merges (only if headRows is present)
+  if (headRows && headRows.length > 0) {
+    const hdrTopRowIndex = headerStart; // top header row index
+    const hdrSubExists = headRows.length > 1;
+    let colPointer = 0;
+    headRows[0].forEach((cell: any, idx: number) => {
+      if (typeof cell === "string") {
+        // Single column with rowSpan 2 => merge vertically if sub-header exists
+        if (hdrSubExists) merges.push({ s: { r: hdrTopRowIndex, c: colPointer }, e: { r: hdrTopRowIndex + 1, c: colPointer } });
+        colPointer += 1;
+      } else if (cell && typeof cell === "object" && cell.colSpan) {
+        // Group header => merge horizontally across colSpan
+        merges.push({ s: { r: hdrTopRowIndex, c: colPointer }, e: { r: hdrTopRowIndex, c: colPointer + cell.colSpan - 1 } });
+        colPointer += cell.colSpan;
+      } else {
+        colPointer += 1;
+      }
+    });
+  }
 
   (ws as any)["!merges"] = merges;
 
