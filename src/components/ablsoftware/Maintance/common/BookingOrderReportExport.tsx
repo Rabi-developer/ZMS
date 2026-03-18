@@ -91,18 +91,19 @@ const parseDateToTime = (dateStr?: string): number => {
 const sortRowsByBiltyDate = (rows: RowData[]): RowData[] =>
   [...rows].sort((a, b) => parseDateToTime(a.biltyDate) - parseDateToTime(b.biltyDate));
 
+
 const ALL_COLUMNS: { key: ColumnKey; label: string; tooltip: string }[] = [
-  { key: "serial", label: "SNo", tooltip: "Unique row number" },
-  { key: "orderNo", label: "Order No", tooltip: "Booking order number" },
-  { key: "orderDate", label: "Order Date", tooltip: "Date of the order" },
+  { key: "serial", label: "S.No", tooltip: "Unique row number" },
+  { key: "orderNo", label: "Or.NO", tooltip: "Booking order number" },
+  { key: "orderDate", label: "Or.Date", tooltip: "Date of the order" },
   { key: "vehicleNo", label: "Vehicle No", tooltip: "Vehicle registration number" },
-  { key: "bookingAmount", label: "Freight", tooltip: "Total charges amount for the order" },
+  { key: "bookingAmount", label: "Booking Amount", tooltip: "Total charges amount for the order" },
   { key: "biltyNo", label: "Bilty No", tooltip: "Consignment order number" },
   { key: "biltyAmount", label: "Bilty Amount", tooltip: "Freight amount for consignment" },
   { key: "consignor", label: "Consignor", tooltip: "Party sending the goods" },
   { key: "consignee", label: "Consignee", tooltip: "Party receiving the goods" },
   { key: "article", label: "Article", tooltip: "Description of items" },
-  { key: "qty", label: "Quantity", tooltip: "Quantity of items" },
+  { key: "qty", label: "Qty", tooltip: "Quantity of items" },
   { key: "departure", label: "Departure", tooltip: "Starting location" },
   { key: "destination", label: "Destination", tooltip: "Ending location" },
   { key: "vendor", label: "Vendor", tooltip: "Vendor name" },

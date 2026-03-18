@@ -11,9 +11,8 @@ const LOGO_PATH = '/ABL-Logo.png';
 // Layout constants
 const MARGIN_LEFT = 30;
 const MARGIN_RIGHT = 30;
-const TABLE_START_Y = 50;
+const TABLE_START_Y = 135; // Moved down to accommodate header
 const TABLE_BOTTOM_MARGIN = 50;
-const LINE_HEIGHT = 8;
 const CELL_PADDING = 4;
 
 // Utility function to preload image as base64
@@ -83,23 +82,23 @@ export const exportDetailBookingOrderToPDF = async (
   // Header (only on first page)
   const addHeader = async (pageNum: number) => {
     if (pageNum === 1) {
-      doc.setFillColor(200, 200, 200);
-      doc.rect(0, 0, pageWidth, 80, 'F');
+      doc.setFillColor(235, 235, 235);
+      doc.rect(0, 0, pageWidth, 85, 'F');
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(16);
-      doc.setTextColor(0, 0, 0);
-      doc.text(COMPANY_NAME, MARGIN_LEFT, 30);
+      doc.setFontSize(18);
+      doc.setTextColor(20, 40, 80);
+      doc.text(COMPANY_NAME, MARGIN_LEFT, 35);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(60, 60, 60);
-      doc.text(COMPANY_ADDRESS, MARGIN_LEFT, 45);
-      doc.text(COMPANY_PHONE, MARGIN_LEFT, 55);
+      doc.text(COMPANY_ADDRESS, MARGIN_LEFT, 50);
+      doc.text(COMPANY_PHONE, MARGIN_LEFT, 62);
 
       try {
         const logoData = await loadImage(LOGO_PATH);
-        doc.addImage(logoData, 'PNG', pageWidth - 70, 15, 50, 35);
+        doc.addImage(logoData, 'PNG', pageWidth - 80, 15, 50, 50);
       } catch {
         doc.setFontSize(9);
         doc.setTextColor(80, 80, 80);
@@ -107,9 +106,9 @@ export const exportDetailBookingOrderToPDF = async (
       }
 
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
+      doc.setFontSize(15);
       doc.setTextColor(0, 0, 0);
-      doc.text('DETAILED BOOKING ORDER REPORT', pageWidth / 2, 100, { align: 'center' });
+      doc.text('DETAILED BOOKING ORDER REPORT', pageWidth / 2, 105, { align: 'center' });
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
@@ -117,25 +116,25 @@ export const exportDetailBookingOrderToPDF = async (
       const startText = `From: ${startDate ? formatDisplayDate(startDate) : '-'}`;
       const toText = `To: ${endDate ? formatDisplayDate(endDate) : '-'}`;
       const nowText = `Generated: ${formatDisplayDate(new Date().toISOString())} ${new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: true })}`;
-      doc.text(startText, MARGIN_LEFT, 110, { align: 'left' });
-      doc.text(toText, pageWidth / 2, 110, { align: 'center' });
-      doc.text(nowText, pageWidth - MARGIN_RIGHT, 110, { align: 'right' });
+      doc.text(startText, MARGIN_LEFT, 120, { align: 'left' });
+      doc.text(toText, pageWidth / 2, 120, { align: 'center' });
+      doc.text(nowText, pageWidth - MARGIN_RIGHT, 120, { align: 'right' });
     }
   };
 
   // Table header config
   const defaultTableHeader: { key: ColumnKey; label: string; width: number }[] = [
-    { key: 'serial', label: 'S.No', width: 30 },
-    { key: 'orderNo', label: 'Order No', width: 65 },
-    { key: 'orderDate', label: 'Order Date', width: 55 },
-    { key: 'vehicleNo', label: 'Vehicle No', width: 55 },
-    { key: 'bookingAmount', label: 'Freight', width: 60 },
-    { key: 'biltyNo', label: 'Bilty No', width: 50 },
-    { key: 'biltyAmount', label: 'Bilty Amount', width: 60 },
-    { key: 'consignor', label: 'Consignor', width: 125 },
-    { key: 'consignee', label: 'Consignee', width: 125 },
-    { key: 'article', label: 'Article', width: 125 },
-    { key: 'qty', label: 'Qty', width: 50 },
+    { key: 'serial', label: 'S.No', width: 28 },
+    { key: 'orderNo', label: 'Order No', width: 72 },
+    { key: 'orderDate', label: 'Order Date', width: 62 },
+    { key: 'vehicleNo', label: 'Vehicle No', width: 62 },
+    { key: 'bookingAmount', label: 'Freight', width: 68 },
+    { key: 'biltyNo', label: 'Bilty No', width: 62 },
+    { key: 'biltyAmount', label: 'Bilty Amount', width: 68 },
+    { key: 'consignor', label: 'Consignor', width: 100 },
+    { key: 'consignee', label: 'Consignee', width: 100 },
+    { key: 'article', label: 'Article', width: 100 },
+    { key: 'qty', label: 'Qty', width: 58 },
   ];
 
   // Filter and order columns based on selectedColumns and colOrder
@@ -144,89 +143,82 @@ export const exportDetailBookingOrderToPDF = async (
     .map((key) => defaultTableHeader.find((header) => header.key === key))
     .filter((header): header is NonNullable<typeof header> => !!header);
 
-  // Calculate total table width for consistent borders
+  // Calculate total table width
   const totalTableWidth = tableHeader.reduce((sum, header) => sum + header.width, 0);
 
   // Add table header
   const addTableHeader = () => {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     
-    // Calculate max height for header
-    let maxHeaderHeight = 18;
+    // Calculate max height for header with word wrapping support
+    let maxHeaderHeight = 22;
     tableHeader.forEach((header) => {
-      const h = getCellHeight(header.label, header.width, doc, 8);
+      const h = getCellHeight(header.label, header.width, doc, 8.5);
       if (h > maxHeaderHeight) maxHeaderHeight = h;
     });
 
-    doc.setFillColor(200, 200, 200);
+    doc.setFillColor(210, 210, 210);
     doc.rect(MARGIN_LEFT, yPosition, totalTableWidth, maxHeaderHeight, 'F');
     doc.setTextColor(20, 20, 20);
     let xPosition = MARGIN_LEFT;
     tableHeader.forEach((header) => {
       const wrapped = doc.splitTextToSize(header.label, header.width - CELL_PADDING * 2);
-      doc.text(wrapped, xPosition + CELL_PADDING, yPosition + 12);
-      doc.setLineWidth(0.4);
-      doc.setDrawColor(100, 100, 100);
+      // Center header text vertically
+      const textY = yPosition + (maxHeaderHeight / 2) - ((wrapped.length * 10) / 2) + 8;
+      doc.text(wrapped, xPosition + CELL_PADDING, textY);
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(80, 80, 80);
       doc.rect(xPosition, yPosition, header.width, maxHeaderHeight);
       xPosition += header.width;
     });
-    yPosition += maxHeaderHeight + 2;
+    yPosition += maxHeaderHeight;
   };
 
   const drawGroupSideBorders = (startY: number, endY: number) => {
-    doc.setDrawColor(80, 80, 80);
-    doc.setLineWidth(0.6);
+    doc.setDrawColor(60, 60, 60);
+    doc.setLineWidth(0.8);
     doc.line(MARGIN_LEFT, startY, MARGIN_LEFT, endY);
     doc.line(MARGIN_LEFT + totalTableWidth, startY, MARGIN_LEFT + totalTableWidth, endY);
   };
 
-  // Page break check
-  const checkPageBreak = async (rowHeight = 16) => {
-    if (yPosition + rowHeight > pageHeight - TABLE_BOTTOM_MARGIN) {
-      if (isInGroup) {
-        drawGroupSideBorders(groupStartY, yPosition);
-        // Bottom line for the page
-        doc.line(MARGIN_LEFT, yPosition, MARGIN_LEFT + totalTableWidth, yPosition);
-      }
-      await addFooter(doc.getNumberOfPages());
-      doc.addPage();
-      yPosition = TABLE_START_Y;
-      await addHeader(doc.getNumberOfPages());
-      addTableHeader();
-      if (isInGroup) {
-        groupStartY = yPosition;
-        // Top line for the new page
-        doc.line(MARGIN_LEFT, yPosition, MARGIN_LEFT + totalTableWidth, yPosition);
-      }
-    }
-  };
-
   // Footer
-  const addFooter = (pageNum: number) => {
-    const footerY = pageHeight - 40;
-    doc.setFillColor(230, 230, 230);
-    doc.rect(0, footerY - 10, pageWidth, 50, 'F');
-
+  const addFooter = (pageNum: number, totalPages: number) => {
+    const footerY = pageHeight - 30;
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(8);
-    doc.setTextColor(80, 80, 80);
+    doc.setTextColor(100, 100, 100);
     doc.text(
       `Generated on: ${new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })}`,
       MARGIN_LEFT,
       footerY
     );
-    doc.text(`Page ${pageNum} of ${doc.getNumberOfPages()}`, pageWidth - MARGIN_RIGHT, footerY, { align: 'right' });
+    doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth - MARGIN_RIGHT, footerY, { align: 'right' });
+    
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.5);
+    doc.line(MARGIN_LEFT, footerY - 8, pageWidth - MARGIN_RIGHT, footerY - 8);
+  };
 
-    doc.setDrawColor(150, 150, 150);
-    doc.setLineWidth(0.3);
-    doc.line(MARGIN_LEFT, footerY - 10, pageWidth - MARGIN_RIGHT, footerY - 10);
+  // Page break check
+  const checkPageBreak = async (rowHeight = 18) => {
+    if (yPosition + rowHeight > pageHeight - TABLE_BOTTOM_MARGIN) {
+      if (isInGroup) {
+        drawGroupSideBorders(groupStartY, yPosition);
+        doc.line(MARGIN_LEFT, yPosition, MARGIN_LEFT + totalTableWidth, yPosition);
+      }
+      doc.addPage();
+      yPosition = 40; // New page start y
+      addTableHeader();
+      if (isInGroup) {
+        groupStartY = yPosition;
+        doc.line(MARGIN_LEFT, yPosition, MARGIN_LEFT + totalTableWidth, yPosition);
+      }
+    }
   };
 
   // Initialize first page
-  yPosition = TABLE_START_Y;
   await addHeader(1);
-  yPosition += 80; // Extra space for first-page header
   addTableHeader();
 
   // Group data
@@ -248,151 +240,134 @@ export const exportDetailBookingOrderToPDF = async (
 
   // Render groups
   for (const group of groupedData) {
-    const groupHeaderHeight = 16;
-    const minRowHeight = 18;
-    await checkPageBreak(groupHeaderHeight + minRowHeight);
+    const groupHeaderHeight = 18;
+    await checkPageBreak(groupHeaderHeight + 20);
 
     // Start of group
     isInGroup = true;
     groupStartY = yPosition;
-    doc.setDrawColor(80, 80, 80);
-    doc.setLineWidth(0.6);
+    doc.setDrawColor(60, 60, 60);
+    doc.setLineWidth(0.8);
     doc.line(MARGIN_LEFT, yPosition, MARGIN_LEFT + totalTableWidth, yPosition);
 
     // Group header
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(9.5);
     doc.setTextColor(0, 0, 0);
     const groupText = `${group.order.departure || '-'} to ${group.order.destination || '-'}`;
     const vendorText = group.order.vendor || '-';
-    doc.text(groupText, MARGIN_LEFT, yPosition + 12);
-    doc.text(vendorText, pageWidth - MARGIN_RIGHT, yPosition + 12, { align: 'right' });
-    yPosition += 16;
+    doc.text(groupText, MARGIN_LEFT + 2, yPosition + 13);
+    doc.text(vendorText, MARGIN_LEFT + totalTableWidth - 2, yPosition + 13, { align: 'right' });
+    yPosition += groupHeaderHeight;
 
     // Order row
     const orderFields = tableHeader.map((header) => {
       if (header.key === 'orderDate') return formatDisplayDate(group.order.orderDate);
       if (header.key === 'bookingAmount') return formatNumber(group.order.bookingAmount);
       if (header.key === 'biltyAmount') return '';
-      return String(group.order[header.key] ?? ''); // Type-safe with ColumnKey
+      return String(group.order[header.key] ?? '');
     });
 
-    let rowHeight = 18;
+    let orderRowHeight = 18;
     orderFields.forEach((field, idx) => {
       const h = getCellHeight(String(field ?? ''), tableHeader[idx].width, doc, 9);
-      if (h > rowHeight) rowHeight = h;
+      if (h > orderRowHeight) orderRowHeight = h;
     });
 
-    await checkPageBreak(rowHeight);
+    await checkPageBreak(orderRowHeight);
 
-    // Background for order row
-    doc.setFillColor(240, 240, 240);
-    doc.rect(MARGIN_LEFT, yPosition, totalTableWidth, rowHeight, 'F');
+    doc.setFillColor(245, 245, 245);
+    doc.rect(MARGIN_LEFT, yPosition, totalTableWidth, orderRowHeight, 'F');
 
     let xPosition = MARGIN_LEFT;
-    doc.setFont('helvetica', 'normal');
+    doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
-    doc.setTextColor(40, 40, 40);
+    doc.setTextColor(30, 30, 30);
     orderFields.forEach((field, idx) => {
       const wrapped = doc.splitTextToSize(String(field ?? ''), tableHeader[idx].width - CELL_PADDING * 2);
       doc.text(wrapped, xPosition + CELL_PADDING, yPosition + 12);
-      doc.setLineWidth(0.3);
+      doc.setLineWidth(0.4);
       doc.setDrawColor(120, 120, 120);
-      doc.rect(xPosition, yPosition, tableHeader[idx].width, rowHeight);
+      doc.rect(xPosition, yPosition, tableHeader[idx].width, orderRowHeight);
       xPosition += tableHeader[idx].width;
     });
-    yPosition += rowHeight;
+    yPosition += orderRowHeight;
 
-    // Consignment rows (no background, table-like borders)
+    // Consignment rows
     for (const row of group.consignments) {
       const consignmentFields = tableHeader.map((header, idx) => {
         if (idx < 5 && header.key !== 'biltyNo' && header.key !== 'biltyAmount') return '';
         if (header.key === 'biltyAmount') return formatNumber(row.biltyAmount ?? 0);
-        return String(row[header.key] ?? ''); // Type-safe with ColumnKey
+        return String(row[header.key] ?? '');
       });
 
-      let rowHeight = 18;
+      let consRowHeight = 18;
       consignmentFields.forEach((field, idx) => {
-        const h = getCellHeight(String(field ?? ''), tableHeader[idx].width, doc, 9);
-        if (h > rowHeight) rowHeight = h;
+        const h = getCellHeight(String(field ?? ''), tableHeader[idx].width, doc, 8.5);
+        if (h > consRowHeight) consRowHeight = h;
       });
 
-      await checkPageBreak(rowHeight);
+      await checkPageBreak(consRowHeight);
 
-      // No background for consignment row
-      let xPosition = MARGIN_LEFT;
-      doc.setTextColor(80, 80, 80);
+      let xcPos = MARGIN_LEFT;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8.5);
+      doc.setTextColor(60, 60, 60);
       consignmentFields.forEach((field, idx) => {
         const wrapped = doc.splitTextToSize(String(field ?? ''), tableHeader[idx].width - CELL_PADDING * 2);
-        doc.text(wrapped, xPosition + CELL_PADDING, yPosition + 12);
-        // Draw borders for non-booking-order columns to form table structure (Bilty No and onwards)
+        doc.text(wrapped, xcPos + CELL_PADDING, yPosition + 12);
+        
         if (['biltyNo', 'biltyAmount', 'consignor', 'consignee', 'article', 'qty'].includes(tableHeader[idx].key)) {
           doc.setLineWidth(0.3);
-          doc.setDrawColor(120, 120, 120);
-          doc.rect(xPosition, yPosition, tableHeader[idx].width, rowHeight);
+          doc.setDrawColor(140, 140, 140);
+          doc.rect(xcPos, yPosition, tableHeader[idx].width, consRowHeight);
         }
-        xPosition += tableHeader[idx].width;
+        xcPos += tableHeader[idx].width;
       });
-      // Draw horizontal line to complete table structure for consignment row
-      doc.setLineWidth(0.3);
-      doc.setDrawColor(120, 120, 120);
-      let lineX = MARGIN_LEFT;
-      tableHeader.forEach((header, idx) => {
-        if (['biltyNo', 'biltyAmount', 'consignor', 'consignee', 'article', 'qty'].includes(header.key)) {
-          doc.line(lineX, yPosition + rowHeight, lineX + header.width, yPosition + rowHeight);
-        }
-        lineX += header.width;
-      });
-      yPosition += rowHeight;
+      yPosition += consRowHeight;
     }
 
     // End of group
     drawGroupSideBorders(groupStartY, yPosition);
-    doc.setDrawColor(80, 80, 80);
-    doc.setLineWidth(0.6);
     doc.line(MARGIN_LEFT, yPosition, MARGIN_LEFT + totalTableWidth, yPosition);
     isInGroup = false;
-    yPosition += 10;
+    yPosition += 8;
   }
 
-  // Totals row
-  await checkPageBreak();
-  const totalFields = tableHeader.map((header) => {
-    if (header.key === 'bookingAmount') return formatNumber(totalFreight);
-    if (header.key === 'biltyAmount') return formatNumber(totalBiltyAmount);
-    return header.key === 'serial' ? 'Total' : '';
-  });
-
-  let totalRowHeight = 18;
-  totalFields.forEach((field, idx) => {
-    const h = getCellHeight(String(field ?? ''), tableHeader[idx].width, doc, 9);
-    if (h > totalRowHeight) totalRowHeight = h;
-  });
-
-  let xPosition = MARGIN_LEFT;
+  // Grand Totals row
+  const totalRowHeight = 22;
+  await checkPageBreak(totalRowHeight);
+  
   doc.setFillColor(200, 220, 240);
   doc.rect(MARGIN_LEFT, yPosition, totalTableWidth, totalRowHeight, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor(20, 60, 100);
-  totalFields.forEach((field, idx) => {
-    const wrapped = doc.splitTextToSize(String(field ?? ''), tableHeader[idx].width - CELL_PADDING * 2);
-    doc.text(wrapped, xPosition + CELL_PADDING, yPosition + 12);
-    doc.setLineWidth(0.4);
-    doc.setDrawColor(100, 100, 100);
-    doc.rect(xPosition, yPosition, tableHeader[idx].width, totalRowHeight);
-    xPosition += tableHeader[idx].width;
+  doc.setFontSize(9.5);
+  doc.setTextColor(20, 60, 120);
+  
+  let totalX = MARGIN_LEFT;
+  tableHeader.forEach((header) => {
+    let val = '';
+    if (header.key === 'serial') val = 'GRAND TOTAL';
+    if (header.key === 'bookingAmount') val = formatNumber(totalFreight);
+    if (header.key === 'biltyAmount') val = formatNumber(totalBiltyAmount);
+    
+    if (val) {
+      doc.text(val, totalX + CELL_PADDING, yPosition + 15);
+    }
+    doc.setLineWidth(0.6);
+    doc.setDrawColor(80, 80, 80);
+    doc.rect(totalX, yPosition, header.width, totalRowHeight);
+    totalX += header.width;
   });
-  yPosition += totalRowHeight + 10;
 
-  // Add footer to all pages
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
+  // Finalize all footers
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
-    await addFooter(i);
+    addFooter(i, totalPages);
   }
 
   // Save PDF
-  const filename = `${COMPANY_NAME.replace(/\s+/g, '_')}_Detailed_Booking_Order_Report.pdf`;
+  const filename = `${COMPANY_NAME.replace(/\s+/g, '_')}_Detailed_Booking_Report.pdf`;
   doc.save(filename);
 };

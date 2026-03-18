@@ -419,11 +419,12 @@ const ConsignmentList = () => {
 
     const rows = data.map(c => {
       const items = consignmentsWithItems[c.id]?.items || c.items || [];
-      const desc = Array.isArray(items) ? items.map((i: any) => i.desc).filter(Boolean).join(', ') : '';
-      const qty = Array.isArray(items) ? items.map((i: any) => `${i.qty || 0} ${i.qtyUnit || ''}`).join(', ') : '';
-      const weight = Array.isArray(items) ? items.map((i: any) => `${i.weight || 0} ${i.weightUnit || ''}`).join(', ') : '';
+      const desc = Array.isArray(items) ? items.map((i: any) => i.desc || i.itemDesc || i.description || "").filter(Boolean).join(', ') : (c as any).itemDesc || '';
+      const qty = Array.isArray(items) ? items.map((i: any) => `${i.qty || 0} ${i.qtyUnit || ''}`).join(', ') : c.qty || '0';
+      const weight = Array.isArray(items) ? items.map((i: any) => `${i.weight || 0} ${i.weightUnit || ''}`).join(', ') : c.weight || '0';
 
       return {
+        'Serial': '', // placeholder
         'Receipt No': c.receiptNo || '-',
         'Order No': c.orderNo || '-',
         'Bilty No': c.biltyNo || '-',
@@ -433,165 +434,148 @@ const ConsignmentList = () => {
         'Items': desc || 'No items',
         'Qty': qty || '-',
         'Weight': weight || '-',
-        'Total Amount': c.totalAmount || '-',
-        'Received': c.receivedAmount || '-',
+        'Total Amount': Number(c.totalAmount) || 0,
+        'Received': Number(c.receivedAmount) || 0,
         'Status': c.status || '-',
-        'Files': (consignmentFiles[c.id] || []).map(f => f.name).join(', ') || '-',
       };
     });
 
-    // Prefer exceljs for professional styling; fallback to basic XLSX if needed
     try {
       const ExcelJS = (await import('exceljs')).default;
       const workbook = new ExcelJS.Workbook();
       const ws = workbook.addWorksheet('Consignments');
 
-      // Page setup for printing
-      ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } } as any;
+      // Helper to set borders
+      const setBorders = (cell: any) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF808080' } },
+          left: { style: 'thin', color: { argb: 'FF808080' } },
+          bottom: { style: 'thin', color: { argb: 'FF808080' } },
+          right: { style: 'thin', color: { argb: 'FF808080' } }
+        };
+      };
 
-      // Define headers (with Serial column first)
-      const headers = [
-        'Serial', 'Receipt No', 'Order No', 'Bilty No', 'Consignment No', 'Consignor', 'Consignee',
-        'Items', 'Qty', 'Weight', 'Total Amount', 'Received', 'Status', 'Files'
-      ];
+      // 1. Company Header
+      const headers = ['Serial', 'Receipt No', 'Order No', 'Bilty No', 'Consignment No', 'Consignor', 'Consignee', 'Items', 'Qty', 'Weight', 'Total Amount', 'Received', 'Status'];
+      const totalCols = headers.length;
 
-      // Compact column widths, centered by default
-      const widths: number[] = [8, 12, 10, 14, 16, 20, 20, 30, 10, 10, 14, 14, 12, 16];
-      ws.columns = headers.map((h, i) => ({ header: h, key: `col${i}`, width: widths[i] }));
-
-      // Insert title rows above header
       const title = 'AL-NASAR BASHEER LOGISTICS';
       const subtitle = 'Consignments Report';
-      ws.spliceRows(1, 0, [title]);
-      ws.spliceRows(2, 0, [subtitle]);
-
-      const totalCols = headers.length;
+      
+      const titleRow = ws.addRow([title]);
       ws.mergeCells(1, 1, 1, totalCols);
+      titleRow.getCell(1).font = { bold: true, size: 16 };
+      titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      titleRow.height = 30;
+
+      const subtitleRow = ws.addRow([subtitle]);
       ws.mergeCells(2, 1, 2, totalCols);
+      subtitleRow.getCell(1).font = { bold: true, size: 12 };
+      subtitleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      subtitleRow.height = 20;
 
-      const titleRow = ws.getRow(1);
-      titleRow.font = { bold: true, size: 16 } as any;
-      titleRow.alignment = { vertical: 'middle', horizontal: 'center' } as any;
-      titleRow.height = 20;
+      ws.addRow([]); // Spacer
 
-      const subtitleRow = ws.getRow(2);
-      subtitleRow.font = { bold: true, size: 12 } as any;
-      subtitleRow.alignment = { vertical: 'middle', horizontal: 'center' } as any;
-      subtitleRow.height = 18;
-
-      // After splicing rows, header is now at row 3
-      const headerRow = ws.getRow(3);
+      // 2. Table Headers
+      const headerRow = ws.addRow(headers);
+      headerRow.height = 20;
       headerRow.eachCell((cell) => {
-        cell.font = { bold: true, color: { argb: 'FF000000' } } as any;
-        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true } as any;
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE5EEF7' } } as any;
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FF9E9E9E' } },
-          left: { style: 'thin', color: { argb: 'FF9E9E9E' } },
-          bottom: { style: 'thin', color: { argb: 'FF9E9E9E' } },
-          right: { style: 'thin', color: { argb: 'FF9E9E9E' } },
-        } as any;
+        cell.font = { bold: true, size: 10 };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFC8C8C8' } // Consistent Gray header
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        setBorders(cell);
       });
-      headerRow.height = 18;
 
-      // Freeze panes below header
-      ws.views = [{ state: 'frozen', ySplit: 3 }];
-
-      // Data rows with serial and centered alignment
+      // 3. Data Rows
       let totalAmountSum = 0;
-      let receivedSum = 0;
+      let totalReceivedSum = 0;
+
       rows.forEach((r, idx) => {
-        const data = headers.map((h) => {
-          if (h === 'Serial') return idx + 1;
-          return (r as any)[h];
-        });
-        const added = ws.addRow(data);
-        // Update totals
-        const ta = (r as any)['Total Amount'];
-        const ra = (r as any)['Received'];
-        const taNum = typeof ta === 'number' ? ta : parseFloat(String(ta ?? '').replace(/[^0-9.-]/g, ''));
-        const raNum = typeof ra === 'number' ? ra : parseFloat(String(ra ?? '').replace(/[^0-9.-]/g, ''));
-        if (!isNaN(taNum)) totalAmountSum += taNum;
-        if (!isNaN(raNum)) receivedSum += raNum;
-      });
+        const rowData = headers.map(h => h === 'Serial' ? idx + 1 : (r as any)[h]);
+        const addedRow = ws.addRow(rowData);
+        
+        totalAmountSum += Number(r['Total Amount']) || 0;
+        totalReceivedSum += Number(r['Received']) || 0;
 
-      // Style body: borders, alignment, zebra striping, number formats
-      ws.eachRow((row, rowNumber) => {
-        if (rowNumber <= 3) return; // skip title+header rows
-        const isEven = rowNumber % 2 === 0;
-        row.eachCell((cell, colNumber) => {
-          // Base style
-          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true } as any;
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FFDDDDDD' } },
-            left: { style: 'thin', color: { argb: 'FFDDDDDD' } },
-            bottom: { style: 'thin', color: { argb: 'FFDDDDDD' } },
-            right: { style: 'thin', color: { argb: 'FFDDDDDD' } },
-          } as any;
-          if (isEven) {
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7F7' } } as any;
-          }
-          // Numeric formatting for Qty, Weight, Total Amount, Received
-          if (colNumber === 9 || colNumber === 10) {
-            const num = parseFloat(String(cell.value ?? '').replace(/[^0-9.-]/g, ''));
-            if (!isNaN(num)) {
-              cell.value = num;
-              cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true } as any;
-            }
-          }
-          if (colNumber === 11 || colNumber === 12) {
-            const num = parseFloat(String(cell.value ?? '').replace(/[^0-9.-]/g, ''));
-            if (!isNaN(num)) {
-              cell.value = num;
-              (cell as any).numFmt = '#,##0.00';
-              cell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true } as any;
+        addedRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          setBorders(cell);
+          cell.font = { size: 9 };
+          cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+          const header = headers[colNumber - 1];
+          if (header === 'Total Amount' || header === 'Received' || header === 'Qty' || header === 'Weight') {
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            if (header === 'Total Amount' || header === 'Received') {
+              cell.numFmt = '#,##0.00';
             }
           }
         });
       });
 
-      // Totals row
-      const totalsRow = ws.addRow([
-        '', '', '', '', '', '', '', 'TOTAL', '', '', totalAmountSum, receivedSum, '', ''
-      ]);
+      // 4. Totals Row
+      const totalsRowData = headers.map(h => {
+        if (h === 'Serial') return 'Total';
+        if (h === 'Total Amount') return totalAmountSum;
+        if (h === 'Received') return totalReceivedSum;
+        return '';
+      });
+
+      const totalsRow = ws.addRow(totalsRowData);
+      totalsRow.height = 20;
       totalsRow.eachCell((cell, colNumber) => {
-        cell.font = { bold: true } as any;
-        cell.alignment = { vertical: 'middle', horizontal: colNumber >= 11 && colNumber <= 12 ? 'right' : 'center' } as any;
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FF9E9E9E' } },
-          left: { style: 'thin', color: { argb: 'FF9E9E9E' } },
-          bottom: { style: 'thin', color: { argb: 'FF9E9E9E' } },
-          right: { style: 'thin', color: { argb: 'FF9E9E9E' } },
-        } as any;
+        cell.font = { bold: true, size: 10, color: { argb: 'FF143C64' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFC8DCEF' } // Consistent Blue totals
+        };
+        setBorders(cell);
+        const header = headers[colNumber - 1];
+        if (header === 'Total Amount' || header === 'Received') {
+          cell.numFmt = '#,##0.00';
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+        } else {
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        }
       });
-      const lastCol = headers.length;
-      ws.mergeCells(totalsRow.number, 8, totalsRow.number, 9); // merge "TOTAL" label over Items -> Qty
-      // Apply number formats to totals
-      const totalAmtCell = totalsRow.getCell(11);
-      const receivedCell = totalsRow.getCell(12);
-      (totalAmtCell as any).numFmt = '#,##0.00';
-      (receivedCell as any).numFmt = '#,##0.00';
 
-      // Apply autofilter to header row (row 3)
-      ws.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: lastCol } } as any;
+      // 5. Column Widths
+      ws.columns = headers.map((h) => {
+        let w = 15;
+        switch (h) {
+          case 'Serial': w = 8; break;
+          case 'Receipt No': w = 12; break;
+          case 'Order No': w = 12; break;
+          case 'Bilty No': w = 15; break;
+          case 'Consignment No': w = 15; break;
+          case 'Consignor': w = 25; break;
+          case 'Consignee': w = 25; break;
+          case 'Items': w = 30; break;
+          case 'Qty': w = 12; break;
+          case 'Weight': w = 12; break;
+          case 'Total Amount': w = 15; break;
+          case 'Received': w = 15; break;
+          case 'Status': w = 12; break;
+        }
+        return { width: w };
+      });
 
-      // Export
+      // Write and download
       const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'Consignments.xlsx';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = 'Consignments_Report.xlsx';
+      anchor.click();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.warn('exceljs not available, falling back to basic XLSX export', err);
-      const ws = XLSX.utils.json_to_sheet(rows);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Consignments');
-      XLSX.writeFile(wb, 'Consignments.xlsx');
+      console.error('Excel Export Error:', err);
+      toast.error('Failed to export Excel');
     }
   };
 
