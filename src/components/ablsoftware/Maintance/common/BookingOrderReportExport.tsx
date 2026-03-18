@@ -919,12 +919,56 @@ const BookingOrderReportExport: React.FC = () => {
           });
         }
         
-        // Use the best matching strategy
+        // Additional fallback: check bilty + vehicle combination
+        let totalPaidByBiltyVehicle = 0;
+        if (biltyNo && vehicleNo && vehicleNo !== '-') {
+          approvedPayments.forEach((p: any) => {
+            const items = p?.paymentABLItems || p?.paymentABLItem || [];
+            if (Array.isArray(items)) {
+              items.forEach((item: any) => {
+                const itemBiltyNo = String(item?.biltyNo ?? item?.BiltyNo ?? "").trim();
+                const itemVehicleNo = String(item?.vehicleNo ?? item?.VehicleNo ?? "").trim();
+                if (itemBiltyNo === biltyNo && itemVehicleNo === vehicleNo) {
+                  totalPaidByBiltyVehicle += Number(item?.paidAmount ?? item?.PaidAmount ?? 0) || 0;
+                }
+              });
+            }
+          });
+        }
+        
+        // Critical fix for opening balances: payment's orderNo might match invoice's biltyNo
+        let totalPaidByBiltyAsOrderNo = 0;
+        if (biltyNo && biltyNo !== '-') {
+          approvedPayments.forEach((p: any) => {
+            const items = p?.paymentABLItems || p?.paymentABLItem || [];
+            if (Array.isArray(items)) {
+              items.forEach((item: any) => {
+                const itemOrderNo = String(item?.orderNo ?? item?.OrderNo ?? "").trim();
+                const itemVehicleNo = String(item?.vehicleNo ?? item?.VehicleNo ?? "").trim();
+                // Check if payment's orderNo matches invoice's biltyNo with same vehicle
+                if (itemOrderNo === biltyNo && itemVehicleNo === vehicleNo) {
+                  totalPaidByBiltyAsOrderNo += Number(item?.paidAmount ?? item?.PaidAmount ?? 0) || 0;
+                }
+              });
+            }
+          });
+        }
+        
+        // Use comprehensive matching strategy - prioritize exact matches
+        // Priority 1: Order + Vehicle match
+        // Priority 2: Bilty + Vehicle match  
+        // Priority 3: Payment's orderNo matches Invoice's biltyNo + Vehicle (for opening balances)
+        // Priority 4: Charge match
+        // Priority 5: Max of Order or Bilty match
         const totalPaid = totalPaidByOrderVehicle > 0
           ? totalPaidByOrderVehicle
-          : (totalPaidByCharges > 0
-            ? totalPaidByCharges
-            : Math.max(totalPaidByOrder, totalPaidByBilty));
+          : (totalPaidByBiltyVehicle > 0
+            ? totalPaidByBiltyVehicle
+            : (totalPaidByBiltyAsOrderNo > 0
+              ? totalPaidByBiltyAsOrderNo
+              : (totalPaidByCharges > 0
+                ? totalPaidByCharges
+                : Math.max(totalPaidByOrder, totalPaidByBilty))));
 
         const balance = invoiceAmount - totalPaid;
         
@@ -932,9 +976,10 @@ const BookingOrderReportExport: React.FC = () => {
         const TOLERANCE = 0.01;
         const hasBalance = balance > TOLERANCE;
         const hasPaid = totalPaid > TOLERANCE;
+        const isFullyPaid = Math.abs(balance) <= TOLERANCE;
         
         // For Paid report: show if any payment made (show paid amount)
-        // For Unpaid report: show if any balance remaining (show balance amount)
+        // For Unpaid report: show if any balance remaining AND not fully paid
         if (type === 'Paid' && hasPaid) {
           brokerBillRows.push({
             serial: serial++,
@@ -951,7 +996,7 @@ const BookingOrderReportExport: React.FC = () => {
             munshyana: 0, // Don't show munshyana in Paid report
             otherCharges: 0, // Don't show other charges in Paid report
           });
-        } else if (type === 'Unpaid' && hasBalance) {
+        } else if (type === 'Unpaid' && hasBalance && !isFullyPaid) {
           brokerBillRows.push({
             serial: serial++,
             orderNo: orderNo,
@@ -1073,13 +1118,52 @@ const BookingOrderReportExport: React.FC = () => {
         (ob.openingBalanceEntrys || []).forEach((entry: any) => {
           if (entry.credit > 0 && (entry.broker || entry.chargeType)) {
             const biltyNo = entry.biltyNo || `OB-${ob.openingNo}`;
-            const paidAmount = paidByBiltyNo[biltyNo] || 0;
+            const vehicleNo = entry.vehicleNo || '';
+            
+            // Enhanced payment matching for opening balances
+            // Try multiple strategies since payment might use orderNo = biltyNo
+            const paidAmountByBilty = paidByBiltyNo[biltyNo] || 0;
+            const paidAmountByOrderNo = paidByOrderNo[biltyNo] || 0; // Payment's orderNo might be invoice's biltyNo
+            
+            // Also check by vehicle combination
+            let paidAmountByVehicleBilty = 0;
+            let paidAmountByVehicleOrderAsBilty = 0;
+            
+            approvedPayments.forEach((p: any) => {
+              const items = p?.paymentABLItems || p?.paymentABLItem || [];
+              if (Array.isArray(items)) {
+                items.forEach((item: any) => {
+                  const itemVehicleNo = String(item?.vehicleNo ?? item?.VehicleNo ?? "").trim();
+                  const itemBiltyNo = String(item?.biltyNo ?? item?.BiltyNo ?? "").trim();
+                  const itemOrderNo = String(item?.orderNo ?? item?.OrderNo ?? "").trim();
+                  
+                  if (itemVehicleNo === vehicleNo) {
+                    if (itemBiltyNo === biltyNo) {
+                      paidAmountByVehicleBilty += Number(item?.paidAmount ?? item?.PaidAmount ?? 0) || 0;
+                    }
+                    if (itemOrderNo === biltyNo) {
+                      paidAmountByVehicleOrderAsBilty += Number(item?.paidAmount ?? item?.PaidAmount ?? 0) || 0;
+                    }
+                  }
+                });
+              }
+            });
+            
+            // Use the maximum of all matching strategies
+            const paidAmount = Math.max(
+              paidAmountByBilty,
+              paidAmountByOrderNo,
+              paidAmountByVehicleBilty,
+              paidAmountByVehicleOrderAsBilty
+            );
+            
             const balance = entry.credit - paidAmount;
             
             // Use tolerance for floating-point comparison
             const TOLERANCE = 0.01;
             const hasBalance = balance > TOLERANCE;
             const hasPaid = paidAmount > TOLERANCE;
+            const isFullyPaid = Math.abs(balance) <= TOLERANCE;
             
             // For Paid report: show if any payment made (show paid amount)
             // For Unpaid report: show if any balance remaining (show balance amount)
@@ -1104,7 +1188,7 @@ const BookingOrderReportExport: React.FC = () => {
                 munshyana: 0,
                 otherCharges: 0,
               });
-            } else if (type === 'Unpaid' && hasBalance) {
+            } else if (type === 'Unpaid' && hasBalance && !isFullyPaid) {
               const brokerName = entry.broker || 'Opening Balance';
               
               // Filter by broker if selected
