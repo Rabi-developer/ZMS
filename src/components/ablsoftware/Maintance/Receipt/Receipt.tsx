@@ -241,6 +241,14 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const salesTaxOption = watch('salesTaxOption');
   const salesTaxRate = watch('salesTaxRate');
   const whtOnSbr = watch('whtOnSbr');
+  const paymentMode = watch('paymentMode');
+
+  // Automatically set bankName to PettyCash when paymentMode is Cash
+  useEffect(() => {
+    if (paymentMode === 'Cash') {
+      setValue('bankName', 'PettyCash', { shouldValidate: false });
+    }
+  }, [paymentMode, setValue]);
 
   // Initialize selected tax percentages when salesTaxRate or whtOnSbr changes
   useEffect(() => {
