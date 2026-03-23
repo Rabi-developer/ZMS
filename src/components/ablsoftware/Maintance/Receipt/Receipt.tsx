@@ -128,6 +128,22 @@ interface ReceiptFormProps {
 }
 
 // Helper functions
+const normalizeAccountTree = (nodes: any[] = []): Account[] => {
+  return (nodes || [])
+    .filter((node) => node && typeof node === 'object')
+    .map((node) => ({
+      id: String(node.id ?? ''),
+      listid: String(node.listid ?? node.listId ?? ''),
+      description: String(node.description ?? node.name ?? ''),
+      parentAccountId: node.parentAccountId ?? node.parentId ?? null,
+      children: normalizeAccountTree(Array.isArray(node.children) ? node.children : []),
+      dueDate: String(node.dueDate ?? ''),
+      fixedAmount: String(node.fixedAmount ?? ''),
+      paid: String(node.paid ?? ''),
+    }))
+    .filter((node) => node.id !== '');
+};
+
 const findAccountById = (id: string, accounts: Account[]): Account | null => {
   const walk = (nodes: Account[]): Account | null => {
     for (const node of nodes) {
@@ -174,21 +190,28 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
 
   // Initialize selection path when initialAccountId is provided
   useEffect(() => {
-    if (initialAccountId && accounts.length > 0 && selectionPath.length === 0) {
-      const path = buildPathToAccount(initialAccountId, accounts);
-      if (path) {
-        setSelectionPath(path);
+    if (!initialAccountId) {
+      if (selectionPath.length > 0) {
+        setSelectionPath([]);
       }
+      return;
     }
-  }, [initialAccountId, accounts]);
+
+    if (accounts.length > 0) {
+      const path = buildPathToAccount(initialAccountId, accounts);
+      setSelectionPath(path || []);
+    }
+  }, [initialAccountId, accounts, selectionPath.length]);
 
   // Build a flat list of leaf accounts for fast searching
   type FlatLeaf = { id: string; label: string; pathIds: string[]; pathLabels: string[]; category: string; listid: string; description: string };
   const flatLeaves: FlatLeaf[] = useMemo(() => {
     const leaves: FlatLeaf[] = [];
     const walk = (node: Account, pathIds: string[], pathLabels: string[], categoryName: string) => {
+      const nodeDescription = String(node.description ?? '').trim();
+      const nodeListId = String(node.listid ?? '').trim();
       const newPathIds = [...pathIds, node.id];
-      const newPathLabels = [...pathLabels, node.description];
+      const newPathLabels = [...pathLabels, nodeDescription || nodeListId || node.id];
       if (!node.children || node.children.length === 0) {
         leaves.push({ 
           id: node.id, 
@@ -196,8 +219,8 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
           pathIds: newPathIds, 
           pathLabels: newPathLabels,
           category: categoryName,
-          listid: node.listid,
-          description: node.description
+          listid: nodeListId,
+          description: nodeDescription
         });
       } else {
         node.children.forEach((child) => walk(child, newPathIds, newPathLabels, categoryName));
@@ -215,9 +238,9 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
     const q = searchTerm.trim().toLowerCase();
     if (!q) return flatLeaves;
     return flatLeaves.filter((leaf) => 
-      leaf.label.toLowerCase().includes(q) || 
-      leaf.listid.toLowerCase().includes(q) ||
-      leaf.description.toLowerCase().includes(q)
+      String(leaf.label ?? '').toLowerCase().includes(q) || 
+      String(leaf.listid ?? '').toLowerCase().includes(q) ||
+      String(leaf.description ?? '').toLowerCase().includes(q)
     );
   }, [searchTerm, flatLeaves]);
 
@@ -245,7 +268,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
           <div className="relative flex-1">
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
-              value={selectedAccount ? `${selectedAccount.listid} ${selectedAccount.description}` : ''}
+              value={selectedAccount ? `${selectedAccount.listid || ''} ${selectedAccount.description || ''}`.trim() : ''}
               onFocus={() => !disabled && setShowModal(true)}
               onClick={() => !disabled && setShowModal(true)}
               placeholder="Click to search and select account"
@@ -489,11 +512,11 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
         setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.taxName, percentage: t.percentage })));
         
         const hierarchicalAccounts: Account[] = [
-          { id: 'equality', listid: 'EQ', description: 'Equality', parentAccountId: null, children: equalityRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
-          { id: 'liabilities', listid: 'LB', description: 'Liabilities', parentAccountId: null, children: liabilitiesRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
-          { id: 'assets', listid: 'AS', description: 'Assets', parentAccountId: null, children: assetsRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
-          { id: 'expense', listid: 'EX', description: 'Expense', parentAccountId: null, children: expenseRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
-          { id: 'revenue', listid: 'RV', description: 'Revenue', parentAccountId: null, children: revenueRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
+          { id: 'equality', listid: 'EQ', description: 'Equality', parentAccountId: null, children: normalizeAccountTree(equalityRes.data), dueDate: '', fixedAmount: '', paid: '' },
+          { id: 'liabilities', listid: 'LB', description: 'Liabilities', parentAccountId: null, children: normalizeAccountTree(liabilitiesRes.data), dueDate: '', fixedAmount: '', paid: '' },
+          { id: 'assets', listid: 'AS', description: 'Assets', parentAccountId: null, children: normalizeAccountTree(assetsRes.data), dueDate: '', fixedAmount: '', paid: '' },
+          { id: 'expense', listid: 'EX', description: 'Expense', parentAccountId: null, children: normalizeAccountTree(expenseRes.data), dueDate: '', fixedAmount: '', paid: '' },
+          { id: 'revenue', listid: 'RV', description: 'Revenue', parentAccountId: null, children: normalizeAccountTree(revenueRes.data), dueDate: '', fixedAmount: '', paid: '' },
         ];
         setAccounts(hierarchicalAccounts);
 
