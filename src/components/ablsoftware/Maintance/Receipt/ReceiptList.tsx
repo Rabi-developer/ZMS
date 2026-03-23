@@ -13,6 +13,11 @@ import {
   updateReceiptFiles, // ← Add this API function
 } from '@/apis/receipt';
 import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
+import { getAllEquality } from '@/apis/equality';
+import { getAllAblLiabilities } from '@/apis/ablliabilities';
+import { getAllAblAssests } from '@/apis/ablAssests';
+import { getAllAblExpense } from '@/apis/ablExpense';
+import { getAllAblRevenue } from '@/apis/ablRevenue';
 import { columns, Receipt } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
@@ -72,11 +77,43 @@ const ReceiptList = () => {
   const fetchReceipts = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // Fetch receipts and accounts in parallel
       const apiPageIndex = pageIndex + 1;
-      const response = await getAllReceipt(apiPageIndex, pageSize);
+      const [response, equalityRes, liabilitiesRes, assetsRes, expenseRes, revenueRes] = await Promise.all([
+        getAllReceipt(apiPageIndex, pageSize),
+        getAllEquality(1, 1000),
+        getAllAblLiabilities(1, 1000),
+        getAllAblAssests(1, 1000),
+        getAllAblExpense(1, 1000),
+        getAllAblRevenue(1, 1000),
+      ]);
+
+      // Flatten all accounts into a single lookup map
+      const accountMap = new Map<string, string>();
+      const allAccountData = [
+        ...(equalityRes.data || []),
+        ...(liabilitiesRes.data || []),
+        ...(assetsRes.data || []),
+        ...(expenseRes.data || []),
+        ...(revenueRes.data || []),
+      ];
+
+      const buildAccountMap = (nodes: any[]) => {
+        nodes.forEach(node => {
+          if (node.id) {
+            accountMap.set(node.id, node.description || node.name || node.id);
+          }
+          if (node.children && node.children.length > 0) {
+            buildAccountMap(node.children);
+          }
+        });
+      };
+      buildAccountMap(allAccountData);
 
       const transformedReceipts = (response?.data || []).map((receipt: any) => ({
         ...receipt,
+        bankName: accountMap.get(receipt.bankName) || receipt.bankName || '-',
         orderNo: receipt.items?.[0]?.vehicleNo || receipt.orderNo || '-',
         files: receipt.files || '', // Preserve files field
         items: receipt.items || [], // Preserve items array with biltyNo, vehicleNo, balance
@@ -347,8 +384,8 @@ const ReceiptList = () => {
   };
 
   return (
-    <div className="container mx-auto mt-4 max-w-screen p-6">
-      <div className="mb-4">
+    <div className="w-full  mb-5 max-w-none md:py-10 md:px-4">
+      <div className="`mb-3">
         <h1 className="text-2xl font-bold text-gray-800">Receipts</h1>
       </div>
       <div className="mb-4 flex items-center justify-between flex-wrap gap-4">

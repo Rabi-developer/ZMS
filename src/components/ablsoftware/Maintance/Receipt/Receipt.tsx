@@ -1,6 +1,6 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useForm, Controller, useFieldArray, type UseFormSetValue, type Path } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -11,11 +11,16 @@ import { getAllSaleTexes } from '@/apis/salestexes';
 import { getAllConsignment, updateConsignment } from '@/apis/consignment';
 import { createReceipt, updateReceipt, getBiltyBalance } from '@/apis/receipt';
 import { getAllOpeningBalance } from '@/apis/openingbalance';
+import { getAllEquality, updateEquality } from '@/apis/equality';
+import { getAllAblLiabilities, updateAblLiabilities } from '@/apis/ablliabilities';
+import { getAllAblAssests, updateAblAssests } from '@/apis/ablAssests';
+import { getAllAblExpense, updateAblExpense } from '@/apis/ablExpense';
+import { getAllAblRevenue, updateAblRevenue } from '@/apis/ablRevenue';
 import { toast } from 'react-toastify';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { MdInfo } from 'react-icons/md';
 import { FaFileInvoice, FaMoneyBillWave } from 'react-icons/fa';
-import { FiSave, FiX } from 'react-icons/fi';
+import { FiSave, FiX, FiSearch } from 'react-icons/fi';
 import Link from 'next/link';
 
 // Interfaces
@@ -23,6 +28,18 @@ interface DropdownOption {
   id: string;
   name: string;
 }
+
+// Account type
+type Account = {
+  id: string;
+  listid: string;
+  description: string;
+  parentAccountId: string | null;
+  children: Account[];
+  dueDate: string;
+  fixedAmount: string;
+  paid: string;
+};
 
 interface Consignment {
   freightPaidBy: string;
@@ -110,6 +127,210 @@ interface ReceiptFormProps {
   };
 }
 
+// Helper functions
+const findAccountById = (id: string, accounts: Account[]): Account | null => {
+  const walk = (nodes: Account[]): Account | null => {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.children.length > 0) {
+        const found = walk(node.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return walk(accounts);
+};
+
+// Hierarchical Dropdown Component for Receipt
+interface HierarchicalDropdownProps {
+  accounts: Account[];
+  onSelect: (id: string, account: Account | null) => void;
+  setValue: UseFormSetValue<ReceiptFormData>;
+  name: string;
+  initialAccountId?: string;
+  disabled?: boolean;
+}
+
+const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, onSelect, setValue, name, initialAccountId, disabled }) => {
+  const [selectionPath, setSelectionPath] = useState<string[]>([]); // Tracks selected IDs at each level
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showModal, setShowModal] = useState(false);
+
+  // Build path to an account by ID
+  const buildPathToAccount = (targetId: string, nodes: Account[], currentPath: string[] = []): string[] | null => {
+    for (const node of nodes) {
+      const newPath = [...currentPath, node.id];
+      if (node.id === targetId) {
+        return newPath;
+      }
+      if (node.children && node.children.length > 0) {
+        const found = buildPathToAccount(targetId, node.children, newPath);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Initialize selection path when initialAccountId is provided
+  useEffect(() => {
+    if (initialAccountId && accounts.length > 0 && selectionPath.length === 0) {
+      const path = buildPathToAccount(initialAccountId, accounts);
+      if (path) {
+        setSelectionPath(path);
+      }
+    }
+  }, [initialAccountId, accounts]);
+
+  // Build a flat list of leaf accounts for fast searching
+  type FlatLeaf = { id: string; label: string; pathIds: string[]; pathLabels: string[]; category: string; listid: string; description: string };
+  const flatLeaves: FlatLeaf[] = useMemo(() => {
+    const leaves: FlatLeaf[] = [];
+    const walk = (node: Account, pathIds: string[], pathLabels: string[], categoryName: string) => {
+      const newPathIds = [...pathIds, node.id];
+      const newPathLabels = [...pathLabels, node.description];
+      if (!node.children || node.children.length === 0) {
+        leaves.push({ 
+          id: node.id, 
+          label: newPathLabels.join(' / '), 
+          pathIds: newPathIds, 
+          pathLabels: newPathLabels,
+          category: categoryName,
+          listid: node.listid,
+          description: node.description
+        });
+      } else {
+        node.children.forEach((child) => walk(child, newPathIds, newPathLabels, categoryName));
+      }
+    };
+    accounts.forEach((root) => {
+      if (root.children && root.children.length > 0) {
+        root.children.forEach((child) => walk(child, [], [], root.description));
+      }
+    });
+    return leaves;
+  }, [accounts]);
+
+  const filteredLeaves = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return flatLeaves;
+    return flatLeaves.filter((leaf) => 
+      leaf.label.toLowerCase().includes(q) || 
+      leaf.listid.toLowerCase().includes(q) ||
+      leaf.description.toLowerCase().includes(q)
+    );
+  }, [searchTerm, flatLeaves]);
+
+  const handlePickFromSearch = (leaf: FlatLeaf) => {
+    setSelectionPath(leaf.pathIds);
+    const selected = findAccountById(leaf.id, accounts);
+    setValue(name as Path<ReceiptFormData>, leaf.id, { shouldValidate: true });
+    onSelect(leaf.id, selected);
+    setSearchTerm('');
+    setShowModal(false);
+  };
+
+  const clearSelection = () => {
+    setSelectionPath([]);
+    setValue(name as Path<ReceiptFormData>, '' as unknown as string, { shouldValidate: true });
+    onSelect('', null);
+  };
+
+  const selectedAccount = selectionPath.length > 0 ? findAccountById(selectionPath[selectionPath.length - 1], accounts) : null;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="relative">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={selectedAccount ? `${selectedAccount.listid} ${selectedAccount.description}` : ''}
+              onFocus={() => !disabled && setShowModal(true)}
+              onClick={() => !disabled && setShowModal(true)}
+              placeholder="Click to search and select account"
+              className="w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition cursor-pointer"
+              readOnly
+              disabled={disabled}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={clearSelection}
+            disabled={disabled}
+            className="px-3 py-2 text-xs rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-4 rounded-t-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FiSearch className="text-xl" />
+                <h3 className="text-lg font-semibold">Select Account</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowModal(false);
+                  setSearchTerm('');
+                }}
+                className="text-white hover:bg-white/20 rounded-full p-1 transition"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-gray-200 dark:border-gray-600">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search accounts by name or ID..."
+                  className="w-full pl-9 pr-3 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex flex-col">
+                {filteredLeaves.map((leaf) => (
+                  <button
+                    key={leaf.id}
+                    type="button"
+                    onClick={() => handlePickFromSearch(leaf)}
+                    className="flex items-center gap-4 px-6 py-3 w-full hover:bg-emerald-50 dark:hover:bg-emerald-900/10 text-left transition border-b border-gray-100 dark:border-gray-700/50 last:border-0 group"
+                  >
+                    <div className="flex-shrink-0">
+                      <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-[#f0f9f4] dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-[11px] font-mono font-medium text-[#10b981] dark:text-emerald-400 min-w-[100px] text-center">
+                        {leaf.listid}
+                      </span>
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
+                      {leaf.description}
+                    </span>
+                  </button>
+                ))}
+                {filteredLeaves.length === 0 && (
+                  <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+                    No accounts found matching "{searchTerm}"
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const router = useRouter();
     const searchParams = useSearchParams();
@@ -187,9 +408,10 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const [parties, setParties] = useState<DropdownOption[]>([]);
   const [saleTaxes, setSaleTaxes] = useState<DropdownOption[]>([]);
   const [selectedSaleTaxes,setselectedSaleTaxes] = useState('');
-    const [selectedWHTTaxes,setselectedWHTTaxes] = useState('');
+  const [selectedWHTTaxes,setselectedWHTTaxes] = useState('');
   const [consignments, setConsignments] = useState<Consignment[]>([]);
   const [openingBalances, setOpeningBalances] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [showConsignmentPopup, setShowConsignmentPopup] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectingConsignment, setSelectingConsignment] = useState(false);
@@ -199,38 +421,6 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     { id: 'Cash', name: 'Cash' },
     { id: 'Cheque', name: 'Cheque' },
     { id: 'Bank Transfer', name: 'Bank Transfer' },
-  ];
-  const bankNames: DropdownOption[] = [
-    { id: 'HBL', name: 'Habib Bank Limited (HBL)' },
-    { id: 'HMB', name: 'Habib Metro Bank (HMB)' },
-    { id: 'BI', name: 'Bank Islami' },
-    { id: 'MCB', name: 'MCB Bank Limited' },
-    { id: 'UBL', name: 'United Bank Limited (UBL)' },
-    { id: 'ABL', name: 'Allied Bank Limited (ABL)' },
-    { id: 'NBP', name: 'National Bank of Pakistan (NBP)' },
-    { id: 'Meezan', name: 'Meezan Bank' },
-    { id: 'BankAlfalah', name: 'Bank Alfalah' },
-    { id: 'Askari', name: 'Askari Bank' },
-    { id: 'Faysal', name: 'Faysal Bank' },
-    { id: 'BankAlHabib', name: 'Bank Al Habib' },
-    { id: 'Soneri', name: 'Soneri Bank' },
-    { id: 'Samba', name: 'Samba Bank' },
-    { id: 'JS', name: 'JS Bank' },
-    { id: 'Silk', name: 'Silk Bank' },
-    { id: 'Summit', name: 'Summit Bank' },
-    { id: 'StandardChartered', name: 'Standard Chartered Bank' },
-    { id: 'BankIslami', name: 'BankIslami Pakistan' },
-    { id: 'DubaiIslamic', name: 'Dubai Islamic Bank Pakistan' },
-    { id: 'AlBaraka', name: 'Al Baraka Bank' },
-    { id: 'ZaraiTaraqiati', name: 'Zarai Taraqiati Bank Limited (ZTBL)' },
-    { id: 'SindhBank', name: 'Sindh Bank' },
-    { id: 'BankOfPunjab', name: 'The Bank of Punjab' },
-    { id: 'FirstWomenBank', name: 'First Women Bank' },
-    { id: 'BankOfKhyber', name: 'The Bank of Khyber' },
-    { id: 'BankOfAzadKashmir', name: 'Bank of Azad Kashmir' },
-    { id: 'IndustrialDevelopment', name: 'Industrial Development Bank of Pakistan' },
-    { id: 'PettyCash', name: 'Petty Cash' },
-    { id: 'Other', name: 'Other' },
   ];
   const salesTaxOptions: DropdownOption[] = [
     { id: 'with', name: 'With Sales Tax' },
@@ -242,13 +432,6 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
   const salesTaxRate = watch('salesTaxRate');
   const whtOnSbr = watch('whtOnSbr');
   const paymentMode = watch('paymentMode');
-
-  // Automatically set bankName to PettyCash when paymentMode is Cash
-  useEffect(() => {
-    if (paymentMode === 'Cash') {
-      setValue('bankName', 'PettyCash', { shouldValidate: false });
-    }
-  }, [paymentMode, setValue]);
 
   // Initialize selected tax percentages when salesTaxRate or whtOnSbr changes
   useEffect(() => {
@@ -290,15 +473,30 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [partyRes, saleTaxRes, consignmentRes, openingBalanceRes] = await Promise.all([
+        const [partyRes, saleTaxRes, consignmentRes, openingBalanceRes, equalityRes, liabilitiesRes, assetsRes, expenseRes, revenueRes] = await Promise.all([
           getAllPartys(1, 1000),
           getAllSaleTexes(1, 1000),
           getAllConsignment(1, 1000),
           getAllOpeningBalance(1, 10000),
+          getAllEquality(1, 1000),
+          getAllAblLiabilities(1, 1000),
+          getAllAblAssests(1, 1000),
+          getAllAblExpense(1, 1000),
+          getAllAblRevenue(1, 1000),
         ]);
         const partyData = partyRes.data.map((p: any) => ({ id: p.id, name: p.name }));
         setParties(partyData);
         setSaleTaxes(saleTaxRes.data.map((t: any) => ({ id: t.id, name: t.taxName, percentage: t.percentage })));
+        
+        const hierarchicalAccounts: Account[] = [
+          { id: 'equality', listid: 'EQ', description: 'Equality', parentAccountId: null, children: equalityRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
+          { id: 'liabilities', listid: 'LB', description: 'Liabilities', parentAccountId: null, children: liabilitiesRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
+          { id: 'assets', listid: 'AS', description: 'Assets', parentAccountId: null, children: assetsRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
+          { id: 'expense', listid: 'EX', description: 'Expense', parentAccountId: null, children: expenseRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
+          { id: 'revenue', listid: 'RV', description: 'Revenue', parentAccountId: null, children: revenueRes.data || [], dueDate: '', fixedAmount: '', paid: '' },
+        ];
+        setAccounts(hierarchicalAccounts);
+
         setConsignments(
           consignmentRes.data.map((item: any) => {
             const consignorName = resolvePartyName(item.consignor, partyData) || item.consignorName || 'Unknown Consignor';
@@ -829,20 +1027,26 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                 )}
                 disabled={isViewMode}
               />
-              <Controller
-                name="bankName"
-                control={control}
-                render={({ field }) => (
-                  <AblCustomDropdown
-                    label="Bank Name"
-                    options={bankNames}
-                    selectedOption={field.value || ''}
-                    onChange={field.onChange}
-                    error={errors.bankName?.message}
-                  />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Bank Name</label>
+                <Controller
+                  name="bankName"
+                  control={control}
+                  render={({ field }) => (
+                    <HierarchicalDropdown
+                      accounts={accounts}
+                      onSelect={(id) => field.onChange(id)}
+                      setValue={setValue}
+                      name="bankName"
+                      initialAccountId={field.value}
+                      disabled={isViewMode}
+                    />
+                  )}
+                />
+                {errors.bankName && (
+                  <p className="text-xs text-red-500 mt-1">{errors.bankName.message}</p>
                 )}
-                disabled={isViewMode}
-              />
+              </div>
               <ABLCustomInput
                 label="Cheque #"
                 type="text"

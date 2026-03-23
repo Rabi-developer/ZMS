@@ -13,6 +13,11 @@ import {
   updatePaymentABLFiles, // ← Add this API function
 } from '@/apis/paymentABL';
 import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
+import { getAllEquality } from '@/apis/equality';
+import { getAllAblLiabilities } from '@/apis/ablliabilities';
+import { getAllAblAssests } from '@/apis/ablAssests';
+import { getAllAblExpense } from '@/apis/ablExpense';
+import { getAllAblRevenue } from '@/apis/ablRevenue';
 import { columns, PaymentABL } from './columns';
 import OrderProgress from '@/components/ablsoftware/Maintance/common/OrderProgress';
 
@@ -72,11 +77,43 @@ const PaymentABLList = () => {
   const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // Fetch payments and accounts in parallel
       const apiPageIndex = pageIndex + 1;
-      const response = await getAllPaymentABL(apiPageIndex, pageSize);
+      const [response, equalityRes, liabilitiesRes, assetsRes, expenseRes, revenueRes] = await Promise.all([
+        getAllPaymentABL(apiPageIndex, pageSize),
+        getAllEquality(1, 1000),
+        getAllAblLiabilities(1, 1000),
+        getAllAblAssests(1, 1000),
+        getAllAblExpense(1, 1000),
+        getAllAblRevenue(1, 1000),
+      ]);
+
+      // Flatten all accounts into a single lookup map
+      const accountMap = new Map<string, string>();
+      const allAccountData = [
+        ...(equalityRes.data || []),
+        ...(liabilitiesRes.data || []),
+        ...(assetsRes.data || []),
+        ...(expenseRes.data || []),
+        ...(revenueRes.data || []),
+      ];
+
+      const buildAccountMap = (nodes: any[]) => {
+        nodes.forEach(node => {
+          if (node.id) {
+            accountMap.set(node.id, node.description || node.name || node.id);
+          }
+          if (node.children && node.children.length > 0) {
+            buildAccountMap(node.children);
+          }
+        });
+      };
+      buildAccountMap(allAccountData);
 
       const transformedPayments = (response?.data || []).map((p: any) => ({
         ...p,
+        bankName: accountMap.get(p.bankName) || p.bankName || '-',
         files: p.files || '', // Preserve files field
       }));
 
@@ -354,7 +391,7 @@ const PaymentABLList = () => {
   };
 
   return (
-    <div className="container mx-auto mt-4 max-w-screen p-6">
+    <div className="w-full max-w-none md:py-10 md:px-4">
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-800">Payment ABL</h1>
       </div>
