@@ -43,15 +43,26 @@ export const getStatusStyles = (status: string) => {
 export const columns = (
   handleDeleteOpen: (id: string) => void,
   handleCheckboxChange: (paymentId: string, checked: boolean) => void,
-  selectedPaymentIds: string[]
+  selectedPaymentIds: string[],
+  allRowsSelected: boolean,
+  someRowsSelected: boolean,
+  handleSelectAllChange: (checked: boolean) => void
 ): ColumnDef<PaymentABL>[] => [
   {
     id: 'select',
-    header: ({ table }) => (
+    header: () => (
       <input
         type="checkbox"
-        checked={table.getIsAllRowsSelected()}
-        onChange={table.getToggleAllRowsSelectedHandler()}
+        checked={allRowsSelected}
+        ref={(input) => {
+          if (input) {
+            input.indeterminate = someRowsSelected && !allRowsSelected;
+          }
+        }}
+        onChange={(e) => {
+          e.stopPropagation();
+          handleSelectAllChange(e.target.checked);
+        }}
         className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
       />
     ),

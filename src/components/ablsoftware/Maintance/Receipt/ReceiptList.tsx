@@ -138,6 +138,11 @@ const ReceiptList = () => {
     setFilteredReceipts(filtered);
   }, [receipts, selectedStatusFilter]);
 
+  const visibleReceiptIds = filteredReceipts.map((receipt) => receipt.id);
+  const selectedVisibleReceiptIds = visibleReceiptIds.filter((id) => selectedReceiptIds.includes(id));
+  const allVisibleReceiptsSelected = visibleReceiptIds.length > 0 && selectedVisibleReceiptIds.length === visibleReceiptIds.length;
+  const someVisibleReceiptsSelected = selectedVisibleReceiptIds.length > 0;
+
   useEffect(() => {
     if (searchParams.get('refresh') === 'true') {
       fetchReceipts();
@@ -241,6 +246,28 @@ const ReceiptList = () => {
       }
     }
     setSelectedBulkStatus(checked ? receipts.find(r => r.id === receiptId)?.status || null : null);
+  };
+
+  const handleSelectAllChange = (checked: boolean) => {
+    if (!visibleReceiptIds.length) return;
+
+    if (checked) {
+      setSelectedReceiptIds((prev) => Array.from(new Set([...prev, ...visibleReceiptIds])));
+      const firstVisibleReceipt = filteredReceipts[0];
+      if (firstVisibleReceipt) {
+        setSelectedRowId(firstVisibleReceipt.id);
+        setSelectedReceiptForFiles(firstVisibleReceipt.id);
+        setSelectedBulkStatus(firstVisibleReceipt.status || null);
+      }
+      return;
+    }
+
+    setSelectedReceiptIds((prev) => prev.filter((id) => !visibleReceiptIds.includes(id)));
+    setSelectedRowId(null);
+    setConsignments([]);
+    setBookingStatus(null);
+    setSelectedBulkStatus(null);
+    setSelectedReceiptForFiles(null);
   };
 
   // === FILE UPLOAD LOGIC (Same as BookingOrderList) ===
@@ -410,7 +437,14 @@ const ReceiptList = () => {
       </div>
 
       <DataTable
-        columns={columns(handleDeleteOpen, handleCheckboxChange, selectedReceiptIds)}
+        columns={columns(
+          handleDeleteOpen,
+          handleCheckboxChange,
+          selectedReceiptIds,
+          allVisibleReceiptsSelected,
+          someVisibleReceiptsSelected,
+          handleSelectAllChange
+        )}
         data={filteredReceipts}
         loading={loading}
         link="/receipt/create"
@@ -421,6 +455,7 @@ const ReceiptList = () => {
         totalRows={totalRows}
         onRowClick={handleRowClick}
         onRowDoubleClick={handleRowDoubleClick}
+        selectedRowIds={selectedReceiptIds}
       />
 
       {selectedRowId && (

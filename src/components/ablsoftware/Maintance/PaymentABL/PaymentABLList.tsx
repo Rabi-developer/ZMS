@@ -136,6 +136,11 @@ const PaymentABLList = () => {
     setFilteredPayments(filtered);
   }, [payments, selectedStatusFilter]);
 
+  const visiblePaymentIds = filteredPayments.map((payment) => payment.id);
+  const selectedVisiblePaymentIds = visiblePaymentIds.filter((id) => selectedPaymentIds.includes(id));
+  const allVisiblePaymentsSelected = visiblePaymentIds.length > 0 && selectedVisiblePaymentIds.length === visiblePaymentIds.length;
+  const someVisiblePaymentsSelected = selectedVisiblePaymentIds.length > 0;
+
   useEffect(() => {
     if (searchParams.get('refresh') === 'true') {
       fetchPayments();
@@ -243,6 +248,28 @@ const PaymentABLList = () => {
       }
     }
     setSelectedBulkStatus(checked ? payments.find(p => p.id === paymentId)?.status || null : null);
+  };
+
+  const handleSelectAllChange = (checked: boolean) => {
+    if (!visiblePaymentIds.length) return;
+
+    if (checked) {
+      setSelectedPaymentIds((prev) => Array.from(new Set([...prev, ...visiblePaymentIds])));
+      const firstVisiblePayment = filteredPayments[0];
+      if (firstVisiblePayment) {
+        setSelectedRowId(firstVisiblePayment.id);
+        setSelectedPaymentForFiles(firstVisiblePayment.id);
+        setSelectedBulkStatus(firstVisiblePayment.status || null);
+      }
+      return;
+    }
+
+    setSelectedPaymentIds((prev) => prev.filter((id) => !visiblePaymentIds.includes(id)));
+    setSelectedRowId(null);
+    setConsignments([]);
+    setBookingStatus(null);
+    setSelectedBulkStatus(null);
+    setSelectedPaymentForFiles(null);
   };
 
   // === FILE UPLOAD LOGIC (Same as BookingOrderList) ===
@@ -417,7 +444,14 @@ const PaymentABLList = () => {
       </div>
 
       <DataTable
-        columns={columns(handleDeleteOpen, handleCheckboxChange, selectedPaymentIds)}
+        columns={columns(
+          handleDeleteOpen,
+          handleCheckboxChange,
+          selectedPaymentIds,
+          allVisiblePaymentsSelected,
+          someVisiblePaymentsSelected,
+          handleSelectAllChange
+        )}
         data={filteredPayments}
         loading={loading}
         link="/paymentABL/create"
@@ -428,6 +462,7 @@ const PaymentABLList = () => {
         totalRows={totalRows}
         onRowClick={handleRowClick}
         onRowDoubleClick={handleRowDoubleClick}
+        selectedRowIds={selectedPaymentIds}
       />
 
       {selectedRowId && (
