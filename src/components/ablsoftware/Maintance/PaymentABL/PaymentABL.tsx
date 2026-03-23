@@ -181,7 +181,16 @@ interface HierarchicalDropdownProps {
 const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, onSelect, setValue, name, initialAccountId, disabled }) => {
   const [selectionPath, setSelectionPath] = useState<string[]>([]); // Tracks selected IDs at each level
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+
+  // Debounce search term to improve performance
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   // Build path to an account by ID
   const buildPathToAccount = (targetId: string, nodes: Account[], currentPath: string[] = []): string[] | null => {
@@ -245,14 +254,35 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
   }, [accounts]);
 
   const filteredLeaves = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
+    const q = debouncedSearchTerm.trim().toLowerCase();
     if (!q) return [];
-    return flatLeaves.filter((leaf) => 
-      String(leaf.label ?? '').toLowerCase().includes(q) || 
-      String(leaf.listid ?? '').toLowerCase().includes(q) ||
-      String(leaf.description ?? '').toLowerCase().includes(q)
-    );
-  }, [searchTerm, flatLeaves]);
+    
+    // Sort and filter results
+    const results = flatLeaves
+      .filter((leaf) => {
+        const descMatch = String(leaf.description ?? '').toLowerCase().includes(q);
+        const idMatch = String(leaf.listid ?? '').toLowerCase().includes(q);
+        // Only match label if it's a very specific search or if we have no direct matches
+        const labelMatch = q.length > 2 && String(leaf.label ?? '').toLowerCase().includes(q);
+        
+        return descMatch || idMatch || labelMatch;
+      })
+      .sort((a, b) => {
+        const aDirect = String(a.description ?? '').toLowerCase().includes(q) || String(a.listid ?? '').toLowerCase().includes(q);
+        const bDirect = String(b.description ?? '').toLowerCase().includes(q) || String(b.listid ?? '').toLowerCase().includes(q);
+        if (aDirect && !bDirect) return -1;
+        if (!aDirect && bDirect) return 1;
+        return 0;
+      });
+
+    // Limit and de-duplicate
+    const seen = new Set();
+    return results.filter(leaf => {
+      const duplicate = seen.has(leaf.id);
+      seen.add(leaf.id);
+      return !duplicate;
+    }).slice(0, 50); // Show only top 50 matches for performance
+  }, [debouncedSearchTerm, flatLeaves]);
 
   const handlePickFromSearch = (leaf: FlatLeaf) => {
     setSelectionPath(leaf.pathIds);
@@ -338,16 +368,23 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
                     key={leaf.id}
                     type="button"
                     onClick={() => handlePickFromSearch(leaf)}
-                    className="flex items-center gap-4 px-6 py-3 w-full hover:bg-emerald-50 dark:hover:bg-emerald-900/10 text-left transition border-b border-gray-100 dark:border-gray-700/50 last:border-0 group"
+                    className="flex flex-col px-6 py-3 w-full hover:bg-emerald-50 dark:hover:bg-emerald-900/10 text-left transition border-b border-gray-100 dark:border-gray-700/50 last:border-0 group"
                   >
-                    <div className="flex-shrink-0">
-                      <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-[#f0f9f4] dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-[11px] font-mono font-medium text-[#10b981] dark:text-emerald-400 min-w-[100px] text-center">
-                        {leaf.listid}
-                      </span>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-shrink-0">
+                        <span className="inline-flex items-center justify-center px-2 py-1 rounded bg-[#f0f9f4] dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 text-[11px] font-mono font-medium text-[#10b981] dark:text-emerald-400 min-w-[100px] text-center">
+                          {leaf.listid}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
+                          {leaf.description}
+                        </span>
+                        <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                          {leaf.label}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-300">
-                      {leaf.description}
-                    </span>
                   </button>
                 ))}
                 {searchTerm.trim() === '' && (
@@ -355,7 +392,12 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
                     Start typing to search bank accounts
                   </div>
                 )}
-                {searchTerm.trim() !== '' && filteredLeaves.length === 0 && (
+                {searchTerm.trim() !== '' && searchTerm !== debouncedSearchTerm && (
+                  <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+                    Searching...
+                  </div>
+                )}
+                {searchTerm.trim() !== '' && searchTerm === debouncedSearchTerm && filteredLeaves.length === 0 && (
                   <div className="py-12 text-center text-gray-500 dark:text-gray-400">
                     No accounts found matching "{searchTerm}"
                   </div>
