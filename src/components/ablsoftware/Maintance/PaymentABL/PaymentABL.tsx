@@ -246,7 +246,7 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
 
   const filteredLeaves = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    if (!q) return flatLeaves;
+    if (!q) return [];
     return flatLeaves.filter((leaf) => 
       String(leaf.label ?? '').toLowerCase().includes(q) || 
       String(leaf.listid ?? '').toLowerCase().includes(q) ||
@@ -350,7 +350,12 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
                     </span>
                   </button>
                 ))}
-                {filteredLeaves.length === 0 && (
+                {searchTerm.trim() === '' && (
+                  <div className="py-12 text-center text-gray-500 dark:text-gray-400">
+                    Start typing to search bank accounts
+                  </div>
+                )}
+                {searchTerm.trim() !== '' && filteredLeaves.length === 0 && (
                   <div className="py-12 text-center text-gray-500 dark:text-gray-400">
                     No accounts found matching "{searchTerm}"
                   </div>
