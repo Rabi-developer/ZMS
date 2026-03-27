@@ -287,7 +287,11 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
   const handlePickFromSearch = (leaf: FlatLeaf) => {
     setSelectionPath(leaf.pathIds);
     const selected = findAccountById(leaf.id, accounts);
-    setValue(name as Path<PaymentFormData>, leaf.id, { shouldValidate: true });
+    setValue(name as Path<PaymentFormData>, leaf.id, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
     onSelect(leaf.id, selected);
     setSearchTerm('');
     setShowModal(false);
@@ -295,7 +299,11 @@ const HierarchicalDropdown: React.FC<HierarchicalDropdownProps> = ({ accounts, o
 
   const clearSelection = () => {
     setSelectionPath([]);
-    setValue(name as Path<PaymentFormData>, '' as unknown as string, { shouldValidate: true });
+    setValue(name as Path<PaymentFormData>, '' as unknown as string, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
     onSelect('', null);
   };
 
@@ -516,6 +524,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
   const paymentABLItems = watch('paymentABLItems');
   const paymentMode = watch('paymentMode');
+  const bankName = watch('bankName');
 
   // Custom deep comparison function (use instead of lodash.isEqual if preferred)
   const areItemsEqual = (items1: PaymentABLItem[], items2: PaymentABLItem[]) => {
@@ -1227,7 +1236,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         paymentNo: String(data.paymentNo) || `PAY${Date.now()}${Math.floor(Math.random() * 1000)}`,
         paymentDate: data.paymentDate,
         paymentMode: data.paymentMode,
-        bankName: data.bankName || '',
+        bankName: bankName || data.bankName || initialData?.bankName || '',
         chequeNo: data.chequeNo || '',
         chequeDate: data.chequeDate || '',
         remarks: data.remarks || '',
@@ -1414,7 +1423,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               />
               <ABLCustomInput
                 label="Paid Amount"
-                type="number"
+                type="text"
                 placeholder="Auto-calculated"
                 register={register}
                 error={errors.paidAmount?.message}
@@ -1470,7 +1479,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               />
               <ABLCustomInput
                 label="Payment Amount"
-                type="number"
+                type="text"
                 placeholder="Auto-calculated"
                 register={register}
                 error={errors.paymentAmount?.message}
