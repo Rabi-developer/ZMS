@@ -1,10 +1,25 @@
 'use client';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import Headers from '@/components/Dashboard/Headers';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import { ToastContainer } from 'react-toastify';
 import { ArrowUp, ArrowDown } from 'lucide-react';
+
+// Create context for form submission
+interface FormSubmitContextType {
+  triggerFormSubmit: () => void;
+}
+
+const FormSubmitContext = createContext<FormSubmitContextType | undefined>(undefined);
+
+export const useFormSubmit = () => {
+  const context = useContext(FormSubmitContext);
+  if (!context) {
+    throw new Error('useFormSubmit must be used within a FormSubmitProvider');
+  }
+  return context;
+};
 
 const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; activeInterface: 'ZMS' | 'ABL' }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -84,7 +99,108 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
     }
   };
 
+  // Global Enter key handler for form submission
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if Enter key is pressed
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const target = e.target;
+        if (!target || !(target instanceof HTMLElement)) return;
+        
+        console.log('Key pressed:', e.key, 'Target:', target.tagName, 'Class:', target.className);
+        console.log('Enter key detected!');
+        
+        // Don't trigger if user is in a textarea or contenteditable element
+        const isTextarea = target.tagName === 'TEXTAREA';
+        const isContentEditable = target.isContentEditable;
+        
+        console.log('Is textarea:', isTextarea, 'Is contentEditable:', isContentEditable);
+        
+        // Check if target is an input inside a dropdown (your custom dropdowns)
+        const isDropdownInput = target.closest('[class*="AblCustomDropdown"]') || 
+                               target.parentElement?.closest('[class*="dropdown"]');
+        
+        console.log('Is dropdown input:', isDropdownInput);
+        
+        // Don't trigger if a REAL modal/popup is open (not just any fixed element)
+        // Look for actual dialog elements or high z-index modals
+        const isRealModalOpen = 
+          document.querySelector('[role="dialog"]') || 
+          document.querySelector('.modal-backdrop') ||
+          document.querySelector('.ReactModalPortal');
+        
+        // Additional check for custom modals with high z-index (check inline styles only)
+        const hasHighZIndexModal = !isRealModalOpen && (
+          document.querySelector('[style*="z-index: 9999"]') ||
+          document.querySelector('[style*="z-index:9999"]')
+        );
+        
+        console.log('Is modal open:', isRealModalOpen);
+        
+        // Combine both checks
+        const shouldSkip = isTextarea || isContentEditable || isDropdownInput || isRealModalOpen || hasHighZIndexModal;
+        
+        if (!shouldSkip) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Find ANY form on the page (not just closest to target)
+          const allForms = document.querySelectorAll('form');
+          console.log('Total forms found:', allForms.length);
+          
+          if (allForms.length > 0) {
+            // Get the first visible, enabled form
+            let targetForm: HTMLFormElement | null = null;
+            
+            for (let i = 0; i < allForms.length; i++) {
+              const form = allForms[i] as HTMLFormElement;
+              // Check if form is visible and not disabled
+              const style = window.getComputedStyle(form);
+              if (style.display !== 'none' && style.visibility !== 'hidden' && form.offsetParent !== null) {
+                targetForm = form;
+                break;
+              }
+            }
+            
+            if (targetForm) {
+              // Trigger form submission
+              const submitButton = targetForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+              console.log('Submit button found:', !!submitButton, 'Disabled:', submitButton?.disabled);
+              
+              if (submitButton && !submitButton.disabled) {
+                console.log('✅ Enter key pressed - triggering form submission');
+                submitButton.click();
+              } else if (!submitButton) {
+                console.error('❌ No submit button found in form!');
+              } else if (submitButton.disabled) {
+                console.error('❌ Submit button is disabled!');
+              }
+            } else {
+              console.error('❌ No visible forms found!');
+            }
+          } else {
+            console.error('❌ No forms found on page!');
+          }
+        } else {
+          console.log('⚠️ Skipping Enter key handling - shouldSkip:', shouldSkip);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+    return () => document.removeEventListener('keydown', handleKeyDown, true);
+  }, []);
+
+  const [triggerSubmit, setTriggerSubmit] = useState<(() => void) | null>(null);
+
+  const triggerFormSubmit = () => {
+    if (triggerSubmit) {
+      triggerSubmit();
+    }
+  };
+
   return (
+    <FormSubmitContext.Provider value={{ triggerFormSubmit }}>
     <div className={`min-h-[100dvh] bg-[#f6f6f6] flex flex-col md:flex-row overflow-hidden dark:bg-black ${activeInterface === 'ABL' ? 'scrollbar-abl' : 'scrollbar-zms'}`}>
       {isSidebarOpen && (
         <div
@@ -141,6 +257,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
         </button>
       </div>
     </div>
+    </FormSubmitContext.Provider>
   );
 };
 
