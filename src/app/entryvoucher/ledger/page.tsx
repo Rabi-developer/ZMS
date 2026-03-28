@@ -349,25 +349,30 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0); // Black color only
     doc.text('PETTY CASH ACCOUNTS', 12, y);
-    y += 6;
+    y += 4;
+    
+    // Add sources info with listid
+    if ((pettyCashGroups[0] as any)?.subGroups) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const sourcesText = `Sources: ${(pettyCashGroups[0] as any).subGroups.map((sg: any) => `${sg.description} (${sg.listid})`).join(', ')}`;
+      doc.text(sourcesText, 12, y);
+      y += 6;
+    } else {
+      y += 2;
+    }
 
-    // Prepare all Petty Cash rows for single table
+    // Prepare all Petty Cash rows for single table (already consolidated)
     const allPettyCashRows: any[] = [];
     let pettyCashGrandTotals = { debit1: 0, credit1: 0, pb1: 0 };
 
     pettyCashGroups.forEach((g) => {
-      // Add section header row (NO COLOR)
-      allPettyCashRows.push([
-        { content: `${g.description} (${g.listid}) - ${g.rows.length} rows`, colSpan: 8, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }
-      ]);
-      
-      // Add transaction rows
+      // Add all transaction rows (no section headers needed since it's already consolidated)
       g.rows.forEach((r) => {
         allPettyCashRows.push([
           r.voucherDate,
           r.voucherNo,
           r.chequeNo || '',
-          r.depositSlipNo || '',
           r.narration || '',
           formatAmountZeroBlank(r.debit1Num ?? 0),
           formatAmountZeroBlank(r.credit1Num ?? 0),
@@ -375,21 +380,13 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
         ]);
       });
 
-      // Add section total row (NO COLOR)
-      allPettyCashRows.push([
-        { content: `TOTAL - ${g.description}`, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } },
-        formatAmount(g.totals.debit1 || 0),
-        formatAmount(g.totals.credit1 || 0),
-        formatAmount(g.totals.pb1 || 0),
-      ]);
-
       // Update grand totals
       pettyCashGrandTotals.debit1 += g.totals.debit1 || 0;
       pettyCashGrandTotals.credit1 += g.totals.credit1 || 0;
-      pettyCashGrandTotals.pb1 += g.totals.pb1 || 0;
+      pettyCashGrandTotals.pb1 = g.totals.pb1 || 0; // Use final balance, not sum
     });
 
-    // Create single table for all Petty Cash (NO GRAND TOTAL IN FOOT)
+    // Create single table for all Petty Cash
     autoTable(doc, {
       startY: y,
       head: [
@@ -397,7 +394,6 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
           'Voucher Date',
           'Voucher No',
           'Cheque No',
-          'Deposit Slip No',
           'Narration',
           'Debit',
           'Credit',
@@ -423,14 +419,13 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
       theme: 'grid',
       margin: { left: 8, right: 8 },
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 22 },
+        0: { cellWidth: 22 },
+        1: { cellWidth: 24 },
         2: { cellWidth: 22 },
-        3: { cellWidth: 22 },
-        4: { cellWidth: 46 },
+        3: { cellWidth: 52 },
+        4: { halign: 'right' },
         5: { halign: 'right' },
         6: { halign: 'right' },
-        7: { halign: 'right' },
       },
     });
     y = (doc as any).lastAutoTable.finalY + 6;
@@ -450,7 +445,7 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
         [
           {
             content: 'GRAND TOTAL (All Petty Cash Accounts)',
-            colSpan: 5,
+            colSpan: 4,
             styles: { halign: 'right', fontStyle: 'bold' },
           },
           formatAmount(pettyCashGrandTotals.debit1),
@@ -468,14 +463,13 @@ function exportGroupedToPDF(titleLine: string, branch: string, filterLine: strin
       theme: 'grid',
       margin: { left: 8, right: 8 },
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 22 },
+        0: { cellWidth: 22 },
+        1: { cellWidth: 24 },
         2: { cellWidth: 22 },
-        3: { cellWidth: 22 },
-        4: { cellWidth: 46 },
+        3: { cellWidth: 52 },
+        4: { halign: 'right' },
         5: { halign: 'right' },
         6: { halign: 'right' },
-        7: { halign: 'right' },
       },
     });
     y = (doc as any).lastAutoTable.finalY + 10;
@@ -598,7 +592,7 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
       hasPettyCashGroups = true;
       pettyCashGrandTotals.debit1 += g.totals.debit1 || 0;
       pettyCashGrandTotals.credit1 += g.totals.credit1 || 0;
-      pettyCashGrandTotals.pb1 += g.totals.pb1 || 0;
+      pettyCashGrandTotals.pb1 = g.totals.pb1 || 0; // Use final balance
     }
     
     const wsData: any[][] = [];
@@ -606,21 +600,46 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
     wsData.push([`Branch: ${branch}`]);
     if (filterLine) wsData.push([filterLine]);
     wsData.push([titleLine]);
+    
+    // Add sources info for Petty Cash groups
+    if (isPettyCashGroup && (g as any).subGroups) {
+      const sourcesText = `Sources: ${(g as any).subGroups.map((sg: any) => `${sg.description} (${sg.listid})`).join(', ')}`;
+      wsData.push([sourcesText]);
+    }
+    
     wsData.push([`${g.description} (${g.listid})`]);
     wsData.push([]);
-    wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit 1', 'Credit 1', 'Proj Bal 1']);
-    g.rows.forEach((r) => {
-      wsData.push([
-        r.voucherDate,
-        r.voucherNo,
-        r.chequeNo || '-',
-        r.depositSlipNo || '-',
-        r.narration || '-',
-        r.debit1Num ?? 0,
-        r.credit1Num ?? 0,
-        r.pb1Num ?? 0,
-      ]);
-    });
+    
+    // Add appropriate headers based on whether it's Petty Cash
+    if (isPettyCashGroup) {
+      wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Narration', 'Debit', 'Credit', 'Net Balance']);
+      g.rows.forEach((r) => {
+        wsData.push([
+          r.voucherDate,
+          r.voucherNo,
+          r.chequeNo || '-',
+          r.narration || '-',
+          r.debit1Num ?? 0,
+          r.credit1Num ?? 0,
+          r.pb1Num ?? 0,
+        ]);
+      });
+    } else {
+      wsData.push(['Voucher Date', 'Voucher No', 'Cheque No', 'Deposit Slip No', 'Narration', 'Debit', 'Credit', 'Net Balance']);
+      g.rows.forEach((r) => {
+        wsData.push([
+          r.voucherDate,
+          r.voucherNo,
+          r.chequeNo || '-',
+          r.depositSlipNo || '-',
+          r.narration || '-',
+          r.debit1Num ?? 0,
+          r.credit1Num ?? 0,
+          r.pb1Num ?? 0,
+        ]);
+      });
+    }
+    
     wsData.push([
       'TOTAL', '', '', '', '',
       (g.totals.debit1 || 0),
@@ -648,7 +667,6 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
       { wch: 12 },
       { wch: 14 },
       { wch: 14 },
-      { wch: 16 },
       { wch: 40 },
       { wch: 14 },
       { wch: 14 },
@@ -697,7 +715,6 @@ function exportGroupedToExcel(titleLine: string, branch: string, filterLine: str
 function exportGroupedToWord(titleLine: string, branch: string, filterLine: string, groups: GroupedRows) {
   const css = `table{border-collapse:collapse;width:100%}th,td{border:1px solid #777;padding:4px;font-size:12px;text-align:right}th:nth-child(1),td:nth-child(1),th:nth-child(2),td:nth-child(2),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){text-align:left}.section-header{background-color:#f0f0f0;font-weight:bold}.grand-total{background-color:#e0e0e0;font-weight:bold}`;
   const header = `<h2 style=\"text-align:center;margin:4px 0;color:#426795\">${COMPANY_NAME}</h2><div style=\"text-align:center\">Branch: ${branch}</div>${filterLine ? `<div style=\"text-align:center;margin:2px 0;font-size:12px\">${filterLine}</div>` : ''}<h3 style=\"text-align:center;margin:6px 0\">${titleLine}</h3>`;
-  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Deposit Slip No</th><th>Narration</th><th>Debit </th><th>Credit </th><th>Net Balance</th></tr>`;
   
   // Separate Petty Cash groups from other groups
   const pettyCashGroups = groups.filter(g => (g as any).isPettyCashGroup);
@@ -708,31 +725,33 @@ function exportGroupedToWord(titleLine: string, branch: string, filterLine: stri
   // Process Petty Cash as single table
   if (pettyCashGroups.length > 0) {
     let pettyCashGrandTotals = { debit1: 0, credit1: 0, pb1: 0 };
+    const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Narration</th><th>Debit</th><th>Credit</th><th>Net Balance</th></tr>`;
     let allPettyCashRows = '';
     
+    // Add sources info
+    let sourcesInfo = '';
+    if ((pettyCashGroups[0] as any)?.subGroups) {
+      sourcesInfo = `<div style="font-size:11px;color:#666;margin-bottom:8px">Sources: ${(pettyCashGroups[0] as any).subGroups.map((sg: any) => `${sg.description} (${sg.listid})`).join(', ')}</div>`;
+    }
+    
     pettyCashGroups.forEach((g) => {
-      // Section header
-      allPettyCashRows += `<tr class="section-header"><td colspan="8" style="background-color:#f0f0f0;font-weight:bold">${g.description} (${g.listid}) - ${g.rows.length} rows</td></tr>`;
-      
       // Transaction rows
-      allPettyCashRows += g.rows.map((r) => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${(r.debit1Num ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(r.credit1Num ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(r.pb1Num ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`).join('');
-      
-      // Section total
-      allPettyCashRows += `<tr style="background-color:#f5f5f5;font-weight:bold"><td colspan="5" style="text-align:right">TOTAL - ${g.description}</td><td>${(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+      allPettyCashRows += g.rows.map((r) => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.narration || '-'}</td><td>${(r.debit1Num ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(r.credit1Num ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(r.pb1Num ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`).join('');
       
       // Update grand totals
       pettyCashGrandTotals.debit1 += g.totals.debit1 || 0;
       pettyCashGrandTotals.credit1 += g.totals.credit1 || 0;
-      pettyCashGrandTotals.pb1 += g.totals.pb1 || 0;
+      pettyCashGrandTotals.pb1 = g.totals.pb1 || 0; // Use final balance
     });
     
     // Add single grand total at the end
-    const grandTotalRow = `<tr class="grand-total"><td colspan="5" style="text-align:right;font-weight:bold;background-color:#e0e0e0">GRAND TOTAL (All Petty Cash Accounts)</td><td style="background-color:#e0e0e0">${pettyCashGrandTotals.debit1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td style="background-color:#e0e0e0">${pettyCashGrandTotals.credit1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td style="background-color:#e0e0e0">${pettyCashGrandTotals.pb1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
+    const grandTotalRow = `<tr class="grand-total"><td colspan="4" style="text-align:right;font-weight:bold;background-color:#e0e0e0">GRAND TOTAL (All Petty Cash Accounts)</td><td style="background-color:#e0e0e0">${pettyCashGrandTotals.debit1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td style="background-color:#e0e0e0">${pettyCashGrandTotals.credit1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td style="background-color:#e0e0e0">${pettyCashGrandTotals.pb1.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
     
-    sections += `<h4 style=\"margin:10px 0 4px\">PETTY CASH ACCOUNTS</h4><table>${tableHead}${allPettyCashRows}${grandTotalRow}</table><br/>`;
+    sections += `<h4 style=\"margin:10px 0 4px\">PETTY CASH ACCOUNTS</h4>${sourcesInfo}<table>${tableHead}${allPettyCashRows}${grandTotalRow}</table><br/>`;
   }
   
   // Process other accounts normally
+  const tableHead = `<tr><th>Voucher Date</th><th>Voucher No</th><th>Cheque No</th><th>Deposit Slip No</th><th>Narration</th><th>Debit</th><th>Credit</th><th>Net Balance</th></tr>`;
   const otherSections = otherGroups.map((g) => {
     const rows = g.rows.map((r) => `<tr><td>${r.voucherDate}</td><td>${r.voucherNo}</td><td>${r.chequeNo || '-'}</td><td>${r.depositSlipNo || '-'}</td><td>${r.narration || '-'}</td><td>${(r.debit1Num ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(r.credit1Num ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(r.pb1Num ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`).join('');
     const totalsRow = `<tr><td colspan="5" style="text-align:right;font-weight:bold">TOTAL (Remaining Balance)</td><td>${(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td><td>${(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>`;
@@ -1153,6 +1172,16 @@ const LedgerPage: React.FC = () => {
         });
       });
 
+      // Helper to resolve account name from ID
+      const resolveAccountName = (accountId: string): string => {
+        if (!accountId) return '';
+        const account = accountIndex[accountId];
+        if (account) {
+          return account.description || account.listid || accountId;
+        }
+        return accountId;
+      };
+
       // Process Receipts
       allReceipts.forEach((receipt: any) => {
         if (!withinDate(receipt.receiptDate) || !matchesStatus(receipt.status)) return;
@@ -1180,10 +1209,10 @@ const LedgerPage: React.FC = () => {
           cashAccountId = 'PETTY_CASH_CONSOLIDATED';
           accountDisplayName = 'Petty Cash';
         } else if (receipt.paymentMode === 'Cheque' || receipt.paymentMode === 'Bank Transfer') {
-          // Use bank name as both ID and display name
-          const bankName = receipt.bankName || 'Bank';
-          cashAccountId = bankName;
-          accountDisplayName = bankName;
+          // Resolve bank name from account ID
+          const bankAccountId = receipt.bankName || '';
+          accountDisplayName = resolveAccountName(bankAccountId) || 'Bank';
+          cashAccountId = bankAccountId;
         } else {
           // Default to Petty Cash for any other payment mode
           cashAccountId = 'PETTY_CASH_CONSOLIDATED';
@@ -1206,6 +1235,7 @@ const LedgerPage: React.FC = () => {
         
         // Credit to party account (if party account exists)
         if (receipt.party) {
+          const partyName = resolveAccountName(receipt.party);
           pushSimpleRow(
             receipt.party,
             receipt.receiptDate,
@@ -1214,7 +1244,7 @@ const LedgerPage: React.FC = () => {
             `Receipt - ${receipt.remarks || ''}`,
             0,
             receiptAmount,
-            accountDisplayName
+            partyName
           );
         }
       });
@@ -1230,12 +1260,9 @@ const LedgerPage: React.FC = () => {
           paymentAmount = payment.paymentABLItem.reduce((sum: number, item: any) => {
             return sum + (Number(item.paidAmount) || 0);
           }, 0);
-          console.log(`Payment ${payment.paymentNo}: Calculated amount from items: ${paymentAmount}`);
         }
         
         if (paymentAmount === 0) return;
-        
-        console.log(`Processing Payment ${payment.paymentNo}: Mode=${payment.paymentMode}, BankName="${payment.bankName}", Amount=${paymentAmount}`);
         
         // Skip if neither payment mode nor bank name is selected
         if (!payment.paymentMode && !payment.bankName) return;
@@ -1248,18 +1275,15 @@ const LedgerPage: React.FC = () => {
         if (payment.paymentMode === 'Cash' || payment.bankName === 'PettyCash') {
           cashAccountId = 'PETTY_CASH_CONSOLIDATED';
           accountDisplayName = 'Petty Cash';
-          console.log(`Payment ${payment.paymentNo}: Mapped to Petty Cash`);
         } else if (payment.paymentMode === 'Cheque' || payment.paymentMode === 'Bank Transfer') {
-          // Use bank name as both ID and display name
-          const bankName = payment.bankName || 'Bank';
-          cashAccountId = bankName;
-          accountDisplayName = bankName;
-          console.log(`Payment ${payment.paymentNo}: Mapped to ${bankName}`);
+          // Resolve bank name from account ID
+          const bankAccountId = payment.bankName || '';
+          accountDisplayName = resolveAccountName(bankAccountId) || 'Bank';
+          cashAccountId = bankAccountId;
         } else {
           // Default to Petty Cash for any other payment mode
           cashAccountId = 'PETTY_CASH_CONSOLIDATED';
           accountDisplayName = 'Petty Cash';
-          console.log(`Payment ${payment.paymentNo}: Default mapped to Petty Cash`);
         }
         
         const narration = `Payment to Vendor - ${payment.remarks || ''}`;
@@ -1278,6 +1302,7 @@ const LedgerPage: React.FC = () => {
         
         // Debit to vendor/expense account (if paidTo exists)
         if (payment.paidTo) {
+          const vendorName = resolveAccountName(payment.paidTo);
           pushSimpleRow(
             payment.paidTo,
             payment.paymentDate,
@@ -1286,7 +1311,7 @@ const LedgerPage: React.FC = () => {
             `Payment - ${payment.remarks || ''}`,
             paymentAmount,
             0,
-            accountDisplayName
+            vendorName
           );
         }
       });
@@ -1373,8 +1398,13 @@ const LedgerPage: React.FC = () => {
             if (r1.isOpeningBalance && !r2.isOpeningBalance) return -1;
             if (!r1.isOpeningBalance && r2.isOpeningBalance) return 1;
             
-            // Sort by the order they were added (oldest saved first)
-            // Use _idx which represents the order they were pushed into the array
+            // Sort by date
+            const date1 = r1.voucherDateRaw ? new Date(r1.voucherDateRaw).getTime() : 0;
+            const date2 = r2.voucherDateRaw ? new Date(r2.voucherDateRaw).getTime() : 0;
+            
+            if (date1 !== date2) return date1 - date2;
+            
+            // If same date, sort by _idx (order added)
             return r1._idx - r2._idx;
           });
           
@@ -1404,7 +1434,7 @@ const LedgerPage: React.FC = () => {
         })
         .filter((g) => g.rows.length > 0);
 
-      // Group Petty Cash accounts together but keep them separate
+      // Group Petty Cash accounts together and consolidate into single table
       const pettyCashGroups: GroupedRows = [];
       const otherGroups: GroupedRows = [];
       
@@ -1427,44 +1457,96 @@ const LedgerPage: React.FC = () => {
         }
       });
       
-      // Calculate grand total for all Petty Cash groups
-      let grandTotalDebit = 0;
-      let grandTotalCredit = 0;
-      let grandTotalBalance = 0;
-      
-      pettyCashGroups.forEach(group => {
-        grandTotalDebit += group.totals.debit1 || 0;
-        grandTotalCredit += group.totals.credit1 || 0;
-        grandTotalBalance += group.totals.pb1 || 0;
-      });
-      
-      // Add grand total info to each Petty Cash group for rendering
-      pettyCashGroups.forEach(group => {
-        (group as any).isPettyCashGroup = true;
-        (group as any).grandTotals = {
-          debit1: grandTotalDebit,
-          credit1: grandTotalCredit,
-          pb1: grandTotalBalance
+      // Consolidate all Petty Cash rows into a single array sorted by date
+      if (pettyCashGroups.length > 0) {
+        const allPettyCashRows: any[] = [];
+        
+        // Collect all rows from all Petty Cash groups with source info
+        pettyCashGroups.forEach(group => {
+          group.rows.forEach(row => {
+            allPettyCashRows.push({
+              ...row,
+              sourceAccount: group.description,
+              sourceListId: group.listid,
+              sourceAccountId: group.accountId,
+              sourceAccountDisplay: `${group.description} (${group.listid})` // Format: "Account Name (listid)"
+            });
+          });
+        });
+        
+        // Sort all rows by date (opening balance first, then by date)
+        allPettyCashRows.sort((r1, r2) => {
+          // Opening balance rows should come first
+          if (r1.isOpeningBalance && !r2.isOpeningBalance) return -1;
+          if (!r1.isOpeningBalance && r2.isOpeningBalance) return 1;
+          
+          // Sort by date
+          const date1 = r1.voucherDateRaw ? new Date(r1.voucherDateRaw).getTime() : 0;
+          const date2 = r2.voucherDateRaw ? new Date(r2.voucherDateRaw).getTime() : 0;
+          
+          if (date1 !== date2) return date1 - date2;
+          
+          // If same date, sort by _idx (order added)
+          return r1._idx - r2._idx;
+        });
+        
+        // Calculate running balance across all Petty Cash entries
+        let runningBalance = 0;
+        allPettyCashRows.forEach((row) => {
+          runningBalance += (row.debit1Num || 0) - (row.credit1Num || 0);
+          row.pb1 = runningBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          row.pb1Num = runningBalance;
+        });
+        
+        // Calculate grand totals
+        const grandTotalDebit = allPettyCashRows.reduce((sum, r) => sum + (r.debit1Num || 0), 0);
+        const grandTotalCredit = allPettyCashRows.reduce((sum, r) => sum + (r.credit1Num || 0), 0);
+        const grandTotalBalance = runningBalance; // Final running balance
+        
+        // Create a single consolidated Petty Cash group
+        const consolidatedPettyCashGroup = {
+          accountId: 'PETTY_CASH_CONSOLIDATED',
+          description: 'Petty Cash (All Sources)',
+          listid: 'PETTY_CASH',
+          rows: allPettyCashRows,
+          totals: {
+            debit1: grandTotalDebit,
+            credit1: grandTotalCredit,
+            pb1: grandTotalBalance
+          },
+          isPettyCashGroup: true,
+          subGroups: pettyCashGroups.map(g => ({
+            description: g.description,
+            listid: g.listid,
+            rowCount: g.rows.length
+          }))
         };
-      });
-      
-      console.log(`Found ${pettyCashGroups.length} Petty Cash groups with grand total balance: ${grandTotalBalance}`);
-      console.log('=== END GROUPING ===');
-      
-      // Combine groups: Petty Cash groups first, then others
-      const finalGroups = [...pettyCashGroups, ...otherGroups].sort((a, b) => {
-        // Petty Cash groups come first
-        const aIsPetty = (a as any).isPettyCashGroup;
-        const bIsPetty = (b as any).isPettyCashGroup;
         
-        if (aIsPetty && !bIsPetty) return -1;
-        if (!aIsPetty && bIsPetty) return 1;
+        console.log(`Consolidated ${pettyCashGroups.length} Petty Cash groups into single table with ${allPettyCashRows.length} rows`);
+        console.log(`Grand total balance: ${grandTotalBalance}`);
+        console.log('=== END GROUPING ===');
         
-        // Within same type, sort by name
-        return (a.listid || a.description).localeCompare(b.listid || b.description);
-      });
-
-      setGroups(finalGroups);
+        // Replace all Petty Cash groups with the single consolidated group
+        const finalGroups = [consolidatedPettyCashGroup as any, ...otherGroups].sort((a, b) => {
+          // Petty Cash group comes first
+          const aIsPetty = (a as any).isPettyCashGroup;
+          const bIsPetty = (b as any).isPettyCashGroup;
+          
+          if (aIsPetty && !bIsPetty) return -1;
+          if (!aIsPetty && bIsPetty) return 1;
+          
+          // Within same type, sort by name
+          return (a.listid || a.description).localeCompare(b.listid || b.description);
+        });
+        
+        setGroups(finalGroups);
+      } else {
+        // No Petty Cash groups, just use other groups
+        setGroups(otherGroups);
+      }
+      
+      return; // Exit early since we already set groups
+      
       if (grouped.length === 0) toast.info('No vouchers matched filters');
     } catch (e) {
       console.error(e);
@@ -1695,6 +1777,11 @@ const LedgerPage: React.FC = () => {
                       <div className="p-4 bg-green-50/30 dark:bg-green-900/10 border border-green-200/50 dark:border-green-700/30 rounded-lg">
                         <div className="text-sm font-semibold mb-4 text-green-800 dark:text-green-200">
                           PETTY CASH ACCOUNTS
+                          {(pettyCashGroups[0] as any)?.subGroups && (
+                            <div className="text-xs font-normal text-green-600 dark:text-green-400 mt-1">
+                              Sources: {(pettyCashGroups[0] as any).subGroups.map((sg: any) => `${sg.description} (${sg.listid})`).join(', ')}
+                            </div>
+                          )}
                         </div>
                         <div className="overflow-x-auto">
                           <table className="min-w-full text-sm">
@@ -1704,7 +1791,6 @@ const LedgerPage: React.FC = () => {
                                 <th className="px-3 py-2 text-left">Voucher Date</th>
                                 <th className="px-3 py-2 text-left">Voucher No</th>
                                 <th className="px-3 py-2 text-left">Cheque No</th>
-                                <th className="px-3 py-2 text-left">Deposit Slip No</th>
                                 <th className="px-3 py-2 text-left">Narration</th>
                                 <th className="px-3 py-2 text-right">Debit</th>
                                 <th className="px-3 py-2 text-right">Credit</th>
@@ -1714,47 +1800,25 @@ const LedgerPage: React.FC = () => {
                             <tbody>
                               {pettyCashGroups.map((g, groupIndex) => (
                                 <React.Fragment key={g.accountId}>
-                                  {/* Section header row */}
-                                  <tr className="bg-green-100/40 dark:bg-green-800/20">
-                                    <td colSpan={8} className="px-3 py-2 font-semibold text-green-800 dark:text-green-200 border-t border-green-200/50">
-                                      {g.description} ({g.listid}) - {g.rows.length} rows
-                                    </td>
-                                  </tr>
-                                  {/* Transaction rows */}
+                                  {/* Transaction rows - now showing all consolidated rows */}
                                   {g.rows.map((r: any, idx: number) => (
                                     <tr key={`${g.accountId}-${idx}`} className={idx % 2 === 0 ? 'bg-green-25/20' : 'bg-green-50/40 dark:bg-green-900/20'}>
                                       <td className="px-3 py-2">{r.voucherDate}</td>
                                       <td className="px-3 py-2">{r.voucherNo}</td>
                                       <td className="px-3 py-2">{r.chequeNo}</td>
-                                      <td className="px-3 py-2">{r.depositSlipNo}</td>
                                       <td className="px-3 py-2">{r.narration}</td>
                                       <td className="px-3 py-2 text-right">{r.debit1}</td>
                                       <td className="px-3 py-2 text-right">{r.credit1}</td>
-                                      <td className="px-3 py-2 text-right">{r.pb1}</td>
+                                      <td className="px-3 py-2 text-right font-semibold">{r.pb1}</td>
                                     </tr>
                                   ))}
-                                  {/* Individual section total */}
-                                  <tr className="bg-green-200/50 dark:bg-green-700/30 font-semibold">
-                                    <td className="px-3 py-2 text-right" colSpan={5}>
-                                      TOTAL - {g.description}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                      {(g.totals.debit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                      {(g.totals.credit1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                    <td className="px-3 py-2 text-right">
-                                      {(g.totals.pb1 || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </td>
-                                  </tr>
                                 </React.Fragment>
                               ))}
                             </tbody>
                             {/* Grand Total Footer */}
                             <tfoot>
                               <tr className="bg-green-300/60 dark:bg-green-600/40 font-bold text-green-900 dark:text-green-100">
-                                <td className="px-3 py-2 text-right" colSpan={5}>
+                                <td className="px-3 py-2 text-right" colSpan={4}>
                                   GRAND TOTAL (All Petty Cash Accounts)
                                 </td>
                                 <td className="px-3 py-2 text-right">
@@ -1772,7 +1836,7 @@ const LedgerPage: React.FC = () => {
                         </div>
                         <div className="text-xs text-green-600 dark:text-green-300 mt-2 flex items-center gap-2">
                           <FiFileText />
-                          Total Rows: {pettyCashGroups.reduce((sum, g) => sum + g.rows.length, 0)} | Accounts: {pettyCashGroups.length}
+                          Total Rows: {pettyCashGroups.reduce((sum, g) => sum + g.rows.length, 0)}
                         </div>
                       </div>
                     )}
