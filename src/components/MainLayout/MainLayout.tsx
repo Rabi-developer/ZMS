@@ -141,45 +141,20 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
         const shouldSkip = isTextarea || isContentEditable || isDropdownInput || isRealModalOpen || hasHighZIndexModal;
         
         if (!shouldSkip) {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          // Find ANY form on the page (not just closest to target)
+          // PREVENT Enter key from submitting - only allow mouse click
           const allForms = document.querySelectorAll('form');
           console.log('Total forms found:', allForms.length);
           
           if (allForms.length > 0) {
-            // Get the first visible, enabled form
-            let targetForm: HTMLFormElement | null = null;
+            // Check if we're inside or near a form
+            const closestForm = target.closest('form');
             
-            for (let i = 0; i < allForms.length; i++) {
-              const form = allForms[i] as HTMLFormElement;
-              // Check if form is visible and not disabled
-              const style = window.getComputedStyle(form);
-              if (style.display !== 'none' && style.visibility !== 'hidden' && form.offsetParent !== null) {
-                targetForm = form;
-                break;
-              }
+            if (closestForm) {
+              // Block Enter key from triggering submit button
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('⛔ Enter key blocked - please use mouse to click submit button');
             }
-            
-            if (targetForm) {
-              // Trigger form submission
-              const submitButton = targetForm.querySelector('button[type="submit"]') as HTMLButtonElement | null;
-              console.log('Submit button found:', !!submitButton, 'Disabled:', submitButton?.disabled);
-              
-              if (submitButton && !submitButton.disabled) {
-                console.log('✅ Enter key pressed - triggering form submission');
-                submitButton.click();
-              } else if (!submitButton) {
-                console.error('❌ No submit button found in form!');
-              } else if (submitButton.disabled) {
-                console.error('❌ Submit button is disabled!');
-              }
-            } else {
-              console.error('❌ No visible forms found!');
-            }
-          } else {
-            console.error('❌ No forms found on page!');
           }
         } else {
           console.log('⚠️ Skipping Enter key handling - shouldSkip:', shouldSkip);
