@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import ABLCustomInput from '@/components/ui/ABLCustomInput';
 import AblCustomDropdown from '@/components/ui/AblCustomDropdown';
-import { createBiltyPaymentInvoice, updateBiltyPaymentInvoice, getAllBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
+import { createBiltyPaymentInvoice, updateBiltyPaymentInvoice } from '@/apis/biltypaymentnnvoice';
 import { getAllMunshyana } from '@/apis/munshyana';
 import { getAllBrooker } from '@/apis/brooker';
 import { getAllBookingOrder } from '@/apis/bookingorder';
@@ -111,7 +111,6 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   const [munshyanas, setMunshyanas] = useState<DropdownOption[]>([]);
   const [businessAssociates, setBusinessAssociates] = useState<DropdownOption[]>([]);
   const [availableCharges, setAvailableCharges] = useState<ChargeDisplay[]>([]);
-  const [existingOrderNos, setExistingOrderNos] = useState<string[]>([]);
 
   const [showPopup, setShowPopup] = useState(false);
   const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
@@ -123,12 +122,11 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [munRes, baRes, bookRes, chargesRes, invoiceRes] = await Promise.all([
+        const [munRes, baRes, bookRes, chargesRes] = await Promise.all([
           getAllMunshyana(1, 10000),
           getAllBrooker(1, 10000),
           getAllBookingOrder(1, 10000),
           getAllCharges(1, 10000),
-          getAllBiltyPaymentInvoice(1, 10000),
         ]);
 
         setMunshyanas(munRes.data?.map((m: any) => ({ id: m.id, name: m.chargesDesc || m.name })) || []);
@@ -139,25 +137,6 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
             mobile: ba.mobile || ba.contact || '',
           })) || []
         );
-
-        // Collect all order numbers from existing invoices
-        const invoiceOrderNos: string[] = [];
-        const currentInvoiceId = isEdit ? window.location.pathname.split('/').pop() : null;
-
-        (invoiceRes.data || []).forEach((inv: any) => {
-          // If we are editing, we should not block the order numbers that are already in THIS invoice
-          if (isEdit && String(inv.id) === String(currentInvoiceId)) {
-            return;
-          }
-          if (inv.lines && Array.isArray(inv.lines)) {
-            inv.lines.forEach((line: any) => {
-              if (line.orderNo) {
-                invoiceOrderNos.push(String(line.orderNo));
-              }
-            });
-          }
-        });
-        setExistingOrderNos(invoiceOrderNos);
 
         const bookingOrders: BookingOrder[] = (bookRes.data || []).map((b: any) => ({
           id: b.id,
@@ -243,12 +222,6 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   const selectVehicle = (charge: ChargeDisplay, index: number) => {
     if (isViewMode) return;
     
-    // Check if invoice already exists for this order
-    if (existingOrderNos.includes(String(charge.orderNo))) {
-      toast.error('Bill Payment Invoice already created for this Order No');
-      return;
-    }
-    
     setValue(`lines.${index}.vehicleNo`, charge.vehicleNo);
     setValue(`lines.${index}.orderNo`, charge.orderNo);
     setValue(`lines.${index}.amount`, charge.amount);
@@ -276,17 +249,6 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
 
   const onSubmit = async (data: BillPaymentFormData) => {
     if (isViewMode) return;
-    
-    // Final check for existing invoices on submit
-    const duplicateLines = data.lines.filter(line => 
-      !line.isAdditionalLine && existingOrderNos.includes(String(line.orderNo))
-    );
-    
-    if (duplicateLines.length > 0) {
-      toast.error(`Bill Payment Invoice already exists for Order No: ${duplicateLines.map(l => (l as any).orderNo).join(', ')}`);
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const payload = {
@@ -696,34 +658,24 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {filteredCharges.map((charge) => {
-                        const isInvoiced = existingOrderNos.includes(String(charge.orderNo));
-                        return (
-                          <tr key={charge.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 ${isInvoiced ? 'opacity-60 grayscale' : ''}`}>
-                            <td className="px-6 py-4">{charge.vehicleNo}</td>
-                            <td className="px-6 py-4 font-medium">
-                              {charge.orderNo}
-                              {isInvoiced && (
-                                <span className="ml-2 bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">
-                                  Already Invoiced
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 font-bold text-green-600">
-                              {charge.amount.toLocaleString()}
-                            </td>
-                            <td className="px-6 py-4">{getMunshayanaName(charge.munshayana)}</td>
-                            <td className="px-6 py-4">
-                              <Button
-                                onClick={() => selectVehicle(charge, selectedLineIndex || 0)}
-                                className={`${isInvoiced ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#3a614c] hover:bg-[#3a614c]/90'} text-white px-6 py-3`}
-                              >
-                                {isInvoiced ? 'Invoiced' : 'Select'}
-                              </Button>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {filteredCharges.map((charge) => (
+                        <tr key={charge.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="px-6 py-4">{charge.vehicleNo}</td>
+                          <td className="px-6 py-4 font-medium">{charge.orderNo}</td>
+                          <td className="px-6 py-4 font-bold text-green-600">
+                            {charge.amount.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4">{getMunshayanaName(charge.munshayana)}</td>
+                          <td className="px-6 py-4">
+                            <Button
+                              onClick={() => selectVehicle(charge, selectedLineIndex || 0)}
+                              className="bg-[#3a614c] hover:bg-[#3a614c]/90 text-white px-6 py-3"
+                            >
+                              Select
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 )}
