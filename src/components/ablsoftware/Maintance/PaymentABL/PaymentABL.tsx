@@ -113,12 +113,28 @@ const paymentSchema = z.object({
   chequeDate: z.string().optional(),
   remarks: z.string().optional(),
   paidTo: z.string().optional(),
-  paidAmount: z.number().min(0, 'Paid Amount must be non-negative').nullable(),
-  advanced: z.number().min(0, 'Advanced Amount must be non-negative').nullable(),
+  paidAmount: z.union([z.number(), z.string()]).transform(val => {
+    if (val === null || val === undefined || val === '') return null;
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    return isNaN(num) ? null : num;
+  }).nullable(),
+  advanced: z.union([z.number(), z.string()]).transform(val => {
+    if (val === null || val === undefined || val === '') return null;
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    return isNaN(num) ? null : num;
+  }).nullable(),
   advancedDate: z.string().optional(),
-  pdc: z.number().min(0, 'PDC Amount must be non-negative').nullable(),
+  pdc: z.union([z.number(), z.string()]).transform(val => {
+    if (val === null || val === undefined || val === '') return null;
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    return isNaN(num) ? null : num;
+  }).nullable(),
   pdcDate: z.string().optional(),
-  paymentAmount: z.number().min(0, 'Payment Amount must be non-negative').nullable(),
+  paymentAmount: z.union([z.number(), z.string()]).transform(val => {
+    if (val === null || val === undefined || val === '') return null;
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    return isNaN(num) ? null : num;
+  }).nullable(),
   paymentABLItems: z.array(
     z.object({
       id: z.string().optional().nullable(),
@@ -128,9 +144,21 @@ const paymentSchema = z.object({
       chargeNo: z.string().optional(),
       orderDate: z.string().optional(),
       dueDate: z.string().optional(),
-      expenseAmount: z.number().min(0, 'Expense Amount must be non-negative').nullable(),
-      balance: z.number().min(0, 'Balance must be non-negative').nullable(),
-      paidAmount: z.number().min(0, 'Paid Amount must be non-negative').nullable(),
+      expenseAmount: z.union([z.number(), z.string()]).transform(val => {
+        if (val === null || val === undefined || val === '') return null;
+        const num = typeof val === 'string' ? parseFloat(val) : val;
+        return isNaN(num) ? null : num;
+      }).nullable(),
+      balance: z.union([z.number(), z.string()]).transform(val => {
+        if (val === null || val === undefined || val === '') return null;
+        const num = typeof val === 'string' ? parseFloat(val) : val;
+        return isNaN(num) ? null : num;
+      }).nullable(),
+      paidAmount: z.union([z.number(), z.string()]).transform(val => {
+        if (val === null || val === undefined || val === '') return null;
+        const num = typeof val === 'string' ? parseFloat(val) : val;
+        return isNaN(num) ? null : num;
+      }).nullable(),
     })
   ),
 });
@@ -441,12 +469,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         chequeDate: initialData.chequeDate || '',
         remarks: initialData.remarks || '',
         paidTo: initialData.paidTo || '',
-        paidAmount: initialData.paidAmount ?? null,
-        advanced: initialData.advanced ?? null,
+        paidAmount: typeof initialData.paidAmount === 'string' ? parseFloat(initialData.paidAmount) || null : initialData.paidAmount ?? null,
+        advanced: typeof initialData.advanced === 'string' ? parseFloat(initialData.advanced) || null : initialData.advanced ?? null,
         advancedDate: initialData.advancedDate || '',
-        pdc: initialData.pdc ?? null,
+        pdc: typeof initialData.pdc === 'string' ? parseFloat(initialData.pdc) || null : initialData.pdc ?? null,
         pdcDate: initialData.pdcDate || '',
-        paymentAmount: initialData.paymentAmount ?? null,
+        paymentAmount: typeof initialData.paymentAmount === 'string' ? parseFloat(initialData.paymentAmount) || null : initialData.paymentAmount ?? null,
         paymentABLItems: (initialData.paymentABLItems || initialData.paymentABLItem)?.map?.((row: any) => ({
           id: row.id ?? null,
           vehicleNo: row.vehicleNo || '',
@@ -455,9 +483,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           chargeNo: row.chargeNo || '',
           orderDate: row.orderDate || '',
           dueDate: row.dueDate || '',
-          expenseAmount: row.expenseAmount ?? null,
-          balance: row.balance ?? null,
-          paidAmount: row.paidAmount ?? null,
+          expenseAmount: typeof row.expenseAmount === 'string' ? parseFloat(row.expenseAmount) || null : row.expenseAmount ?? null,
+          balance: typeof row.balance === 'string' ? parseFloat(row.balance) || null : row.balance ?? null,
+          paidAmount: typeof row.paidAmount === 'string' ? parseFloat(row.paidAmount) || null : row.paidAmount ?? null,
         })) ?? [{
           id: null,
           vehicleNo: '',
@@ -751,9 +779,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         chargeNo: row.chargeNo || '',
         orderDate: row.orderDate || '',
         dueDate: row.dueDate || '',
-        expenseAmount: row.expenseAmount ?? null,
-        balance: row.balance ?? null,
-        paidAmount: row.paidAmount ?? null,
+        expenseAmount: typeof row.expenseAmount === 'string' ? parseFloat(row.expenseAmount) || null : row.expenseAmount ?? null,
+        balance: typeof row.balance === 'string' ? parseFloat(row.balance) || null : row.balance ?? null,
+        paidAmount: typeof row.paidAmount === 'string' ? parseFloat(row.paidAmount) || null : row.paidAmount ?? null,
       })) ?? [{
         id: null,
         vehicleNo: '',
@@ -776,12 +804,12 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         chequeDate: initialData.chequeDate || '',
         remarks: initialData.remarks || '',
         paidTo: initialData.paidTo || '',
-        paidAmount: initialData.paidAmount ?? null,
-        advanced: initialData.advanced ?? null,
+        paidAmount: typeof initialData.paidAmount === 'string' ? parseFloat(initialData.paidAmount) || null : initialData.paidAmount ?? null,
+        advanced: typeof initialData.advanced === 'string' ? parseFloat(initialData.advanced) || null : initialData.advanced ?? null,
         advancedDate: initialData.advancedDate || '',
-        pdc: initialData.pdc ?? null,
+        pdc: typeof initialData.pdc === 'string' ? parseFloat(initialData.pdc) || null : initialData.pdc ?? null,
         pdcDate: initialData.pdcDate || '',
-        paymentAmount: initialData.paymentAmount ?? null,
+        paymentAmount: typeof initialData.paymentAmount === 'string' ? parseFloat(initialData.paymentAmount) || null : initialData.paymentAmount ?? null,
         paymentABLItems: normalizedItems,
       });
     }
@@ -1497,175 +1525,177 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               </div>
 
               <div className="p-4">
-                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Vehicle No
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Order No
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Charges
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[110px]">
-                          Order Date
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[110px]">
-                          Due Date
-                        </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[120px]">
-                          Expense Amount
-                        </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px]">
-                          Balance
-                        </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[130px]">
-                          Paid Amount
-                        </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[100px]">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800">
-                      {paymentABLItems.map((row, index) => (
-                        <tr key={index} className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
-                            <Button
-                              type="button"
-                              onClick={() => setShowOrderPopup(index)}
-                              className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
-                              disabled={isViewMode}  
-                            >
-                              {row.vehicleNo || 'Select Vehicle'}
-                            </Button>
-                            {errors.paymentABLItems?.[index]?.orderNo && (
-                              <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].orderNo.message}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
-                            <input
-                              {...register(`paymentABLItems.${index}.orderNo`)}
-                              disabled
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
-                              placeholder="Order No"
-                            />
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
-                            <Button
-                              type="button"
-                              onClick={() => setShowChargePopup(index)}
-                              className="w-full px-3 py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md"
-                              disabled={isViewMode || !row.vehicleNo || !row.orderNo}
-                            >
-                              {row.charges || row.chargeNo || 'Select Charges'}
-                            </Button>
-                            {errors.paymentABLItems?.[index]?.charges && (
-                              <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].charges.message}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
-                            <input
-                              {...register(`paymentABLItems.${index}.orderDate`)}
-                              disabled
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
-                              placeholder="Date"
-                            />
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
-                            <input
-                              {...register(`paymentABLItems.${index}.dueDate`)}
-                              disabled
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
-                              placeholder="Date"
-                            />
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
-                            <input
-                              {...register(`paymentABLItems.${index}.expenseAmount`, { valueAsNumber: true })}
-                              disabled
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none"
-                              placeholder="0.00"
-                            />
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600">
-                            <input
-                              value={(() => {
-                                const expenseAmount = Number(row.expenseAmount) || 0;
-                                const paidAmount = Number(row.paidAmount) || 0;
-                                const balance = expenseAmount - paidAmount;
-                                return balance >= 0 ? balance.toFixed(2) : '0.00';
-                              })()}
-                              disabled
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none font-medium"
-                              placeholder="0.00"
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <input
-                              {...register(`paymentABLItems.${index}.paidAmount`, { valueAsNumber: true })}
-                              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-500 rounded-md text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
-                              placeholder="0.00"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              disabled={isViewMode}
-                            />
-                            {errors.paymentABLItems?.[index]?.paidAmount && (
-                              <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].paidAmount.message}</p>
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Button
-                              type="button"
-                              onClick={() => removeTableRow(index)}
-                              className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
-                              disabled={paymentABLItems.length <= 1}
-                            >
-                              <FiX />
-                            </Button>
-                          </td>
+                <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-600 -mx-4 sm:mx-0">
+                  <div className="inline-block min-w-full align-middle">
+                    <table className="min-w-full text-xs sm:text-sm">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px] sm:min-w-[120px]">
+                            Vehicle No
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px] sm:min-w-[120px]">
+                            Order No
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px] sm:min-w-[120px]">
+                            Charges
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[90px] sm:min-w-[110px]">
+                            Order Date
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[90px] sm:min-w-[110px]">
+                            Due Date
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[100px] sm:min-w-[120px]">
+                            Expense Amount
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[90px] sm:min-w-[100px]">
+                            Balance
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[110px] sm:min-w-[130px]">
+                            Paid Amount
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[70px] sm:min-w-[100px]">
+                            Action
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="text-black">
-                        <td colSpan={5} className="px-4 py-3 text-right font-bold text-base">
-                          TOTALS:
-                        </td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {paymentABLItems.reduce((sum, row) => sum + (Number(row.expenseAmount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-4 py-3 font-bold text-right text-base border-r border-white/20">
-                          {paymentABLItems.reduce((sum, row) => {
-                            const expenseAmount = Number(row.expenseAmount) || 0;
-                            const paidAmount = Number(row.paidAmount) || 0;
-                            const balance = expenseAmount - paidAmount;
-                            return sum + (balance >= 0 ? balance : 0);
-                          }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-4 py-3 font-bold text-right text-base">
-                          {paymentABLItems.reduce((sum, row) => sum + (Number(row.paidAmount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-4 py-3"></td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800">
+                        {paymentABLItems.map((row, index) => (
+                          <tr key={index} className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600">
+                              <Button
+                                type="button"
+                                onClick={() => setShowOrderPopup(index)}
+                                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap overflow-hidden text-ellipsis"
+                                disabled={isViewMode}  
+                              >
+                                {row.vehicleNo || 'Select'}
+                              </Button>
+                              {errors.paymentABLItems?.[index]?.orderNo && (
+                                <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].orderNo.message}</p>
+                              )}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600">
+                              <input
+                                {...register(`paymentABLItems.${index}.orderNo`)}
+                                disabled
+                                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-500 rounded-md text-xs sm:text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
+                                placeholder="Order No"
+                              />
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600">
+                              <Button
+                                type="button"
+                                onClick={() => setShowChargePopup(index)}
+                                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap overflow-hidden text-ellipsis"
+                                disabled={isViewMode || !row.vehicleNo || !row.orderNo}
+                              >
+                                {row.charges || row.chargeNo || 'Select'}
+                              </Button>
+                              {errors.paymentABLItems?.[index]?.charges && (
+                                <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].charges.message}</p>
+                              )}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600">
+                              <input
+                                {...register(`paymentABLItems.${index}.orderDate`)}
+                                disabled
+                                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-500 rounded-md text-xs sm:text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
+                                placeholder="Date"
+                              />
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600">
+                              <input
+                                {...register(`paymentABLItems.${index}.dueDate`)}
+                                disabled
+                                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-500 rounded-md text-xs sm:text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 focus:outline-none"
+                                placeholder="Date"
+                              />
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600">
+                              <input
+                                {...register(`paymentABLItems.${index}.expenseAmount`, { valueAsNumber: true })}
+                                disabled
+                                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-500 rounded-md text-xs sm:text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none"
+                                placeholder="0.00"
+                              />
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600">
+                              <input
+                                value={(() => {
+                                  const expenseAmount = Number(row.expenseAmount) || 0;
+                                  const paidAmount = Number(row.paidAmount) || 0;
+                                  const balance = expenseAmount - paidAmount;
+                                  return balance >= 0 ? balance.toFixed(2) : '0.00';
+                                })()}
+                                disabled
+                                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-500 rounded-md text-xs sm:text-sm bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-right focus:outline-none font-medium"
+                                placeholder="0.00"
+                              />
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3">
+                              <input
+                                {...register(`paymentABLItems.${index}.paidAmount`, { valueAsNumber: true })}
+                                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-500 rounded-md text-xs sm:text-sm focus:ring-2 focus:ring-[#3a614c] focus:border-[#3a614c] dark:bg-gray-700 dark:text-white text-right transition-all duration-200"
+                                placeholder="0.00"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                disabled={isViewMode}
+                              />
+                              {errors.paymentABLItems?.[index]?.paidAmount && (
+                                <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].paidAmount.message}</p>
+                              )}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3">
+                              <Button
+                                type="button"
+                                onClick={() => removeTableRow(index)}
+                                className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded-md"
+                                disabled={paymentABLItems.length <= 1 || isViewMode}
+                              >
+                                <FiX />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="text-black bg-gray-50 dark:bg-gray-700">
+                          <td colSpan={5} className="px-2 sm:px-4 py-2 sm:py-3 text-right font-bold text-xs sm:text-base">
+                            TOTALS:
+                          </td>
+                          <td className="px-2 sm:px-4 py-2 sm:py-3 font-bold text-right text-xs sm:text-base border-r border-white/20">
+                            {paymentABLItems.reduce((sum, row) => sum + (Number(row.expenseAmount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-2 sm:px-4 py-2 sm:py-3 font-bold text-right text-xs sm:text-base border-r border-white/20">
+                            {paymentABLItems.reduce((sum, row) => {
+                              const expenseAmount = Number(row.expenseAmount) || 0;
+                              const paidAmount = Number(row.paidAmount) || 0;
+                              const balance = expenseAmount - paidAmount;
+                              return sum + (balance >= 0 ? balance : 0);
+                            }, 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-2 sm:px-4 py-2 sm:py-3 font-bold text-right text-xs sm:text-base">
+                            {paymentABLItems.reduce((sum, row) => sum + (Number(row.paidAmount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-2 sm:px-4 py-2 sm:py-3"></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </div>
 
-                <div className="mt-4 flex justify-between items-center">
+                <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3">
                   <Button
                     type="button"
                     onClick={addTableRow}
-                    className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg"
+                    className="w-full sm:w-auto bg-gradient-to-r from-[#3a614c] to-[#6e997f] hover:from-[#3a614c]/90 hover:to-[#6e997f]/90 text-white px-4 py-2 rounded-md transition-all duration-200 shadow-md hover:shadow-lg text-sm"
                     disabled={isViewMode}
                  >
                     + Add New Row
                   </Button>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     Total Rows: {paymentABLItems.length}
                   </div>
                 </div>
@@ -1889,10 +1919,10 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
         {/* Charges Selection Popup */}
         {showChargePopup !== null && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-xl max-w-3xl w-full mx-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">Select Charges</h3>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-6 shadow-xl max-w-3xl w-full mx-2 sm:mx-4 max-h-[95vh] flex flex-col">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-200">Select Charges</h3>
                 <Button
                   onClick={() => {
                     setShowChargePopup(null);
@@ -1901,89 +1931,91 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                   className="text-gray-400 hover:text-gray-600 p-1"
                   variant="ghost"
                 >
-                  <FiX className="text-lg" />
+                  <FiX className="text-base sm:text-lg" />
                 </Button>
               </div>
-              <div className="mb-4">
+              <div className="mb-3 sm:mb-4">
                 <input
                   type="text"
-                  placeholder="Search by Charge Name, Vehicle, Order No, Dates, or Amount..."
+                  placeholder="Search charges..."
                   value={chargeSearch}
                   onChange={(e) => setChargeSearch(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 dark:border-gray-600 rounded-md text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#3a614c] dark:bg-gray-700 dark:text-white"
                 />
               </div>
-              <div className="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
+              <div className="flex-1 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
                 {getFilteredCharges(showChargePopup).length === 0 ? (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 p-4">No approved charges available for this order</p>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 p-4 text-center">No approved charges available for this order</p>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Charges Name
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Vehicle
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Order No
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Order Date
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Due Date
-                        </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500">
-                          Amount
-                        </th>
-                        <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-200">
-                          Balance
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800">
-                      {getFilteredCharges(showChargePopup).map((charge) => (
-                        <tr
-                          key={charge.id}
-                          onClick={() => selectCharge(showChargePopup, charge)}
-                          className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
-                        >
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.chargeNo}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.vehicle}{selectedVehiclesSet.has(String(charge.vehicle || '').trim()) ? ' (Selected)' : ''}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.orderNo}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.chargeDate}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                            {charge.date}
-                          </td>
-                          <td className="px-4 py-3 border-r border-gray-200 dark:border-gray-600 text-right text-gray-800 dark:text-gray-200">
-                            {Number(charge.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td className="px-4 py-3 text-right text-gray-800 dark:text-gray-200">
-                            {Number(charge.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs sm:text-sm">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600">
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[80px] sm:min-w-auto">
+                            Charges
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[80px] sm:min-w-auto">
+                            Vehicle
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[80px] sm:min-w-auto">
+                            Order No
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 hidden sm:table-cell">
+                            Order Date
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-left font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 hidden sm:table-cell">
+                            Due Date
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-gray-700 dark:text-gray-200 border-r border-gray-200 dark:border-gray-500 min-w-[70px] sm:min-w-auto">
+                            Amount
+                          </th>
+                          <th className="px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-gray-700 dark:text-gray-200 min-w-[70px] sm:min-w-auto">
+                            Balance
+                          </th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800">
+                        {getFilteredCharges(showChargePopup).map((charge) => (
+                          <tr
+                            key={charge.id}
+                            onClick={() => selectCharge(showChargePopup, charge)}
+                            className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+                          >
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                              {charge.chargeNo}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                              {charge.vehicle}{selectedVehiclesSet.has(String(charge.vehicle || '').trim()) ? ' (✓)' : ''}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
+                              {charge.orderNo}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 hidden sm:table-cell">
+                              {charge.chargeDate}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200 hidden sm:table-cell">
+                              {charge.date}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600 text-right text-gray-800 dark:text-gray-200">
+                              {Number(charge.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-right text-gray-800 dark:text-gray-200">
+                              {Number(charge.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
-              <div className="flex justify-end mt-4">
+              <div className="flex justify-end mt-3 sm:mt-4">
                 <Button
                   onClick={() => {
                     setShowChargePopup(null);
                     setChargeSearch('');
                   }}
-                  className="bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-4 rounded-md"
+                  className="bg-gray-500 hover:bg-gray-600 text-white text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4 rounded-md"
                 >
                   Cancel
                 </Button>
