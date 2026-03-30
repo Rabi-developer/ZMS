@@ -529,8 +529,22 @@ const ChargesList = () => {
         if (reportPaymentStatus === 'Paid' && !isPaid) return;
         if (reportPaymentStatus === 'Unpaid' && !isUnpaid) return;
 
+        // Determine if this is from opening balance (no chargeNo but has orderNo that looks like opening balance)
+        // Opening balance entries typically don't have a chargeNo
+        let displayChargeNo = item.chargeNo || '-';
+        
+        // If chargeNo is empty/null and we have an orderNo, check if it's from opening balance
+        // Opening balance entries from the API will have empty chargeNo
+        if (!item.chargeNo && item.orderNo) {
+          // If the orderNo looks like it could be an opening balance reference (e.g., bilty number)
+          // and there's a charge type, it's likely from opening balance
+          if (item.charge) {
+            displayChargeNo = `OB-${item.orderNo}`;
+          }
+        }
+
         filteredRowsTemp.push({
-          chargeNo: item.chargeNo || '-',
+          chargeNo: displayChargeNo,
           chargeName: item.charge || '-',
           dateISO: item.refDate || '',
           orderNo: item.orderNo || '-',
