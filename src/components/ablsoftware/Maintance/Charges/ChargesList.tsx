@@ -11,6 +11,7 @@ import {
   deleteCharges,
   updateChargesStatus,
   updateChargesFiles,
+  getChargesPayments,
 } from '@/apis/charges';
 import { getConsignmentsForBookingOrder, getAllBookingOrder } from '@/apis/bookingorder';
 import { getAllMunshyana } from '@/apis/munshyana';
@@ -485,263 +486,90 @@ const ChargesList = () => {
     if (hasLoadingData) return [];
 
     setReportDataLoading(true);
-    let paymentABL: any[] = [];
+    
     try {
-      const payRes = await getAllPaymentABL(1, 10000);
-      paymentABL = payRes?.data || [];
-    } catch (err) {
-      console.warn('Failed to load payments for report, proceeding without payment filtering', err);
-      paymentABL = [];
-    }
+      // Fetch data from the new API
+      const chargesPaymentsRes = await getChargesPayments();
+      const chargesPaymentsData = chargesPaymentsRes?.data || chargesPaymentsRes || [];
 
-    const approvedPayments = (paymentABL || []).filter((p: any) => String(p?.status ?? p?.Status ?? '').toLowerCase() === 'approved');
+      const withinDate = (d: string) => {
+        if (!reportStartDate && !reportEndDate) return true;
+        if (!d) return false;
+        const dt = new Date(d).getTime();
+        const start = reportStartDate ? new Date(reportStartDate).getTime() : 0;
+        const end = reportEndDate ? new Date(reportEndDate).getTime() : Infinity;
+        return dt >= start && dt <= end;
+      };
 
-    const paidByChargeNo = approvedPayments.reduce((acc: Record<string, number>, p: any) => {
-      const items = p?.paymentABLItems || p?.paymentABLItem || [];
-      if (!Array.isArray(items) || items.length === 0) {
-        const key = String(p?.charges ?? p?.chargeNo ?? p?.ChargeNo ?? '').trim();
-        const amt = Number(p?.paidAmount ?? p?.PaidAmount) || 0;
-        if (key && amt > 0) {
-          acc[key] = (acc[key] || 0) + amt;
-        }
-        return acc;
-      }
-      items.forEach((item: any) => {
-        const key = String(item?.charges ?? item?.chargeNo ?? item?.ChargeNo ?? item?.charge_no ?? '').trim();
-        if (!key) return;
-        const amt = Number(item?.paidAmount ?? item?.PaidAmount ?? p?.paidAmount ?? p?.PaidAmount) || 0;
-        if (amt > 0) {
-          acc[key] = (acc[key] || 0) + amt;
-        }
-      });
-      return acc;
-    }, {} as Record<string, number>);
+      let filteredRowsTemp: Array<any> = [];
 
-    const chargeAmountByChargeNo = (chargesRaw || []).reduce((acc: Record<string, number>, c: any) => {
-      const key = String(c?.chargeNo ?? c?.ChargeNo ?? '').trim();
-      if (!key) return acc;
-      const total = (Array.isArray(c?.lines) ? c.lines : []).reduce((s: number, l: any) => s + (Number(l?.amount) || 0), 0);
-      acc[key] = (acc[key] || 0) + total;
-      return acc;
-    }, {} as Record<string, number>);
+      chargesPaymentsData.forEach((item: any) => {
+        // Apply date filter
+        if (!withinDate(item.refDate)) return;
 
-    let filteredRowsTemp: Array<any> = [];
-    
-    const withinDate = (d: string) => {
-      if (!reportStartDate && !reportEndDate) return true;
-      const dt = new Date(d).getTime();
-      const start = reportStartDate ? new Date(reportStartDate).getTime() : 0;
-      const end = reportEndDate ? new Date(reportEndDate).getTime() : Infinity;
-      return dt >= start && dt <= end;
-    };
-    
-    const paidToMatches = (line: any) => {
-      if (reportSelectedPaidToPersons.length === 0) return true;
-      const paidToId = String(line.paidTo || '');
-      return reportSelectedPaidToPersons.includes(paidToId);
-    };
-    
-    const chargeTypeMatches = (line: any) => {
-      if (reportSelectedChargeTypes.length === 0) return true;
-      return reportSelectedChargeTypes.includes(String(line.charge));
-    };
-    
-    const orderNoMatches = (charge: any) => {
-      if (reportSelectedOrderNos.length === 0) return true;
-      return reportSelectedOrderNos.includes(charge.orderNo);
-    };
+        // Apply order number filter
+        if (reportSelectedOrderNos.length > 0 && !reportSelectedOrderNos.includes(item.orderNo)) return;
 
-    // Build a map of payment history for each charge line to get accurate balance
-    const paymentHistoryMap: Record<string, { received: number; balance: number }> = {};
-    
-    // Collect all unique charge lines that need history lookup
-    const chargeLinesToCheck: Array<{ chargeNo: string; vehicleNo: string; orderNo: string }> = [];
-    chargesRaw.forEach((c: any) => {
-      if (!orderNoMatches(c)) return;
-      const lines = c.lines || [];
-      lines.forEach((l: any) => {
-        if (withinDate(l.date) && chargeTypeMatches(l) && paidToMatches(l)) {
-          const vehicleNo = l.vehicle || '';
-          const orderNo = c.orderNo || '';
-          const chargeNo = String(c?.chargeNo ?? '').trim();
-          if (vehicleNo && orderNo && chargeNo) {
-            chargeLinesToCheck.push({ chargeNo, vehicleNo, orderNo });
-          }
-        }
-      });
-    });
-
-    // Fetch payment history for all charge lines in parallel
-    await Promise.all(
-      chargeLinesToCheck.map(async ({ chargeNo, vehicleNo, orderNo }) => {
-        try {
-          const historyRes = await getPaymentABLHistory({
-            vehicleNo,
-            orderNo,
-            charges: chargeNo
+        // Apply charge type filter (match by charge name)
+        if (reportSelectedChargeTypes.length > 0) {
+          const chargeMatches = reportSelectedChargeTypes.some(typeId => {
+            const typeName = getChargeTypeName(typeId);
+            return typeName === item.charge;
           });
-          
-          // Handle null data case
-          if (historyRes?.data === null) {
-            return;
-          }
-          
-          // History API can return data as array or single object
-          let historyData = [];
-          if (Array.isArray(historyRes)) {
-            historyData = historyRes;
-          } else if (Array.isArray(historyRes?.data)) {
-            historyData = historyRes.data;
-          } else if (historyRes?.data && typeof historyRes.data === 'object') {
-            historyData = [historyRes.data];
-          }
-          
-          const historyRecord = historyData.find((h: any) => {
-            return (h.vehicleNo === vehicleNo || h.charges === chargeNo || h.charges === String(chargeNo)) && 
-                   (h.orderNo === orderNo || h.orderNo === String(orderNo));
-          });
-
-          if (historyRecord) {
-            const key = `${chargeNo}-${vehicleNo}-${orderNo}`;
-            paymentHistoryMap[key] = {
-              received: Number(historyRecord.paidAmount) || 0,
-              balance: Number(historyRecord.balance) || 0
-            };
-          }
-        } catch (error) {
-          console.warn('Failed to fetch payment history for charge:', chargeNo, error);
+          if (!chargeMatches) return;
         }
-      })
-    );
 
-    chargesRaw.forEach((c: any) => {
-      if (!orderNoMatches(c)) return;
-      
-      const chNo = String(c?.chargeNo ?? '').trim();
-      const lines = c.lines || [];
-      
-      lines.forEach((l: any) => {
-        if (withinDate(l.date) && chargeTypeMatches(l) && paidToMatches(l)) {
-          const iso = l.date ? new Date(l.date).toISOString() : '';
-          const lineAmount = Number(l.amount) || 0;
-          const vehicleNo = l.vehicle || '';
-          const orderNo = c.orderNo || '';
-          
-          // Check if we have payment history for this specific charge line
-          const historyKey = `${chNo}-${vehicleNo}-${orderNo}`;
-          const history = paymentHistoryMap[historyKey];
-          
-          let lineReceived = 0;
-          let linePending = lineAmount;
-          
-          if (history) {
-            // Use actual payment history data
-            lineReceived = history.received;
-            linePending = history.balance;
-          } else {
-            // Fallback to proportional distribution if no history found
-            const totalChargeAmt = chargeAmountByChargeNo[chNo] || 0;
-            const paidAmt = paidByChargeNo[chNo] || 0;
-            const lineRatio = totalChargeAmt > 0 ? lineAmount / totalChargeAmt : 0;
-            lineReceived = paidAmt * lineRatio;
-            linePending = Math.max(0, lineAmount - lineReceived);
-          }
+        // Apply paid to person filter (if applicable - this data doesn't have paidTo field)
+        // Skip this filter for this API data
 
-          // Apply payment status filter at LINE level (not charge level)
-          if (reportPaymentStatus === 'Unpaid') {
-            // Only show lines with pending balance > 0
-            if (linePending <= 0) {
-              return; // Skip fully paid lines
-            }
-          } else if (reportPaymentStatus === 'Paid') {
-            // Only show lines that have received payment
-            if (lineReceived <= 0) {
-              return; // Skip unpaid lines
-            }
-          }
-          // If 'All', show everything regardless of payment status
+        // Apply payment status filter
+        const isPaid = item.totalPaid > 0;
+        const isUnpaid = item.remainingBalance > 0;
+        
+        if (reportPaymentStatus === 'Paid' && !isPaid) return;
+        if (reportPaymentStatus === 'Unpaid' && !isUnpaid) return;
 
-          filteredRowsTemp.push({
-            chargeNo: c.chargeNo,
-            chargeName: getChargeTypeName(l.charge),
-            dateISO: iso,
-            orderNo: c.orderNo,
-            vehicleNo: vehicleNo || '-',
-            amount: lineAmount,
-            received: lineReceived,
-            pending: linePending
-          });
-        }
-      });
-    });
-
-    try {
-      const openingBalanceRes = await getAllOpeningBalance(1, 10000);
-      const openingBalances: any[] = openingBalanceRes?.data || [];
-      
-      openingBalances.forEach((ob: any) => {
-        (ob.openingBalanceEntrys || []).forEach((entry: any) => {
-          if (entry.credit > 0 && entry.chargeType) {
-            const entryDate = entry.biltyDate || ob.openingDate;
-            if (!withinDate(entryDate)) return;
-            if (reportSelectedChargeTypes.length > 0 && !reportSelectedChargeTypes.includes(String(entry.chargeType))) return;
-            
-            const iso = entryDate ? new Date(entryDate).toISOString() : '';
-            const obChargeNo = `OB-${ob.openingNo}`;
-            
-            const obReceived = paidByChargeNo[obChargeNo] || 0;
-            const obAmount = Number(entry.credit) || 0;
-            const obPending = Math.max(0, obAmount - obReceived);
-            
-            let includeOB = true;
-            if (reportPaymentStatus === 'Paid') {
-              includeOB = obReceived > 0;
-            } else if (reportPaymentStatus === 'Unpaid') {
-              includeOB = obPending > 0;
-            }
-            if (!includeOB) return;
-            
-            filteredRowsTemp.push({
-              chargeNo: obChargeNo,
-              chargeName: getChargeTypeName(entry.chargeType) || 'Opening Balance',
-              dateISO: iso,
-              orderNo: obChargeNo,
-              vehicleNo: entry.vehicleNo || 'N/A',
-              amount: obAmount,
-              received: obReceived,
-              pending: obPending
-            });
-          }
+        filteredRowsTemp.push({
+          chargeNo: item.chargeNo || '-',
+          chargeName: item.charge || '-',
+          dateISO: item.refDate || '',
+          orderNo: item.orderNo || '-',
+          vehicleNo: item.vehicleNo || '-',
+          amount: Number(item.chargeAmount) || 0,
+          received: Number(item.totalPaid) || 0,
+          pending: Number(item.remainingBalance) || 0
         });
       });
-    } catch (err) {
-      console.error('Failed to load opening balance for charges report:', err);
+
+      const sortedTemp = filteredRowsTemp.sort((a, b) => {
+        if (!a.dateISO && !b.dateISO) return 0;
+        if (!a.dateISO) return 1;
+        if (!b.dateISO) return -1;
+        return new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime();
+      });
+
+      const result: ChargeReportRow[] = sortedTemp.map(r => ({
+        chargeNo: String(r.chargeNo),
+        chargeName: r.chargeName,
+        date: r.dateISO ? new Date(r.dateISO).toLocaleDateString('en-GB') : '-',
+        orderNo: String(r.orderNo),
+        vehicleNo: r.vehicleNo,
+        amount: r.amount,
+        received: r.received || 0,
+        pending: r.pending || 0
+      }));
+
+      setReportDataLoading(false);
+      return result;
+    } catch (error) {
+      console.error('Failed to fetch charges payments data:', error);
+      toast('Failed to load report data', { type: 'error' });
+      setReportDataLoading(false);
+      return [];
     }
-
-    const sortedTemp = filteredRowsTemp.sort((a, b) => {
-      if (!a.dateISO && !b.dateISO) return 0;
-      if (!a.dateISO) return 1;
-      if (!b.dateISO) return -1;
-      return new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime();
-    });
-
-    const result: ChargeReportRow[] = sortedTemp.map(r => ({
-      chargeNo: String(r.chargeNo),
-      chargeName: r.chargeName,
-      date: r.dateISO ? new Date(r.dateISO).toLocaleDateString('en-GB') : '-',
-      orderNo: String(r.orderNo),
-      vehicleNo: r.vehicleNo,
-      amount: r.amount,
-      received: r.received || 0,
-      pending: r.pending || 0
-    }));
-
-    setReportDataLoading(false);
-    return result;
   }, [
     uniquePaidToPersons, reportStartDate, reportEndDate, reportSelectedChargeTypes,
-    reportSelectedOrderNos, reportSelectedPaidToPersons, reportPaymentStatus,
-    chargesRaw, getChargeTypeName, businessAssociates
+    reportSelectedOrderNos, reportPaymentStatus, getChargeTypeName
   ]);
 
   useEffect(() => {

@@ -153,4 +153,16 @@ const updateChargesFiles = async ({ id, files }: { id: string; files: string }) 
     throw error;
   }
 };
-export { createCharges , getAllCharges , getAllChargesPositions , getSingleCharges , updateCharges , deleteCharges, updateChargesStatus, updateChargesFiles  };
+const getChargesPayments = async () => {
+  try {
+    const response = await apiFetch('Charges/charges-payments', {
+      method: 'GET',
+      headers: {},
+    }, true);
+    return response;
+  } catch (error: any) {
+    throw error;
+  }
+};
+
+export { createCharges , getAllCharges , getAllChargesPositions , getSingleCharges , updateCharges , deleteCharges, updateChargesStatus, updateChargesFiles, getChargesPayments  };
