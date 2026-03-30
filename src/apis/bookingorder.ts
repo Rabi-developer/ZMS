@@ -50,7 +50,7 @@ const getAllBookingOrder = async (
     
     if (response?.data) {
       response.data = response.data.sort(
-        (a: any, b: any) => a.orderNo - b.orderNo
+        (a: any, b: any) => b.orderNo - a.orderNo
       );
     }
 
