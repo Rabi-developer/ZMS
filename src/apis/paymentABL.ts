@@ -48,15 +48,15 @@ const getAllPaymentABL  = async (pageIndex:any=1,pageSize:any=1000) => {
       headers: {}, 
     }, true);
 
-    // Sort PaymentABL by payment number ascending (numeric if possible), similar to other lists
+    // Sort PaymentABL by payment number descending (largest to lowest)
     if (response?.data && Array.isArray(response.data)) {
       response.data.sort((a: any, b: any) => {
         const aVal = a.paymentNo ?? a.PaymentNo ?? a.payNo ?? a.PayNo ?? 0;
         const bVal = b.paymentNo ?? b.PaymentNo ?? b.payNo ?? b.PayNo ?? 0;
         const aNum = typeof aVal === 'number' ? aVal : parseFloat(String(aVal).replace(/[^0-9.-]/g, '')) || 0;
         const bNum = typeof bVal === 'number' ? bVal : parseFloat(String(bVal).replace(/[^0-9.-]/g, '')) || 0;
-        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-        return String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+        if (!isNaN(aNum) && !isNaN(bNum)) return bNum - aNum;
+        return String(bVal).localeCompare(String(aVal), undefined, { numeric: true, sensitivity: 'base' });
       });
     }
 

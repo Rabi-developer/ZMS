@@ -27,8 +27,8 @@ const getAllReceipt  = async (pageIndex: any = 1, pageSize: any = 10000, p0?: { 
         const bVal = b.receiptNo ?? b.ReceiptNo ?? 0;
         const aNum = typeof aVal === 'number' ? aVal : parseFloat(String(aVal).replace(/[^0-9.-]/g, '')) || 0;
         const bNum = typeof bVal === 'number' ? bVal : parseFloat(String(bVal).replace(/[^0-9.-]/g, '')) || 0;
-        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
-        return String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+        if (!isNaN(aNum) && !isNaN(bNum)) return bNum - aNum;
+        return String(bVal).localeCompare(String(aVal), undefined, { numeric: true, sensitivity: 'base' });
       });
     }
     return response;

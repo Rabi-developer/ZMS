@@ -31,16 +31,16 @@ const getAllCharges  = async (pageIndex:any=1,pageSize:any=10000, filters:any={}
       method: 'GET',
       headers: {}, 
     }, true);
-    // Sort charges by chargeNo ascending (numeric if possible), similar to booking order sorting
+    // Sort charges by chargeNo descending (largest to lowest)
     if (response?.data && Array.isArray(response.data)) {
       response.data.sort((a: any, b: any) => {
         const aVal = a.chargeNo ?? a.ChargeNo ?? 0;
         const bVal = b.chargeNo ?? b.ChargeNo ?? 0;
         const aNum = typeof aVal === 'number' ? aVal : parseFloat(String(aVal).replace(/[^0-9.-]/g, '')) || 0;
         const bNum = typeof bVal === 'number' ? bVal : parseFloat(String(bVal).replace(/[^0-9.-]/g, '')) || 0;
-        if (!isNaN(aNum) && !isNaN(bNum)) return aNum - bNum;
+        if (!isNaN(aNum) && !isNaN(bNum)) return bNum - aNum;
         // Fallback to natural string compare if numeric parse fails
-        return String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+        return String(bVal).localeCompare(String(aVal), undefined, { numeric: true, sensitivity: 'base' });
       });
     }
     return response;

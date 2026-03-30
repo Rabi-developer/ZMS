@@ -25,7 +25,7 @@ const getAllBiltyPaymentInvoice  = async (pageIndex:any=1,pageSize:any=10000) =>
       response.data.sort((a: any, b: any) => {
         const invoiceNoA = a.invoiceNo || 0;
         const invoiceNoB = b.invoiceNo || 0;
-        return invoiceNoA - invoiceNoB;
+        return invoiceNoB - invoiceNoA;
       });
     }
     return response;
