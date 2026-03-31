@@ -9,7 +9,7 @@ import AblNewCustomDrpdown from '@/components/ui/AblNewCustomDrpdown';
 import {
   createBookingOrder,
   updateBookingOrder,
-  getConsignmentsForBookingOrder,
+  getConsignmentsForBookingOrder,   
   addConsignmentToBookingOrder,
   updateConsignmentForBookingOrder,
   deleteConsignmentFromBookingOrder,
@@ -619,7 +619,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 sm:p-4 md:p-6">
       <div className="h-full w-full flex flex-col">
         {isLoading && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -633,24 +633,24 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
         )}
         
 
-        <div className="max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="w-full max-w-7xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
          {!isViewMode && (
-          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <MdLocalShipping className="text-2xl" />
+          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-3 sm:px-6 py-4 sm:py-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg">
+                  <MdLocalShipping className="text-xl sm:text-2xl" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold">
+                  <h1 className="text-lg sm:text-2xl font-bold">
                     {isEdit ? 'Edit Booking Order' : 'Add New Booking Order'}
                   </h1>
-                  <p className="text-white/90 mt-1 text-sm">
+                  <p className="text-white/90 mt-1 text-xs sm:text-sm">
                     {isEdit ? 'Update booking order information' : 'Create a new booking order record'}
                   </p>
                 </div>
               </div>
-              <div className="flex space-x-3">
+              <div className="flex space-x-2 sm:space-x-3 w-full sm:w-auto">
                 <Link href="/bookingorder">
                   <Button
                     type="button"
@@ -682,8 +682,8 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
             </div>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="p-8">
-            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-3 sm:p-6 md:p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
               <div className="col-span-1">
                 <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1">
                   <Controller
@@ -804,7 +804,7 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
             </div>
 
             <div className="col-span-1 dark:border-gray-700">
-              <div className="gap-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              <div className="gap-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 <ABLNewCustomInput
                   label="Cargo Weight"
                   type="text"
@@ -1012,10 +1012,10 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
           </form>
         </div>
 
-        <div className=" max-w-6xl mx-auto mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Consignments</h2>
-            <div className="flex gap-2">
+        <div className="w-full max-w-6xl mx-auto mt-4 sm:mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-3 sm:p-4 border border-gray-100 dark:border-gray-700">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+            <h2 className="text-base sm:text-lg font-semibold">Consignments</h2>
+            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <Button
                 onClick={() => {
                   setTempSelectedConsignments(selectedConsignments);
@@ -1100,9 +1100,9 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
               </Button>
             </div>
           </div>
-          <div className="relative rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="relative rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto">
             <div className="max-h-[240px] overflow-y-auto">
-              <table className="min-w-full text-sm text-left text-gray-600 dark:text-gray-300">
+              <table className="min-w-full text-xs sm:text-sm text-left text-gray-600 dark:text-gray-300">
                 <thead className="sticky top-0 z-10 text-xs text-gray-700 dark:text-gray-200 uppercase bg-gray-50 dark:bg-gray-700">
                   <tr>
                     <th className="px-6 py-3">Bilty No</th>
@@ -1180,8 +1180,8 @@ const BookingOrderForm = ({ isEdit = false, initialData, onSaved }: BookingOrder
         </div>
 
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 w-full max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
               <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">
                 Select Consignments
               </h2>

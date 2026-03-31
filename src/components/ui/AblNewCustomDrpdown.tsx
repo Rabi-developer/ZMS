@@ -33,7 +33,17 @@ const AblNewCustomDrpdown: React.FC<CustomDropdownProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [isTyping, setIsTyping] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const highlightedIndexRef = useRef(-1);
+  const nativeSelectRef = useRef<HTMLSelectElement>(null);
+
+  const updateHighlightedIndex = (index: number) => {
+    highlightedIndexRef.current = index;
+    setHighlightedIndex(index);
+  };
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -73,17 +83,127 @@ const AblNewCustomDrpdown: React.FC<CustomDropdownProps> = ({
   const handleSelect = (value: string) => {
     if (!disabled) {
       onChange(value);
+      if (nativeSelectRef.current) {
+        nativeSelectRef.current.value = value;
+        nativeSelectRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+      }
       setIsOpen(false);
       setSearchTerm('');
+      setIsTyping(false);
+      updateHighlightedIndex(-1);
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen || filteredOptions.length === 0) {
+      updateHighlightedIndex(-1);
+      return;
+    }
+
+    const currentIndex = highlightedIndexRef.current;
+    if (currentIndex >= 0 && currentIndex < filteredOptions.length) {
+      return;
+    }
+
+    const selectedIndex = filteredOptions.findIndex(
+      (option) => option.id.toString() === selectedOption
+    );
+    updateHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
+  }, [filteredOptions, isOpen, selectedOption]);
+
+  useEffect(() => {
+    if (highlightedIndex >= 0) {
+      optionRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightedIndex]);
+
+  const handleOpen = () => {
+    if (disabled) return;
+    setIsOpen(true);
+    setIsTyping(true);
+    setSearchTerm('');
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!isOpen) {
+        handleOpen();
+        return;
+      }
+
+      if (filteredOptions.length > 0) {
+        const nextIndex =
+          highlightedIndexRef.current < filteredOptions.length - 1
+            ? highlightedIndexRef.current + 1
+            : 0;
+        updateHighlightedIndex(nextIndex);
+      }
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!isOpen) {
+        handleOpen();
+        return;
+      }
+
+      if (filteredOptions.length > 0) {
+        const nextIndex =
+          highlightedIndexRef.current > 0
+            ? highlightedIndexRef.current - 1
+            : filteredOptions.length - 1;
+        updateHighlightedIndex(nextIndex);
+      }
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (!isOpen) {
+        handleOpen();
+        return;
+      }
+
+      const selectedIndex =
+        highlightedIndexRef.current >= 0
+          ? highlightedIndexRef.current
+          : filteredOptions.findIndex((option) => option.id.toString() === selectedOption);
+
+      const optionToSelect = filteredOptions[selectedIndex >= 0 ? selectedIndex : 0];
+
+      if (optionToSelect) {
+        handleSelect(optionToSelect.id.toString());
+      }
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsOpen(false);
+      setIsTyping(false);
+      setSearchTerm('');
+      updateHighlightedIndex(-1);
     }
   };
 
   const displayText = selectedOption 
     ? options.find(option => option.id.toString() === selectedOption)?.name || ''
     : '';
+  const inputValue = isTyping ? searchTerm : displayText;
 
   return (
-    <div className="w-full" ref={dropdownRef}>
+    <div className="w-full abl-custom-dropdown dropdown" ref={dropdownRef}>
       <div className="mb-4 flex items-center gap-4">
         <label
           htmlFor="dropdown"
@@ -97,9 +217,23 @@ const AblNewCustomDrpdown: React.FC<CustomDropdownProps> = ({
           <input
             type="text"
             placeholder={displayText}
-            value={searchTerm}
-            onChange={(e) => !disabled && setSearchTerm(e.target.value)}
-            onFocus={() => !disabled && setIsOpen(true)}
+            value={inputValue}
+            onChange={(e) => {
+              if (disabled) return;
+              setIsTyping(true);
+              setSearchTerm(e.target.value);
+              if (!isOpen) {
+                setIsOpen(true);
+              }
+            }}
+            onFocus={handleOpen}
+            onClick={handleOpen}
+            onBlur={() => {
+              if (disabled) return;
+              setIsTyping(false);
+              setSearchTerm('');
+            }}
+            onKeyDown={handleKeyDown}
             disabled={disabled}
             className={`w-full h-11 px-4 py-3 rounded-t-lg text-[#6d6d6d] placeholder-gray-400 shadow-md focus:outline-none transition-all duration-300 bg-white
               ${disabled ? 'bg-gray-100 cursor-not-allowed border-gray-300' : `border-${borderColor} border-[#4d7c61] focus:ring-2 focus:ring-${focusBorderColor} border-${borderThickness} hover:border-${hoverBorderColor}`}
@@ -124,12 +258,18 @@ const AblNewCustomDrpdown: React.FC<CustomDropdownProps> = ({
               {filteredOptions.length === 0 ? (
                 <div className="px-4 py-2 text-gray-500">No options found <span className="text-[#ff0000]">There is no save data first save the data</span></div>
               ) : (
-                filteredOptions.map((option) => (
+                filteredOptions.map((option, index) => (
                   <div
                     key={option.id}
+                    ref={(element) => {
+                      optionRefs.current[index] = element;
+                    }}
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => handleSelect(option.id.toString())}
+                    onMouseEnter={() => updateHighlightedIndex(index)}
                     className={`px-4 py-2 text-gray-800 cursor-pointer transition-colors duration-200
                       ${disabled ? 'cursor-not-allowed' : `hover:bg-${hoverBorderColor} hover:text-[#4d7c61] hover:bg-[#e6f0ea]`}
+                      ${highlightedIndex === index ? 'bg-[#e6f0ea] text-[#3a614c]' : ''}
                       ${selectedOption === option.id.toString() ? `bg-${borderColor}` : ''}`}
                   >
                     {option.name}
@@ -141,6 +281,7 @@ const AblNewCustomDrpdown: React.FC<CustomDropdownProps> = ({
         </div>
         <select
           id="dropdown"
+          ref={nativeSelectRef}
           value={selectedOption}
           {...register}
           onChange={(e) => !disabled && onChange(e.target.value)}

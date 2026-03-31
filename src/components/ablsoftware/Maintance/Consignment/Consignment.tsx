@@ -680,7 +680,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
 };
 
   return (
-    <div className="w-full max-w-4xl lg:max-w-7xl mx-auto bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 md:p-4">
+    <div className="w-full max-w-full lg:max-w-7xl mx-auto bg-gradient-to-br from-slate-50 to-slate-100 dark:from-gray-900 dark:to-gray-800 p-2 sm:p-3 md:p-4">
       <div className="w-full">
         {isLoading && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -693,17 +693,17 @@ const ConsignmentForm = ({ isEdit = false }) => {
           </div>
         )}
 
-        <div className="max-w-1xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="w-full mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
           {!isViewMode && (
-          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-6 py-5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-lg">
-                  <MdLocalShipping className="text-2xl" />
+          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-3 sm:px-6 py-4 sm:py-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="bg-white/20 p-1.5 sm:p-2 rounded-lg">
+                  <MdLocalShipping className="text-xl sm:text-2xl" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold">{isEdit ? 'Edit Consignment' : 'Add New Consignment'}</h1>
-                  <p className="text-white/90 mt-1 text-sm">
+                  <h1 className="text-lg sm:text-2xl font-bold">{isEdit ? 'Edit Consignment' : 'Add New Consignment'}</h1>
+                  <p className="text-white/90 mt-1 text-xs sm:text-sm">
                     {isEdit ? 'Update consignment information' : 'Create a new consignment record'}
                   </p>
                 </div>
@@ -733,9 +733,9 @@ const ConsignmentForm = ({ isEdit = false }) => {
       )}
 
 
-          <form onSubmit={handleSubmit(onSubmit)} className="p-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-3 sm:p-6 md:p-8">
             {fromBooking && (
-              <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="mb-6 sm:mb-8 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
                   <MdInfo className="text-xl" />
                   <span className="font-medium">Restricted Mode</span>
@@ -782,7 +782,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
                       />
                     )}
                   />
-                  <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Controller
                       name="biltyNo"
                       control={control}
@@ -1031,8 +1031,8 @@ const ConsignmentForm = ({ isEdit = false }) => {
               />
             </div>
 
-            <div className="col-span-1 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm mt-6">
-              <div className="flex gap-2 ml-10 p-3">
+            <div className="col-span-1 bg-gray-50 dark:bg-gray-750 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm mt-4 sm:mt-6">
+              <div className="flex gap-2 ml-3 sm:ml-10 p-2 sm:p-3">
                 <HiDocumentText className="text-[#3a614c] text-xl" />
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Items Details</h3>
                 {fromBooking && (
@@ -1040,9 +1040,9 @@ const ConsignmentForm = ({ isEdit = false }) => {
                 )}
               </div>
 
-              <div className="p-3">
+              <div className="p-2 sm:p-3">
                 <div className="overflow-x-auto">
-                  <table className="w-full md:w-4/5 sm:w-3/4 text-sm mx-auto">
+                  <table className="w-full text-xs sm:text-sm mx-auto">
                     <thead>
                       <tr className="bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
                         <th className="px-2 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 text-xs uppercase tracking-wide border-r border-gray-300 dark:border-gray-600">
@@ -1176,7 +1176,7 @@ const ConsignmentForm = ({ isEdit = false }) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-4">
               <ABLNewCustomInput
                 label="Freight"
                 type="text"
@@ -1417,8 +1417,8 @@ const ConsignmentForm = ({ isEdit = false }) => {
         </div>
 
         {showOrderPopup && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-6 shadow-2xl max-w-[95vw] sm:max-w-6xl w-full max-h-[90vh] overflow-hidden">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200">Select Booking Order</h3>
                 <Button onClick={() => setShowOrderPopup(false)} className="text-gray-400 hover:text-gray-600 p-1" variant="ghost">
@@ -1436,8 +1436,8 @@ const ConsignmentForm = ({ isEdit = false }) => {
                 />
               </div>
 
-              <div className="overflow-y-auto max-h-96 border border-gray-200 dark:border-gray-600 rounded-lg">
-                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+              <div className="overflow-x-auto overflow-y-auto max-h-96 border border-gray-200 dark:border-gray-600 rounded-lg">
+                <table className="min-w-full text-xs sm:text-sm text-left text-gray-500 dark:text-gray-400">
                   <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-300">
                     <tr>
                       <th className="px-6 py-3 border-b border-gray-200 dark:border-gray-600">Order No</th>

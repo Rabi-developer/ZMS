@@ -404,18 +404,18 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
   const isViewMode = searchParams.get('mode') === 'view';
 
   return (
-    <div className="max-w-8xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="w-full max-w-full mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
       <div className="h-full w-full flex flex-col">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 h-full flex flex-col">
            {!isViewMode && (
-          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-4 py-3 flex-shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+          <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white px-3 sm:px-4 py-3 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <div className="bg-white/20 p-1.5 rounded-lg">
-                  <FaMoneyBillWave className="text-xl" />
+                  <FaMoneyBillWave className="text-lg sm:text-xl" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold">
+                  <h1 className="text-lg sm:text-xl font-bold">
                     {isEdit ? 'Edit Charges' : 'Add New Charges'}
                   </h1>
                   <p className="text-white/90 text-xs">
@@ -516,9 +516,9 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
             } finally {
               setIsSubmitting(false);
             }
-          })} className="flex-1 p-4 overflow-hidden flex flex-col">
+          })} className="flex-1 p-2 sm:p-4 overflow-hidden flex flex-col">
             {fromBooking && (
-              <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="mb-6 sm:mb-8 p-3 sm:p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
                   <MdInfo className="text-lg" />
                   <span className="font-medium text-sm">Restricted Mode</span>
@@ -529,15 +529,15 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
               </div>
             )}
 
-            <div className="mb-4 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-2 mb-3">
+            <div className="mb-3 sm:mb-4 bg-gray-50 dark:bg-gray-800 p-2 sm:p-3 rounded-xl border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
                 <FaReceipt className="text-gray-600 text-lg" />
                 <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Basic Information</h3>
                 {fromBooking && (
                   <span className="ml-auto px-2 py-0.5 bg-red-100 text-red-800 text-xs rounded-full">Restricted</span>
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <ABLCustomInput
                   label="Charge No"
                   type="text"
@@ -607,8 +607,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
 
             {/* Combined Charges + Payments Table */}
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="bg-white dark:bg-gray-900 p-3 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col h-full">
-                <div className="flex items-center justify-between mb-3">
+              <div className="bg-white dark:bg-gray-900 p-2 sm:p-3 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col h-full">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-2 sm:mb-3">
                   <div className="flex items-center gap-2">
                     <MdLocalShipping className="text-gray-600 text-lg" />
                     <MdPayment className="text-gray-600 text-lg" />
@@ -629,8 +629,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                   </Button>
                 </div>
 
-                <div className="flex-1 overflow-auto">
-                  <table className="w-full text-sm">
+                <div className="flex-1 overflow-x-auto overflow-y-auto">
+                  <table className="min-w-full text-xs sm:text-sm">
                     <thead>
                       <tr className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
                         <th className="px-3 py-2 text-left font-semibold" colSpan={8}>
@@ -1009,8 +1009,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
         </div>
 
         {showBiltyPopup && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-2xl max-w-2xl w-full mx-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-6 shadow-2xl max-w-[95vw] sm:max-w-2xl w-full">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Select Bilty</h3>
                 <Button

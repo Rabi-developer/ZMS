@@ -315,17 +315,17 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   const hasAdditionalLines = lines.some((l: any) => l.isAdditionalLine);
 
   return (
-    <div className="max-w-7xl mx-auto p-4">
+    <div className="w-full max-w-7xl mx-auto p-2 sm:p-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border">
          {!isViewMode && (
-        <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-6 rounded-t-2xl">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <div className="bg-white/20 p-3 rounded-xl">
-                <FaMoneyBillWave className="text-3xl" />
+        <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-4 sm:p-6 rounded-t-2xl">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="bg-white/20 p-2 sm:p-3 rounded-xl">
+                <FaMoneyBillWave className="text-2xl sm:text-3xl" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">
+                <h1 className="text-xl sm:text-2xl font-bold">
                   {isEdit ? 'Edit' : 'Create'} Bill Payment Invoice
                 </h1>
                 <p className="opacity-90">Manage transporter payments</p>
