@@ -22,6 +22,7 @@ import { MdInfo } from 'react-icons/md';
 import { FaFileInvoice, FaMoneyBillWave } from 'react-icons/fa';
 import { FiSave, FiX, FiSearch } from 'react-icons/fi';
 import Link from 'next/link';
+import { numberInputHandlers } from '@/utils/numberFormat';
 
 // Interfaces
 interface DropdownOption {
@@ -1293,6 +1294,8 @@ const ReceiptForm = ({ isEdit = false, initialData }: ReceiptFormProps) => {
                               min="0"
                               step="0.01"
                               disabled={isViewMode || !row.biltyNo}
+                              onBlur={(e) => numberInputHandlers.onBlur(e, 2)}
+                              onFocus={numberInputHandlers.onFocus}
                             />
                             {errors.items?.[index]?.receiptAmount && (
                               <p className="text-red-500 text-xs mt-1">{errors.items[index].receiptAmount.message}</p>

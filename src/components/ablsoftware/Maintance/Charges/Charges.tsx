@@ -17,6 +17,7 @@ import { MdLocalShipping, MdInfo, MdPayment } from 'react-icons/md';
 import { FaMoneyBillWave, FaReceipt } from 'react-icons/fa';
 import Link from 'next/link';
 import { FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { numberInputHandlers } from '@/utils/numberFormat';
 
 // Interfaces
 interface DropdownOption {
@@ -818,6 +819,8 @@ const ChargesForm = ({ isEdit = false, initialData }: ChargesFormProps) => {
                                   {...register(`lines.${index}.amount`, { valueAsNumber: true })}
                                   disabled={isFieldDisabled('amount')}
                                   className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-900 dark:text-white"
+                                  onBlur={(e) => numberInputHandlers.onBlur(e, 2)}
+                                  onFocus={numberInputHandlers.onFocus}
                                 />
                               ) : (
                                 <div className="text-gray-400 text-xs">—</div>

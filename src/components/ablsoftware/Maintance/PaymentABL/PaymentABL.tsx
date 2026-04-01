@@ -25,6 +25,7 @@ import { FaFileInvoice, FaMoneyBillWave } from 'react-icons/fa';
 import { FiSave, FiX, FiSearch } from 'react-icons/fi';
 import Link from 'next/link';
 import { isEqual } from 'lodash'; // Optional, remove if using custom areItemsEqual
+import { numberInputHandlers } from '@/utils/numberFormat';
 
 // Interfaces
 interface DropdownOption {
@@ -1642,6 +1643,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                 min="0"
                                 step="0.01"
                                 disabled={isViewMode}
+                                onBlur={(e) => numberInputHandlers.onBlur(e, 2)}
+                                onFocus={numberInputHandlers.onFocus}
                               />
                               {errors.paymentABLItems?.[index]?.paidAmount && (
                                 <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].paidAmount.message}</p>

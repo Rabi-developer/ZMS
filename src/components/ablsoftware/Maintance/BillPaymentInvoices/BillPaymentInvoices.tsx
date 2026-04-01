@@ -18,6 +18,7 @@ import { MdLocalShipping, MdInfo, MdSearch } from 'react-icons/md';
 import { FaMoneyBillWave, FaReceipt } from 'react-icons/fa';
 import Link from 'next/link';
 import { FiSave, FiX, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { numberInputHandlers } from '@/utils/numberFormat';
 
 // Interfaces
 interface DropdownOption {
@@ -498,6 +499,8 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                             {...register(`lines.${index}.munshayana`, { valueAsNumber: true })}
                             className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
                             disabled={isViewMode}
+                            onBlur={(e) => numberInputHandlers.onBlur(e, 2)}
+                            onFocus={numberInputHandlers.onFocus}
                           />
                         )}
                       </td>

@@ -22,6 +22,7 @@ import { FaIdCard, FaMoneyBillWave } from 'react-icons/fa';
 import { HiDocumentText } from 'react-icons/hi';
 import Link from 'next/link';
 import { FiSave, FiX } from 'react-icons/fi';
+import { numberInputHandlers } from '@/utils/numberFormat';
 
 // Interfaces
 interface ABLNewCustomInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
@@ -1091,6 +1092,8 @@ const ConsignmentForm = ({ isEdit = false }) => {
                               className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
                               placeholder="0"
                               min="0"
+                              onBlur={(e) => numberInputHandlers.onBlur(e, 0)}
+                              onFocus={numberInputHandlers.onFocus}
                             />
                           </td>
                           <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
@@ -1101,6 +1104,8 @@ const ConsignmentForm = ({ isEdit = false }) => {
                               className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
                               placeholder="0.00"
                               min="0"
+                              onBlur={(e) => numberInputHandlers.onBlur(e, 2)}
+                              onFocus={numberInputHandlers.onFocus}
                             />
                           </td>
                           <td className="px-2 py-1.5 border-r border-gray-200 dark:border-gray-700">
@@ -1131,6 +1136,8 @@ const ConsignmentForm = ({ isEdit = false }) => {
                               className="w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-xs focus:ring-1 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white transition-all text-center"
                               placeholder="0.0"
                               min="0"
+                              onBlur={(e) => numberInputHandlers.onBlur(e, 2)}
+                              onFocus={numberInputHandlers.onFocus}
                             />
                           </td>
                           <td className="px-2 py-1.5">
