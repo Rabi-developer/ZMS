@@ -488,9 +488,12 @@ const ChargesList = () => {
     setReportDataLoading(true);
     
     try {
-      // Fetch data from the new API
-      const chargesPaymentsRes = await getChargesPayments();
+      const [chargesPaymentsRes, openingBalanceRes] = await Promise.all([
+        getChargesPayments(),
+        getAllOpeningBalance(1, 10000),
+      ]);
       const chargesPaymentsData = chargesPaymentsRes?.data || chargesPaymentsRes || [];
+      const openingBalances = openingBalanceRes?.data || [];
 
       const withinDate = (d: string) => {
         if (!reportStartDate && !reportEndDate) return true;
@@ -500,6 +503,33 @@ const ChargesList = () => {
         const end = reportEndDate ? new Date(reportEndDate).getTime() : Infinity;
         return dt >= start && dt <= end;
       };
+
+      const normalize = (value: any) => String(value ?? '').trim().toLowerCase();
+      const openingBalanceEntries = openingBalances.flatMap((ob: any) =>
+        (ob.openingBalanceEntrys || [])
+          .filter((entry: any) => Number(entry?.credit || 0) > 0 && entry?.chargeType)
+          .map((entry: any) => {
+            const chargeTypeId = String(entry.chargeType);
+            return {
+              chargeNo: `OB-${entry.biltyNo || ob.openingNo || entry.id || chargeTypeId}`,
+              chargeName: getChargeTypeName(chargeTypeId),
+              dateISO: entry.biltyDate || ob.openingDate || '',
+              orderNo: entry.biltyNo || `OB-${ob.openingNo || ''}`,
+              vehicleNo: entry.vehicleNo || '-',
+              amount: Number(entry.credit) || 0,
+              received: 0,
+              pending: Number(entry.credit) || 0,
+              matchKey: [
+                normalize(entry.biltyNo || `OB-${ob.openingNo || ''}`),
+                normalize(entry.vehicleNo || '-'),
+                normalize(getChargeTypeName(chargeTypeId)),
+              ].join('|'),
+            };
+          })
+      );
+      const openingBalanceMap = new Map(
+        openingBalanceEntries.map((entry: any) => [entry.matchKey, entry])
+      );
 
       let filteredRowsTemp: Array<any> = [];
 
@@ -543,16 +573,60 @@ const ChargesList = () => {
           }
         }
 
+        const openingBalanceMatchKey = [
+          normalize(item.orderNo || ''),
+          normalize(item.vehicleNo || '-'),
+          normalize(item.charge || '-'),
+        ].join('|');
+        const openingBalanceMatch = openingBalanceMap.get(openingBalanceMatchKey);
+        const amount = Number(item.chargeAmount);
+        const fallbackAmount = openingBalanceMatch?.amount || 0;
+        const paidAmount = Number(item.paidAmount) || 0;
+        const resolvedAmount =
+          Number.isFinite(amount) && amount > 0
+            ? amount
+            : fallbackAmount > 0
+              ? fallbackAmount
+              : paidAmount;
+        const received = Number(item.totalPaid) || 0;
+        const pending = Number(item.remainingBalance) || Math.max(resolvedAmount - received, 0);
+
         filteredRowsTemp.push({
-          chargeNo: displayChargeNo,
-          chargeName: item.charge || '-',
+          chargeNo: openingBalanceMatch?.chargeNo || displayChargeNo,
+          chargeName: item.charge || openingBalanceMatch?.chargeName || '-',
           dateISO: item.refDate || '',
           orderNo: item.orderNo || '-',
           vehicleNo: item.vehicleNo || '-',
-          amount: Number(item.chargeAmount) || 0,
-          received: Number(item.totalPaid) || 0,
-          pending: Number(item.remainingBalance) || 0
+          amount: resolvedAmount,
+          received,
+          pending,
+          matchKey: openingBalanceMatchKey,
         });
+
+        if (openingBalanceMatch) {
+          openingBalanceMap.delete(openingBalanceMatchKey);
+        }
+      });
+
+      openingBalanceMap.forEach((entry: any) => {
+        if (!withinDate(entry.dateISO)) return;
+
+        if (reportSelectedOrderNos.length > 0 && !reportSelectedOrderNos.includes(entry.orderNo)) return;
+
+        if (reportSelectedChargeTypes.length > 0) {
+          const chargeMatches = reportSelectedChargeTypes.some(typeId => {
+            const typeName = getChargeTypeName(typeId);
+            return typeName === entry.chargeName;
+          });
+          if (!chargeMatches) return;
+        }
+
+        const isPaid = entry.received > 0;
+        const isUnpaid = entry.pending > 0;
+        if (reportPaymentStatus === 'Paid' && !isPaid) return;
+        if (reportPaymentStatus === 'Unpaid' && !isUnpaid) return;
+
+        filteredRowsTemp.push(entry);
       });
 
       const sortedTemp = filteredRowsTemp.sort((a, b) => {
