@@ -580,7 +580,7 @@ const ChargesList = () => {
         ].join('|');
         const openingBalanceMatch = openingBalanceMap.get(openingBalanceMatchKey);
         const amount = Number(item.chargeAmount);
-        const fallbackAmount = openingBalanceMatch?.amount || 0;
+        const fallbackAmount = (openingBalanceMatch as any)?.amount || 0;
         const paidAmount = Number(item.paidAmount) || 0;
         const resolvedAmount =
           Number.isFinite(amount) && amount > 0
@@ -592,8 +592,8 @@ const ChargesList = () => {
         const pending = Number(item.remainingBalance) || Math.max(resolvedAmount - received, 0);
 
         filteredRowsTemp.push({
-          chargeNo: openingBalanceMatch?.chargeNo || displayChargeNo,
-          chargeName: item.charge || openingBalanceMatch?.chargeName || '-',
+          chargeNo: (openingBalanceMatch as any)?.chargeNo || displayChargeNo,
+          chargeName: item.charge || (openingBalanceMatch as any)?.chargeName || '-',
           dateISO: item.refDate || '',
           orderNo: item.orderNo || '-',
           vehicleNo: item.vehicleNo || '-',
