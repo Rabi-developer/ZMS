@@ -422,7 +422,7 @@ const Liabilities = () => {
               </div>
             </div>
             {/* Render sub-children if expanded */}
-            {liability.children && openItems[liability.id] && (
+            {liability.children && openItems[itemKey] && (
               <div className="pl-6">{renderLiabilities(liability.children, level + 1, itemKey)}</div>
             )}
           </li>
