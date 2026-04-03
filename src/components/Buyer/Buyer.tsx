@@ -39,6 +39,7 @@ type BuyerApiData = {
   deliveryDate?: string;
   payableid?: string;
   seller?: string;
+  sellerId?: string;
 };
 
 // Zod schema expects accountNo as a string for API
@@ -91,9 +92,14 @@ function mapBuyerApiToForm(apiData: BuyerApiData): FormData {
     OrderDate: apiData.orderDate || "",
     DeliveryDate: apiData.deliveryDate || "",
     payableid: apiData.payableid || "",
-    Seller: apiData.seller || "",
+    Seller: apiData.sellerId || apiData.seller || "",
   };
 }
+
+const isGuid = (value?: string | null) => {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+};
 
 const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
   // UI state for account numbers as array
@@ -114,6 +120,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
     resolver: zodResolver(Schema),
     defaultValues: initialData ? mapBuyerApiToForm(initialData) : {},
   });
+  const selectedSeller = watch("Seller");
 
   const buyerTypes = [
     { id: 1, name: 'Manufacturer' },
@@ -139,6 +146,29 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
     };
     fetchSellers();
   }, []);
+
+  useEffect(() => {
+    if (!initialData || sellers.length === 0) {
+      return;
+    }
+
+    const currentSellerValue = selectedSeller;
+
+    if (isGuid(currentSellerValue)) {
+      return;
+    }
+
+    const sellerNameToMatch = initialData.seller || currentSellerValue || "";
+    const matchedSeller = sellers.find(
+      (seller) => seller.sellerName.toLowerCase() === sellerNameToMatch.toLowerCase()
+    );
+
+    if (matchedSeller) {
+      setValue("Seller", matchedSeller.id, { shouldValidate: true });
+    } else if (!sellerNameToMatch) {
+      setValue("Seller", "", { shouldValidate: true });
+    }
+  }, [initialData, selectedSeller, sellers, setValue]);
 
   // When initialData changes, map and split accountNo string to array for UI
   useEffect(() => {
@@ -181,9 +211,14 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
 
     try {
       let response;
+      const payload = {
+        ...data,
+        Seller: isGuid(data.Seller) ? data.Seller : null,
+      };
+
       // data.accountNo is a comma-separated string
       if (id) {
-        const updateData = { ...data, id };
+        const updateData = { ...payload, id };
         response = await updateBuyer(id, updateData);
         if (response.statusMessage === "Updated successfully") {
           toast("Updated Successfully", { type: "success" });
@@ -193,7 +228,7 @@ const Buyer = ({ id, initialData }: BuyerFormUIProps) => {
           toast(response.statusMessage, { type: "error" });
         }
       } else {
-        response = await createBuyer(data);
+        response = await createBuyer(payload);
         if (response.statusMessage === "Created successfully") {
           toast("Created successfully", { type: "success" });
           reset();
