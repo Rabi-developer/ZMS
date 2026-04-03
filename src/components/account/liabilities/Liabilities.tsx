@@ -41,6 +41,46 @@ type ApiResponse<T> = {
   };
 };
 
+const compareListIds = (aListId?: string, bListId?: string) => {
+  const aParts = (aListId || '')
+    .split('.')
+    .map((part) => Number.parseInt(part, 10))
+    .filter((part) => !Number.isNaN(part));
+  const bParts = (bListId || '')
+    .split('.')
+    .map((part) => Number.parseInt(part, 10))
+    .filter((part) => !Number.isNaN(part));
+
+  const maxLength = Math.max(aParts.length, bParts.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const aValue = aParts[index] ?? -1;
+    const bValue = bParts[index] ?? -1;
+
+    if (aValue !== bValue) {
+      return aValue - bValue;
+    }
+  }
+
+  return (aListId || '').localeCompare(bListId || '');
+};
+
+const getLiabilityNodeKey = (liability: Liability, parentKey: string, index: number) =>
+  `${parentKey}-${liability.id || liability.listid || 'item'}-${index}`;
+
+const getDefaultOpenItems = (items: Liability[], level = 0, parentKey = 'root'): Record<string, boolean> => {
+  return items.reduce<Record<string, boolean>>((acc, item, index) => {
+    const nodeKey = getLiabilityNodeKey(item, parentKey, index);
+
+    if (level === 0 && item.children.length > 0 && nodeKey) {
+      acc[nodeKey] = true;
+    }
+
+    Object.assign(acc, getDefaultOpenItems(item.children || [], level + 1, nodeKey));
+    return acc;
+  }, {});
+};
+
 // Main component
 const Liabilities = () => {
   const [loading, setLoading] = useState(false);
@@ -85,8 +125,16 @@ const Liabilities = () => {
         }
       }
     });
-  
-    return rootLiabilities;
+
+    const sortLiabilities = (items: Liability[]): Liability[] =>
+      [...items]
+        .sort((a, b) => compareListIds(a.listid, b.listid))
+        .map((item) => ({
+          ...item,
+          children: sortLiabilities(item.children || []),
+        }));
+
+    return sortLiabilities(rootLiabilities);
   };
 
   const fetchLiabilities = async () => {
@@ -108,6 +156,10 @@ const Liabilities = () => {
   useEffect(() => {
     fetchLiabilities();
   }, [pageIndex, pageSize]);
+
+  useEffect(() => {
+    setOpenItems(getDefaultOpenItems(liabilities));
+  }, [liabilities]);
 
   // Recursively find a liability by id
   const findLiability = (liabilities: Liability[], id: string): Liability | null => {
@@ -176,10 +228,10 @@ const Liabilities = () => {
     setContextMenu({ x: event.clientX, y: event.clientY, id });
   };
 
-  const toggleItem = (id: string) => {
+  const toggleItem = (itemKey: string) => {
     setOpenItems((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [itemKey]: !prev[itemKey],
     }));
   };
 
@@ -303,12 +355,15 @@ const Liabilities = () => {
 
   const paginatedLiabilities = filteredLiabilities.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
 
-  const renderLiabilities = (liabilities: Liability[], level = 0) => {
+  const renderLiabilities = (liabilities: Liability[], level = 0, parentKey = 'root') => {
     return (
       
       <ul className="list-none mt-4 bg-white dark:bg-[#030630] z-0">
-        {liabilities.map((liability) => (
-          <li key={`${liability.id}-${liability.listid}`} className="relative pl-4">
+        {liabilities.map((liability, index) => {
+          const itemKey = getLiabilityNodeKey(liability, parentKey, index);
+
+          return (
+          <li key={itemKey} className="relative pl-4">
             {level > 0 && (
               <div
                 className="absolute left-0 top-0 bottom-0 w-px bg-gray-300 dark:bg-gray-600 z-0"
@@ -328,10 +383,10 @@ const Liabilities = () => {
               {/* Expand/Collapse Icon */}
               {liability.children && liability.children.length > 0 && (
                 <button
-                  onClick={() => toggleItem(liability.id)}
+                  onClick={() => toggleItem(itemKey)}
                   className="flex items-center justify-center w-5 h-5 rounded-full  bg-[#06b5d4] hover:bg-black transition-colors duration-200 shadow"
                 >
-                  {openItems[liability.id] ? (
+                  {openItems[itemKey] ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-5 w-5 text-white"
@@ -368,10 +423,10 @@ const Liabilities = () => {
             </div>
             {/* Render sub-children if expanded */}
             {liability.children && openItems[liability.id] && (
-              <div className="pl-6">{renderLiabilities(liability.children, level + 1)}</div>
+              <div className="pl-6">{renderLiabilities(liability.children, level + 1, itemKey)}</div>
             )}
           </li>
-        ))}
+        )})}
       </ul>
     );
   };

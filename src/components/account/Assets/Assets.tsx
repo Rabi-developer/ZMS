@@ -41,6 +41,45 @@ type ApiResponse<T> = {
   };
 };
 
+const compareListIds = (aListId?: string, bListId?: string) => {
+  const aParts = (aListId || '')
+    .split('.')
+    .map((part) => Number.parseInt(part, 10))
+    .filter((part) => !Number.isNaN(part));
+  const bParts = (bListId || '')
+    .split('.')
+    .map((part) => Number.parseInt(part, 10))
+    .filter((part) => !Number.isNaN(part));
+
+  const maxLength = Math.max(aParts.length, bParts.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const aValue = aParts[index] ?? -1;
+    const bValue = bParts[index] ?? -1;
+
+    if (aValue !== bValue) {
+      return aValue - bValue;
+    }
+  }
+
+  return (aListId || '').localeCompare(bListId || '');
+};
+
+const getAssetNodeKey = (asset: Asset) => asset.id || asset.listid;
+
+const getDefaultOpenItems = (items: Asset[], level = 0): Record<string, boolean> => {
+  return items.reduce<Record<string, boolean>>((acc, item) => {
+    const nodeKey = getAssetNodeKey(item);
+
+    if (level === 0 && item.children.length > 0 && nodeKey) {
+      acc[nodeKey] = true;
+    }
+
+    Object.assign(acc, getDefaultOpenItems(item.children || [], level + 1));
+    return acc;
+  }, {});
+};
+
 // Main component
 const Assets = () => {
   const [loading, setLoading] = useState(false);
@@ -84,7 +123,15 @@ const Assets = () => {
       }
     });
 
-    return rootAssets;
+    const sortAssets = (items: Asset[]): Asset[] =>
+      [...items]
+        .sort((a, b) => compareListIds(a.listid, b.listid))
+        .map((item) => ({
+          ...item,
+          children: sortAssets(item.children || []),
+        }));
+
+    return sortAssets(rootAssets);
   };
 
   // Fetch assets
@@ -106,6 +153,10 @@ const Assets = () => {
   useEffect(() => {
     fetchAssets();
   }, [pageIndex, pageSize]);
+
+  useEffect(() => {
+    setOpenItems(getDefaultOpenItems(assets));
+  }, [assets]);
 
   // Recursively find an asset by id
   const findAsset = (assets: Asset[], id: string): Asset | null => {
@@ -162,10 +213,10 @@ const Assets = () => {
     setContextMenu({ x: event.clientX, y: event.clientY, id });
   };
 
-  const toggleItem = (id: string) => {
+  const toggleItem = (itemKey: string) => {
     setOpenItems((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [itemKey]: !prev[itemKey],
     }));
   };
 
@@ -295,11 +346,14 @@ const Assets = () => {
 
   const paginatedAssets = filteredAssets.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
 
-  const renderAssets = (assets: Asset[], level = 0) => {
+  const renderAssets = (assets: Asset[], level = 0, parentKey = 'root') => {
     return (
       <ul className="list-none mt-4 bg-white dark:bg-[#030630] z-0">
-        {assets.map((asset) => (
-          <li key={`${asset.id}-${asset.listid}`} className="relative pl-4">
+        {assets.map((asset, index) => {
+          const itemKey = getAssetNodeKey(asset) || `${parentKey}-${asset.listid || 'item'}-${index}`;
+
+          return (
+          <li key={itemKey} className="relative pl-4">
             {level > 0 && (
               <div
                 className="absolute left-0 top-0 bottom-0 w-px bg-gray-300 dark:bg-gray-600 z-0"
@@ -319,10 +373,10 @@ const Assets = () => {
               {/* Expand/Collapse Icon */}
               {asset.children && asset.children.length > 0 && (
                 <button
-                  onClick={() => toggleItem(asset.id)}
+                  onClick={() => toggleItem(itemKey)}
                   className="flex items-center justify-center w-5 h-5 rounded-full  bg-[#06b5d4] hover:bg-black transition-colors duration-200 shadow"
                 >
-                  {openItems[asset.id] ? (
+                  {openItems[itemKey] ? (
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       className="h-5 w-5 text-white"
@@ -358,11 +412,11 @@ const Assets = () => {
               </div>
             </div>
             {/* Render sub-children if expanded */}
-            {asset.children && openItems[asset.id] && (
-              <div className="pl-6">{renderAssets(asset.children, level + 1)}</div>
+            {asset.children && openItems[itemKey] && (
+              <div className="pl-6">{renderAssets(asset.children, level + 1, itemKey)}</div>
             )}
           </li>
-        ))}
+        )})}
       </ul>
     );
   };

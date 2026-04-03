@@ -262,11 +262,11 @@ export function DataTable<TData extends { id: string }, TValue>({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="bg-white dark:bg-[#030630] rounded-xl shadow-lg border border-[#bfdbfe] dark:border-[#387fbf]"
+      className="w-full min-w-0 bg-white dark:bg-[#030630] rounded-xl shadow-lg border border-[#bfdbfe] dark:border-[#387fbf]"
     >
       {/* Header Section */}
       <div className="bg-[#0899b2] dark:bg-[#387fbf]/20 rounded-t-xl p-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           {link && (
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
@@ -278,8 +278,8 @@ export function DataTable<TData extends { id: string }, TValue>({
               </Button>
             </motion.div>
           )}
-          <div className="flex items-center gap-3">
-            <div className="flex bg-white/20 rounded-lg p-1">
+          <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+            <div className="flex flex-wrap bg-white/20 rounded-lg p-1">
               <button
                 onClick={() => setSearchMode("global")}
                 className={`px-3 py-1 rounded-md text-sm font-medium transition-all ${

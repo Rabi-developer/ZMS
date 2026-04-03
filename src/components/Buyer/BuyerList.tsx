@@ -53,7 +53,7 @@ const BuyerList = () => {
   };
 
   return (
-    <div className='container bg-white rounded-md'>
+    <div className='w-full min-w-0 max-w-none bg-white rounded-md'>
       <DataTable 
         columns={columns(handleDeleteOpen)} 
         data={Buyers} 

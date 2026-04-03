@@ -117,7 +117,7 @@ body.abl-interface * {
   /* Default ZMS Scrollbar - Blue Theme */
   .scrollbar-zms {
     scrollbar-width: thin;
-    scrollbar-color: #3b82f6 #e0f2fe;
+    scrollbar-color: #06b6d4 #e0f2fe;
   }
 
   .scrollbar-zms::-webkit-scrollbar {
@@ -131,17 +131,17 @@ body.abl-interface * {
   }
 
   .scrollbar-zms::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    background: linear-gradient(180deg, #3b82f6 0%, #06b6d4 100%);
     border-radius: 10px;
     border: 2px solid #e0f2fe;
   }
 
   .scrollbar-zms::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+    background: linear-gradient(180deg, #2563eb 0%, #06b6d4 100%);
   }
 
   .scrollbar-zms::-webkit-scrollbar-thumb:active {
-    background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+    background: linear-gradient(180deg, #1d4ed8 0%, #06b6d4 100%);
   }
 
   /* ========================================
@@ -258,7 +258,7 @@ input.auto-calculated-field:-webkit-autofill:hover,
 input.auto-calculated-field:-webkit-autofill:focus,
 input.auto-calculated-field:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 30px #b9ecfe inset !important;
-  -webkit-text-fill-color: #00a2da !important;
+  -webkit-text-fill-color: #06b6d4 !important;
 }
 @keyframes slideIn {
   0% {

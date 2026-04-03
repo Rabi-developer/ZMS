@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -71,6 +71,8 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
   const [text, setText] = useState("");
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isViewMode = searchParams.get('mode') === 'view';
   const {
     register,
     handleSubmit,
@@ -125,6 +127,10 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
   };
 
   const onSubmit = async (data: FormData) => {
+    if (isViewMode) {
+      return;
+    }
+
     try {
       let response;
       // data.accountNo is a comma-separated string
@@ -158,7 +164,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded dark:bg-[#387fbf]">
         <h1 className='text-base text-[23px] font-mono ml-10 mt-8 pt-3 text-white flex gap-2'>
           <MdAddBusiness />
-          ADD NEW Seller
+          {isViewMode ? 'VIEW Seller' : 'ADD NEW Seller'}
         </h1>
       </div>
 
@@ -172,6 +178,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='Seller Name'
                 id="SellerName"
+                disabled={isViewMode}
                 {...register("SellerName")}
                 error={errors.SellerName?.message}
               />
@@ -182,12 +189,14 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 onChange={(value) => setValue("SellerType", value, { shouldValidate: true })}
                 error={errors.SellerType?.message}
                 register={register}
+                disabled={isViewMode}
               />
               <CustomInput
                 variant="floating"
                 borderThickness='2'
                 label='City'
                 id="City"
+                disabled={isViewMode}
                 {...register("City")}
                 error={errors.City?.message}
               />
@@ -196,6 +205,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='Country'
                 id="Country"
+                disabled={isViewMode}
                 {...register("Country")}
                 error={errors.Country?.message}
               />
@@ -205,6 +215,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='Phone Number'
                 id="PhoneNumber"
+                disabled={isViewMode}
                 {...register("PhoneNumber")}
                 error={errors.PhoneNumber?.message}
               />
@@ -214,6 +225,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='Mobile Number'
                 id="MobileNumber"
+                disabled={isViewMode}
                 {...register("MobileNumber")}
                 error={errors.MobileNumber?.message}
               />
@@ -223,6 +235,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='Email Address'
                 id="EmailAddress"
+                disabled={isViewMode}
                 {...register("EmailAddress")}
                 error={errors.EmailAddress?.message}
               />
@@ -232,6 +245,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='Fax Number'
                 id="FaxNumber"
+                disabled={isViewMode}
                 {...register("FaxNumber")}
                 error={errors.FaxNumber?.message}
               />
@@ -241,6 +255,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='STN'
                 id="STN"
+                disabled={isViewMode}
                 {...register("STN")}
                 error={errors.STN?.message}
               />
@@ -250,6 +265,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='NTN'
                 id="MTN"
+                disabled={isViewMode}
                 {...register("MTN")}
                 error={errors.MTN?.message}
               />
@@ -258,6 +274,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='Address'
                 id="Address"
+                disabled={isViewMode}
                 {...register("Address")}
                 error={errors.Address?.message}
               />
@@ -267,6 +284,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='Order Date'
                 id="OrderDate"
+                disabled={isViewMode}
                 {...register("OrderDate")}
                 error={errors.OrderDate?.message}
               />
@@ -276,6 +294,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                 borderThickness='2'
                 label='Delivery Date'
                 id="DeliveryDate"
+                disabled={isViewMode}
                 {...register("DeliveryDate")}
                 error={errors.DeliveryDate?.message}
               />
@@ -293,6 +312,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                       variant="floating"
                       borderThickness="2"
                       label={`Payment-Method /Account No ${index + 1}`}
+                      disabled={isViewMode}
                       value={accountNo}
                       onChange={(e) => handleAccountNoChange(index, e.target.value)}
                       error={errors.accountNo && errors.accountNo.message && typeof errors.accountNo.message === 'string'
@@ -301,7 +321,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                     />
                   </div>
                   <div className='mt-8 gap-4'>
-                    {index > 0 && (
+                    {!isViewMode && index > 0 && (
                       <button
                         type="button"
                         onClick={() => removeAccountNo(index)}
@@ -310,13 +330,15 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
                         <AiOutlineDelete size={20} />
                       </button>
                     )}
-                    <button
-                      type="button"
-                      onClick={addAccountNo}
-                      className="p-2 bg-green-500 hover:bg-green-600 text-white rounded ml-4"
-                    >
-                      <AiOutlinePlus size={20} />
-                    </button>
+                    {!isViewMode && (
+                      <button
+                        type="button"
+                        onClick={addAccountNo}
+                        className="p-2 bg-green-500 hover:bg-green-600 text-white rounded ml-4"
+                      >
+                        <AiOutlinePlus size={20} />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -355,6 +377,7 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
           <div className="p-5 ml-7  mx-auto">
             <textarea
               id="message"
+              disabled={isViewMode}
               className="w-full h-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
               placeholder="Any additional notes or comments about the Saller's work details"
               value={text}
@@ -365,18 +388,20 @@ const Saller = ({ id, initialData }: SellerFormUIProps) => {
         </div>
       </div>
         <div className="w-full h-[8vh] flex justify-end gap-2 mt-3 bg-transparent border-t-2 border-[#e7e7e7]">
-          <Button
-            type="submit"
-            className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
-          >
-            {id ? "Update" : "Submit"}
-          </Button>
+          {!isViewMode && (
+            <Button
+              type="submit"
+              className="w-[160] gap-2 inline-flex items-center bg-[#0e7d90] hover:bg-[#0891b2] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
+            >
+              {id ? "Update" : "Submit"}
+            </Button>
+          )}
           <Link href="/saller">
             <Button
               type="button"
               className="w-[160] gap-2 mr-2 inline-flex items-center bg-black hover:bg-[#b0b0b0] text-white px-6 py-2 text-sm font-medium transition-all duration-200 font-mono text-base hover:translate-y-[-2px] focus:outline-none active:shadow-[#3c4fe0_0_3px_7px_inset] active:translate-y-[2px] mt-2"
             >
-              Cancel
+              {isViewMode ? 'Back' : 'Cancel'}
             </Button>
           </Link>
         </div>

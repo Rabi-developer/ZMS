@@ -200,7 +200,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
           isMobileOpen={isSidebarOpen}
         />
       </div>
-      <div className="flex-1 flex flex-col min-h-[100dvh]">
+      <div className="flex-1 min-w-0 flex flex-col min-h-[100dvh]">
         <div className="fixed top-0 left-0 w-full z-40">
           <Headers
             toggleSidebar={toggleMobileSidebar}
@@ -211,7 +211,7 @@ const MainLayout = ({ children, activeInterface }: { children: React.ReactNode; 
         </div>
         <div
           ref={contentRef}
-          className={`flex-1 pt-28 px-6 transition-all duration-300 overflow-y-auto
+          className={`flex-1 min-w-0 pt-28 px-4 md:px-6 transition-all duration-300 overflow-y-auto
             ${activeInterface === 'ABL' ? 'scrollbar-abl' : 'scrollbar-zms'}
             ${isSidebarCollapsed ? 'md:ml-[70px]' : 'md:ml-[320px]'}
             ml-0 min-h-[calc(100dvh-7rem)] md:min-h-[100dvh]`}

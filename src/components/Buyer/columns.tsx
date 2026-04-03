@@ -1,7 +1,7 @@
 
 "use client";
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowUpDown, Edit, Trash } from 'lucide-react';
+import { ArrowUpDown, Edit, Eye, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -115,12 +115,17 @@ export const columns = (handleDeleteOpen: (id: string) => void): ColumnDef<Buyer
       const BuyerId = row.original.id;
       return (
         <div className='flex gap-2'>
+          <Link href={`/buyer/edit/${BuyerId}?mode=view`}>
+            <Button size='sm' className='bg-blue-500 hover:bg-blue-600' title='View Details'>
+              <Eye className='h-4 w-4' />
+            </Button>
+          </Link>
           <Link href={`/buyer/edit/${BuyerId}`}>
-            <Button variant='outline' size='sm'>
+            <Button size='sm' className='bg-yellow-500 hover:bg-yellow-600'>
               <Edit className='h-4 w-4' />
             </Button>
           </Link>
-          <Button variant='outline' size='sm' onClick={() => handleDeleteOpen(BuyerId)}>
+          <Button size='sm' className='bg-red-500 hover:bg-red-600' onClick={() => handleDeleteOpen(BuyerId)}>
             <Trash className='h-4 w-4' />
           </Button>
         </div>
