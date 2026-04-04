@@ -230,7 +230,6 @@ export interface Contract {
 
 export const columns = (
   handleDeleteOpen: (id: string) => void,
-  handleViewOpen: (id: string) => void,
   handleCheckboxChange: (id: string, checked: boolean) => void
 ): ColumnDef<Contract>[] => [
   {
@@ -322,13 +321,11 @@ export const columns = (
     header: "Actions",
     cell: ({ row }) => (
          <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleViewOpen(row.original.id)}
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
+          <Link href={`/contract/edit/${row.original.id}?mode=view`}>
+            <Button variant="outline" size="sm" title="View Details">
+              <Eye className="h-4 w-4" />
+            </Button>
+          </Link>
           <Link href={`/contract/edit/${row.original.id}`}>
             <Button variant="outline" size="sm">
               <Edit className="h-4 w-4" />

@@ -465,6 +465,8 @@ interface CustomDropdownProps {
 
 const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const router = useRouter();
+  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const isViewMode = searchParams.get('mode') === 'view';
   const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [descriptions, setDescriptions] = useState<{ id: string; name: string }[]>([]);
@@ -671,31 +673,24 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   // Fetch data functions
   const fetchCompanies = async () => {
     try {
-      setLoading(true);
       const response = await getAllOrganization(1, 100);
       setCompanies(response.data.map((org: any) => ({ id: org.id, name: org.name })));
     } catch (error) {
       console.error('Error fetching companies:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchBranches = async () => {
     try {
-      setLoading(true);
       const response = await getAllBranch(1, 100);
       setBranches(response.data.map((branch: any) => ({ id: branch.id, name: branch.name })));
     } catch (error) {
       console.error('Error fetching branches:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchDescriptions = async () => {
     try {
-      setLoading(true);
       const response = await getAllDescriptions();
       setDescriptions(
         response.data.map((desc: any) => ({
@@ -706,14 +701,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       );
     } catch (error) {
       console.error('Error fetching descriptions:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchStuffs = async () => {
-    try {
-      setLoading(true);
+    try{
       const response = await getAllStuffs();
       setStuffs(
         response.data.map((item: any) => ({
@@ -723,14 +715,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       );
     } catch (error) {
       console.error('Error fetching stuffs:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchBlendRatios = async () => {
     try {
-      setLoading(true);
       const response = await getAllBlendRatios();
       setBlendRatios(
         response.data.map((item: any) => ({
@@ -741,14 +730,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       );
     } catch (error) {
       console.error('Error fetching blend ratios:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchEndUses = async () => {
     try {
-      setLoading(true);
       const response = await getAllEndUses();
       setEndUses(
         response.data.map((item: any) => ({
@@ -759,14 +745,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       );
     } catch (error) {
       console.error('Error fetching end uses:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchFabricTypes = async () => {
     try {
-      setLoading(true);
       const response = await getAllFabricTypess();
       setFabricTypes(
         response.data.map((item: any) => ({
@@ -775,15 +758,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching fabric types:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching fabric types:', error);    }
   };
 
   const fetchPackings = async () => {
     try {
-      setLoading(true);
       const response = await getAllPackings();
       setPackings(
         response.data.map((item: any) => ({
@@ -792,15 +771,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching packings:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching packings:', error);    }
   };
 
   const fetchPieceLengths = async () => {
     try {
-      setLoading(true);
       const response = await getAllPeiceLengths();
       setPieceLengths(
         response.data.map((item: any) => ({
@@ -809,15 +784,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching piece lengths:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching piece lengths:', error);    }
   };
 
   const fetchPickInsertions = async () => {
     try {
-      setLoading(true);
       const response = await getAllPickInsertions();
       setPickInsertions(
         response.data.map((item: any) => ({
@@ -827,15 +798,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching pick insertions:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching pick insertions:', error);    }
   };
 
   const fetchWarpYarnTypes = async () => {
     try {
-      setLoading(true);
       const response = await getAllWrapYarnTypes();
       setWarpYarnTypes(
         response.data.map((item: any) => ({
@@ -845,15 +812,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching warp yarn types:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching warp yarn types:', error);    }
   };
 
   const fetchWeftYarnTypes = async () => {
     try {
-      setLoading(true);
       const response = await getAllWeftYarnType();
       setWeftYarnTypes(
         response.data.map((item: any) => ({
@@ -863,15 +826,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching weft yarn types:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching weft yarn types:', error);    }
   };
 
   const fetchWeaves = async () => {
     try {
-      setLoading(true);
       const response = await getAllWeaves();
       setWeaves(
         response.data.map((item: any) => ({
@@ -881,15 +840,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching weaves:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching weaves:', error);    }
   };
 
   const fetchFinals = async () => {
     try {
-      setLoading(true);
       const response = await getAllFinal();
       setFinals(
         response.data.map((item: any) => ({
@@ -899,15 +854,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching finals:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching finals:', error);    }
   };
 
   const fetchSelvedges = async () => {
     try {
-      setLoading(true);
       const response = await getAllSelveges();
       setSelvedges(
         response.data.map((item: any) => ({
@@ -917,15 +868,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching selvedges:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching selvedges:', error);    }
   };
 
   const fetchSelvedgeWeaves = async () => {
     try {
-      setLoading(true);
       const response = await getAllSelvegeWeaves();
       setSelvedgeWeaves(
         response.data.map((item: any) => ({
@@ -935,15 +882,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching selvedge weaves:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching selvedge weaves:', error);    }
   };
 
   const fetchSelvedgeWidths = async () => {
     try {
-      setLoading(true);
       const response = await getAllSelvegeWidths();
       setSelvedgeWidths(
         response.data.map((item: any) => ({
@@ -953,15 +896,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching selvedge widths:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching selvedge widths:', error);    }
   };
 
   const fetchInductionThreads = async () => {
     try {
-      setLoading(true);
       const response = await getAllInductionThreads();
       setInductionThreads(
         response.data.map((item: any) => ({
@@ -971,15 +910,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching induction threads:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching induction threads:', error);    }
   };
 
   const fetchGsms = async () => {
     try {
-      setLoading(true);
       const response = await getAllGSMs();
       setGsms(
         response.data.map((item: any) => ({
@@ -989,15 +924,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching GSMs:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching GSMs:', error);    }
   };
 
   const fetchSellers = async () => {
     try {
-      setLoading(true);
       const response = await getAllSellers();
       setSellers(
         response.data.map((seller: any) => ({
@@ -1006,15 +937,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching sellers:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching sellers:', error);    }
   };
 
   const fetchBuyers = async () => {
     try {
-      setLoading(true);
       const response = await getAllBuyer();
       setBuyers(
         response.data.map((buyer: any) => ({
@@ -1023,15 +950,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching buyers:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching buyers:', error);    }
   };
 
   const fetchDeliveryTerms = async () => {
     try {
-      setLoading(true);
       const response = await getAllDeliveryTerms();
       setDeliveryTerms(
         response.data.map((item: any) => ({
@@ -1040,15 +963,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching delivery terms:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching delivery terms:', error);    }
   };
 
   const fetchCommissionTypes = async () => {
     try {
-      setLoading(true);
       const response = await getAllCommissionTypes();
       setCommissionTypes(
         response.data.map((item: any) => ({
@@ -1057,15 +976,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching commission types:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching commission types:', error);    }
   };
 
   const fetchPaymentTerms = async () => {
     try {
-      setLoading(true);
       const response = await getAllPaymentTerms();
       setPaymentTerms(
         response.data.map((item: any) => ({
@@ -1074,15 +989,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching payment terms:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching payment terms:', error);    }
   };
 
   const fetchUnitsOfMeasure = async () => {
     try {
-      setLoading(true);
       const response = await getAllUnitOfMeasures();
       setUnitsOfMeasure(
         response.data.map((item: any) => ({
@@ -1091,15 +1002,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching units of measure:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching units of measure:', error);    }
   };
 
   const fetchGstTypes = async () => {
     try {
-      setLoading(true);
       const response = await getAllGeneralSaleTextTypes();
       setGstTypes(
         response.data.map((item: any) => ({
@@ -1108,15 +1015,11 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching GST types:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching GST types:', error);    }
   };
 
   const fetchSelvegeThicknesses = async () => {
     try {
-      setLoading(true);
       const response = await getAllSelvegeThicknesss();
       setSelvegeThicknesses(
         response.data.map((item: any) => ({
@@ -1125,10 +1028,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
         })),
       );
     } catch (error) {
-      console.error('Error fetching selvege thicknesses:', error);
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error fetching selvege thicknesses:', error);    }
   };
 
   const companyId = watch('CompanyId');
@@ -2022,6 +1922,10 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   };
 
  const onSubmit: SubmitHandler<FormData> = async (data) => {
+  if (isViewMode) {
+    router.push('/contract');
+    return;
+  }
   try {
     setSubmissionErrors([]);
     const validBuyerBreakups = validateBreakups(buyerDeliveryBreakups);
@@ -2256,7 +2160,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
       <div className="w-full bg-[#06b6d4] h-[7vh] rounded-t-lg flex items-center">
         <h1 className="text-2xl font-mono ml-6 text-white flex items-center gap-2">
           <MdAddBusiness />
-          {id ? 'EDIT CONTRACT' : 'ADD NEW CONTRACT'}
+          {isViewMode ? 'VIEW CONTRACT' : id ? 'EDIT CONTRACT' : 'ADD NEW CONTRACT'}
         </h1>
       </div>
 
@@ -2297,6 +2201,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   onChange={(value) => setValue('CompanyId', value, { shouldValidate: true })}
                   error={errors.CompanyId?.message}
                   register={register}
+                  disabled={isViewMode}
                 />
                 <CustomInputDropdown
                   label="Branch"
@@ -2305,12 +2210,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   onChange={(value) => setValue('BranchId', value, { shouldValidate: true })}
                   error={errors.BranchId?.message}
                   register={register}
+                  disabled={isViewMode}
                 />
                 <CustomInput
                   variant="floating"
                   borderThickness="2"
                   label="Contract Number"
                   id="ContractNumber"
+                  disabled={isViewMode}
                   {...register('ContractNumber')}
                   error={errors.ContractNumber?.message}
                 />
@@ -2320,6 +2227,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   borderThickness="2"
                   label="Date"
                   id="Date"
+                  disabled={isViewMode}
                   {...register('Date')}
                   error={errors.Date?.message}
                 />
@@ -2332,12 +2240,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   }
                   error={errors.ContractType?.message}
                   register={register}
+                  disabled={isViewMode}
                 />
                 <CustomInput
                   variant="floating"
                   borderThickness="2"
                   label="Contract Owner"
                   id="ContractOwner"
+                  disabled={isViewMode}
                   {...register('ContractOwner')}
                   error={errors.ContractOwner?.message}
                 />
@@ -2348,6 +2258,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   onChange={(value) => setValue('Seller', value, { shouldValidate: true })}
                   error={errors.Seller?.message}
                   register={register}
+                  disabled={isViewMode}
                 />
                 <CustomInputDropdown
                   label="Buyer"
@@ -2356,12 +2267,14 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   onChange={(value) => setValue('Buyer', value, { shouldValidate: true })}
                   error={errors.Buyer?.message}
                   register={register}
+                  disabled={isViewMode}
                 />
                 <CustomInput
                   variant="floating"
                   borderThickness="2"
                   label=" Seller Refer #"
                   id="ReferenceNumber"
+                  disabled={isViewMode}
                   {...register('ReferenceNumber')}
                   error={errors.ReferenceNumber?.message}
                 />
@@ -2371,6 +2284,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   borderThickness="2"
                   label="Refer Date"
                   id="Referdate"
+                  disabled={isViewMode}
                   {...register('Referdate')}
                   error={errors.Referdate?.message}
                 />
@@ -2379,6 +2293,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   borderThickness="2"
                   label="Buyer Refer.#"
                   id="Refer"
+                  disabled={isViewMode}
                   {...register('Refer')}
                   error={errors.Refer?.message}
                 />
@@ -2389,6 +2304,7 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
                   onChange={(value) => setValue('FabricType', value, { shouldValidate: true })}
                   error={errors.FabricType?.message}
                   register={register}
+                  disabled={isViewMode}
                 />
               </div>
               <div className="flex justify-end mt-6">

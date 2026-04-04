@@ -728,7 +728,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
  
 
   return (
-    <div className="container bg-white rounded-md p-6 h-[110vh]">
+    <div className='w-full min-w-0 max-w-none bg-white rounded-md'>
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center">
@@ -772,7 +772,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen, handleViewOpen, handleCheckboxChange)}
+          columns={columns(handleDeleteOpen, handleCheckboxChange)}
           data={filteredContracts}
           loading={loading}
           link={'/contract/create'}

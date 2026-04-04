@@ -5,7 +5,7 @@ const PeiceLengthPage = () => {
 
     return (
         <MainLayout activeInterface="ZMS">
-            <PeiceLengthList/>
+           <PeiceLengthList />
         </MainLayout>
     )
 }
