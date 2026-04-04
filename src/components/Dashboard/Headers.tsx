@@ -23,6 +23,7 @@ const Headers = ({
   const { userData, isAuthenticated } = usePermissions();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSubDropdownOpen, setIsSubDropdownOpen] = useState(false); // New state for sub-dropdown
+  const [activeSubMenu, setActiveSubMenu] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const subDropdownRef = useRef<HTMLDivElement>(null); // Ref for sub-dropdown
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -44,6 +45,7 @@ const Headers = ({
       ) {
         setIsDropdownOpen(false);
         setIsSubDropdownOpen(false);
+        setActiveSubMenu(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -53,11 +55,40 @@ const Headers = ({
   const toggleDropdown = () => {
     setIsDropdownOpen((prev) => !prev);
     setIsSubDropdownOpen(false); // Close sub-dropdown when main dropdown toggles
+    setActiveSubMenu(null);
   };
 
-  const toggleSubDropdown = () => {
-    setIsSubDropdownOpen((prev) => !prev);
+  const toggleSubDropdown = (menuName: string) => {
+    if (activeSubMenu === menuName && isSubDropdownOpen) {
+      setIsSubDropdownOpen(false);
+      setActiveSubMenu(null);
+      return;
+    }
+
+    setActiveSubMenu(menuName);
+    setIsSubDropdownOpen(true);
   };
+
+  const itemMenuItems = [
+    { name: 'Description', href: '/description' },
+    { name: 'Stuff', href: '/stuff' },
+    { name: 'Blend Ratio', href: '/bendRatio' },
+    { name: 'Wrap Yarn Type', href: '/wrapyarntype' },
+    { name: 'Weft Yarn Type', href: '/weftyarntype' },
+    { name: 'Weaves', href: '/weaves' },
+    { name: 'Pick Insertion', href: '/pickinsertion' },
+    { name: 'Final', href: '/final' },
+    { name: 'Selvege', href: '/selvege' },
+    { name: 'Selvege Weaves', href: '/selvegeweaves' },
+    { name: 'Selvege Width', href: '/selvegewidth' },
+    { name: 'Peice Length', href: '/peicelength' },
+    { name: 'Packing', href: '/packing' },
+    { name: 'Fabric Types', href: '/fabrictypes' },
+    { name: 'End Use', href: '/enduse' },
+    { name: 'Selvege Thickness', href: '/selvegethickness' },
+    { name: 'Induction Thread', href: '/inductionthread' },
+    { name: 'GSM', href: '/gsm' },
+  ];
 
   const dropdownVariants = {
     hidden: { opacity: 0, y: -10 },
@@ -149,28 +180,63 @@ const Headers = ({
                 >
                   {activeInterface === 'ZMS' ? (
                     <>
-                      <Link href="/items" onClick={() => setIsDropdownOpen(false)}>
+                      <div className="relative">
                         <div
-                          className={`flex items-center gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-gradient-to-r hover:from-[#33a4d8] hover:to-[#0891b2] hover:text-white rounded-t-lg transition-all duration-200`}
+                          ref={maintenanceButtonRef}
+                          className={`flex items-center gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-gradient-to-r hover:from-[#33a4d8] hover:to-[#0891b2] hover:text-white rounded-t-lg transition-all duration-200 cursor-pointer`}
+                          onClick={() => toggleSubDropdown('Add All Items')}
                         >
                           <FiPackage className="text-lg" />
                           <span>Add All Items</span>
                         </div>
-                      </Link>
-                      <Link href="/valuemanagement" onClick={() => setIsDropdownOpen(false)}>
+                        <AnimatePresence>
+                          {isSubDropdownOpen && activeSubMenu === 'Add All Items' && (
+                            <motion.div
+                              ref={subDropdownRef}
+                              className={`absolute left-full mt-2 top-0 w-64 max-h-[70vh] overflow-y-auto rounded-lg shadow-xl border z-50 bg-[#e4f1fa] dark:bg-[#030630]/40 border-gray-200 dark:border-gray-700 backdrop-blur-xl ml-2`}
+                              variants={subDropdownVariants}
+                              initial="hidden"
+                              animate="visible"
+                              exit="exit"
+                            >
+                              {itemMenuItems.map((item, index) => (
+                                <Link
+                                  key={item.name}
+                                  href={item.href}
+                                  onClick={() => {
+                                    setIsDropdownOpen(false);
+                                    setIsSubDropdownOpen(false);
+                                    setActiveSubMenu(null);
+                                  }}
+                                >
+                                  <div
+                                    className={`flex items-center gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-[#0891b2] hover:text-white transition-all duration-200 ${
+                                      index === 0 ? 'rounded-t-lg' : ''
+                                    } ${index === itemMenuItems.length - 1 ? 'rounded-b-lg' : ''}`}
+                                  >
+                                    <FiPackage className="text-lg" />
+                                    <span>{item.name}</span>
+                                  </div>
+                                </Link>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                      <Link href="/projecttarget" onClick={() => setIsDropdownOpen(false)}>
                         <div
                           className={`flex items-center gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-gradient-to-r hover:from-[#33a4d8] hover:to-[#0891b2] hover:text-white transition-all duration-200`}
                         >
                           <GiMoneyStack className="text-lg" />
-                          <span>Value Management</span>
+                          <span>Project Target</span>
                         </div>
                       </Link>
-                      <Link href="/gst" onClick={() => setIsDropdownOpen(false)}>
+                      <Link href="/valuemanagement" onClick={() => setIsDropdownOpen(false)}>
                         <div
                           className={`flex items-center gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-gradient-to-r hover:from-[#33a4d8] hover:to-[#0891b2] hover:text-white rounded-b-lg transition-all duration-200`}
                         >
                           <GiMoneyStack className="text-lg" />
-                          <span>General Sale Text Type</span>
+                          <span>Value Management</span>
                         </div>
                       </Link>
                     </>
@@ -180,7 +246,7 @@ const Headers = ({
                         <div
                           ref={maintenanceButtonRef}
                           className={`flex items-center  gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-gradient-to-r hover:from-[#1a5f3a] hover:to-[#d4a017] hover:text-white rounded-t-lg transition-all duration-200 cursor-pointer`}
-                          onClick={toggleSubDropdown}
+                          onClick={() => toggleSubDropdown('Maintenance')}
                         >
                           <FiPackage
                             className={`text-lg ${
@@ -190,7 +256,7 @@ const Headers = ({
                           <span>Maintenance</span>
                         </div>
                         <AnimatePresence>
-                          {isSubDropdownOpen && (
+                          {isSubDropdownOpen && activeSubMenu === 'Maintenance' && (
                             <motion.div
                               ref={subDropdownRef}
                               className={`absolute left-full mt-2 top-0 w-56 rounded-lg shadow-xl border z-50 ${
@@ -215,11 +281,12 @@ const Headers = ({
                                 <Link
                                   key={item.name}
                                   href={item.path}
-                                  onClick={() => {
-                                    setIsDropdownOpen(false);
-                                    setIsSubDropdownOpen(false);
-                                  }}
-                                >
+                                    onClick={() => {
+                                      setIsDropdownOpen(false);
+                                      setIsSubDropdownOpen(false);
+                                      setActiveSubMenu(null);
+                                    }}
+                                  >
                                   <div
                                     className={`flex items-center gap-2 px-4 py-2 text-gray-800 dark:text-white hover:bg-[#3a614c] hover:text-white ${
                                       index === 0 ? 'rounded-t-lg' : ''
