@@ -29,7 +29,7 @@ const Department = ({ id, initialData }: any) => {
   const [branchs, setBranchs] = useState([]);
   const [address, setAddress] = useState([]);
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<FormData>({
     resolver: zodResolver(Schema),
     defaultValues: initialData || {},
   });
@@ -137,7 +137,7 @@ const Department = ({ id, initialData }: any) => {
               id: item.id,
               name: item.name,
             }))}
-            selectedOption={initialData?.branchId || ""}
+            selectedOption={watch("branchId") || ""}
             onChange={(value) => {
               console.log("Selected branchId:", value); // Debugging
               setValue("branchId", value);
@@ -152,7 +152,7 @@ const Department = ({ id, initialData }: any) => {
               id: item.id,
               name: item.name,
             }))}
-            selectedOption={initialData?.addressId || ""}
+            selectedOption={watch("addressId") || ""}
             onChange={(value) => {
               console.log("Selected addressId:", value); // Debugging
               setValue("addressId", value);

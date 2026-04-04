@@ -32,7 +32,7 @@ type FormData = z.infer<typeof Schema>;
 
 const Branch = ({ id, initialData }: { id?: string; initialData?: FormData }) => {
   const [organizations, setOrganizations] = useState<{ id: string; name: string }[]>([]);
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<FormData>({
     resolver: zodResolver(Schema),
     defaultValues: initialData || {},
   });
@@ -180,7 +180,7 @@ const Branch = ({ id, initialData }: { id?: string; initialData?: FormData }) =>
               id: org.id,
               name: org.name,
             }))}
-            selectedOption={initialData?.organizationId || ""}
+            selectedOption={watch("organizationId") || ""}
             onChange={(value) => setValue("organizationId", value)} 
             error={errors.organizationId?.message}
           />  
