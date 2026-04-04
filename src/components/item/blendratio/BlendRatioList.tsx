@@ -86,7 +86,7 @@ const BlendRatioList = () => {
           columns={columns(handleDeleteOpen, handleViewOpen)}
           data={blendRatios}
           loading={loading}
-          link={'/blendRatio/create'}
+          link={'/bendRatio/create'}
           setPageIndex={setPageIndex}
           pageIndex={pageIndex}
           pageSize={pageSize}
