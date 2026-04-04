@@ -1135,6 +1135,30 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
   const branchId = watch('BranchId');
   const selectedBlendRatio = watch('BlendRatio');
   const commissionFrom = watch('CommissionFrom');
+  const selectedCompanyName = 'Z.M.SOURCING';
+  const selectedBranchName = 'Head Office Karachi';
+
+  useEffect(() => {
+    if (!companyId && companies.length > 0) {
+      const defaultCompany =
+        companies.find((company) => company.name.trim().toLowerCase() === 'z.m.sourcing') || companies[0];
+
+      if (defaultCompany) {
+        setValue('CompanyId', defaultCompany.id, { shouldValidate: true });
+      }
+    }
+  }, [companies, companyId, setValue]);
+
+  useEffect(() => {
+    if (!branchId && branches.length > 0) {
+      const defaultBranch =
+        branches.find((branch) => branch.name.trim().toLowerCase() === 'head office karachi') || branches[0];
+
+      if (defaultBranch) {
+        setValue('BranchId', defaultBranch.id, { shouldValidate: true });
+      }
+    }
+  }, [branches, branchId, setValue]);
 
   // Update Blend Type options when Blend Ratio changes
   useEffect(() => {
@@ -2290,21 +2314,23 @@ const ContractForm = ({ id, initialData }: ContractFormProps) => {
             <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
               <h2 className="text-xl font-bold text-[#06b6d4] dark:text-white mb-4">General Information</h2>
               <div className="grid grid-cols-3 gap-4">
-                <CustomInputDropdown
+                <input type="hidden" {...register('CompanyId')} />
+                <input type="hidden" {...register('BranchId')} />
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
                   label="Company"
-                  options={companies}
-                  selectedOption={watch('CompanyId') || ''}
-                  onChange={(value) => setValue('CompanyId', value, { shouldValidate: true })}
+                  value={selectedCompanyName}
+                  disabled
                   error={errors.CompanyId?.message}
-                  register={register}
                 />
-                <CustomInputDropdown
+                <CustomInput
+                  variant="floating"
+                  borderThickness="2"
                   label="Branch"
-                  options={branches}
-                  selectedOption={watch('BranchId') || ''}
-                  onChange={(value) => setValue('BranchId', value, { shouldValidate: true })}
+                  value={selectedBranchName}
+                  disabled
                   error={errors.BranchId?.message}
-                  register={register}
                 />
                 <CustomInput
                   variant="floating"
