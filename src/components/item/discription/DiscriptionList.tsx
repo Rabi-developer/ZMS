@@ -79,19 +79,7 @@ const DescriptionList = () => {
   return (
     <>
    
-        <div className="flex justify-end mt-6 ">
-          <Link href="/items">
-            <motion.button
-              className="flex items-center gap-2 bg-gradient-to-r from-[#33a4d8] to-[#0891b2] text-white px-8 py-3 rounded-lg text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
-            >
-              Add more items
-              <FiArrowRight className="text-lg" />
-            </motion.button>
-          </Link>
-        </div>
+        
     <div className="container bg-white rounded-md">
       <DataTable
         columns={columns(handleDeleteOpen, handleViewOpen)}
