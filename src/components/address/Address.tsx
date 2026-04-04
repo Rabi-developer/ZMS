@@ -64,6 +64,7 @@ const Address = ({ id, initialData }: AddressProps) => {
     reset,
 
     setValue,
+    watch,
 
   } = useForm<FormData>({
 
@@ -287,7 +288,7 @@ const Address = ({ id, initialData }: AddressProps) => {
 
           }))}
 
-          selectedOption={initialData?.branchId || ""} 
+          selectedOption={watch("branchId") || ""}  
 
           onChange={(value) => setValue("branchId", value)} 
 
