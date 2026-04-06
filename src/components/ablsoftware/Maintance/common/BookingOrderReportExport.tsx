@@ -884,8 +884,12 @@ const BookingOrderReportExport: React.FC = () => {
 
         const orderNo = String(line.orderNo ?? line.OrderNo ?? inv.orderNo ?? inv.OrderNo ?? "").trim();
         
-        // Use the line amount directly (don't add invoice-level charges to each line)
-        const invoiceAmount = Number(line.amount) || 0;
+        // Get the line amount and munshyana deduction
+        const lineAmount = Number(line.amount) || 0;
+        const munshyanaAmount = Number(line.munshayana || line.Munshayana || 0);
+        
+        // The actual billable amount is line amount minus munshyana
+        const invoiceAmount = lineAmount - munshyanaAmount;
         
         const brokerField = line.broker || '-';
         const brokerName = typeof brokerField === 'string' ? brokerField : (brokers.find((b:any)=>b.id===brokerField)?.name || '-');
@@ -980,7 +984,7 @@ const BookingOrderReportExport: React.FC = () => {
         const isFullyPaid = Math.abs(balance) <= TOLERANCE;
         
         // For Paid report: show if any payment made (show paid amount)
-        // For Unpaid report: show if any balance remaining AND not fully paid
+        // For Unpaid report: show ONLY if balance > 0 (not fully paid)
         if (type === 'Paid' && hasPaid) {
           brokerBillRows.push({
             serial: serial++,
@@ -994,10 +998,11 @@ const BookingOrderReportExport: React.FC = () => {
             brokerName: brokerName || '-',
             brokerMobile: brokerMobile,
             remarks: line.remarks || '',
-            munshyana: 0, // Don't show munshyana in Paid report
-            otherCharges: 0, // Don't show other charges in Paid report
+            munshyana: munshyanaAmount, // Show munshyana amount
+            otherCharges: 0,
           });
-        } else if (type === 'Unpaid' && hasBalance && !isFullyPaid) {
+        } else if (type === 'Unpaid' && hasBalance) {
+          // Only show in Unpaid if there's an actual balance remaining (> 0)
           brokerBillRows.push({
             serial: serial++,
             orderNo: orderNo,
@@ -1010,8 +1015,8 @@ const BookingOrderReportExport: React.FC = () => {
             brokerName: brokerName || '-',
             brokerMobile: brokerMobile,
             remarks: line.remarks || '',
-            munshyana: 0, // Don't show munshyana in Unpaid report
-            otherCharges: 0, // Don't show other charges in Unpaid report
+            munshyana: munshyanaAmount, // Show munshyana amount
+            otherCharges: 0,
           });
         }
       });
@@ -1167,7 +1172,7 @@ const BookingOrderReportExport: React.FC = () => {
             const isFullyPaid = Math.abs(balance) <= TOLERANCE;
             
             // For Paid report: show if any payment made (show paid amount)
-            // For Unpaid report: show if any balance remaining (show balance amount)
+            // For Unpaid report: show ONLY if balance > 0 (not fully paid)
             if (type === 'Paid' && hasPaid) {
               const brokerName = entry.broker || 'Opening Balance';
               
@@ -1189,7 +1194,8 @@ const BookingOrderReportExport: React.FC = () => {
                 munshyana: 0,
                 otherCharges: 0,
               });
-            } else if (type === 'Unpaid' && hasBalance && !isFullyPaid) {
+            } else if (type === 'Unpaid' && hasBalance) {
+              // Only show in Unpaid if there's an actual balance remaining (> 0)
               const brokerName = entry.broker || 'Opening Balance';
               
               // Filter by broker if selected
