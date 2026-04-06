@@ -116,6 +116,20 @@ interface DispatchNoteProps {
 
 const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
   const router = useRouter();
+  
+  // Helper function to safely extract seller/buyer names
+  const getSellerName = (seller: any): string => {
+    if (typeof seller === 'string') return seller;
+    if (seller && typeof seller === 'object') return seller.sellerName || '';
+    return '';
+  };
+  
+  const getBuyerName = (buyer: any): string => {
+    if (typeof buyer === 'string') return buyer;
+    if (buyer && typeof buyer === 'object') return buyer.buyerName || '';
+    return '';
+  };
+  
   const [sellers, setSellers] = useState<{ id: string; name: string }[]>([]);
   const [buyers, setBuyers] = useState<{ id: string; name: string }[]>([]);
   const [contracts, setContracts] = useState<ExtendedContract[]>([]);
@@ -288,8 +302,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   rowId,
                   contractId: contract.id,
                   contractNumber: contract.contractNumber || '',
-                  seller: contract.seller || '',
-                  buyer: contract.buyer || '',
+                  seller: getSellerName(contract.seller),
+                  buyer: getBuyerName(contract.buyer),
                   refer: contract.refer || '',
                   date: contract.date || '',
                   quantity,
@@ -317,8 +331,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   rowId,
                   contractId: contract.id,
                   contractNumber: contract.contractNumber || '',
-                  seller: contract.seller || '',
-                  buyer: contract.buyer || '',
+                  seller: getSellerName(contract.seller),
+                  buyer: getBuyerName(contract.buyer),
                   refer: contract.refer || '',
                   date: contract.date || '',
                   quantity,
@@ -346,8 +360,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   rowId,
                   contractId: contract.id,
                   contractNumber: contract.contractNumber || '',
-                  seller: contract.seller || '',
-                  buyer: contract.buyer || '',
+                  seller: getSellerName(contract.seller),
+                  buyer: getBuyerName(contract.buyer),
                   refer: contract.refer || '',
                   date: contract.date || '',
                   quantity,
@@ -412,8 +426,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   rowId,
                   contractId: contract.id,
                   contractNumber: contract.contractNumber || '',
-                  seller: contract.seller || '',
-                  buyer: contract.buyer || '',
+                  seller: getSellerName(contract.seller),
+                  buyer: getBuyerName(contract.buyer),
                   refer: contract.refer || '',
                   date: contract.date || '',
                   quantity,
@@ -460,8 +474,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   rowId,
                   contractId: contract.id,
                   contractNumber: contract.contractNumber || '',
-                  seller: contract.seller || '',
-                  buyer: contract.buyer || '',
+                  seller: getSellerName(contract.seller),
+                  buyer: getBuyerName(contract.buyer),
                   refer: contract.refer || '',
                   date: contract.date || '',
                   quantity,
@@ -508,8 +522,8 @@ const DispatchNote = ({ isEdit = false, initialData }: DispatchNoteProps) => {
                   rowId,
                   contractId: contract.id,
                   contractNumber: contract.contractNumber || '',
-                  seller: contract.seller || '',
-                  buyer: contract.buyer || '',
+                  seller: getSellerName(contract.seller),
+                  buyer: getBuyerName(contract.buyer),
                   refer: contract.refer || '',
                   date: contract.date || '',
                   quantity,
