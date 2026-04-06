@@ -577,6 +577,7 @@ const ChargesList = () => {
         // Use the specific charge amount from the API (chargeAmount is per charge type)
         const amount = Number(item.chargeAmount);
         const fallbackAmount = (openingBalanceMatch as any)?.amount || 0;
+        // paidAmount is per-charge-type payment; totalPaid is the order-level total (all charges)
         const paidAmount = Number(item.paidAmount) || 0;
         const resolvedAmount =
           Number.isFinite(amount) && amount > 0
@@ -585,9 +586,12 @@ const ChargesList = () => {
               ? fallbackAmount
               : paidAmount;
         
-        // Use the specific received and pending amounts for this charge type
-        const received = Number(item.totalPaid) || 0;
-        const pending = Number(item.remainingBalance) || Math.max(resolvedAmount - received, 0);
+        // Use paidAmount (charge-specific) NOT totalPaid (order-level total)
+        // totalPaid incorrectly sums payments from ALL charge types for the order
+        const received = paidAmount;
+        const pending = Number(item.remainingBalance) > 0
+          ? Number(item.remainingBalance)
+          : Math.max(resolvedAmount - received, 0);
 
         // Apply payment status filter AFTER calculating amounts
         const isPaid = received > 0;
