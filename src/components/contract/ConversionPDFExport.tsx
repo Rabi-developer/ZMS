@@ -83,60 +83,83 @@ const ConversionPDFExport = {
 
       try {
         const [sellerData, buyerData, descriptionData, blendRatioData, warpYarnData, weftYarnData, weavesData, pickInsertionData, selvedgeData] = await Promise.all([
-          getAllSellers(),
-          getAllBuyer(),
-          getAllDescriptions(),
-          getAllBlendRatios(),
-          getAllWrapYarnTypes(),
-          getAllWeftYarnType(),
-          getAllWeaves(),
-          getAllPickInsertions(),
-          getAllSelveges(),
+          getAllSellers(1, 1000),
+          getAllBuyer(1, 1000),
+          getAllDescriptions(1, 1000),
+          getAllBlendRatios(1, 1000),
+          getAllWrapYarnTypes(1, 1000),
+          getAllWeftYarnType(1, 1000),
+          getAllWeaves(1, 1000),
+          getAllPickInsertions(1, 1000),
+          getAllSelveges(1, 1000),
         ]);
 
-        const sellerMatch = sellerData.data.find(
-          (item: { sellerName: string; address: string }) => item.sellerName === contract.seller
-        );
-        const buyerMatch = buyerData.data.find(
-          (item: { buyerName: string; address: string }) => item.buyerName === contract.buyer
-        );
-        GetSellerAddress = sellerMatch ? sellerMatch.address : '';
-        GetBuyerAddress = buyerMatch ? buyerMatch.address : '';
+        // Create lookup maps for all description types
+        const sellerMap = new Map<string, { name: string; address: string }>(sellerData.data.map((item: any) => [item.id, { name: item.sellerName, address: item.address }]));
+        const buyerMap = new Map<string, { name: string; address: string }>(buyerData.data.map((item: any) => [item.id, { name: item.buyerName, address: item.address }]));
+        const descriptionMap = new Map<string, { name: string; sub: string }>(descriptionData.data.map((item: any) => [item.listid, { name: item.descriptions, sub: item.subDescription }]));
+        const blendRatioMap = new Map<string, { name: string; sub: string }>(blendRatioData.data.map((item: any) => [item.listid, { name: item.descriptions, sub: item.subDescription }]));
+        const warpYarnMap = new Map<string, { name: string; sub: string }>(warpYarnData.data.map((item: any) => [item.listid, { name: item.descriptions, sub: item.subDescription }]));
+        const weftYarnMap = new Map<string, { name: string; sub: string }>(weftYarnData.data.map((item: any) => [item.listid, { name: item.descriptions, sub: item.subDescription }]));
+        const weavesMap = new Map<string, { name: string; sub: string }>(weavesData.data.map((item: any) => [item.listid, { name: item.descriptions, sub: item.subDescription }]));
+        const pickInsertionMap = new Map<string, { name: string; sub: string }>(pickInsertionData.data.map((item: any) => [item.listid, { name: item.descriptions, sub: item.subDescription }]));
+        const selvedgeMap = new Map<string, { name: string; sub: string }>(selvedgeData.data.map((item: any) => [item.listid, { name: item.descriptions, sub: item.subDescription }]));
 
-        const descriptionMatch = descriptionData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.description
-        );
-        descriptionSub = descriptionMatch ? descriptionMatch.subDescription : '-';
+        // Helper function to get string value from contract field
+        const getStringValue = (field: any): string => {
+          if (typeof field === 'object' && field !== null) {
+            return field.sellerName || field.buyerName || field.descriptions || '';
+          }
+          return field || '';
+        };
 
-        const blendRatioMatch = blendRatioData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.blendRatio
-        );
-        blendRatioSub = blendRatioMatch ? blendRatioMatch.subDescription : '-';
+        // Get seller and buyer info
+        const sellerValue = getStringValue(contract.seller);
+        const buyerValue = getStringValue(contract.buyer);
+        const sellerInfo = sellerMap.get(sellerValue) || { name: sellerValue, address: '' };
+        const buyerInfo = buyerMap.get(buyerValue) || { name: buyerValue, address: '' };
+        GetSellerAddress = sellerInfo.address;
+        GetBuyerAddress = buyerInfo.address;
 
-        const warpYarnMatch = warpYarnData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.warpYarnType
-        );
-        warpYarnTypeSub = warpYarnMatch ? warpYarnMatch.subDescription : '-';
+        // Update contract object with resolved names
+        contract.seller = sellerInfo.name as any;
+        contract.buyer = buyerInfo.name as any;
+        
+        const descValue = getStringValue(contract.description);
+        contract.description = (descriptionMap.get(descValue)?.name || descValue) as any;
+        
+        const stuffValue = getStringValue(contract.stuff);
+        contract.stuff = descriptionMap.get(stuffValue)?.name || stuffValue;
+        
+        const blendRatioValue = getStringValue(contract.blendRatio);
+        contract.blendRatio = blendRatioMap.get(blendRatioValue)?.name || blendRatioValue;
+        
+        const warpYarnValue = getStringValue(contract.warpYarnType);
+        contract.warpYarnType = warpYarnMap.get(warpYarnValue)?.name || warpYarnValue;
+        
+        const weftYarnValue = getStringValue(contract.weftYarnType);
+        contract.weftYarnType = weftYarnMap.get(weftYarnValue)?.name || weftYarnValue;
+        
+        const weavesValue = getStringValue(contract.weaves);
+        contract.weaves = weavesMap.get(weavesValue)?.name || weavesValue;
+        
+        const pickInsertionValue = getStringValue(contract.pickInsertion);
+        contract.pickInsertion = pickInsertionMap.get(pickInsertionValue)?.name || pickInsertionValue;
+        
+        const selvegeValue = getStringValue(contract.selvege);
+        contract.selvege = selvedgeMap.get(selvegeValue)?.name || selvegeValue;
+        
+        const packingValue = getStringValue(contract.packing);
+        contract.packing = descriptionMap.get(packingValue)?.name || packingValue;
 
-        const weftYarnMatch = weftYarnData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.weftYarnType
-        );
-        weftYarnTypeSub = weftYarnMatch ? weftYarnMatch.subDescription : '-';
-
-        const weavesMatch = weavesData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.weaves
-        );
-        weavesSub = weavesMatch ? weavesMatch.subDescription : '-';
-
-        const pickInsertionMatch = pickInsertionData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.pickInsertion
-        );
-        pickInsertionSub = pickInsertionMatch ? pickInsertionMatch.subDescription : '-';
-
-        const selvedgeMatch = selvedgeData.data.find(
-          (item: { descriptions: string; subDescription: string }) => item.descriptions === contract.selvege
-        );
-        selvedgeSub = selvedgeMatch ? selvedgeMatch.subDescription : '-';
+        // Get sub descriptions
+        descriptionSub = descriptionMap.get(descValue)?.sub || '-';
+        blendRatioSub = blendRatioMap.get(blendRatioValue)?.sub || '-';
+        warpYarnTypeSub = warpYarnMap.get(warpYarnValue)?.sub || '-';
+        weftYarnTypeSub = weftYarnMap.get(weftYarnValue)?.sub || '-';
+        weavesSub = weavesMap.get(weavesValue)?.sub || '-';
+        pickInsertionSub = pickInsertionMap.get(pickInsertionValue)?.sub || '-';
+        selvedgeSub = selvedgeMap.get(selvegeValue)?.sub || '-';
       } catch (error) {
         console.error('Error fetching subDescriptions:', error);
         toast('Failed to fetch subDescriptions, proceeding with defaults', { type: 'warning' });
@@ -226,7 +249,7 @@ const ConversionPDFExport = {
 
       // Seller Info
       const sellerBoxY = yPos - 3;
-      const sellerBoxHeight = 10;
+      const sellerBoxHeight = 15; // Increased height to accommodate address
       doc.setLineWidth(0.3);
       doc.setDrawColor(isDarkMode ? 255 : 0, isDarkMode ? 255 : 0, isDarkMode ? 255 : 0);
       doc.rect(leftColX - 2, sellerBoxY, 80, sellerBoxHeight, 'S');
@@ -237,8 +260,11 @@ const ConversionPDFExport = {
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
-      let sellerName = contract.seller || '-';
+      
+      // Get seller name - handle both string and object types
+      let sellerName = typeof contract.seller === 'string' ? contract.seller : (contract.seller as any)?.sellerName || contract.seller || '-';
       let sellerAddressText = sellerAddress || GetSellerAddress || '-';
+      
       const maxSellerWidth = 65;
       if (doc.getTextWidth(sellerName) > maxSellerWidth) {
         while (doc.getTextWidth(sellerName + '...') > maxSellerWidth && sellerName.length > 0) {
@@ -246,18 +272,18 @@ const ConversionPDFExport = {
         }
         sellerName += '...';
       }
-      if (doc.getTextWidth(sellerAddressText) > maxSellerWidth) {
-        while (doc.getTextWidth(sellerAddressText + '...') > maxSellerWidth && sellerAddressText.length > 0) {
-          sellerAddressText = sellerAddressText.slice(0, -1);
-        }
-        sellerAddressText += '...';
-      }
+      
+      // Split address into multiple lines if too long
+      const sellerAddressLines = doc.splitTextToSize(sellerAddressText, maxSellerWidth);
+      
       doc.text(sellerName, leftColX + doc.getTextWidth('Seller:') + 4, yPos);
-      doc.text(sellerAddressText, leftColX + doc.getTextWidth('Seller:') + 4, yPos + 4);
+      sellerAddressLines.forEach((line: string, index: number) => {
+        doc.text(line, leftColX + doc.getTextWidth('Seller:') + 4, yPos + 4 + (index * 3));
+      });
 
       // Buyer Info
       const buyerBoxY = yPos - 3;
-      const buyerBoxHeight = 10;
+      const buyerBoxHeight = 15; // Increased height to accommodate address
       doc.setLineWidth(0.3);
       doc.setDrawColor(isDarkMode ? 255 : 0, isDarkMode ? 255 : 0, isDarkMode ? 255 : 0);
       doc.rect(rightColX - 2, buyerBoxY, 80, buyerBoxHeight, 'S');
@@ -268,8 +294,11 @@ const ConversionPDFExport = {
       doc.setFont(valueStyle.font, valueStyle.style);
       doc.setFontSize(valueStyle.size);
       doc.setTextColor(...valueStyle.color);
-      let buyerName = contract.buyer || '-';
+      
+      // Get buyer name - handle both string and object types
+      let buyerName = typeof contract.buyer === 'string' ? contract.buyer : (contract.buyer as any)?.buyerName || contract.buyer || '-';
       let buyerAddressText = buyerAddress || GetBuyerAddress || '-';
+      
       const maxBuyerWidth = 65;
       if (doc.getTextWidth(buyerName) > maxBuyerWidth) {
         while (doc.getTextWidth(buyerName + '...') > maxBuyerWidth && buyerName.length > 0) {
@@ -277,16 +306,16 @@ const ConversionPDFExport = {
         }
         buyerName += '...';
       }
-      if (doc.getTextWidth(buyerAddressText) > maxBuyerWidth) {
-        while (doc.getTextWidth(buyerAddressText + '...') > maxBuyerWidth && buyerAddressText.length > 0) {
-          buyerAddressText = buyerAddressText.slice(0, -1);
-        }
-        buyerAddressText += '...';
-      }
+      
+      // Split address into multiple lines if too long
+      const buyerAddressLines = doc.splitTextToSize(buyerAddressText, maxBuyerWidth);
+      
       doc.text(buyerName, rightColX + doc.getTextWidth('Buyer:') + 4, yPos);
-      doc.text(buyerAddressText, rightColX + doc.getTextWidth('Buyer:') + 4, yPos + 4);
+      buyerAddressLines.forEach((line: string, index: number) => {
+        doc.text(line, rightColX + doc.getTextWidth('Buyer:') + 4, yPos + 4 + (index * 3));
+      });
 
-      yPos += 15;
+      yPos += 20; // Increased spacing to account for larger boxes
 
       // Fields
       const fields = [
@@ -650,7 +679,7 @@ const ConversionPDFExport = {
             : contract.paymenterm || '45 days PDC before dispatch',
         },
         { label: 'Packing:', value: `${contract.packing || '-'} Packing` },
-        { label: 'Delivery Destination:', value: contract.buyer || '-' },
+        { label: 'Delivery Destination:', value: typeof contract.buyer === 'string' ? contract.buyer : (contract.buyer as any)?.buyerName || '-' },
         {
           label: 'Remarks:',
           value: type === 'purchase'
@@ -761,19 +790,20 @@ const ConversionPDFExport = {
       const signatureY = footerY - signatureHeight - 3;
 
       // Signatures
-      const signatureWidth = 30;
-      const startX = 10;
-      const sellerMargin = 6;
-      const centerX = startX + signatureWidth + sellerMargin;
+      const signatureWidth = 35;
       const pageWidth = 210;
       const margin = 10;
-      const availableWidth = pageWidth - margin - (centerX + signatureWidth);
-      const gap = availableWidth / 2;
-      const endX = centerX + signatureWidth + gap;
+      const usableWidth = pageWidth - (2 * margin);
+      
+      // Calculate positions for three signatures evenly distributed
+      const startX = margin;
+      const centerX = margin + (usableWidth - signatureWidth) / 2;
+      const endX = pageWidth - margin - signatureWidth;
 
       const labelColor: [number, number, number] = [0, 0, 0];
       const textColor: [number, number, number] = [0, 0, 0];
 
+      // ZMS Signature (Left)
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(7);
       doc.setTextColor(...labelColor);
@@ -790,11 +820,13 @@ const ConversionPDFExport = {
       doc.setTextColor(...textColor);
       const zmsText = 'Z.M. SOURCING';
       const zmsTextWidth = doc.getTextWidth(zmsText);
-      doc.text(zmsText, startX, signatureY + 12);
+      const zmsTextX = startX + (signatureWidth - zmsTextWidth) / 2;
+      doc.text(zmsText, zmsTextX, signatureY + 12);
       doc.setLineWidth(0.1);
       doc.setDrawColor(...textColor);
-      doc.line(startX, signatureY + 13, startX + zmsTextWidth, signatureY + 13);
+      doc.line(startX, signatureY + 13, startX + signatureWidth, signatureY + 13);
 
+      // Seller Signature (Center)
       if (sellerSignature) {
         try {
           doc.addImage(sellerSignature, 'PNG', centerX, signatureY, signatureWidth, 10);
@@ -808,11 +840,13 @@ const ConversionPDFExport = {
       doc.setTextColor(...textColor);
       const sellerText = `${contract.seller || '-'}`;
       const sellerTextWidth = doc.getTextWidth(sellerText);
-      doc.text(sellerText, centerX, signatureY + 12);
+      const sellerTextX = centerX + (signatureWidth - sellerTextWidth) / 2;
+      doc.text(sellerText, sellerTextX, signatureY + 12);
       doc.setLineWidth(0.1);
       doc.setDrawColor(...textColor);
-      doc.line(centerX, signatureY + 13, centerX + sellerTextWidth, signatureY + 13);
+      doc.line(centerX, signatureY + 13, centerX + signatureWidth, signatureY + 13);
 
+      // Buyer Signature (Right)
       if (buyerSignature) {
         try {
           doc.addImage(buyerSignature, 'PNG', endX, signatureY, signatureWidth, 10);
@@ -826,10 +860,11 @@ const ConversionPDFExport = {
       doc.setTextColor(...textColor);
       const buyerText = `${contract.buyer || '-'}`;
       const buyerTextWidth = doc.getTextWidth(buyerText);
-      doc.text(buyerText, endX, signatureY + 12);
+      const buyerTextX = endX + (signatureWidth - buyerTextWidth) / 2;
+      doc.text(buyerText, buyerTextX, signatureY + 12);
       doc.setLineWidth(0.1);
       doc.setDrawColor(...textColor);
-      doc.line(endX, signatureY + 13, endX + buyerTextWidth, signatureY + 13);
+      doc.line(endX, signatureY + 13, endX + signatureWidth, signatureY + 13);
 
       // Footer
       doc.setLineWidth(0.1);

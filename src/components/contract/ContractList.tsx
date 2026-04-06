@@ -2,6 +2,15 @@
 import React from 'react';
 import { FaCheck, FaFileExcel, FaFilePdf, FaSignature, FaEnvelope, FaWhatsapp } from 'react-icons/fa';
 import { getAllContract, deleteContract, updateContractStatus } from '@/apis/contract';
+import { getAllSellers } from '@/apis/seller';
+import { getAllBuyer } from '@/apis/buyer';
+import { getAllDescriptions } from '@/apis/description';
+import { getAllFabricTypess } from '@/apis/fabrictypes';
+import { getAllWeaves } from '@/apis/weaves';
+import { getAllWrapYarnTypes } from '@/apis/wrapyarntype';
+import { getAllWeftYarnType } from '@/apis/weftyarntype';
+import { getAllSelveges } from '@/apis/selvege';
+import { getAllFinal } from '@/apis/final';
 import { columns, Contract } from './columns';
 import { DataTable } from '@/components/ui/table';
 import DeleteConfirmModel from '@/components/ui/DeleteConfirmModel';
@@ -42,6 +51,17 @@ const ContractList = () => {
   const [showMultiPDFOptions, setShowMultiPDFOptions] = React.useState(false);
   const [showDietPDFOptions, setDietMultiPDFOptions] = React.useState(false);
   const [showConversionPDFOptions, setShowConversionPDFOptions] = React.useState(false);
+
+  // Lookup maps for IDs to names
+  const [sellerMap, setSellerMap] = React.useState<Map<string, string>>(new Map());
+  const [buyerMap, setBuyerMap] = React.useState<Map<string, string>>(new Map());
+  const [descriptionMap, setDescriptionMap] = React.useState<Map<string, string>>(new Map());
+  const [fabricTypeMap, setFabricTypeMap] = React.useState<Map<string, string>>(new Map());
+  const [weavesMap, setWeavesMap] = React.useState<Map<string, string>>(new Map());
+  const [wrapYarnTypeMap, setWrapYarnTypeMap] = React.useState<Map<string, string>>(new Map());
+  const [weftYarnTypeMap, setWeftYarnTypeMap] = React.useState<Map<string, string>>(new Map());
+  const [selvegeMap, setSelvegeMap] = React.useState<Map<string, string>>(new Map());
+  const [finalMap, setFinalMap] = React.useState<Map<string, string>>(new Map());
 
   const zmsSigCanvas = React.useRef<SignatureCanvas | null>(null);
 
@@ -102,11 +122,11 @@ const ContractList = () => {
       'Contract Number': contract.contractNumber,
       'Date': contract.date || '-',
       'Contract Type': contract.contractType,
-      'Seller': contract.seller,
-      'Buyer': contract.buyer,
+      'Seller': getSellerName(contract.seller),
+      'Buyer': getBuyerName(contract.buyer),
       'Reference Number': contract.referenceNumber || '-',
-      'Fabric Type': contract.fabricType || '-',
-      'Description': contract.description || '-',
+      'Fabric Type': getFabricTypeName(contract.fabricType),
+      'Description': getDescriptionName(contract.description),
       'Finish Width': contract.finishWidth || '-',
       'Quantity': contract.buyerDeliveryBreakups?.length
         ? contract.buyerDeliveryBreakups.map((detail) => detail.qty).join(', ')
@@ -162,11 +182,11 @@ const ContractList = () => {
       'Contract Number': contract.contractNumber,
       'Date': contract.date || '-',
       'Contract Type': contract.contractType,
-      'Seller': contract.seller,
-      'Buyer': contract.buyer,
+      'Seller': getSellerName(contract.seller),
+      'Buyer': getBuyerName(contract.buyer),
       'Reference Number': contract.referenceNumber || '-',
-      'Fabric Type': contract.fabricType || '-',
-      'Description': contract.description || '-',
+      'Fabric Type': getFabricTypeName(contract.fabricType),
+      'Description': getDescriptionName(contract.description),
       'Finish Width': contract.finishWidth || '-',
       'Quantity': contract.buyerDeliveryBreakups?.length
         ? contract.buyerDeliveryBreakups.map((detail) => detail.qty).join(', ')
@@ -482,20 +502,171 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
       return 'N/A';
     }
 
+    // Helper function to get description name from ID using appropriate map
+    const getDescName = (id: string | any, map: Map<string, string>): string => {
+      if (!id) return '';
+      if (typeof id === 'object' && id !== null && 'descriptions' in id) {
+        return id.descriptions;
+      }
+      return map.get(id) || '';
+    };
+
+    // Get width from multiWidthContractRow or conversionContractRow
+    let width = selectedContract.width || '';
+    if (selectedContract.multiWidthContractRow && selectedContract.multiWidthContractRow.length > 0) {
+      const widths = selectedContract.multiWidthContractRow
+        .map(item => item.width)
+        .filter(w => w && w.trim() !== '')
+        .join(', ');
+      if (widths) width = widths;
+    } else if (selectedContract.conversionContractRow && selectedContract.conversionContractRow.length > 0) {
+      const widths = selectedContract.conversionContractRow
+        .map(item => item.width)
+        .filter(w => w && w.trim() !== '')
+        .join(', ');
+      if (widths) width = widths;
+    }
+
     const fabricDetails = [
-      `${selectedContract.warpCount || ''}${selectedContract.warpYarnType || ''}`,
-      `${selectedContract.weftCount || ''}${selectedContract.weftYarnType || ''}`,
+      `${selectedContract.warpCount || ''}${getDescName(selectedContract.warpYarnType, wrapYarnTypeMap)}`,
+      `${selectedContract.weftCount || ''}${getDescName(selectedContract.weftYarnType, weftYarnTypeMap)}`,
       `${selectedContract.noOfEnds || ''} * ${selectedContract.noOfPicks || ''}`,
-      selectedContract.weaves || '',
-      selectedContract.width || '',
-      selectedContract.final || '',
-      selectedContract.selvege || '',
+      getDescName(selectedContract.weaves, weavesMap),
+      width,
+      getDescName(selectedContract.final, finalMap),
+      getDescName(selectedContract.selvege, selvegeMap),
       selectedContract.dietContractRow?.map((detail) => detail.color).join(', ') || '',
     ]
       .filter((item) => item.trim() !== '')
       .join(' / ');
 
     return fabricDetails || 'N/A';
+  };
+
+  // Helper functions to get names from IDs
+  const getSellerName = (sellerId: string | any): string => {
+    if (typeof sellerId === 'object' && sellerId !== null && 'sellerName' in sellerId) {
+      return sellerId.sellerName;
+    }
+    return sellerMap.get(sellerId) || sellerId || '-';
+  };
+
+  const getBuyerName = (buyerId: string | any): string => {
+    if (typeof buyerId === 'object' && buyerId !== null && 'buyerName' in buyerId) {
+      return buyerId.buyerName;
+    }
+    return buyerMap.get(buyerId) || buyerId || '-';
+  };
+
+  const getDescriptionName = (descId: string | any): string => {
+    if (typeof descId === 'object' && descId !== null && 'descriptions' in descId) {
+      return descId.descriptions;
+    }
+    return descriptionMap.get(descId) || descId || '-';
+  };
+
+  const getFabricTypeName = (fabricTypeId: string | any): string => {
+    if (typeof fabricTypeId === 'object' && fabricTypeId !== null && 'descriptions' in fabricTypeId) {
+      return fabricTypeId.descriptions;
+    }
+    return fabricTypeMap.get(fabricTypeId) || fabricTypeId || '-';
+  };
+
+  const getWidthName = (widthId: string | any): string => {
+    if (typeof widthId === 'object' && widthId !== null && 'descriptions' in widthId) {
+      return widthId.descriptions;
+    }
+    return descriptionMap.get(widthId) || widthId || '-';
+  };
+
+  const getWeavesName = (weavesId: string | any): string => {
+    if (typeof weavesId === 'object' && weavesId !== null && 'descriptions' in weavesId) {
+      return weavesId.descriptions;
+    }
+    return weavesMap.get(weavesId) || weavesId || '-';
+  };
+
+  // Fetch lookup data
+  const fetchLookupData = async () => {
+    try {
+      const [
+        sellersRes, 
+        buyersRes, 
+        descriptionsRes, 
+        fabricTypesRes,
+        weavesRes,
+        wrapYarnTypesRes,
+        weftYarnTypesRes,
+        selvegesRes,
+        finalRes
+      ] = await Promise.all([
+        getAllSellers(1, 1000),
+        getAllBuyer(1, 1000),
+        getAllDescriptions(1, 1000),
+        getAllFabricTypess(1, 1000),
+        getAllWeaves(1, 1000),
+        getAllWrapYarnTypes(1, 1000),
+        getAllWeftYarnType(1, 1000),
+        getAllSelveges(1, 1000),
+        getAllFinal(1, 1000),
+      ]);
+
+      const sellerLookup = new Map<string, string>();
+      sellersRes.data.forEach((seller: any) => {
+        sellerLookup.set(seller.id, seller.sellerName);
+      });
+      setSellerMap(sellerLookup);
+
+      const buyerLookup = new Map<string, string>();
+      buyersRes.data.forEach((buyer: any) => {
+        buyerLookup.set(buyer.id, buyer.buyerName);
+      });
+      setBuyerMap(buyerLookup);
+
+      const descLookup = new Map<string, string>();
+      descriptionsRes.data.forEach((desc: any) => {
+        descLookup.set(desc.listid, desc.descriptions);
+      });
+      setDescriptionMap(descLookup);
+
+      const fabricTypeLookup = new Map<string, string>();
+      fabricTypesRes.data.forEach((fabricType: any) => {
+        fabricTypeLookup.set(fabricType.listid, fabricType.descriptions);
+      });
+      setFabricTypeMap(fabricTypeLookup);
+
+      const weavesLookup = new Map<string, string>();
+      weavesRes.data.forEach((weave: any) => {
+        weavesLookup.set(weave.listid, weave.descriptions);
+      });
+      setWeavesMap(weavesLookup);
+
+      const wrapYarnTypeLookup = new Map<string, string>();
+      wrapYarnTypesRes.data.forEach((type: any) => {
+        wrapYarnTypeLookup.set(type.listid, type.descriptions);
+      });
+      setWrapYarnTypeMap(wrapYarnTypeLookup);
+
+      const weftYarnTypeLookup = new Map<string, string>();
+      weftYarnTypesRes.data.forEach((type: any) => {
+        weftYarnTypeLookup.set(type.listid, type.descriptions);
+      });
+      setWeftYarnTypeMap(weftYarnTypeLookup);
+
+      const selvegeLookup = new Map<string, string>();
+      selvegesRes.data.forEach((selvege: any) => {
+        selvegeLookup.set(selvege.listid, selvege.descriptions);
+      });
+      setSelvegeMap(selvegeLookup);
+
+      const finalLookup = new Map<string, string>();
+      finalRes.data.forEach((final: any) => {
+        finalLookup.set(final.listid, final.descriptions);
+      });
+      setFinalMap(finalLookup);
+    } catch (error) {
+      console.error('Error fetching lookup data:', error);
+    }
   };
 
   const fetchContracts = async () => {
@@ -513,6 +684,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
   };
 
   React.useEffect(() => {
+    fetchLookupData();
     fetchContracts();
   }, [pageIndex, pageSize]);
 
@@ -772,7 +944,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
       </div>
       <div>
         <DataTable
-          columns={columns(handleDeleteOpen, handleCheckboxChange)}
+          columns={columns(handleDeleteOpen, handleCheckboxChange, getSellerName, getBuyerName, getFabricTypeName, getDescriptionName, getWidthName, getWeavesName)}
           data={filteredContracts}
           loading={loading}
           link={'/contract/create'}
@@ -933,7 +1105,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
                         Seller
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.seller}
+                        {getSellerName(selectedContract.seller)}
                       </div>
                     </div>
                     <div className="group">
@@ -941,7 +1113,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
                         Buyer
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.buyer}
+                        {getBuyerName(selectedContract.buyer)}
                       </div>
                     </div>
                     <div className="group">
@@ -957,7 +1129,7 @@ const handleExportConversionPDF = async (type: 'sale' | 'purchase') => {
                         Fabric Type
                       </span>
                       <div className="bg-white rounded-lg px-4 py-2 border border-gray-200 shadow-sm text-gray-800 text-lg font-medium group-hover:border-cyan-300 transition-all duration-200">
-                        {selectedContract.fabricType || '-'}
+                        {getFabricTypeName(selectedContract.fabricType)}
                       </div>
                     </div>
                     <div className="group">

@@ -16,14 +16,14 @@ export interface Contract {
   companyId: string;
   branchId: string;
   contractOwner: string;
-  seller: string;
-  buyer: string;
+  seller: string | { id: string; sellerName: string };
+  buyer: string | { id: string; buyerName: string };
   referenceNumber: string;
   deliveryDate: string;
   refer: string;
   referdate: string;
-  fabricType: string;
-  description: string;
+  fabricType: string | { listid: string; descriptions: string };
+  description: string | { listid: string; descriptions: string };
   descriptionSubOptions: string;
   stuff: string;
   stuffSubOptions: string;
@@ -230,7 +230,13 @@ export interface Contract {
 
 export const columns = (
   handleDeleteOpen: (id: string) => void,
-  handleCheckboxChange: (id: string, checked: boolean) => void
+  handleCheckboxChange: (id: string, checked: boolean) => void,
+  getSellerName?: (sellerId: string | any) => string,
+  getBuyerName?: (buyerId: string | any) => string,
+  getFabricTypeName?: (fabricTypeId: string | any) => string,
+  getDescriptionName?: (descId: string | any) => string,
+  getWidthName?: (widthId: string | any) => string,
+  getWeavesName?: (weavesId: string | any) => string
 ): ColumnDef<Contract>[] => [
   {
     id: "select",
@@ -269,10 +275,18 @@ export const columns = (
   {
     accessorKey: "seller",
     header: "Seller",
+    cell: ({ row }) => {
+      const seller = row.original.seller;
+      return getSellerName ? getSellerName(seller) : (seller || '-');
+    },
   },
   {
     accessorKey: "buyer",
     header: "Buyer",
+    cell: ({ row }) => {
+      const buyer = row.original.buyer;
+      return getBuyerName ? getBuyerName(buyer) : (buyer || '-');
+    },
   },
   
   {
@@ -286,6 +300,45 @@ export const columns = (
   {
     accessorKey: "fabricType",
     header: "Fabric Type",
+    cell: ({ row }) => {
+      const fabricType = row.original.fabricType;
+      return getFabricTypeName ? getFabricTypeName(fabricType) : (fabricType || '-');
+    },
+  },
+  {
+    accessorKey: "description",
+    header: "Fabric Detail",
+    cell: ({ row }) => {
+      const description = row.original.description;
+      const weaves = row.original.weaves;
+      
+      // Get width from multiWidthContractRow or conversionContractRow
+      let width = row.original.width;
+      if (row.original.multiWidthContractRow && row.original.multiWidthContractRow.length > 0) {
+        const widths = row.original.multiWidthContractRow
+          .map(item => item.width)
+          .filter(w => w && w.trim() !== '')
+          .join(', ');
+        if (widths) width = widths;
+      } else if (row.original.conversionContractRow && row.original.conversionContractRow.length > 0) {
+        const widths = row.original.conversionContractRow
+          .map(item => item.width)
+          .filter(w => w && w.trim() !== '')
+          .join(', ');
+        if (widths) width = widths;
+      }
+      
+      const descText = getDescriptionName ? getDescriptionName(description) : (description || '');
+      const weavesText = getWeavesName ? getWeavesName(weaves) : (weaves || '');
+      const widthText = width || '';
+      
+      const parts = [descText, weavesText, widthText].filter(part => {
+        if (!part) return false;
+        const str = typeof part === 'string' ? part : String(part);
+        return str !== '-' && str.trim() !== '';
+      });
+      return parts.length > 0 ? parts.join(' / ') : '-';
+    },
   },
   {
     accessorKey: "deliveryDate",
