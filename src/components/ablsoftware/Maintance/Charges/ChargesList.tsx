@@ -541,6 +541,7 @@ const ChargesList = () => {
         if (reportSelectedOrderNos.length > 0 && !reportSelectedOrderNos.includes(item.orderNo)) return;
 
         // Apply charge type filter (match by charge name)
+        // IMPORTANT: This filter must be applied BEFORE we process the amounts
         if (reportSelectedChargeTypes.length > 0) {
           const chargeMatches = reportSelectedChargeTypes.some(typeId => {
             const typeName = getChargeTypeName(typeId);
@@ -551,13 +552,6 @@ const ChargesList = () => {
 
         // Apply paid to person filter (if applicable - this data doesn't have paidTo field)
         // Skip this filter for this API data
-
-        // Apply payment status filter
-        const isPaid = item.totalPaid > 0;
-        const isUnpaid = item.remainingBalance > 0;
-        
-        if (reportPaymentStatus === 'Paid' && !isPaid) return;
-        if (reportPaymentStatus === 'Unpaid' && !isUnpaid) return;
 
         // Determine if this is from opening balance (no chargeNo but has orderNo that looks like opening balance)
         // Opening balance entries typically don't have a chargeNo
@@ -579,6 +573,8 @@ const ChargesList = () => {
           normalize(item.charge || '-'),
         ].join('|');
         const openingBalanceMatch = openingBalanceMap.get(openingBalanceMatchKey);
+        
+        // Use the specific charge amount from the API (chargeAmount is per charge type)
         const amount = Number(item.chargeAmount);
         const fallbackAmount = (openingBalanceMatch as any)?.amount || 0;
         const paidAmount = Number(item.paidAmount) || 0;
@@ -588,8 +584,17 @@ const ChargesList = () => {
             : fallbackAmount > 0
               ? fallbackAmount
               : paidAmount;
+        
+        // Use the specific received and pending amounts for this charge type
         const received = Number(item.totalPaid) || 0;
         const pending = Number(item.remainingBalance) || Math.max(resolvedAmount - received, 0);
+
+        // Apply payment status filter AFTER calculating amounts
+        const isPaid = received > 0;
+        const isUnpaid = pending > 0;
+        
+        if (reportPaymentStatus === 'Paid' && !isPaid) return;
+        if (reportPaymentStatus === 'Unpaid' && !isUnpaid) return;
 
         filteredRowsTemp.push({
           chargeNo: (openingBalanceMatch as any)?.chargeNo || displayChargeNo,
