@@ -979,11 +979,13 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
   };
 
   const selectCharge = async (index: number, charge: any) => {
+    // Define variables at function scope so they're available in catch block
+    const vehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
+    const orderNo = charge.orderNo || '';
+    const chargeNo = charge.chargeNo || '';
+    const chargeName = charge.chargeName || charge.vehicle || charge.chargeNo || 'Charge';
+    
     try {
-      // Get vehicle number from the selected booking order (already in the row)
-      const vehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
-      const orderNo = charge.orderNo || '';
-      const chargeNo = charge.chargeNo || '';
 
       // Only check history if all required fields are present
       if (vehicleNo && orderNo && chargeNo) {
@@ -1058,7 +1060,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
               });
               toast.info(`Previous balance found: ${remainingBalance.toLocaleString()}. Showing remaining balance.`);
               
-              setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
+              setValue(`paymentABLItems.${index}.charges`, String(chargeName), { shouldValidate: false });
               setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
               setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
               setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
@@ -1144,7 +1146,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         console.log('No matching BillPayment - using charge amount as-is:', finalAmount);
       }
 
-      setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.charges`, String(chargeName), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
       setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
@@ -1197,7 +1199,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         }
       }
       
-      setValue(`paymentABLItems.${index}.charges`, String(charge.chargeName || charge.vehicle || charge.chargeNo || ''), { shouldValidate: false });
+      setValue(`paymentABLItems.${index}.charges`, String(chargeName), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.chargeNo`, String(charge.chargeNo || ''), { shouldValidate: false });
       setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
       setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
@@ -1590,8 +1592,9 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                 onClick={() => setShowChargePopup(index)}
                                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 bg-[#3a614c] hover:bg-[#3a614c]/90 text-white text-xs sm:text-sm rounded-md transition-all duration-200 shadow-sm hover:shadow-md whitespace-nowrap overflow-hidden text-ellipsis"
                                 disabled={isViewMode || !row.vehicleNo || !row.orderNo}
+                                title={row.charges || row.chargeNo || 'Select'}
                               >
-                                {row.charges || row.chargeNo || 'Select'}
+                                {row.charges || 'Select'}
                               </Button>
                               {errors.paymentABLItems?.[index]?.charges && (
                                 <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].charges.message}</p>
