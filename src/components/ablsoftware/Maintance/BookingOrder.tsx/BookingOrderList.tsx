@@ -55,6 +55,20 @@ interface DropdownOption {
   name: string;
 }
 
+const getLookupName = (item: any): string =>
+  item?.name ||
+  item?.vendorName ||
+  item?.VendorName ||
+  item?.transporterName ||
+  item?.TransporterName ||
+  item?.customerName ||
+  item?.CustomerName ||
+  item?.partyName ||
+  item?.PartyName ||
+  item?.title ||
+  item?.Title ||
+  '-';
+
 interface UploadedFile {
   id: string;
   name: string;
@@ -172,22 +186,22 @@ const BookingOrderList = () => {
 
       const [ordersRes, vendorsRes, transportersRes, customersRes, partiesRes] = await Promise.all([
         getAllBookingOrder(apiPageIndex, pageSize),
-        getAllVendor(),
-        getAllTransporter(),
+        getAllVendor(1, 1000),
+        getAllTransporter(1, 1000),
         getAllCustomers(1, 1000).catch(err => { console.warn('Failed to fetch customers:', err); return { data: [] }; }),
         getAllPartys(1, 1000).catch(err => { console.warn('Failed to fetch parties:', err); return { data: [] }; }),
       ]);
 
       const orders = ordersRes?.data || [];
-      const vendorsData = vendorsRes.data?.map((v: any) => ({ id: v.id, name: v.name })) || [];
-      const transportersData = transportersRes.data?.map((t: any) => ({ id: t.id, name: t.name })) || [];
+      const vendorsData = vendorsRes.data?.map((v: any) => ({ id: v.id, name: getLookupName(v) })) || [];
+      const transportersData = transportersRes.data?.map((t: any) => ({ id: t.id, name: getLookupName(t) })) || [];
       const customersData = customersRes?.data?.map((c: any) => ({
         id: c.id,
-        name: c.name || c.customerName || c.Name || c.CustomerName || c.title || c.Title
+        name: getLookupName(c)
       })) || [];
       const partiesData = partiesRes?.data?.map((p: any) => ({
         id: p.id,
-        name: p.name || p.partyName || p.Name || p.PartyName || p.title || p.Title
+        name: getLookupName(p)
       })) || [];
 
       // Debug: Log the party data to understand structure
