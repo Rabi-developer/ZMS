@@ -13,6 +13,7 @@ export interface BillPaymentInvoice {
   status: string;
   vehicleNo: string;
   orderNo: string;
+  chargeNo: string;
   amount: string;
   broker: string;
 }
@@ -69,6 +70,10 @@ export const columns = (
   {
     header: 'Order No',
     accessorKey: 'orderNo',
+  },
+  {
+    header: 'Charge No',
+    accessorKey: 'chargeNo',
   },
   {
     header: 'Amount',
