@@ -41,6 +41,8 @@ interface ApiBiltyPaymentInvoice {
     id: string;
     vehicleNo: string;
     orderNo: string;
+    chargeNo?: string;
+    chargesNo?: string;
     amount: number;
     munshayana: string;
     broker: string;
@@ -86,6 +88,7 @@ const transformBiltyPaymentInvoice = (apiData: ApiBiltyPaymentInvoice[]): BillPa
       status: item.status || 'Prepared',
       vehicleNo: firstLine.vehicleNo || '',
       orderNo: firstLine.orderNo || '',
+      chargeNo: firstLine.chargeNo || firstLine.chargesNo || '',
       amount: totalAmount.toString(),
       broker: firstLine.broker || '',
       files: item.files || '',
@@ -404,6 +407,7 @@ const BillPaymentInvoicesList = () => {
       'Invoice No': b.invoiceNo || '-',
       'Vehicle No': b.vehicleNo || '-',
       'Order No': b.orderNo || '-',
+      'Charge No': b.chargeNo || '-',
       'Amount': b.amount || '-',
       'Broker': b.broker || '-',
       'Payment Date': b.paymentDate || '-',
@@ -420,8 +424,8 @@ const BillPaymentInvoicesList = () => {
       ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } } as any;
 
       // Headers with Serial
-      const headers = ['Serial','Invoice No','Vehicle No','Order No','Amount','Broker','Payment Date','Status','Files'];
-      const widths = [8,14,14,12,14,16,14,12,18];
+      const headers = ['Serial','Invoice No','Vehicle No','Order No','Charge No','Amount','Broker','Payment Date','Status','Files'];
+      const widths = [8,14,14,12,12,14,16,14,12,18];
       ws.columns = headers.map((h,i)=>({ header: h, key: `col${i}`, width: widths[i] }));
 
       // Title + Subtitle
@@ -465,7 +469,7 @@ const BillPaymentInvoicesList = () => {
           cell.border = { top:{style:'thin',color:{argb:'FFDDDDDD'}}, left:{style:'thin',color:{argb:'FFDDDDDD'}}, bottom:{style:'thin',color:{argb:'FFDDDDDD'}}, right:{style:'thin',color:{argb:'FFDDDDDD'}} } as any;
           if (even) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF7F7F7' } } as any;
           // Amount right-align + number format
-          if (col === 5) {
+          if (col === 6) {
             const val = cell.value as any;
             const num = parseFloat(String(val ?? '').replace(/[^0-9.-]/g, ''));
             if (!isNaN(num)) { cell.value = num; (cell as any).numFmt = '#,##0.00'; cell.alignment = { vertical:'middle', horizontal:'right', wrapText:true } as any; }
@@ -474,14 +478,14 @@ const BillPaymentInvoicesList = () => {
       });
 
       // Totals row
-      const totalsRow = ws.addRow(['','','','TOTAL','', '', '', '', '']);
-      totalsRow.getCell(4).value = 'TOTAL';
-      ws.mergeCells(totalsRow.number, 4, totalsRow.number, 4);
-      totalsRow.getCell(5).value = amountSum;
-      (totalsRow.getCell(5) as any).numFmt = '#,##0.00';
+      const totalsRow = ws.addRow(['','','','','TOTAL','', '', '', '', '']);
+      totalsRow.getCell(5).value = 'TOTAL';
+      ws.mergeCells(totalsRow.number, 5, totalsRow.number, 5);
+      totalsRow.getCell(6).value = amountSum;
+      (totalsRow.getCell(6) as any).numFmt = '#,##0.00';
       totalsRow.eachCell((cell, col)=>{
         cell.font = { bold: true } as any;
-        cell.alignment = { vertical: 'middle', horizontal: col===5 ? 'right' : 'center' } as any;
+        cell.alignment = { vertical: 'middle', horizontal: col===6 ? 'right' : 'center' } as any;
         cell.border = { top:{style:'thin',color:{argb:'FF9E9E9E'}}, left:{style:'thin',color:{argb:'FF9E9E9E'}}, bottom:{style:'thin',color:{argb:'FF9E9E9E'}}, right:{style:'thin',color:{argb:'FF9E9E9E'}} } as any;
       });
 
