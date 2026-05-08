@@ -54,6 +54,7 @@ const billPaymentSchema = z.object({
         isAdditionalLine: z.literal(false),
         vehicleNo: z.string().min(1, 'Vehicle No is required'),
         orderNo: z.string().min(1, 'Order No is required'),
+        chargeNo: z.string().optional(),
         amount: z.number().min(0, 'Amount is required'),
         munshayana: z.number().min(0).optional(),
         broker: z.string().optional(),
@@ -81,6 +82,7 @@ interface ChargeDisplay {
   id: string;
   vehicleNo: string;
   orderNo: string;
+  chargeNo: string;
   amount: number;
   munshayana: string;
 }
@@ -103,7 +105,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     defaultValues: {
       receiptNo: '',
       paymentDate: '',
-      lines: [{ isAdditionalLine: false, vehicleNo: '', orderNo: '', amount: 0, munshayana: 0 }],
+      lines: [{ isAdditionalLine: false, vehicleNo: '', orderNo: '', chargeNo: '', amount: 0, munshayana: 0 }],
     },
   });
 
@@ -149,6 +151,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
         const allFlatCharges: ChargeDisplay[] = [];
         (chargesRes.data || []).forEach((charge: any) => {
           const orderNo = String(charge.orderNo ?? '');
+          const chargeNo = String(charge.chargeNo ?? charge.ChargeNo ?? '');
           const bo = bookingOrders.find(b => b.orderNo === orderNo);
           if (charge.lines && charge.lines.length > 0) {
             charge.lines.forEach((line: any, lIndex: number) => {
@@ -156,6 +159,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                 id: `${charge.id}-${lIndex}`,
                 vehicleNo: bo?.vehicleNo || '—',
                 orderNo: orderNo,
+                chargeNo: chargeNo,
                 amount: Number(line.amount ?? 0),
                 munshayana: bo?.munshayana || '',
               });
@@ -201,6 +205,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                     isAdditionalLine: false,
                     vehicleNo: line.vehicleNo || '',
                     orderNo: line.orderNo || '',
+                    chargeNo: line.chargeNo || line.chargesNo || '',
                     amount: Number(line.amount || 0),
                     munshayana: Number(line.munshayana || 0),
                     broker: line.broker || '',
@@ -225,6 +230,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
     
     setValue(`lines.${index}.vehicleNo`, charge.vehicleNo);
     setValue(`lines.${index}.orderNo`, charge.orderNo);
+    setValue(`lines.${index}.chargeNo`, charge.chargeNo);
     setValue(`lines.${index}.amount`, charge.amount);
     setValue(`lines.${index}.munshayana`, 0);
     setValue(`lines.${index}.isAdditionalLine`, false);
@@ -269,6 +275,8 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                 isAdditionalLine: false,
                 vehicleNo: line.vehicleNo,
                 orderNo: line.orderNo,
+                chargeNo: line.chargeNo,
+                chargesNo: line.chargeNo,
                 amount: line.amount,
                 munshayana: line.munshayana ?? 0,
                 broker: line.broker,
@@ -412,6 +420,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                   <tr>
                     <th className="px-4 py-3 text-left">Vehicle No</th>
                     <th className="px-4 py-3 text-left">Order No</th>
+                    <th className="px-4 py-3 text-left">Charge No</th>
                     <th className="px-4 py-3 text-left">Amount</th>
                     {hasAdditionalLines && <th className="px-4 py-3 text-left">Name Charges</th>}
                     {hasAdditionalLines && <th className="px-4 py-3 text-left">Amount Charges</th>}
@@ -453,6 +462,15 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                         {!line.isAdditionalLine && (
                           <input
                             {...register(`lines.${index}.orderNo`)}
+                            disabled
+                            className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
+                          />
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {!line.isAdditionalLine && (
+                          <input
+                            {...register(`lines.${index}.chargeNo`)}
                             disabled
                             className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
                           />
@@ -559,6 +577,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                   <tr>
                     <td colSpan={2} className="px-4 py-3">Total Amount</td>
                     <td className="px-4 py-3">{totalAmount.toLocaleString()}</td>
+                    <td className="px-4 py-3"></td>
                     {hasAdditionalLines && <td colSpan={2} className="px-4 py-3 text-right">{totalAdditional.toLocaleString()}</td>}
                     <td colSpan={6}></td>
                   </tr>
@@ -566,7 +585,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                     <tr>
                       <td colSpan={2} className="px-4 py-3 text-red-600">Munshayana Deduction</td>
                       <td className="px-4 py-3 text-red-600">-{munshayanaDeduction.toLocaleString()}</td>
-                      <td colSpan={6}></td>
+                      <td colSpan={7}></td>
                     </tr>
                   )}
                   <tr className="text-lg">
@@ -574,7 +593,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                     <td colSpan={hasAdditionalLines ? 3 : 1} className="px-4 py-3 text-green-600">
                       {finalTotal.toLocaleString()}
                     </td>
-                    <td colSpan={5}></td>
+                    <td colSpan={6}></td>
                   </tr>
                 </tfoot>
               </table>
@@ -655,6 +674,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                       <tr>
                         <th className="px-6 py-4 text-left font-semibold">Vehicle No</th>
                         <th className="px-6 py-4 text-left font-semibold">Order No</th>
+                        <th className="px-6 py-4 text-left font-semibold">Charge No</th>
                         <th className="px-6 py-4 text-left font-semibold">Amount</th>
                         <th className="px-6 py-4 text-left font-semibold">Munshayana</th>
                         <th className="px-6 py-4 text-left font-semibold">Action</th>
@@ -665,6 +685,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
                         <tr key={charge.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                           <td className="px-6 py-4">{charge.vehicleNo}</td>
                           <td className="px-6 py-4 font-medium">{charge.orderNo}</td>
+                          <td className="px-6 py-4 font-medium">{charge.chargeNo}</td>
                           <td className="px-6 py-4 font-bold text-green-600">
                             {charge.amount.toLocaleString()}
                           </td>

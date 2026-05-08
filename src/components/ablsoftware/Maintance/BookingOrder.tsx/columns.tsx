@@ -8,7 +8,8 @@ export const getStatusStyles = (status: string) => {
   switch (status) {
     case 'Prepared':
       return 'bg-blue-100 text-blue-800';
-    case 'Approved':
+    case 'Approved':    
+    
       return 'bg-green-100 text-green-800';
     case 'Canceled':
       return 'bg-red-100 text-red-800';
@@ -72,6 +73,17 @@ export const columns = (
   {
     header: 'Order Date',
     accessorKey: 'orderDate',
+    enableColumnFilter: true,
+    filterFn: 'includesString',
+    cell: ({ row }: { row: Row<BookingOrder> }) => {
+      const raw = row.original.orderDate;
+      if (!raw) return '-';
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return raw;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      return `${day}-${month}-${d.getFullYear()}`;
+    },
   },
   {
     header: 'Vehicle No',

@@ -88,6 +88,17 @@ export const columns = (
   {
     header: 'Charge Date',
     accessorKey: 'chargeDate',
+      enableColumnFilter: true,
+        filterFn: 'includesString',
+        cell: ({ row }: { row: Row<Charge> }) => {
+          const raw = row.original.chargeDate;
+          if (!raw) return '-';
+          const d = new Date(raw);
+          if (isNaN(d.getTime())) return raw;
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          return `${day}-${month}-${d.getFullYear()}`;
+        },
   },
   {
     header: 'Order No',

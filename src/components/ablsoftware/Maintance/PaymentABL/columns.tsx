@@ -89,6 +89,15 @@ export const columns = (
     accessorKey: 'paymentDate',
     enableColumnFilter: true,
     filterFn: 'includesString',
+    cell: ({ row }: { row: Row<PaymentABL> }) => {
+      const raw = row.original.paymentDate;
+      if (!raw) return '-';
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return raw;
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      return `${day}-${month}-${d.getFullYear()}`;
+    },
   },
   {
     header: 'Paid To',

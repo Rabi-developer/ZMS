@@ -83,7 +83,7 @@ export const columns = (
     accessorKey: 'paymentDate',
   },
   {
-    header: 'Total Amount',
+    header: 'Final Total',
     accessorKey: 'totalAmount',
   },
   {

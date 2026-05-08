@@ -58,20 +58,37 @@ interface ApiBiltyPaymentInvoice {
   modifiedBy: string | null;
 }
 
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
 const transformBiltyPaymentInvoice = (apiData: ApiBiltyPaymentInvoice[]): BillPaymentInvoice[] => {
   return apiData.map((item) => {
-    const firstLine = item.lines[0] || {};
+    const mainLines = item.lines.filter(l => !l.isAdditionalLine);
+    const firstLine = mainLines[0] || item.lines[0] || {};
+    const totalAmount = mainLines.reduce((sum, l) => sum + (l.amount || 0), 0);
+    const totalMunshayana = mainLines.reduce((sum, l) => sum + (Number(l.munshayana) || 0), 0);
+    const additionalCharges = item.lines
+      .filter(l => l.isAdditionalLine)
+      .reduce((sum, l) => sum + (l.amountCharges || 0), 0);
+    const finalTotal = totalAmount + additionalCharges - totalMunshayana;
     return {
       id: item.id,
       invoiceNo: item.invoiceNo,
-      paymentDate: item.paymentDate,
-      totalAmount: firstLine.amount?.toString() || '0',
+      paymentDate: formatDate(item.paymentDate),
+      totalAmount: finalTotal.toString(),
       status: item.status || 'Prepared',
       vehicleNo: firstLine.vehicleNo || '',
       orderNo: firstLine.orderNo || '',
-      amount: firstLine.amount?.toString() || '0',
+      amount: totalAmount.toString(),
       broker: firstLine.broker || '',
-      files: item.files || '', // Preserve files field
+      files: item.files || '',
     };
   });
 };

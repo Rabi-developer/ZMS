@@ -575,6 +575,16 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     });
   };
 
+  // Resolve munshyana name from ID
+  const getMunshayanaName = (chargeId: string) => {
+    if (!chargeId) return '';
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chargeId);
+    if (!isUUID) return chargeId;
+    return munshyanaData.find((m: any) => String(m.id) === chargeId)?.chargesDesc || 
+           munshyanaData.find((m: any) => String(m.id) === chargeId)?.name || 
+           chargeId;
+  };
+
   // Filter booking orders based on search term
   const filteredBookingOrders = bookingOrders.filter((order) =>
     [
@@ -606,7 +616,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
           .map((line) => ({
             id: line.id,
             chargeNo: charge.chargeNo,
-            chargeName: line.charge || line.vehicle || charge.chargeNo || `Charge ${line.id}`,
+            chargeName: getMunshayanaName(line.charge) || line.vehicle || charge.chargeNo || `Charge ${line.id}`,
             orderNo: charge.orderNo,
             chargeDate: charge.chargeDate || new Date().toISOString().split('T')[0],
             date: line.date || charge.chargeDate || '',
@@ -1098,32 +1108,40 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         totalBillPayments: billPaymentInvoices.length
       });
 
-      // Check if there's a matching billpaymentinvoice for this order/vehicle
+      // Check if there's a matching billpaymentinvoice for this order/vehicle AND chargeNo
       const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
         if (!bill.lines || !Array.isArray(bill.lines)) return false;
-        const hasMatch = bill.lines.some((line: any) => {
+        return bill.lines.some((line: any) => {
+          if (line.isAdditionalLine) return false;
           const vehicleMatch = line.vehicleNo === selectedVehicleNo;
           const orderMatch = line.orderNo === orderNo || line.orderNo === String(orderNo);
+          // Match chargesNo from bill payment line against the selected charge's chargeNo
+          const lineChargesNo = String(line.chargesNo || line.chargeNo || '').trim();
+          const selectedChargeNo = String(chargeNo || '').trim();
+          const chargeNoMatch = lineChargesNo !== '' && selectedChargeNo !== '' && lineChargesNo === selectedChargeNo;
           console.log('Checking bill line:', {
             billId: bill.id,
             lineVehicle: line.vehicleNo,
             lineOrder: line.orderNo,
+            lineChargesNo,
+            selectedChargeNo,
             vehicleMatch,
             orderMatch,
-            isAdditionalLine: line.isAdditionalLine,
-            bothMatch: vehicleMatch && orderMatch
+            chargeNoMatch,
+            allMatch: vehicleMatch && orderMatch && chargeNoMatch,
           });
-          // MUST match BOTH vehicle AND order (not just one)
-          return !line.isAdditionalLine && vehicleMatch && orderMatch;
+          return vehicleMatch && orderMatch && chargeNoMatch;
         });
-        return hasMatch;
       });
 
       console.log('Matching BillPayment found:', matchingBillPayment ? 'Yes' : 'No', matchingBillPayment?.id);
 
       // If matching billpayment found, calculate amount after Munshyana deduction
       if (matchingBillPayment && matchingBillPayment.lines) {
-        const mainLine = matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
+        const mainLine = matchingBillPayment.lines.find((l: any) =>
+          !l.isAdditionalLine &&
+          String(l.chargesNo || l.chargeNo || '').trim() === String(chargeNo || '').trim()
+        ) || matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
         
         if (mainLine) {
           // Start with charge amount
@@ -1177,15 +1195,22 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
       const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
         if (!bill.lines || !Array.isArray(bill.lines)) return false;
         return bill.lines.some((line: any) => {
+          if (line.isAdditionalLine) return false;
           const vehicleMatch = line.vehicleNo === selectedVehicleNo;
           const orderMatch = line.orderNo === orderNo || line.orderNo === String(orderNo);
+          const lineChargesNo = String(line.chargesNo || line.chargeNo || '').trim();
+          const selectedChargeNo = String(charge.chargeNo || '').trim();
+          const chargeNoMatch = lineChargesNo !== '' && selectedChargeNo !== '' && lineChargesNo === selectedChargeNo;
           // MUST match BOTH vehicle AND order (not just one)
-          return !line.isAdditionalLine && vehicleMatch && orderMatch;
+          return vehicleMatch && orderMatch && chargeNoMatch;
         });
       });
       
       if (matchingBillPayment && matchingBillPayment.lines) {
-        const mainLine = matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
+        const mainLine = matchingBillPayment.lines.find((l: any) =>
+          !l.isAdditionalLine &&
+          String(l.chargesNo || l.chargeNo || '').trim() === String(charge.chargeNo || '').trim()
+        ) || matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
         if (mainLine) {
           const chargeAmount = Number(charge.amount) || 0;
           const munshayanaDeduction = Number(mainLine.munshayana) || 0;
@@ -1594,7 +1619,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                                 disabled={isViewMode || !row.vehicleNo || !row.orderNo}
                                 title={row.charges || row.chargeNo || 'Select'}
                               >
-                                {row.charges || 'Select'}
+                                {getMunshayanaName(row.charges || '') || row.charges || 'Select'}
                               </Button>
                               {errors.paymentABLItems?.[index]?.charges && (
                                 <p className="text-red-500 text-xs mt-1">{errors.paymentABLItems[index].charges.message}</p>
@@ -1988,7 +2013,8 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
                             className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                           >
                             <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
-                              {charge.chargeNo}
+                              <div className="font-medium">{charge.chargeName}</div>
+                              <div className="text-xs text-gray-400">{charge.chargeNo}</div>
                             </td>
                             <td className="px-2 sm:px-4 py-2 sm:py-3 border-r border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-200">
                               {charge.vehicle}{selectedVehiclesSet.has(String(charge.vehicle || '').trim()) ? ' (✓)' : ''}

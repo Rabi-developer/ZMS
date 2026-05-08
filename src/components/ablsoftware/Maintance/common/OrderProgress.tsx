@@ -52,12 +52,12 @@ const formatNumber = (v: any): number => {
 };
 
 const formatDate = (dateStr: string | undefined | null): string => {
-  if (!dateStr || dateStr.toString().trim() === "") return "Not Set";
+  if (!dateStr || dateStr.toString().trim() === "") return "-";
   try {
     const d = new Date(dateStr.toString());
-    return isNaN(d.getTime()) ? "Not Set" : d.toISOString().split("T")[0];
+    return isNaN(d.getTime()) ? "-" : d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '-');
   } catch {
-    return "Not Set";
+    return "-";
   }
 };
 
@@ -74,28 +74,19 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [bookingOrderId, setBookingOrderId] = useState<string | undefined>(propBookingOrderId);
 
-  // If bookingOrderId is not provided but orderNo is, we might need to fetch it.
-  // Or if consignments are provided, we might find it there.
-  
   useEffect(() => {
     if (propBookingOrderId) {
       setBookingOrderId(propBookingOrderId);
     } else if (propConsignments && propConsignments.length > 0 && propConsignments[0].bookingOrderId) {
       setBookingOrderId(propConsignments[0].bookingOrderId);
     } else if (orderNo) {
-       // Try to fetch booking order to get ID if we only have orderNo
        const fetchId = async () => {
          try {
-            // Fetch more records to ensure we find the correct order if backend filtering is fuzzy or ignored
             const res = await getAllBookingOrder(1, 100, { orderNo: String(orderNo) });
             if (res?.data) {
                 const found = res.data.find((b: any) => String(b.orderNo) === String(orderNo));
                 if (found) {
                     setBookingOrderId(found.id);
-                } else if (res.data.length > 0) {
-                    // Fallback: if exact match not found but we have data, maybe check if backend returned what we asked
-                    // But if backend ignores filter, we shouldn't just take the first one.
-                    console.warn(`OrderProgress: Could not find orderNo ${orderNo} in fetched results.`);
                 }
             }
          } catch (e) {
@@ -114,7 +105,6 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
       try {
         const res = await getOrderProgress(bookingOrderId);
         if (res?.data) {
-            // Filter by biltyNo if provided
             let filteredData = res.data;
             if (biltyNo && biltyNo.trim() !== '') {
               filteredData = res.data.filter((item: OrderProgressRes) => 
@@ -133,7 +123,6 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
     fetchData();
   }, [bookingOrderId, biltyNo]);
 
-  // Calculate steps based on progressData
   const steps: Step[] = useMemo(() => {
     const hasConsignments = progressData.some(p => p.biltyNo || p.consignmentStatus !== "No Consignment");
     const hasCharges = progressData.some(p => p.charges && p.charges !== "-");
@@ -141,136 +130,79 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
     const hasPayments = progressData.some(p => p.paymentNo && p.paymentNo !== "-");
     
     const list: Step[] = [
-      { 
-        key: "booking", 
-        label: "Booking", 
-        completed: true, 
-        hint: `Order: ${orderNo || progressData[0]?.orderNo || ""}` 
-      },
-      { 
-        key: "consignment", 
-        label: "Consignment Issued", 
-        completed: hasConsignments, 
-        hint: hasConsignments ? "Issued" : "None" 
-      },
-      { 
-        key: "charges", 
-        label: "Charges Note", 
-        completed: hasCharges, 
-        hint: hasCharges ? "Charges added" : "None" 
-      },
-      { 
-        key: "receipt", 
-        label: "Receipt Note", 
-        completed: hasReceipts, 
-        hint: hasReceipts ? "Receipts added" : "None" 
-      },
-      { 
-        key: "payment", 
-        label: "Payment Note", 
-        completed: hasPayments, 
-        hint: hasPayments ? "Payments added" : "None" 
-      },
+      { key: "booking", label: "Booking", completed: true },
+      { key: "consignment", label: "Consignment", completed: hasConsignments },
+      { key: "charges", label: "Charges", completed: hasCharges },
+      { key: "receipt", label: "Receipt", completed: hasReceipts },
+      { key: "payment", label: "Payment", completed: hasPayments },
     ];
     const firstNotDone = list.findIndex(s => !s.completed);
     if (firstNotDone >= 0) list[firstNotDone].active = true;
     return list;
-  }, [progressData, orderNo]);
+  }, [progressData]);
 
   const hideBookingCols = !!hideBookingOrderInfo;
 
   return (
-    <div className="w-full bg-white rounded-lg shadow-md border border-gray-200">
-      <div className="p-4">
-        <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-          Order Progress
-        </h4>
-
+    <div className="w-full bg-white shadow-inner border-t border-gray-300">
+      <div className="p-0">
         <div className="overflow-x-auto">
-          <div className="max-h-[300px] overflow-y-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead className="sticky top-0 bg-[#e0ebe2] z-10">
-                <tr className="text-[#3a614c]">
-                  <th className="p-3 font-semibold">Bilty No</th>
-                  <th className="p-3 font-semibold">Receipt No</th>
-                  <th className="p-3 font-semibold">Payment No</th>
+          <div className="max-h-[35vh] overflow-y-auto">
+            <table className="w-full text-left border-collapse text-[10px]">
+              <thead className="sticky top-0 bg-[#e0ebe2] z-10 shadow-sm">
+                <tr className="text-[#3a614c] uppercase tracking-tighter">
+                  <th className="p-2 font-bold border-r border-gray-300">Bilty No</th>
+                  <th className="p-2 font-bold border-r border-gray-300">Receipt No</th>
+                  <th className="p-2 font-bold border-r border-gray-300">Payment No</th>
                   {!hideBookingCols && (
                     <>
-                      <th className="p-3 font-semibold">Order No</th>
-                      <th className="p-3 font-semibold">Order Date</th>
-                      <th className="p-3 font-semibold">Vehicle No</th>
+                      <th className="p-2 font-bold border-r border-gray-300">Order No</th>
+                      <th className="p-2 font-bold border-r border-gray-300">Order Date</th>
+                      <th className="p-2 font-bold border-r border-gray-300">Vehicle No</th>
                     </>
                   )}
-                  <th className="p-3 font-semibold">Consignor</th>
-                  <th className="p-3 font-semibold">Consignee</th>
-                  <th className="p-3 font-semibold">Freight</th>
-                  <th className="p-3 font-semibold">Freight From</th>
-                  <th className="p-3 font-semibold">Items</th>
-                  <th className="p-3 font-semibold">Qty</th>
-                  <th className="p-3 font-semibold">Total</th>
-                  <th className="p-3 font-semibold">Received</th>
-                  <th className="p-3 font-semibold">Paid</th>
-                  <th className="p-3 font-semibold">Delivery Date</th>
-                  <th className="p-3 font-semibold">Paid To</th>
-                  <th className="p-3 font-semibold text-green-700 bg-green-50">Charges</th>
-                  <th className="p-3 font-semibold text-emerald-700 bg-emerald-50">Amount</th>
-                  <th className="p-3 font-semibold">Status</th>
+                  <th className="p-2 font-bold border-r border-gray-300">Consignor</th>
+                  <th className="p-2 font-bold border-r border-gray-300">Consignee</th>
+                  <th className="p-2 font-bold border-r border-gray-300">Freight</th>
+                  <th className="p-2 font-bold border-r border-gray-300">Items</th>
+                  <th className="p-2 font-bold border-r border-gray-300 text-right">Qty</th>
+                  <th className="p-2 font-bold border-r border-gray-300 text-right">Total</th>
+                  <th className="p-2 font-bold border-r border-gray-300 text-right">Received</th>
+                  <th className="p-2 font-bold border-r border-gray-300 text-right">Paid</th>
+                  <th className="p-2 font-bold border-r border-gray-300">Del. Date</th>
+                  <th className="p-2 font-bold border-r border-gray-300">Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-200">
                 {progressData.length === 0 ? (
-                    <tr><td colSpan={18} className="p-4 text-center text-gray-500">No data available</td></tr>
+                    <tr><td colSpan={18} className="p-8 text-center text-gray-400 italic bg-gray-50">No consignment records available for this order</td></tr>
                 ) : (
                 progressData.map((row, i) => (
-                  <tr key={i} className={`border-b ${i % 2 === 0 ? "bg-gray-50" : "bg-white"} hover:bg-gray-100`}>
-                    <td className="p-3 font-medium text-blue-700">{row.biltyNo || "-"}</td>
-                    <td className="p-3">{row.receiptNo || "-"}</td>
-                    <td className="p-3">{row.paymentNo || "-"}</td>
+                  <tr key={i} className={`hover:bg-blue-50/50 transition-colors ${i % 2 === 0 ? "bg-white" : "bg-gray-50/30"}`}>
+                    <td className="p-2 font-bold text-blue-800 border-r border-gray-200">{row.biltyNo || "-"}</td>
+                    <td className="p-2 border-r border-gray-200">{row.receiptNo || "-"}</td>
+                    <td className="p-2 border-r border-gray-200">{row.paymentNo || "-"}</td>
                     {!hideBookingCols && (
                       <>
-                        <td className="p-3 font-medium">{row.orderNo || "-"}</td>
-                        <td className="p-3 text-orange-700 font-medium">{formatDate(row.orderDate)}</td>
-                        <td className="p-3 text-purple-700 font-medium">{row.vehicleNo || "-"}</td>
+                        <td className="p-2 font-medium border-r border-gray-200">{row.orderNo || "-"}</td>
+                        <td className="p-2 text-orange-800 border-r border-gray-200">{formatDate(row.orderDate)}</td>
+                        <td className="p-2 text-purple-800 border-r border-gray-200">{row.vehicleNo || "-"}</td>
                       </>
                     )}
-                    <td className="p-3">{row.consignor || "-"}</td>
-                    <td className="p-3">{row.consignee || "-"}</td>
-                    <td className="p-3 text-indigo-700 font-medium">{row.freight || "-"}</td>
-                    <td className="p-3 text-teal-700 font-medium">{row.freightFrom || "-"}</td>
-                    <td className="p-3 truncate max-w-[200px]" title={row.items}>{row.items || "-"}</td>
-                    <td className="p-3 truncate max-w-[150px] font-medium" title={row.qty}>{row.qty || "-"}</td>
-                    <td className="p-3 text-green-700 font-medium">{row.totalAmount ? Number(row.totalAmount).toLocaleString() : "-"}</td>
-                    <td className="p-3 text-emerald-700 font-medium">{row.receivedAmount ? Number(row.receivedAmount).toLocaleString() : "-"}</td>
-                    <td className="p-3 text-purple-700 font-medium">{row.paidAmount ? Number(row.paidAmount).toLocaleString() : "-"}</td>
-                    <td className="p-3 text-orange-700 font-medium">{formatDate(row.deliveryDate)}</td>
-                    <td className="p-3 text-blue-700 font-medium">
-                      {row.paidToPerson ? (
-                        <span className="bg-blue-50 px-2 py-1 rounded text-xs">{row.paidToPerson}</span>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="p-3 min-w-[120px] text-green-700 font-medium">
-                      {row.charges ? (
-                        <span className="bg-green-100 px-3 py-1 rounded-md text-sm font-medium text-green-800">{row.charges}</span>
-                      ) : (
-                        <span className="text-gray-400 italic">No Charges</span>
-                      )}
-                    </td>
-                    <td className="p-3 min-w-[100px] text-emerald-700 font-semibold">
-                      {row.amount ? (
-                         <span className="bg-emerald-100 px-3 py-1 rounded-md text-sm font-bold text-emerald-800">
-                             Rs.{row.amount}
-                         </span>
-                      ) : (
-                        <span className="text-gray-400 italic">No Amount</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${row.consignmentStatus === "Delivered" ? "bg-green-100 text-green-800" :
-                        row.consignmentStatus === "In Transit" ? "bg-blue-100 text-blue-800" :
-                          row.consignmentStatus === "Pending" ? "bg-yellow-100 text-yellow-800" :
-                            "bg-gray-100 text-gray-600"
+                    <td className="p-2 border-r border-gray-200 truncate max-w-[120px]" title={row.consignor}>{row.consignor || "-"}</td>
+                    <td className="p-2 border-r border-gray-200 truncate max-w-[120px]" title={row.consignee}>{row.consignee || "-"}</td>
+                    <td className="p-2 text-indigo-800 font-bold border-r border-gray-200 text-right">{row.freight || "0.00"}</td>
+                    <td className="p-2 truncate max-w-[150px] border-r border-gray-200" title={row.items}>{row.items || "-"}</td>
+                    <td className="p-2 font-bold border-r border-gray-200 text-right">{row.qty || "0"}</td>
+                    <td className="p-2 text-green-800 font-bold border-r border-gray-200 text-right">{row.totalAmount ? Number(row.totalAmount).toLocaleString(undefined, {minimumFractionDigits:2}) : "0.00"}</td>
+                    <td className="p-2 text-emerald-800 font-bold border-r border-gray-200 text-right">{row.receivedAmount ? Number(row.receivedAmount).toLocaleString(undefined, {minimumFractionDigits:2}) : "0.00"}</td>
+                    <td className="p-2 text-purple-800 font-bold border-r border-gray-200 text-right">{row.paidAmount ? Number(row.paidAmount).toLocaleString(undefined, {minimumFractionDigits:2}) : "0.00"}</td>
+                    <td className="p-2 text-orange-800 border-r border-gray-200">{formatDate(row.deliveryDate)}</td>
+                    <td className="p-2 font-bold">
+                      <span className={`px-2 py-0.5 rounded-sm text-[9px] uppercase tracking-tighter ${row.consignmentStatus === "Delivered" ? "bg-green-100 text-green-800 border border-green-200" :
+                        row.consignmentStatus === "In Transit" ? "bg-blue-100 text-blue-800 border border-blue-200" :
+                        row.consignmentStatus === "Pending" ? "bg-yellow-100 text-yellow-800 border border-yellow-200" :
+                        "bg-gray-100 text-gray-600 border border-gray-200"
                         }`}>
                         {row.consignmentStatus || "Pending"}
                       </span>
@@ -283,34 +215,38 @@ const OrderProgress: React.FC<OrderProgressProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto py-2 px-6 bg-gray-50 border-t">
+      <div className="flex items-center gap-4 overflow-x-auto py-1 px-4 bg-gray-100 border-t border-gray-300">
         {steps.map((step, idx) => {
           const isLast = idx === steps.length - 1;
           const prevDone = idx === 0 || steps[idx - 1].completed;
           return (
-            <div key={step.key} className="flex items-center min-w-max">
+            <div key={step.key} className="flex items-center min-w-max group">
               <div
-                className={`w-9 h-9 rounded-full border-2 flex items-center justify-center text-xs font-semibold ${step.completed ? "bg-emerald-600 border-emerald-600 text-white" :
-                  step.active ? "border-blue-500 text-blue-600 bg-blue-50" :
-                    "border-gray-300 text-gray-500 bg-white"
+                className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-bold shadow-sm transition-all ${step.completed ? "bg-emerald-600 border-emerald-700 text-white" :
+                  step.active ? "border-blue-500 text-blue-600 bg-white ring-2 ring-blue-100" :
+                    "border-gray-400 text-gray-400 bg-gray-50"
                   }`}
                 title={step.hint || ""}
               >
-                {step.completed ? <FaCheck size={14} /> : idx + 1}
+                {step.completed ? <FaCheck size={10} /> : idx + 1}
               </div>
-              <div className="ml-2 mr-3">
-                <div className={`text-xs font-semibold ${step.completed ? "text-emerald-700" : step.active ? "text-blue-700" : "text-gray-600"}`}>
+              <div className="ml-1.5">
+                <div className={`text-[10px] font-bold uppercase tracking-tight ${step.completed ? "text-emerald-800" : step.active ? "text-blue-800" : "text-gray-500"}`}>
                   {step.label}
                 </div>
-                {step.hint && <div className="text-[10px] text-gray-500">{step.hint}</div>}
               </div>
               {!isLast && (
-                <div className="w-16 h-1 rounded-full" style={{ background: prevDone && step.completed ? "linear-gradient(90deg, #065f46, #34d399)" : "#e5e7eb" }} />
+                <div className="ml-3 w-8 h-0.5 rounded-full opacity-50" style={{ background: prevDone && step.completed ? "#059669" : "#9ca3af" }} />
               )}
             </div>
           );
         })}
-        {loading && <span className="ml-2 text-xs text-gray-500">updating…</span>}
+        {loading && (
+           <div className="ml-auto flex items-center gap-1.5 text-[9px] font-bold text-blue-600 animate-pulse uppercase">
+             <div className="w-2 h-2 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+             Refreshing
+           </div>
+        )}
       </div>
     </div>
   );
