@@ -228,12 +228,12 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   const selectVehicle = (charge: ChargeDisplay, index: number) => {
     if (isViewMode) return;
     
-    setValue(`lines.${index}.vehicleNo`, charge.vehicleNo);
-    setValue(`lines.${index}.orderNo`, charge.orderNo);
-    setValue(`lines.${index}.chargeNo`, charge.chargeNo);
-    setValue(`lines.${index}.amount`, charge.amount);
-    setValue(`lines.${index}.munshayana`, 0);
-    setValue(`lines.${index}.isAdditionalLine`, false);
+    setValue(`lines.${index}.vehicleNo`, charge.vehicleNo, { shouldValidate: true });
+    setValue(`lines.${index}.orderNo`, charge.orderNo, { shouldValidate: true });
+    setValue(`lines.${index}.chargeNo`, charge.chargeNo, { shouldValidate: true });
+    setValue(`lines.${index}.amount`, charge.amount, { shouldValidate: true });
+    setValue(`lines.${index}.munshayana`, 0, { shouldValidate: true });
+    setValue(`lines.${index}.isAdditionalLine`, false, { shouldValidate: true });
 
     setShowPopup(false);
     setSearchQuery('');
@@ -324,7 +324,7 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
   const hasAdditionalLines = lines.some((l: any) => l.isAdditionalLine);
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-2 sm:p-4">
+    <div className="w-full p-2 sm:p-4">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border">
          {!isViewMode && (
         <div className="bg-gradient-to-r from-[#3a614c] to-[#6e997f] text-white p-4 sm:p-6 rounded-t-2xl">
@@ -415,185 +415,189 @@ const BillPaymentInvoiceForm = ({ isEdit = false, initialData }: BillPaymentInvo
             </div>
 
             <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm table-fixed">
                 <thead className="bg-gray-200 dark:bg-gray-800">
                   <tr>
-                    <th className="px-4 py-3 text-left">Vehicle No</th>
-                    <th className="px-4 py-3 text-left">Order No</th>
-                    <th className="px-4 py-3 text-left">Charge No</th>
-                    <th className="px-4 py-3 text-left">Amount</th>
-                    {hasAdditionalLines && <th className="px-4 py-3 text-left">Name Charges</th>}
-                    {hasAdditionalLines && <th className="px-4 py-3 text-left">Amount Charges</th>}
-                    <th className="px-4 py-3 text-left">Munshayana</th>
-                    <th className="px-4 py-3 text-left">Broker</th>
-                    <th className="px-4 py-3 text-left">Due Date</th>
-                    <th className="px-4 py-3 text-left">Remarks</th>
-                    <th className="px-4 py-3 text-left">Action</th>
+                    <th className="px-4 py-3 text-left w-32">Vehicle No</th>
+                    <th className="px-4 py-3 text-left w-24">Order No</th>
+                    <th className="px-4 py-3 text-left w-24">Charge No</th>
+                    <th className="px-4 py-3 text-left w-28">Amount</th>
+                    <th className="px-4 py-3 text-left w-28">Munshayana</th>
+                    <th className="px-4 py-3 text-left w-48">Broker</th>
+                    <th className="px-4 py-3 text-left w-32">Due Date</th>
+                    <th className="px-4 py-3 text-left w-40">Remarks</th>
+                    <th className="px-4 py-3 text-left w-20">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y dark:divide-gray-700">
                   {lines.map((line: any, index) => (
                     <tr key={index} className="hover:bg-gray-100 dark:hover:bg-gray-800">
-                      <td className="px-4 py-3">
-                        {!line.isAdditionalLine && (
-                          <>
-                            {!isViewMode ? (
+                      {line.isAdditionalLine ? (
+                        <>
+                          <td className="px-4 py-3" colSpan={2}>
+                            <input
+                              {...register(`lines.${index}.nameCharges`)}
+                              className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                              placeholder="Charge name"
+                              disabled={isViewMode}
+                            />
+                          </td>
+                          <td className="px-4 py-3" colSpan={2}>
+                            <input
+                              type="number"
+                              {...register(`lines.${index}.amountCharges`, { valueAsNumber: true })}
+                              className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                              placeholder="Amount"
+                              disabled={isViewMode}
+                            />
+                          </td>
+                          <td className="px-4 py-3" colSpan={4}></td>
+                          <td className="px-4 py-3">
+                            {!isViewMode && lines.length > 1 && (
                               <Button
                                 type="button"
-                                onClick={() => {
-                                  setSelectedLineIndex(index);
-                                  setShowPopup(true);
-                                }}
-                                className="mb-2 w-full text-xs bg-[#3a614c] hover:bg-[#3a614c]/90"
+                                onClick={() => removeLine(index)}
+                                className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2"
                               >
-                                Select Vehicle
+                                <FiTrash2 />
                               </Button>
-                            ) : (
-                            <input
-                              {...register(`lines.${index}.vehicleNo`)}
-                              disabled
-                              className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
-                            />
                             )}
-                          </>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!line.isAdditionalLine && (
-                          <input
-                            {...register(`lines.${index}.orderNo`)}
-                            disabled
-                            className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!line.isAdditionalLine && (
-                          <input
-                            {...register(`lines.${index}.chargeNo`)}
-                            disabled
-                            className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!line.isAdditionalLine && (
-                          <input
-                            type="number"
-                            {...register(`lines.${index}.amount`, { valueAsNumber: true })}
-                            disabled
-                            className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
-                          />
-                        )}
-                      </td>
-                      {hasAdditionalLines && (
+                          </td>
+                        </>
+                      ) : (
                         <>
                           <td className="px-4 py-3">
-                            {line.isAdditionalLine && (
+                            {!isViewMode ? (
+                              <div>
+                                <Button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedLineIndex(index);
+                                    setShowPopup(true);
+                                  }}
+                                  className="mb-2 w-full text-xs bg-[#3a614c] hover:bg-[#3a614c]/90"
+                                >
+                                  Select Vehicle
+                                </Button>
+                                <input
+                                  {...register(`lines.${index}.vehicleNo`)}
+                                  disabled
+                                  className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800 text-xs"
+                                />
+                              </div>
+                            ) : (
                               <input
-                                {...register(`lines.${index}.nameCharges`)}
-                                className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                                placeholder="Charge name"
-                                disabled={isViewMode}
+                                {...register(`lines.${index}.vehicleNo`)}
+                                disabled
+                                className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
                               />
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            {line.isAdditionalLine && (
-                              <input
-                                type="number"
-                                {...register(`lines.${index}.amountCharges`, { valueAsNumber: true })}
-                                className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                                disabled={isViewMode}
-                              />
+                            <input
+                              {...register(`lines.${index}.orderNo`)}
+                              disabled
+                              className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              {...register(`lines.${index}.chargeNo`)}
+                              disabled
+                              className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              {...register(`lines.${index}.amount`, { valueAsNumber: true })}
+                              disabled
+                              className="w-full border rounded px-3 py-2 bg-gray-100 dark:bg-gray-800"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              {...register(`lines.${index}.munshayana`, { valueAsNumber: true })}
+                              className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                              disabled={isViewMode}
+                              onBlur={(e) => numberInputHandlers.onBlur(e, 2)}
+                              onFocus={numberInputHandlers.onFocus}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <Controller
+                              name={`lines.${index}.broker`}
+                              control={control}
+                              render={({ field }) => (
+                                <AblCustomDropdown
+                                  options={businessAssociates}
+                                  selectedOption={field.value || ''}
+                                  onChange={field.onChange}
+                                  label=""
+                                  disabled={isViewMode}
+                                />
+                              )}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              type="date"
+                              {...register(`lines.${index}.dueDate`)}
+                              className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                              disabled={isViewMode}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input
+                              {...register(`lines.${index}.remarks`)}
+                              className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                              placeholder="Remarks"
+                              disabled={isViewMode}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            {!isViewMode && lines.length > 1 && (
+                              <Button
+                                type="button"
+                                onClick={() => removeLine(index)}
+                                className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2"
+                              >
+                                <FiTrash2 />
+                              </Button>
                             )}
                           </td>
                         </>
                       )}
-                      <td className="px-4 py-3">
-                        {!line.isAdditionalLine && (
-                          <input
-                            type="number"
-                            {...register(`lines.${index}.munshayana`, { valueAsNumber: true })}
-                            className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                            disabled={isViewMode}
-                            onBlur={(e) => numberInputHandlers.onBlur(e, 2)}
-                            onFocus={numberInputHandlers.onFocus}
-                          />
-                        )}
-                      </td>
-                      <td className="w-full px-4 py-3">
-                        {!line.isAdditionalLine && (
-                          <Controller
-                            name={`lines.${index}.broker`}
-                            control={control}
-                            render={({ field }) => (
-                              <AblCustomDropdown
-                                options={businessAssociates}
-                                selectedOption={field.value || ''}
-                                onChange={field.onChange}
-                                label=""
-                                disabled={isViewMode}
-                              />
-                            )}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!line.isAdditionalLine && (
-                          <input
-                            type="date"
-                            {...register(`lines.${index}.dueDate`)}
-                            className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                            disabled={isViewMode}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!line.isAdditionalLine && (
-                          <input
-                            {...register(`lines.${index}.remarks`)}
-                            className="w-full border rounded px-3 py-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                            placeholder="Remarks"
-                            disabled={isViewMode}
-                          />
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {!isViewMode && lines.length > 1 && (
-                          <Button
-                            type="button"
-                            onClick={() => removeLine(index)}
-                            className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2"
-                          >
-                            <FiTrash2 />
-                          </Button>
-                        )}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-gray-200 dark:bg-gray-800 font-bold">
                   <tr>
-                    <td colSpan={2} className="px-4 py-3">Total Amount</td>
+                    <td colSpan={3} className="px-4 py-3">Total Amount</td>
                     <td className="px-4 py-3">{totalAmount.toLocaleString()}</td>
-                    <td className="px-4 py-3"></td>
-                    {hasAdditionalLines && <td colSpan={2} className="px-4 py-3 text-right">{totalAdditional.toLocaleString()}</td>}
-                    <td colSpan={6}></td>
+                    <td colSpan={5}></td>
                   </tr>
+                  {totalAdditional > 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-3 text-green-600">Additional Charges</td>
+                      <td className="px-4 py-3 text-green-600">+{totalAdditional.toLocaleString()}</td>
+                      <td colSpan={5}></td>
+                    </tr>
+                  )}
                   {munshayanaDeduction > 0 && (
                     <tr>
-                      <td colSpan={2} className="px-4 py-3 text-red-600">Munshayana Deduction</td>
+                      <td colSpan={3} className="px-4 py-3 text-red-600">Munshayana Deduction</td>
                       <td className="px-4 py-3 text-red-600">-{munshayanaDeduction.toLocaleString()}</td>
-                      <td colSpan={7}></td>
+                      <td colSpan={5}></td>
                     </tr>
                   )}
                   <tr className="text-lg">
-                    <td colSpan={2} className="px-4 py-3">Final Total</td>
-                    <td colSpan={hasAdditionalLines ? 3 : 1} className="px-4 py-3 text-green-600">
+                    <td colSpan={3} className="px-4 py-3">Final Total</td>
+                    <td className="px-4 py-3 text-green-600">
                       {finalTotal.toLocaleString()}
                     </td>
-                    <td colSpan={6}></td>
+                    <td colSpan={5}></td>
                   </tr>
                 </tfoot>
               </table>
