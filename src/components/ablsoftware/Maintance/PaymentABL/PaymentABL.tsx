@@ -532,6 +532,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [idFocused, setIdFocused] = useState(false);
   const [bookingOrders, setBookingOrders] = useState<BookingOrder[]>([]);
   const [charges, setCharges] = useState<Charge[]>([]);
@@ -823,11 +824,16 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
         paymentAmount: typeof initialData.paymentAmount === 'string' ? parseFloat(initialData.paymentAmount) || null : initialData.paymentAmount ?? null,
         paymentABLItems: normalizedItems,
       });
+      // Mark initial load done so balance recalculation doesn't override saved values
+      setTimeout(() => setIsInitialLoad(false), 100);
     }
   }, [isEdit, initialData, reset]);
 
   // Update table calculations - recalculate balance when paid amount changes
   useEffect(() => {
+    // Skip recalculation on initial edit load — preserve saved values
+    if (isEdit && isInitialLoad) return;
+
     let hasChanges = false;
     const updatedPaymentABLItems = paymentABLItems.map((row) => {
       // Calculate balance: Expense Amount - Paid Amount
@@ -997,33 +1003,69 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     
     try {
 
-      // In edit mode, skip history check — use original charge amount directly
+      // In edit mode, check history API but use original amount if no history found
       if (isEdit) {
         let finalAmount = charge.amount || null;
         const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
-        const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
-          if (!bill.lines || !Array.isArray(bill.lines)) return false;
-          return bill.lines.some((line: any) => {
-            if (line.isAdditionalLine) return false;
-            const vehicleMatch = line.vehicleNo === selectedVehicleNo;
-            const orderMatch = line.orderNo === orderNo || line.orderNo === String(orderNo);
-            const lineChargesNo = String(line.chargesNo || line.chargeNo || '').trim();
-            const selectedChargeNo = String(chargeNo || '').trim();
-            const chargeNoMatch = lineChargesNo !== '' && selectedChargeNo !== '' && lineChargesNo === selectedChargeNo;
-            return vehicleMatch && orderMatch && chargeNoMatch;
+
+        // Apply munshyana deduction from bill payment if matched
+        const applyMunshyana = (baseAmount: number) => {
+          const matchingBill = billPaymentInvoices.find((bill: any) => {
+            if (!bill.lines || !Array.isArray(bill.lines)) return false;
+            return bill.lines.some((line: any) => {
+              if (line.isAdditionalLine) return false;
+              const vMatch = line.vehicleNo === selectedVehicleNo;
+              const oMatch = line.orderNo === orderNo || line.orderNo === String(orderNo);
+              const cMatch = String(line.chargesNo || line.chargeNo || '').trim() === String(chargeNo || '').trim();
+              return vMatch && oMatch && cMatch;
+            });
           });
-        });
-        if (matchingBillPayment && matchingBillPayment.lines) {
-          const mainLine = matchingBillPayment.lines.find((l: any) =>
-            !l.isAdditionalLine &&
-            String(l.chargesNo || l.chargeNo || '').trim() === String(chargeNo || '').trim()
-          ) || matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
-          if (mainLine) {
-            const chargeAmount = Number(charge.amount) || 0;
-            const munshayanaDeduction = Number(mainLine.munshayana) || 0;
-            finalAmount = chargeAmount - munshayanaDeduction;
+          if (matchingBill?.lines) {
+            const ml = matchingBill.lines.find((l: any) =>
+              !l.isAdditionalLine &&
+              String(l.chargesNo || l.chargeNo || '').trim() === String(chargeNo || '').trim()
+            ) || matchingBill.lines.find((l: any) => !l.isAdditionalLine);
+            if (ml) return baseAmount - (Number(ml.munshayana) || 0);
           }
+          return baseAmount;
+        };
+
+        // Check history to get remaining balance
+        if (vehicleNo && orderNo && chargeNo) {
+          try {
+            const historyRes = await getPaymentABLHistory({ vehicleNo, orderNo, charges: chargeNo });
+            if (historyRes?.data !== null) {
+              let historyData: any[] = [];
+              if (Array.isArray(historyRes)) historyData = historyRes;
+              else if (Array.isArray(historyRes?.data)) historyData = historyRes.data;
+              else if (historyRes?.data && typeof historyRes.data === 'object') historyData = [historyRes.data];
+
+              const historyRecord = historyData.find((h: any) =>
+                (h.vehicleNo === vehicleNo || h.charges === chargeNo || h.charges === String(chargeNo)) &&
+                (h.orderNo === orderNo || h.orderNo === String(orderNo))
+              );
+
+              if (historyRecord && Number(historyRecord.balance) === 0) {
+                toast.error(`Payment already completed. Balance is 0.`);
+                return;
+              }
+              if (historyRecord && Number(historyRecord.balance) > 0) {
+                finalAmount = Number(historyRecord.balance);
+                toast.info(`Remaining balance: ${finalAmount.toLocaleString()}`);
+              } else {
+                // No history — apply munshyana on original amount
+                finalAmount = applyMunshyana(Number(charge.amount) || 0);
+              }
+            } else {
+              finalAmount = applyMunshyana(Number(charge.amount) || 0);
+            }
+          } catch {
+            finalAmount = applyMunshyana(Number(charge.amount) || 0);
+          }
+        } else {
+          finalAmount = applyMunshyana(Number(charge.amount) || 0);
         }
+
         setValue(`paymentABLItems.${index}.charges`, String(chargeName), { shouldValidate: false });
         setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
         setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
