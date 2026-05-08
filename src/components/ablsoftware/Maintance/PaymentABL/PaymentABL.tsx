@@ -997,7 +997,47 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
     
     try {
 
-      // Only check history if all required fields are present
+      // In edit mode, skip history check — use original charge amount directly
+      if (isEdit) {
+        let finalAmount = charge.amount || null;
+        const selectedVehicleNo = paymentABLItems?.[index]?.vehicleNo || '';
+        const matchingBillPayment = billPaymentInvoices.find((bill: any) => {
+          if (!bill.lines || !Array.isArray(bill.lines)) return false;
+          return bill.lines.some((line: any) => {
+            if (line.isAdditionalLine) return false;
+            const vehicleMatch = line.vehicleNo === selectedVehicleNo;
+            const orderMatch = line.orderNo === orderNo || line.orderNo === String(orderNo);
+            const lineChargesNo = String(line.chargesNo || line.chargeNo || '').trim();
+            const selectedChargeNo = String(chargeNo || '').trim();
+            const chargeNoMatch = lineChargesNo !== '' && selectedChargeNo !== '' && lineChargesNo === selectedChargeNo;
+            return vehicleMatch && orderMatch && chargeNoMatch;
+          });
+        });
+        if (matchingBillPayment && matchingBillPayment.lines) {
+          const mainLine = matchingBillPayment.lines.find((l: any) =>
+            !l.isAdditionalLine &&
+            String(l.chargesNo || l.chargeNo || '').trim() === String(chargeNo || '').trim()
+          ) || matchingBillPayment.lines.find((l: any) => !l.isAdditionalLine);
+          if (mainLine) {
+            const chargeAmount = Number(charge.amount) || 0;
+            const munshayanaDeduction = Number(mainLine.munshayana) || 0;
+            finalAmount = chargeAmount - munshayanaDeduction;
+          }
+        }
+        setValue(`paymentABLItems.${index}.charges`, String(chargeName), { shouldValidate: false });
+        setValue(`paymentABLItems.${index}.chargeNo`, String(chargeNo), { shouldValidate: false });
+        setValue(`paymentABLItems.${index}.orderDate`, charge.chargeDate, { shouldValidate: false });
+        setValue(`paymentABLItems.${index}.dueDate`, charge.date, { shouldValidate: false });
+        setValue(`paymentABLItems.${index}.expenseAmount`, finalAmount, { shouldValidate: false });
+        setValue(`paymentABLItems.${index}.balance`, finalAmount || null, { shouldValidate: false });
+        setValue(`paymentABLItems.${index}.paidAmount`, null, { shouldValidate: false });
+        setValue('paidTo', charge.paidTo || watch('paidTo'), { shouldValidate: false });
+        setShowChargePopup(null);
+        setChargeSearch('');
+        return;
+      }
+
+      // Only check history if all required fields are present (create mode only)
       if (vehicleNo && orderNo && chargeNo) {
         try {
           // Check payment history for this specific vehicle/charge
