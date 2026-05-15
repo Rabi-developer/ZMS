@@ -1314,7 +1314,7 @@ const PaymentForm = ({ isEdit = false, initialData }: PaymentFormProps) => {
             id: row.id ?? null,
             vehicleNo: row.vehicleNo || '',
             orderNo: row.orderNo || '',
-            charges: row.charges || row.chargeNo || '',
+            charges: row.chargeNo || '',
             orderDate: row.orderDate || '',
             dueDate: row.dueDate || '',
             expenseAmount: row.expenseAmount !== null && row.expenseAmount !== undefined ? String(row.expenseAmount) : null,
